@@ -283,7 +283,9 @@ export default function ChatInterface() {
                     <div
                       className="record-ui-button"
                       onClick={stopRecording}
-                      style={{ color: theme === "light" ? "#333" : "" }}
+                      style={{
+                        color: !isRecording ? "#777 !important" : theme === "light" && isRecording ? "#333" : "",
+                      }}
                     >
                       <StopCircle size={20} />
                     </div>
@@ -311,9 +313,16 @@ export default function ChatInterface() {
               type="submit"
               className={cn(
                 "transition-colors",
-                isLoading ? "text-red-500 hover:text-red-600" : "text-gray-400 hover:text-gray-600",
+                isLoading
+                  ? "text-red-500 hover:text-red-600"
+                  : input.trim()
+                    ? "text-gray-600 hover:text-gray-800"
+                    : "text-gray-500",
               )}
-              style={{ color: theme === "light" ? "#333" : "" }}
+              style={{
+                color:
+                  !input.trim() && !isLoading ? "#777 !important" : theme === "light" && input.trim() ? "#333" : "",
+              }}
             >
               <AnimatePresence mode="wait">
                 <motion.div

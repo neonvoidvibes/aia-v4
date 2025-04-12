@@ -24,6 +24,10 @@
   --text-primary: 0 0% 100%; /* White text in dark mode */
   --text-secondary: 0 0% 70%;
   --text-muted: 0 0% 60%;
+
+  /* Button states */
+  --button-active: 0 0% 20%;
+  --button-inactive: 0 0% 50%; /* Mid-gray for inactive buttons */
 }
 
 .dark {
@@ -33,6 +37,10 @@
   --text-primary: 0 0% 100%; /* White text */
   --text-secondary: 0 0% 80%;
   --text-muted: 0 0% 60%;
+
+  /* Button states for dark mode */
+  --button-active: 0 0% 80%;
+  --button-inactive: 0 0% 50%; /* Mid-gray for inactive buttons */
 }
 
 .light {
@@ -42,6 +50,10 @@
   --text-primary: 0 0% 0%; /* Black text */
   --text-secondary: 0 0% 30%;
   --text-muted: 0 0% 45%;
+
+  /* Button states for light mode */
+  --button-active: 0 0% 20%;
+  --button-inactive: 0 0% 50%; /* Mid-gray for inactive buttons */
 }
 
 body {
@@ -389,10 +401,6 @@ body {
   color: black !important;
 }
 
-.user-bubble.with-attachment {
-  border-top-right-radius: 3px !important;
-}
-
 /* Ensure message content preserves whitespace */
 .ai-bubble,
 .user-bubble {
@@ -629,9 +637,9 @@ body {
 }
 
 /* User bubble styling */
-.dark .user-bubble {
-  background-color: hsl(var(--input-gray));
-  color: black !important;
+.user-bubble {
+  background-color: hsl(var(--input-gray)) !important;
+  color: hsl(var(--text-primary)) !important;
 }
 
 /* Fix the stop button styling */
@@ -1398,4 +1406,113 @@ div.record-ui,
 
 .light .record-ui button svg {
   stroke-width: 2px !important; /* Make the stroke thicker */
+}
+
+/* Button state styles with more specific selectors */
+/* Submit button */
+.input-container button[type="submit"] {
+  color: hsl(var(--button-active)) !important;
+}
+
+.input-container button[type="submit"] svg {
+  color: hsl(var(--button-active)) !important;
+  stroke: hsl(var(--button-active)) !important;
+  fill: hsl(var(--button-active)) !important;
+}
+
+.input-container button[type="submit"]:disabled,
+.input-container button[type="submit"][disabled] {
+  color: hsl(var(--button-inactive)) !important;
+}
+
+.input-container button[type="submit"]:disabled svg,
+.input-container button[type="submit"][disabled] svg {
+  color: hsl(var(--button-inactive)) !important;
+  stroke: hsl(var(--button-inactive)) !important;
+  fill: hsl(var(--button-inactive)) !important;
+}
+
+/* Record UI buttons */
+.record-ui button {
+  color: hsl(var(--button-active)) !important;
+}
+
+.record-ui button svg {
+  color: hsl(var(--button-active)) !important;
+  stroke: hsl(var(--button-active)) !important;
+}
+
+.record-ui button:disabled,
+.record-ui button[disabled] {
+  color: hsl(var(--button-inactive)) !important;
+}
+
+.record-ui button:disabled svg,
+.record-ui button[disabled] svg {
+  color: hsl(var(--button-inactive)) !important;
+  stroke: hsl(var(--button-inactive)) !important;
+}
+
+/* Special case for Square icon in loading state */
+.input-container button[type="submit"] .fill-current {
+  fill: hsl(var(--button-active)) !important;
+}
+
+.input-container button[type="submit"]:disabled .fill-current,
+.input-container button[type="submit"][disabled] .fill-current {
+  fill: hsl(var(--button-inactive)) !important;
+}
+
+/* Special case for play/pause/record buttons to preserve their colors */
+.record-ui button .text-red-500,
+.record-ui button svg.text-red-500 {
+  color: #ef4444 !important; /* red-500 */
+  stroke: #ef4444 !important;
+  fill: none !important;
+}
+
+.record-ui button .text-yellow-500,
+.record-ui button svg.text-yellow-500 {
+  color: #eab308 !important; /* yellow-500 */
+  stroke: #eab308 !important;
+  fill: none !important;
+}
+
+/* Ensure these special colors are preserved in both light and dark modes */
+.light .record-ui button .text-red-500,
+.light .record-ui button svg.text-red-500,
+.dark .record-ui button .text-red-500,
+.dark .record-ui button svg.text-red-500 {
+  color: #ef4444 !important;
+  stroke: #ef4444 !important;
+}
+
+.light .record-ui button .text-yellow-500,
+.light .record-ui button svg.text-yellow-500,
+.dark .record-ui button .text-yellow-500,
+.dark .record-ui button svg.text-yellow-500 {
+  color: #eab308 !important;
+  stroke: #eab308 !important;
+}
+
+/* Special case for play/pause/record buttons to preserve their colors */
+.record-ui button svg.text-red-500,
+.record-ui button .text-red-500 {
+  color: #ef4444 !important; /* red-500 */
+}
+
+.record-ui button svg.text-yellow-500,
+.record-ui button .text-yellow-500 {
+  color: #eab308 !important; /* yellow-500 */
+}
+
+/* Ensure these special colors are preserved in both light and dark modes */
+.light .record-ui button svg.text-red-500,
+.dark .record-ui button svg.text-red-500 {
+  color: #ef4444 !important;
+}
+
+.light .record-ui button svg.text-yellow-500,
+.dark .record-ui button svg.text-yellow-500 {
+  color: #eab308 !important;
 }

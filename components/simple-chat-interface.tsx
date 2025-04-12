@@ -778,16 +778,21 @@ const SimpleChatInterface = forwardRef<
                   }}
                 >
                   <button
-                    className={`p-1 ${isRecording && !isPaused ? "text-red-500" : isPaused ? "text-yellow-500" : "text-gray-600"}`}
+                    className="p-1"
                     onClick={toggleRecording}
+                    style={{ color: isRecording && !isPaused ? "#ef4444" : isPaused ? "#eab308" : "" }}
                   >
-                    {isRecording && !isPaused ? <Pause size={20} /> : <Play size={20} />}
+                    {isRecording && !isPaused ? (
+                      <Pause size={20} style={{ color: "#ef4444", stroke: "#ef4444" }} />
+                    ) : (
+                      <Play size={20} style={{ color: isPaused ? "#eab308" : "", stroke: isPaused ? "#eab308" : "" }} />
+                    )}
                   </button>
                   <button
-                    className={`p-1 ${isRecording ? "text-gray-600" : "text-gray-300 dark:text-gray-300 cursor-default"}`}
+                    className="p-1"
                     onClick={stopRecording}
                     disabled={!isRecording}
-                    style={{ color: theme === "light" && !isRecording ? "#555" : "" }}
+                    style={{ color: !isRecording ? "rgba(0,0,0,0.5)" : "" }}
                   >
                     <StopCircle size={20} />
                   </button>
@@ -809,15 +814,12 @@ const SimpleChatInterface = forwardRef<
 
             <button
               type="submit"
-              className={`p-2 ${
-                isLoading
-                  ? "text-gray-400 hover:text-gray-600 fill-gray-400 hover:fill-gray-600"
-                  : input.trim()
-                    ? "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-600"
-                    : "text-gray-300 dark:text-gray-300 cursor-default"
-              } transition-all duration-200`}
-              style={{ color: theme === "light" && !input.trim() && !isLoading ? "#555" : "" }}
+              className="p-2 transition-all duration-200"
               disabled={!input.trim() && !isLoading}
+              style={{
+                color: !input.trim() && !isLoading ? "rgba(0,0,0,0.5)" : "",
+                opacity: !input.trim() && !isLoading ? "0.5" : "1",
+              }}
               onClick={(e) => {
                 if (isLoading) {
                   e.preventDefault()
@@ -826,9 +828,9 @@ const SimpleChatInterface = forwardRef<
               }}
             >
               {isLoading ? (
-                <Square size={20} className="fill-current opacity-70 hover:opacity-100" />
+                <Square size={20} className="fill-current" style={{ color: "currentColor" }} />
               ) : (
-                <ArrowUp size={20} />
+                <ArrowUp size={20} style={{ color: !input.trim() ? "rgba(0,0,0,0.5)" : "" }} />
               )}
             </button>
           </div>
@@ -850,13 +852,20 @@ const SimpleChatInterface = forwardRef<
               <>
                 {isPaused ? (
                   <>
-                    listening: paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span>{" "}
+                    listening: paused{" "}
+                    <span
+                      className="inline-block ml-1 h-2 w-2 rounded-full"
+                      style={{ backgroundColor: "#eab308" }}
+                    ></span>{" "}
                     <span className="ml-1">{formatTime(recordingTime)}</span>
                   </>
                 ) : (
                   <>
                     listening: live{" "}
-                    <span className="inline-block ml-1 h-2  w-2 rounded-full bg-red-500 animate-pulse"></span>{" "}
+                    <span
+                      className="inline-block ml-1 h-2 w-2 rounded-full animate-pulse"
+                      style={{ backgroundColor: "#ef4444" }}
+                    ></span>{" "}
                     <span className="ml-1">{formatTime(recordingTime)}</span>
                   </>
                 )}
