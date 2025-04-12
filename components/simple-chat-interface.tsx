@@ -735,7 +735,10 @@ const SimpleChatInterface = forwardRef<
 
               {/* Plus menu */}
               {showPlusMenu && (
-                <div className="absolute left-0 bottom-full mb-2 bg-white rounded-full py-2 shadow-lg z-10 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
+                <div
+                  className="absolute left-0 bottom-full mb-2 bg-white rounded-full py-2 shadow-lg z-10 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
+                  style={{ backgroundColor: "hsl(var(--input-gray))" }} // Add inline style
+                >
                   <div
                     className="p-2 hover:text-gray-800 cursor-pointer opacity-70 hover:opacity-100"
                     onClick={attachDocument}
@@ -769,7 +772,10 @@ const SimpleChatInterface = forwardRef<
                   ref={recordUIRef}
                   onMouseMove={handleRecordUIMouseMove}
                   onClick={(e) => e.stopPropagation()} // Prevent clicks from bubbling up
-                  style={{ marginLeft: `${recordUIPosition.left}px` }}
+                  style={{
+                    marginLeft: `${recordUIPosition.left}px`,
+                    backgroundColor: "hsl(var(--input-gray))", // Add inline style
+                  }}
                 >
                   <button
                     className={`p-1 ${isRecording && !isPaused ? "text-red-500" : isPaused ? "text-yellow-500" : "text-gray-600"}`}
@@ -778,9 +784,10 @@ const SimpleChatInterface = forwardRef<
                     {isRecording && !isPaused ? <Pause size={20} /> : <Play size={20} />}
                   </button>
                   <button
-                    className={`p-1 ${isRecording ? "text-gray-600" : "text-gray-300 cursor-default"}`}
+                    className={`p-1 ${isRecording ? "text-gray-600" : "text-gray-300 dark:text-gray-300 cursor-default"}`}
                     onClick={stopRecording}
                     disabled={!isRecording}
+                    style={{ color: theme === "light" && !isRecording ? "#555" : "" }}
                   >
                     <StopCircle size={20} />
                   </button>
@@ -806,9 +813,10 @@ const SimpleChatInterface = forwardRef<
                 isLoading
                   ? "text-gray-400 hover:text-gray-600 fill-gray-400 hover:fill-gray-600"
                   : input.trim()
-                    ? "text-gray-600 hover:text-gray-800"
-                    : "text-gray-300 cursor-default"
+                    ? "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-600"
+                    : "text-gray-300 dark:text-gray-300 cursor-default"
               } transition-all duration-200`}
+              style={{ color: theme === "light" && !input.trim() && !isLoading ? "#555" : "" }}
               disabled={!input.trim() && !isLoading}
               onClick={(e) => {
                 if (isLoading) {

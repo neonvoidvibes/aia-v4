@@ -235,6 +235,7 @@ export default function ChatInterface() {
                     exit={{ opacity: 0, scale: 0.9, y: 10 }}
                     transition={{ duration: 0.2 }}
                     className="plus-menu"
+                    style={{ backgroundColor: "hsl(var(--input-gray))" }} // Add inline style
                   >
                     <div className="plus-menu-item" onClick={saveChat}>
                       <Download size={20} />
@@ -267,6 +268,7 @@ export default function ChatInterface() {
                         }, 3000)
                       }
                     }}
+                    style={{ backgroundColor: "hsl(var(--input-gray))" }} // Add inline style
                   >
                     <div
                       className={cn(
@@ -278,7 +280,11 @@ export default function ChatInterface() {
                     >
                       {isRecording && !isPaused ? <Pause size={20} /> : <Play size={20} />}
                     </div>
-                    <div className="record-ui-button" onClick={stopRecording}>
+                    <div
+                      className="record-ui-button"
+                      onClick={stopRecording}
+                      style={{ color: theme === "light" ? "#333" : "" }}
+                    >
                       <StopCircle size={20} />
                     </div>
                   </motion.div>
@@ -307,6 +313,7 @@ export default function ChatInterface() {
                 "transition-colors",
                 isLoading ? "text-red-500 hover:text-red-600" : "text-gray-400 hover:text-gray-600",
               )}
+              style={{ color: theme === "light" ? "#333" : "" }}
             >
               <AnimatePresence mode="wait">
                 <motion.div
