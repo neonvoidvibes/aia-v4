@@ -792,7 +792,10 @@ const SimpleChatInterface = forwardRef<
                     className="p-1"
                     onClick={stopRecording}
                     disabled={!isRecording}
-                    style={{ color: !isRecording ? "rgba(0,0,0,0.5)" : "" }}
+                    style={{
+                      color: !isRecording ? "rgba(0,0,0,0.5)" : "",
+                      opacity: !isRecording ? "0.5" : "1",
+                    }}
                   >
                     <StopCircle size={20} />
                   </button>
