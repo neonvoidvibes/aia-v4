@@ -1284,6 +1284,17 @@ select {
   color: black !important;
 }
 
+/* Add this more specific rule to ensure it overrides any other styles */
+.light .ai-bubble,
+.light .message-bubble.ai-message {
+  color: black !important;
+}
+
+/* Also add this rule to target any potential nested elements */
+.light .ai-message * {
+  color: black !important;
+}
+
 /* Ensure the assistant message text is white in dark mode */
 .dark .ai-message {
   color: white !important;
