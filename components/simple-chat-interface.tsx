@@ -584,6 +584,9 @@ const SimpleChatInterface = forwardRef<
     setShowConfirmModal(false)
   }
 
+  // Define darker gray for dark mode
+  const darkModeGray = "#444444"
+
   // Update message actions with improved styling and animation
   return (
     <div className="flex flex-col h-full">
@@ -780,12 +783,35 @@ const SimpleChatInterface = forwardRef<
                   <button
                     className="p-1"
                     onClick={toggleRecording}
-                    style={{ color: isRecording && !isPaused ? "#ef4444" : isPaused ? "#eab308" : "" }}
+                    style={{
+                      color:
+                        isRecording && !isPaused
+                          ? "#ef4444"
+                          : isPaused
+                            ? "#eab308"
+                            : theme === "dark"
+                              ? darkModeGray // Darker gray for dark mode
+                              : "",
+                    }}
                   >
                     {isRecording && !isPaused ? (
                       <Pause size={20} style={{ color: "#ef4444", stroke: "#ef4444" }} />
                     ) : (
-                      <Play size={20} style={{ color: isPaused ? "#eab308" : "", stroke: isPaused ? "#eab308" : "" }} />
+                      <Play
+                        size={20}
+                        style={{
+                          color: isPaused
+                            ? "#eab308"
+                            : theme === "dark"
+                              ? darkModeGray // Darker gray for dark mode
+                              : "",
+                          stroke: isPaused
+                            ? "#eab308"
+                            : theme === "dark"
+                              ? darkModeGray // Darker gray for dark mode
+                              : "",
+                        }}
+                      />
                     )}
                   </button>
                   <button
@@ -793,11 +819,24 @@ const SimpleChatInterface = forwardRef<
                     onClick={stopRecording}
                     disabled={!isRecording}
                     style={{
-                      color: !isRecording ? "rgba(0,0,0,0.5)" : "",
+                      color: !isRecording
+                        ? "rgba(0,0,0,0.5)"
+                        : theme === "dark"
+                          ? darkModeGray // Darker gray for dark mode
+                          : "",
                       opacity: !isRecording ? "0.5" : "1",
                     }}
                   >
-                    <StopCircle size={20} />
+                    <StopCircle
+                      size={20}
+                      style={{
+                        color: !isRecording
+                          ? "rgba(0,0,0,0.5)"
+                          : theme === "dark"
+                            ? darkModeGray // Darker gray for dark mode
+                            : "",
+                      }}
+                    />
                   </button>
                   {isRecording && (
                     <span className="text-sm font-medium text-gray-700 ml-1">{formatTime(recordingTime)}</span>
@@ -820,7 +859,12 @@ const SimpleChatInterface = forwardRef<
               className="p-2 transition-all duration-200"
               disabled={!input.trim() && !isLoading}
               style={{
-                color: !input.trim() && !isLoading ? "rgba(0,0,0,0.5)" : "",
+                color:
+                  !input.trim() && !isLoading
+                    ? "rgba(0,0,0,0.5)"
+                    : theme === "dark" && input.trim() && !isLoading
+                      ? darkModeGray // Darker gray for active submit in dark mode
+                      : "",
                 opacity: !input.trim() && !isLoading ? "0.5" : "1",
               }}
               onClick={(e) => {
@@ -833,7 +877,16 @@ const SimpleChatInterface = forwardRef<
               {isLoading ? (
                 <Square size={20} className="fill-current" style={{ color: "currentColor" }} />
               ) : (
-                <ArrowUp size={20} style={{ color: !input.trim() ? "rgba(0,0,0,0.5)" : "" }} />
+                <ArrowUp
+                  size={20}
+                  style={{
+                    color: !input.trim()
+                      ? "rgba(0,0,0,0.5)"
+                      : theme === "dark"
+                        ? darkModeGray // Darker gray for active submit in dark mode
+                        : "",
+                  }}
+                />
               )}
             </button>
           </div>
