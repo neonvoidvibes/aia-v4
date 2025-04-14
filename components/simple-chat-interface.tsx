@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react"
-import { useChat } from "@ai-sdk/react"
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from "react"
+import { useChat, type Message } from "@ai-sdk/react"
 import {
   Plus,
   ArrowUp,
@@ -23,928 +22,729 @@ import {
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { useMobile } from "@/hooks/use-mobile"
 import { useTheme } from "next-themes"
-import ConfirmationModal from "./confirmation-modal"
+// Removed ConfirmationModal import - managed by parent
 import { motion } from "framer-motion"
+import { useSearchParams } from 'next/navigation';
 
 interface SimpleChatInterfaceProps {
   onAttachmentsUpdate?: (attachments: AttachmentFile[]) => void
 }
 
-const SimpleChatInterface = forwardRef<
-  {
-    startNewChat: () => void
-    getMessagesCount: () => number
-  },
-  SimpleChatInterfaceProps
->(function SimpleChatInterface({ onAttachmentsUpdate }, ref) {
-  // Modified useChat to include a custom onFinish handler
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit: originalHandleSubmit,
-    isLoading,
-    stop,
-    setMessages,
-  } = useChat({
-    api: "/api/chat",
-  })
+// Interface type for the exposed methods
+export interface ChatInterfaceHandle { // Export interface if needed by parent directly
+  startNewChat: () => void;
+  getMessagesCount: () => number;
+}
 
-  const [showPlusMenu, setShowPlusMenu] = useState(false)
-  const [showRecordUI, setShowRecordUI] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [recordingTime, setRecordingTime] = useState(0)
-  const [recordingInterval, setRecordingInterval] = useState<NodeJS.Timeout | null>(null)
-  const [recordUIVisible, setRecordUIVisible] = useState(true) // For fade animation
-  const [recordUIPosition, setRecordUIPosition] = useState({ left: -8 }) // Slightly more to the right
-  const [attachedFiles, setAttachedFiles] = useState<AttachmentFile[]>([])
-  const [allAttachments, setAllAttachments] = useState<AttachmentFile[]>([]) // New state for all attachments
-  const [hoveredMessage, setHoveredMessage] = useState<string | null>(null)
-  const [pendingAttachments, setPendingAttachments] = useState<AttachmentFile[]>([]) // New state for pending attachments
-  const isMobile = useMobile()
-  const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false })
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const { theme, setTheme } = useTheme()
+const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
+  function SimpleChatInterface({ onAttachmentsUpdate }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
-  const plusMenuRef = useRef<HTMLDivElement>(null)
-  const recordUIRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const submissionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const statusRecordingRef = useRef<HTMLSpanElement>(null)
-  const inputContainerRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const messagesContainerRef = useRef<HTMLDivElement>(null)
-  const prevMessagesLengthRef = useRef(messages.length)
-  const userHasScrolledRef = useRef(false)
-  const lastMessageIdRef = useRef<string | null>(null)
+    // --- Get Agent/Event from URL ---
+    const searchParams = useSearchParams();
+    const [agentName, setAgentName] = useState<string | null>(null);
+    const [eventId, setEventId] = useState<string | null>(null);
+    const [isReady, setIsReady] = useState(false);
 
-  // Debug logging
-  useEffect(() => {
-    console.log("Messages length:", messages.length)
-    console.log("Attached files:", attachedFiles)
-    console.log("All attachments:", allAttachments)
-    console.log("Pending attachments:", pendingAttachments)
-  }, [messages.length, attachedFiles, allAttachments, pendingAttachments])
+    useEffect(() => {
+        const agent = searchParams.get('agent');
+        const event = searchParams.get('event');
+        setAgentName(agent);
+        setEventId(event);
+        if (agent) {
+            setIsReady(true);
+            console.log(`Chat Interface Ready: Agent=${agent}, Event=${event || '0000 (default)'}`);
+        } else {
+             console.warn("Chat Interface Waiting: Agent parameter missing from URL.");
+         }
+    }, [searchParams]);
+    // --- End Agent/Event retrieval ---
 
-  // Update parent component with attachments
-  useEffect(() => {
-    if (onAttachmentsUpdate) {
-      onAttachmentsUpdate(allAttachments)
-    }
-  }, [allAttachments, onAttachmentsUpdate])
+    const {
+      messages,
+      input,
+      handleInputChange,
+      handleSubmit: originalHandleSubmit,
+      isLoading,
+      stop,
+      setMessages,
+      append,
+    } = useChat({
+      api: "/api/proxy-chat", // Uses the Next.js API route which proxies to the backend
+      body: {
+          agent: agentName, // Pass agent and event to the proxy route
+          event: eventId || '0000',
+      },
+      sendExtraMessageFields: true, // Allow sending extra fields if needed later
+       onError: (error) => { // Handle errors from the useChat hook/proxy
+         console.error("Chat Hook Error:", error);
+         // Append error message to the chat UI for visibility
+         append({ role: 'system', content: `Error: ${error.message}` });
+       },
+    });
 
-  // COMPLETELY NEW APPROACH: Monitor messages for changes and attach pending files
-  useEffect(() => {
-    // If we have pending attachments and messages have changed
-    if (pendingAttachments.length > 0 && messages.length > 0) {
-      console.log("Checking for new messages to attach files to...")
+    // --- State Variables ---
+    const [showPlusMenu, setShowPlusMenu] = useState(false)
+    const [showRecordUI, setShowRecordUI] = useState(false)
+    const [isRecording, setIsRecording] = useState(false); // Local state reflecting backend status
+    const [isPaused, setIsPaused] = useState(false); // Local state reflecting backend status
+    const [recordingTime, setRecordingTime] = useState(0); // Elapsed time from backend status
+    const [recordUIVisible, setRecordUIVisible] = useState(true) // For fade animation
+    const [recordUIPosition, setRecordUIPosition] = useState({ left: -8 })
+    const [attachedFiles, setAttachedFiles] = useState<AttachmentFile[]>([]) // Files staged for upload
+    const [allAttachments, setAllAttachments] = useState<AttachmentFile[]>([]) // History of all attachments (for display)
+    const [hoveredMessage, setHoveredMessage] = useState<string | null>(null) // For message actions UI
+    const [pendingAttachments, setPendingAttachments] = useState<AttachmentFile[]>([]) // Files waiting for message association (needs rework)
+    const isMobile = useMobile() // Mobile detection hook
+    const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false }) // Copy button state
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false) // Scroll button visibility
+    const { theme } = useTheme() // Theme state
 
-      // Find the most recent user message
-      const userMessages = messages.filter((m) => m.role === "user")
-      if (userMessages.length === 0) return
+    // --- Refs ---
+    const plusMenuRef = useRef<HTMLDivElement>(null)
+    const recordUIRef = useRef<HTMLDivElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null) // For auto-hiding record UI
+    const statusRecordingRef = useRef<HTMLSpanElement>(null) // Ref to status bar text
+    const inputContainerRef = useRef<HTMLDivElement>(null) // Ref to input container div
+    const inputRef = useRef<HTMLInputElement>(null) // Ref to the text input element
+    const messagesEndRef = useRef<HTMLDivElement>(null) // For auto-scrolling
+    const messagesContainerRef = useRef<HTMLDivElement>(null) // For scroll detection
+    const prevMessagesLengthRef = useRef(messages.length) // Track message changes for scroll
+    const userHasScrolledRef = useRef(false) // Track if user scrolled up manually
+    const lastMessageIdRef = useRef<string | null>(null) // Track last message for attachment logic
 
-      const lastUserMessage = userMessages[userMessages.length - 1]
+    // --- Backend Recording State Polling ---
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout | null = null;
+        if (isReady) { // Only start polling if agent/event are known
+            const fetchStatus = async () => {
+                try {
+                    // *** Use environment variable for backend URL ***
+                    // Ensure NEXT_PUBLIC_ prefix allows browser access
+                    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
+                    const response = await fetch(`${backendUrl}/api/recording/status`); // <-- Hit backend URL
+                    if (!response.ok) {
+                        // Log specific error for 404 vs other errors
+                        if (response.status === 404) {
+                             console.error("Error fetching recording status: Backend endpoint /api/recording/status not found (404).");
+                        } else {
+                             // Throw error for other statuses to be caught below
+                             throw new Error(`Status fetch failed: ${response.status} ${response.statusText}`);
+                        }
+                        // Stop polling if endpoint not found
+                         if (intervalId) clearInterval(intervalId);
+                         return; // Exit fetchStatus function
+                    }
+                    const data = await response.json();
+                    // Update local state based on backend status
+                    setIsRecording(data.is_recording || false);
+                    setIsPaused(data.is_paused || false);
+                    setRecordingTime(data.elapsed_time || 0);
 
-      // Check if this is a new message we haven't processed yet
-      // The key fix: we need to check if this is actually the newest message
-      if (
-        lastUserMessage.id !== lastMessageIdRef.current &&
-        messages.indexOf(lastUserMessage) === messages.length - 1
-      ) {
-        console.log("Found new user message:", lastUserMessage.id)
+                } catch (error) {
+                    console.error("Error fetching recording status:", error);
+                    // Stop polling on fetch error (e.g., network issue, backend down)
+                    if (intervalId) clearInterval(intervalId);
+                }
+            };
 
-        // Update our reference to the last processed message
-        lastMessageIdRef.current = lastUserMessage.id
-
-        // Add messageId to each pending attachment
-        const filesWithMessageId = pendingAttachments.map((file) => ({
-          ...file,
-          messageId: lastUserMessage.id,
-        }))
-
-        console.log("Attaching files to message:", filesWithMessageId.length)
-
-        // Add to all attachments
-        setAllAttachments((prev) => [...prev, ...filesWithMessageId])
-
-        // Clear pending attachments
-        setPendingAttachments([])
-      }
-    }
-  }, [messages, pendingAttachments])
-
-  // Expose methods to parent component
-  useImperativeHandle(
-    ref,
-    () => ({
-      startNewChat: () => {
-        // Stop recording if active
-        if (isRecording) {
-          setIsRecording(false)
-          setIsPaused(false)
-          hideRecordUI()
-          setRecordingTime(0)
+            fetchStatus(); // Initial fetch
+            intervalId = setInterval(fetchStatus, 3000); // Poll every 3 seconds
         }
 
-        // Clear all messages and attachments
-        setMessages([])
-        setAttachedFiles([])
-        setAllAttachments([])
-        setPendingAttachments([])
-        lastMessageIdRef.current = null
+        // Cleanup function to clear interval when component unmounts or isReady changes
+        return () => {
+            if (intervalId) clearInterval(intervalId);
+        };
+    }, [isReady]); // Re-run effect if isReady changes
 
-        // Close confirmation modal
-        setShowConfirmModal(false)
-      },
-      getMessagesCount: () => {
-        return messages.length
-      },
-    }),
-    [isRecording, messages.length],
-  )
 
-  // Format recording time as MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
+    // --- Attachment Handling Logic (Placeholder) ---
+    useEffect(() => {
+        // Notify parent component about attachment changes (if prop is provided)
+        if (onAttachmentsUpdate) { onAttachmentsUpdate(allAttachments); }
+    }, [allAttachments, onAttachmentsUpdate]);
 
-  // Check if user has scrolled up
-  const checkScroll = () => {
-    const container = messagesContainerRef.current
-    if (!container) return
+    useEffect(() => {
+      // TODO: Refactor this upload/association logic.
+      // This current logic might incorrectly associate files if messages update rapidly.
+      // Proper flow: Upload file -> Get ID -> Include ID in chat submit -> Backend associates.
+        if (pendingAttachments.length > 0 && messages.length > 0) {
+            console.log("Checking for new messages to associate files with (Frontend state)...");
+            const userMessages = messages.filter((m) => m.role === "user");
+            if (userMessages.length === 0) return;
+            const lastUserMessage = userMessages[userMessages.length - 1];
+            // Check if it's the newest message in the array *and* different from last processed
+            if (lastUserMessage.id !== lastMessageIdRef.current && messages.indexOf(lastUserMessage) === messages.length - 1) {
+                console.log("Found new user message in frontend state:", lastUserMessage.id);
+                lastMessageIdRef.current = lastUserMessage.id;
+                const filesWithMessageId = pendingAttachments.map((file) => ({ ...file, messageId: lastUserMessage.id, }));
+                console.log("Associating files with frontend message:", filesWithMessageId.length);
+                setAllAttachments((prev) => [...prev, ...filesWithMessageId]); // Add to history display
+                setPendingAttachments([]); // Clear pending
+            }
+        }
+    }, [messages, pendingAttachments]);
 
-    const { scrollTop, scrollHeight, clientHeight } = container
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50
+    // +++ DEBUGGING: Log messages state when it changes +++
+    useEffect(() => {
+      console.log("--- useChat Messages Updated ---");
+      // Use try-catch for JSON.stringify in case of circular refs, though unlikely here
+      try {
+          console.log(JSON.stringify(messages, null, 2));
+      } catch (e) {
+           console.log("Could not stringify messages:", messages);
+           console.error(e);
+       }
+      console.log("-------------------------------");
+    }, [messages]); // Run whenever the messages array changes
 
-    userHasScrolledRef.current = !isAtBottom
-    setShowScrollToBottom(!isAtBottom && messages.length > 0)
-  }
+    // --- Imperative Handle (Exposing Methods to Parent) ---
+    useImperativeHandle(ref, () => ({
+        startNewChat: () => {
+            console.log("Imperative handle: startNewChat called");
+            // If currently recording, attempt to stop it via backend API
+            if (isRecording) {
+                 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
+                fetch(`${backendUrl}/api/recording/stop`, { method: 'POST' }) // <-- Hit backend URL
+                    .then(res => { if (!res.ok) console.error("Failed to stop recording on new chat"); })
+                    .catch(err => console.error("Error calling stop recording:", err))
+                    // Always reset local state regardless of backend call success for immediate UI feedback
+                    .finally(() => { setIsRecording(false); setIsPaused(false); setRecordingTime(0); });
+            }
+            // Clear frontend chat state
+            setMessages([]); // Clear messages via useChat hook state setter
+            setAttachedFiles([]); // Clear files staged for upload
+            setAllAttachments([]); // Clear attachment history display
+            setPendingAttachments([]); // Clear any pending files
+            lastMessageIdRef.current = null; // Reset last message tracking
+        },
+        getMessagesCount: () => {
+            // Provide message count to parent
+            return messages.length;
+        },
+    }), [isRecording, setMessages, messages.length]); // Dependencies for the imperative handle
 
-  // Scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    userHasScrolledRef.current = false
-    setShowScrollToBottom(false)
-  }
+    // --- Time Formatting ---
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    };
 
-  // Auto-scroll to bottom when new messages arrive, but not during streaming
-  useEffect(() => {
-    if (messages.length > prevMessagesLengthRef.current && !userHasScrolledRef.current) {
-      scrollToBottom()
-    }
-    prevMessagesLengthRef.current = messages.length
-  }, [messages.length])
+    // --- Scrolling Logic ---
+    const checkScroll = useCallback(() => {
+        const container = messagesContainerRef.current; if (!container) return;
+        const threshold = 50; // Pixels from bottom to consider "at bottom"
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
+        if (userHasScrolledRef.current && isAtBottom) {
+            userHasScrolledRef.current = false; // User scrolled back down
+        } else if (!isAtBottom) {
+            userHasScrolledRef.current = true; // User scrolled up
+        }
+        setShowScrollToBottom(!isAtBottom && messages.length > 0); // Show button if scrolled up and messages exist
+    }, [messages.length]); // Re-evaluate only if message count changes visibility condition
 
-  // Add scroll event listener
-  useEffect(() => {
-    const container = messagesContainerRef.current
-    if (container) {
-      container.addEventListener("scroll", checkScroll)
-      return () => container.removeEventListener("scroll", checkScroll)
-    }
-  }, [])
+    const scrollToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        userHasScrolledRef.current = false; // Reset scroll lock
+        setShowScrollToBottom(false); // Hide button
+    }, []);
 
-  // Start/stop recording timer
-  useEffect(() => {
-    if (isRecording && !isPaused) {
-      const interval = setInterval(() => {
-        setRecordingTime((prev) => prev + 1)
-      }, 1000)
-      setRecordingInterval(interval)
-    } else if (recordingInterval) {
-      clearInterval(recordingInterval)
-      setRecordingInterval(null)
-    }
+    // Effect for auto-scrolling on new messages
+    useEffect(() => {
+        // Auto-scroll ONLY if the user hasn't scrolled up manually
+        if (!userHasScrolledRef.current) {
+            // Use timeout to ensure scroll happens after DOM update and rendering
+            const timer = setTimeout(() => {
+                scrollToBottom();
+            }, 100); // Small delay helps ensure layout is stable
+            return () => clearTimeout(timer); // Cleanup timeout
+        }
+    }, [messages, scrollToBottom]); // Trigger on messages change
 
-    return () => {
-      if (recordingInterval) {
-        clearInterval(recordingInterval)
-      }
-    }
-  }, [isRecording, isPaused])
+    // Effect for adding scroll listener
+    useEffect(() => {
+        const container = messagesContainerRef.current;
+        if (container) {
+            // Use passive listener for better scroll performance
+            container.addEventListener("scroll", checkScroll, { passive: true });
+            // Cleanup listener on unmount
+            return () => container.removeEventListener("scroll", checkScroll);
+        }
+    }, [checkScroll]); // Re-add listener if checkScroll function instance changes
 
-  // Global click handler to hide record UI when clicking outside
-  useEffect(() => {
-    const handleGlobalClick = (event: MouseEvent) => {
-      // Only hide if clicking outside the record UI and status area
-      if (
-        showRecordUI &&
-        recordUIRef.current &&
-        !recordUIRef.current.contains(event.target as Node) &&
-        statusRecordingRef.current &&
-        !statusRecordingRef.current.contains(event.target as Node)
-      ) {
-        hideRecordUI()
-      }
-    }
+    // --- UI Interaction Handlers ---
+    // Callback to hide the recording UI
+    const hideRecordUI = useCallback(() => {
+         setRecordUIVisible(false); // Start fade out
+         setTimeout(() => {
+             setShowRecordUI(false); // Actually hide after transition
+             setRecordUIVisible(true); // Reset opacity for next show
+         }, 300); // Match CSS transition duration
+     }, []); // No dependencies, safe to memoize
 
-    // Use capture phase to handle the event before it reaches the buttons
-    document.addEventListener("click", handleGlobalClick, true)
-    return () => {
-      document.removeEventListener("click", handleGlobalClick, true)
-    }
-  }, [showRecordUI])
+    // Callback to start the auto-hide timer for recording UI
+    const startHideTimeout = useCallback(() => {
+         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); // Clear existing timer
+         hideTimeoutRef.current = setTimeout(() => {
+             // Only auto-hide if not actively recording or paused
+             if (!isRecording) {
+                 hideRecordUI();
+             }
+         }, 3000); // 3 seconds inactivity
+     }, [isRecording, hideRecordUI]); // Dependencies
 
-  // Close plus menu when clicking outside
-  useEffect(() => {
-    const handleClickOutsidePlusMenu = (event: MouseEvent) => {
-      if (plusMenuRef.current && !plusMenuRef.current.contains(event.target as Node)) {
-        setShowPlusMenu(false)
-      }
-    }
+    // Effect for global click listener to hide menus/UI
+    useEffect(() => {
+        const handleGlobalClick = (event: MouseEvent) => {
+            // Hide Record UI if shown, not recording, and click is outside UI/status
+            if ( showRecordUI && !isRecording && recordUIRef.current && !recordUIRef.current.contains(event.target as Node) && statusRecordingRef.current && !statusRecordingRef.current.contains(event.target as Node) ) {
+                 hideRecordUI();
+             }
+             // Hide Plus Menu if shown and click is outside menu/trigger
+             if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(event.target as Node)) {
+                 setShowPlusMenu(false);
+             }
+        };
+        document.addEventListener("mousedown", handleGlobalClick, true); // Use mousedown and capture phase
+        return () => { document.removeEventListener("mousedown", handleGlobalClick, true); }; // Cleanup listener
+    }, [showRecordUI, showPlusMenu, isRecording, hideRecordUI]); // Dependencies
 
-    document.addEventListener("mousedown", handleClickOutsidePlusMenu)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutsidePlusMenu)
-    }
-  }, [])
+    // Effect for positioning record UI (when it becomes visible)
+    useEffect(() => {
+        const positionRecordUI = () => {
+            if (inputContainerRef.current && recordUIRef.current) {
+                const inputRect = inputContainerRef.current.getBoundingClientRect();
+                const recordUIRect = recordUIRef.current.getBoundingClientRect();
+                // Adjust position relative to input container
+                const leftPosition = inputRect.left - recordUIRect.left - 8; // Adjust as needed
+                setRecordUIPosition({ left: leftPosition });
+            }
+        };
+        if (showRecordUI) {
+            positionRecordUI(); // Position once shown
+            const resizeObserver = new ResizeObserver(positionRecordUI); // Reposition on resize
+            if (inputContainerRef.current) resizeObserver.observe(inputContainerRef.current);
+            return () => resizeObserver.disconnect(); // Cleanup observer
+        }
+    }, [showRecordUI]);
 
-  // Status bar recording hover effect
-  useEffect(() => {
-    const statusElement = statusRecordingRef.current
+    // Effect for cleaning up hide timer on unmount
+    useEffect(() => {
+        return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
+    }, []);
 
-    if (!statusElement) return
+    // --- Action Handlers ---
+    const saveChat = useCallback(() => {
+        // Basic local download implementation
+        const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n");
+        const blob = new Blob([chatContent], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setShowPlusMenu(false); // Close menu after action
+    }, [messages, agentName, eventId]); // Dependencies
 
-    const handleMouseEnter = () => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current)
-      }
-      setRecordUIVisible(true)
-      setShowRecordUI(true)
-    }
+    const attachDocument = useCallback(() => {
+        fileInputRef.current?.click(); // Trigger hidden file input
+        setShowPlusMenu(false);
+    }, []);
 
-    const handleMouseLeave = () => {
-      startHideTimeout()
-    }
+    const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        // Handle newly selected files
+        if (e.target.files && e.target.files.length > 0) {
+            const newFiles = Array.from(e.target.files).map((file) => ({
+                id: Math.random().toString(36).substring(2, 9), // Simple unique ID
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                // TODO: Add actual file object here for upload
+                // fileData: file
+            }));
+            setAttachedFiles((prev) => [...prev, ...newFiles]); // Add to staging area
+            console.log("Files staged:", newFiles);
+            // TODO: Implement immediate upload or store for upload on submit
+        }
+        if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+    }, []); // No dependencies needed for basic state update
 
-    statusElement.addEventListener("mouseenter", handleMouseEnter)
-    statusElement.addEventListener("mouseleave", handleMouseLeave)
+    const removeFile = useCallback((id: string) => {
+        // Remove file from staging area
+        setAttachedFiles((prev) => {
+            const fileToRemove = prev.find((file) => file.id === id);
+            if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); // Clean up preview URL if exists
+            return prev.filter((file) => file.id !== id);
+        });
+        // TODO: If file was already uploaded, call backend to delete temp file
+    }, []);
 
-    return () => {
-      statusElement.removeEventListener("mouseenter", handleMouseEnter)
-      statusElement.removeEventListener("mouseleave", handleMouseLeave)
-    }
-  }, [statusRecordingRef.current])
+    // --- Recording Control API Calls ---
+    // Memoized function to call backend recording endpoints
+    const callRecordingApi = useCallback(async (endpoint: string) => {
+         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
+         // Ensure agent/event are ready before making calls
+         if (!isReady || !agentName || !eventId) {
+             console.error(`Cannot ${endpoint}: Agent/Event not ready.`);
+             append({ role: 'system', content: `Error: Cannot control recording. Agent or Event missing.` });
+             return; // Prevent API call
+         }
+         try {
+             console.log(`Calling backend: ${backendUrl}/api/recording/${endpoint}`);
+             const response = await fetch(`${backendUrl}/api/recording/${endpoint}`, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 // Include agent/event only when starting
+                 body: endpoint === 'start' ? JSON.stringify({ agent: agentName, event: eventId }) : undefined
+             });
+             const data = await response.json(); // Assume backend sends JSON response
+             if (!response.ok) { throw new Error(data.message || `Failed to ${endpoint}`); }
+             console.log(`Backend ${endpoint} response:`, data);
+         } catch (error: any) {
+             console.error(`Error calling ${backendUrl}/api/recording/${endpoint}:`, error);
+             append({ role: 'system', content: `Error: ${error.message}` }); // Show error in UI
+         }
+     }, [isReady, agentName, eventId, append]); // Dependencies for the callback
 
-  // Position record UI to align with input container
-  useEffect(() => {
-    const positionRecordUI = () => {
-      if (inputContainerRef.current && recordUIRef.current) {
-        const inputRect = inputContainerRef.current.getBoundingClientRect()
-        const recordUIRect = recordUIRef.current.getBoundingClientRect()
+    // Callbacks for recording UI buttons
+    const startRecording = useCallback(() => {
+        setShowPlusMenu(false); // Close plus menu
+        setShowRecordUI(true); // Show recording controls
+        setRecordUIVisible(true); // Ensure visible
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); // Clear auto-hide timer
+        callRecordingApi('start'); // Call backend API
+    }, [callRecordingApi]);
 
-        // Calculate the left position to align with input container's left edge
-        // and move it more to the left again
-        const leftPosition = inputRect.left - recordUIRect.left - 8
+    const stopRecording = useCallback((e?: React.MouseEvent) => {
+        e?.stopPropagation(); // Prevent click propagation
+        callRecordingApi('stop');
+        hideRecordUI(); // Hide controls immediately on stop
+    }, [callRecordingApi, hideRecordUI]);
 
-        // Store the position in state to prevent "snapping back"
-        setRecordUIPosition({ left: leftPosition })
-      }
-    }
+    const pauseRecording = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        callRecordingApi('pause');
+        startHideTimeout(); // Keep UI visible for a bit after pausing
+    }, [callRecordingApi, startHideTimeout]);
 
-    if (showRecordUI) {
-      // Position immediately and after a short delay to ensure accurate positioning
-      positionRecordUI()
-      setTimeout(positionRecordUI, 50)
-    }
+    const resumeRecording = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        callRecordingApi('resume');
+        startHideTimeout(); // Keep UI visible for a bit after resuming
+    }, [callRecordingApi, startHideTimeout]);
 
-    window.addEventListener("resize", positionRecordUI)
-    return () => window.removeEventListener("resize", positionRecordUI)
-  }, [showRecordUI])
+    // Handler for mouse move over record UI (resets auto-hide)
+    const handleRecordUIMouseMove = useCallback(() => {
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+        setRecordUIVisible(true); // Make sure it's visible
+        startHideTimeout(); // Restart timer
+    }, [startHideTimeout]);
 
-  // Auto-hide record UI after inactivity
-  const startHideTimeout = () => {
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current)
-    }
+    // Handler for clicking the plus button
+    const handlePlusMenuClick = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        // Hide record UI if it's shown and we're not actively recording
+        if (showRecordUI && !isRecording) hideRecordUI();
+        setShowPlusMenu(prev => !prev); // Toggle plus menu
+    }, [showRecordUI, isRecording, hideRecordUI]);
 
-    hideTimeoutRef.current = setTimeout(() => {
-      hideRecordUI()
-    }, 3000)
-  }
+    // --- Message Interaction Handlers ---
+    const handleMessageInteraction = useCallback((id: string) => {
+        // Toggle message actions visibility on mobile
+        if (isMobile) setHoveredMessage(prev => prev === id ? null : id);
+    }, [isMobile]); // Dependency on isMobile only
 
-  // Fade out record UI before hiding
-  const hideRecordUI = () => {
-    setRecordUIVisible(false)
-    setTimeout(() => {
-      setShowRecordUI(false)
-      setRecordUIVisible(true) // Reset for next time
-    }, 300) // Match transition duration
-  }
+    const copyToClipboard = useCallback((text: string, id: string) => {
+        // Copy text and show checkmark feedback
+        navigator.clipboard.writeText(text);
+        setCopyState({ id, copied: true });
+        setTimeout(() => { setCopyState({ id: "", copied: false }); }, 2000);
+    }, []); // No dependencies needed
 
-  // Clear hide timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current)
-      }
-      if (submissionTimeoutRef.current) {
-        clearTimeout(submissionTimeoutRef.current)
-      }
-    }
-  }, [])
+    // Placeholder functions
+    const editMessage = useCallback((id: string) => console.log("Edit message:", id), []);
+    const readAloud = useCallback((text: string) => console.log("Reading aloud:", text), []);
 
-  // Handle keyboard events for the input field
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+
+    // --- Submit Handler --- moved before useEffect hook ---
+    const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        if (!isReady) {
+            console.warn("Cannot submit: Agent/Event not loaded yet.");
+            append({ role: 'system', content: "Error: Cannot send message. Agent/Event not set." });
+            return;
+        }
         if (isLoading) {
-          e.preventDefault()
-          return // Prevent submission during loading
+            stop();
+        } else if (input.trim() || attachedFiles.length > 0) {
+            console.log("Submitting message. Input:", input, "Files:", attachedFiles.length);
+            // TODO: Implement actual file upload logic here before submitting
+            if (attachedFiles.length > 0) {
+                console.warn("File attachment upload not implemented yet.");
+                setPendingAttachments(prev => [...prev, ...attachedFiles]); // Use functional update
+                setAttachedFiles([]);
+            }
+            originalHandleSubmit(e as React.FormEvent<HTMLFormElement>);
+            userHasScrolledRef.current = false;
         }
+    }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setPendingAttachments, setAttachedFiles]); // Added missing state setters to deps
 
-        if (input.trim()) {
-          e.preventDefault()
-          const formEvent = new Event("submit", {
-            bubbles: true,
-            cancelable: true,
-          }) as unknown as React.FormEvent<HTMLFormElement>
-          onSubmit(formEvent)
-        }
-      }
-    }
 
-    const inputElement = inputRef.current
-    if (inputElement) {
-      inputElement.addEventListener("keydown", handleKeyDown as EventListener)
-    }
+    // --- Keyboard Handling Effect (NOW DECLARED AFTER onSubmit) ---
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+             // Submit on Enter (if not Shift+Enter, not loading, and input has text or files)
+            if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { // Check files here too
+                e.preventDefault();
+                onSubmit(e as any); // Trigger form submission logic
+            }
+            // Stop generation on Enter (if loading)
+            else if (e.key === "Enter" && !e.shiftKey && isLoading) {
+                 e.preventDefault();
+                 stop(); // Call useChat's stop function
+            }
+        };
+        const inputElement = inputRef.current;
+        if (inputElement) inputElement.addEventListener("keydown", handleKeyDown as EventListener);
+        return () => { if (inputElement) inputElement.removeEventListener("keydown", handleKeyDown as EventListener); }
+    // Ensure all dependencies used inside handleKeyDown are listed if they change
+    }, [input, isLoading, stop, attachedFiles.length, onSubmit]); // Keep onSubmit dependency here
 
-    return () => {
-      if (inputElement) {
-        inputElement.removeEventListener("keydown", handleKeyDown as EventListener)
-      }
-    }
-  }, [input, isLoading])
 
-  const saveChat = () => {
-    const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n")
-    const blob = new Blob([chatContent], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `river-ai-chat-${new Date().toISOString().slice(0, 10)}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    setShowPlusMenu(false)
-  }
-
-  const attachDocument = () => {
-    fileInputRef.current?.click()
-    setShowPlusMenu(false)
-  }
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).map((file) => {
-        const fileObj: AttachmentFile = {
-          id: Math.random().toString(36).substring(2, 9),
-          name: file.name,
-          size: file.size,
-          type: file.type,
-        }
-
-        // Create URL for image previews
-        if (file.type.startsWith("image/")) {
-          fileObj.url = URL.createObjectURL(file)
-        }
-
-        return fileObj
-      })
-
-      setAttachedFiles((prev) => [...prev, ...newFiles])
-    }
-
-    // Clear the input to allow selecting the same file again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
-  }
-
-  const removeFile = (id: string) => {
-    setAttachedFiles((prev) => {
-      const updatedFiles = prev.filter((file) => file.id !== id)
-
-      // Revoke object URLs to prevent memory leaks
-      const fileToRemove = prev.find((file) => file.id === id)
-      if (fileToRemove?.url) {
-        URL.revokeObjectURL(fileToRemove.url)
-      }
-
-      return updatedFiles
-    })
-  }
-
-  const startRecording = () => {
-    setShowPlusMenu(false)
-    setShowRecordUI(true)
-    setRecordUIVisible(true)
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current)
-    }
-  }
-
-  const toggleRecording = (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent the global click handler from firing
-
-    if (isRecording) {
-      if (isPaused) {
-        // Resume recording
-        setIsPaused(false)
-      } else {
-        // Pause recording
-        setIsPaused(true)
-      }
-    } else {
-      // Start recording
-      setIsRecording(true)
-      setIsPaused(false)
-      setRecordingTime(0)
-    }
-    startHideTimeout()
-  }
-
-  const stopRecording = (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent the global click handler from firing
-    setIsRecording(false)
-    setIsPaused(false)
-    hideRecordUI()
-    setRecordingTime(0)
-  }
-
-  const handleRecordUIMouseMove = () => {
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current)
-    }
-    setRecordUIVisible(true)
-    startHideTimeout()
-  }
-
-  const handlePlusMenuClick = (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent the global click handler from firing
-    if (showRecordUI) {
-      hideRecordUI()
-    }
-    setShowPlusMenu(!showPlusMenu)
-  }
-
-  const handleMessageInteraction = (id: string) => {
-    if (isMobile) {
-      setHoveredMessage(hoveredMessage === id ? null : id)
-    }
-  }
-
-  // Fix copy to clipboard functionality to persist checkmark
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
-    setCopyState({ id, copied: true })
-
-    // Show the checkmark for 2 seconds, even if not hovering
-    setTimeout(() => {
-      setCopyState({ id: "", copied: false })
-    }, 2000)
-  }
-
-  const editMessage = (id: string) => {
-    // Implement edit functionality
-    console.log("Edit message:", id)
-  }
-
-  const readAloud = (text: string) => {
-    // Implement text-to-speech
-    console.log("Reading aloud:", text)
-  }
-
-  // COMPLETELY NEW APPROACH: Custom submit handler
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    // If we have files to attach, move them to pending
-    if (attachedFiles.length > 0) {
-      console.log(`Moving ${attachedFiles.length} files to pending attachments`)
-      setPendingAttachments([...attachedFiles])
-      setAttachedFiles([])
-    }
-
-    // Call the original submit handler
-    originalHandleSubmit(e)
-  }
-
-  // UPDATED: onSubmit function with new attachment approach
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (isLoading) {
-      stop()
-    } else if (input.trim()) {
-      console.log("Submitting message with attachedFiles:", attachedFiles.length)
-
-      // Use our custom submit handler
-      handleSubmit(e)
-
-      // Reset user scroll state to allow auto-scrolling for the new message
-      userHasScrolledRef.current = false
-    }
-  }
-
-  const handleNewChatClick = () => {
-    // If recording is active, show confirmation modal
-    if (isRecording) {
-      setShowConfirmModal(true)
-    } else if (messages.length > 0) {
-      // If there are messages but no recording, show confirmation modal
-      setShowConfirmModal(true)
-    } else {
-      // If no messages and no recording, just start new chat
-      startNewChat()
-    }
-  }
-
-  const startNewChat = () => {
-    // Stop recording if active
-    if (isRecording) {
-      setIsRecording(false)
-      setIsPaused(false)
-      hideRecordUI()
-      setRecordingTime(0)
-    }
-
-    // Clear all messages and attachments
-    setMessages([])
-    setAttachedFiles([])
-    setAllAttachments([])
-    setPendingAttachments([])
-    lastMessageIdRef.current = null
-
-    // Close confirmation modal
-    setShowConfirmModal(false)
-  }
-
-  // Define darker gray for dark mode
-  const darkModeGray = "#444444"
-
-  // Update message actions with improved styling and animation
-  return (
-    <div className="flex flex-col h-full">
-      {/* Messages area with increased bottom padding */}
-      <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef} onScroll={checkScroll}>
-        {messages.length === 0 ? (
-          <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10">
-            <p className="text-2xl md:text-3xl font-bold text-center opacity-80">What is alive today?</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {messages.map((message, index) => {
-              const isUser = message.role === "user"
-              // Filter attachments for this specific message
-              const messageAttachments = allAttachments.filter((file) => file.messageId === message.id)
-              const hasAttachments = messageAttachments.length > 0
-
-              return (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.3,
-                    ease: [0.04, 0.62, 0.23, 0.98],
-                  }}
-                  className={`flex flex-col ${isUser ? "items-end" : "items-start"} relative group mb-8`}
-                  onMouseEnter={() => !isMobile && setHoveredMessage(message.id)}
-                  onMouseLeave={() => !isMobile && setHoveredMessage(null)}
-                  onClick={() => handleMessageInteraction(message.id)}
-                >
-                  {/* Show attachments above user message if this message has attachments */}
-                  {isUser && hasAttachments && (
-                    <div className="mb-2 file-attachment-wrapper">
-                      <FileAttachmentMinimal
-                        files={messageAttachments}
-                        onRemove={() => {}} // No removal in chat history
-                        className="file-attachment-message"
-                        maxVisible={1} // Always show just 1 file for submitted messages
-                        isSubmitted={true}
-                        messageId={message.id} // Explicitly pass the message ID
-                      />
+    // --- Render ---
+    return (
+        <div className="flex flex-col h-full">
+            {/* Messages area */}
+            <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
+                {/* Conditional Rendering: Loading / Welcome / Messages */}
+                {messages.length === 0 && !isReady && (
+                    <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10">
+                        <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p>
                     </div>
-                  )}
-                  <div
-                    className={`rounded-2xl p-3 max-w-[80%] ${
-                      isUser
-                        ? `bg-input-gray text-black user-bubble ${hasAttachments ? "with-attachment" : ""}`
-                        : "bg-transparent text-white ai-bubble pl-0" // Remove left padding for assistant messages - must be preserved since transparent bg requires different visual spacing for balance
-                    }`}
-                  >
-                    {message.content}
-                  </div>
+                )}
+                {messages.length === 0 && isReady && (
+                    <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10">
+                        <p className="text-2xl md:text-3xl font-bold text-center opacity-80">What is alive today?</p>
+                    </div>
+                )}
+                {messages.length > 0 && (
+                    <div className="space-y-6">
+                        {messages.map((message: Message) => { // Explicitly type message
+                            // +++ DEBUGGING: Log message being rendered +++
+                            console.log("Rendering message:", message.id, message.role, message.content.substring(0, 30)); // <-- Add log
+                            const isUser = message.role === "user";
+                            const isSystem = message.role === "system";
+                            // Filter attachments associated with this message ID (requires correct messageId logic)
+                            const messageAttachments = allAttachments.filter((file) => file.messageId === message.id);
+                            const hasAttachments = messageAttachments.length > 0;
 
-                  {/* Message actions with updated styling */}
-                  <div
-                    className={`message-actions flex ${isUser ? "user-actions" : "assistant-actions"}`}
-                    style={{
-                      opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0,
-                      visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden",
-                      bottom: isUser ? "-36px" : "-24px", // Different positioning for user vs assistant
-                    }}
-                  >
-                    {isUser && (
-                      <div className="flex">
-                        <button
-                          onClick={() => copyToClipboard(message.content, message.id)}
-                          className="action-button"
-                          aria-label="Copy message"
-                        >
-                          {copyState.id === message.id && copyState.copied ? (
-                            <Check className="h-4 w-4 copy-button-animation" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => editMessage(message.id)}
-                          className="action-button"
-                          aria-label="Edit message"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-
-                    {!isUser && (
-                      <div className="flex" style={{ paddingLeft: "8px" }}>
-                        {/* IMPORTANT: Added more left padding to push assistant action buttons to the right */}
-                        <button
-                          onClick={() => copyToClipboard(message.content, message.id)}
-                          className="action-button"
-                          aria-label="Copy message"
-                        >
-                          {copyState.id === message.id && copyState.copied ? (
-                            <Check className="h-4 w-4 copy-button-animation" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </button>
-                        {hoveredMessage === message.id && (
-                          <button
-                            onClick={() => readAloud(message.content)}
-                            className="action-button"
-                            aria-label="Read message aloud"
-                          >
-                            <Volume2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Scroll to bottom button */}
-      {showScrollToBottom && (
-        <button onClick={scrollToBottom} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
-          <ChevronDown size={24} />
-        </button>
-      )}
-
-      {/* Input area with attached files - further reduced padding */}
-      <div className="p-2 input-area-container">
-        {/* Attached files display with reduced margin */}
-        {attachedFiles.length > 0 && (
-          <div className="flex justify-end mb-0.5 input-attachments-container">
-            <FileAttachmentMinimal
-              files={attachedFiles}
-              onRemove={removeFile}
-              className="max-w-[50%] file-attachment-container"
-              maxVisible={1} // Always show just 1 file in the input area for consistency
-            />
-          </div>
-        )}
-
-        <form onSubmit={onSubmit} className="relative">
-          <div className="bg-input-gray rounded-full p-2 flex items-center" ref={inputContainerRef}>
-            <div className="relative" ref={plusMenuRef}>
-              <button type="button" className="p-2 text-gray-600 hover:text-gray-800" onClick={handlePlusMenuClick}>
-                <Plus size={20} />
-              </button>
-
-              {/* Plus menu */}
-              {showPlusMenu && (
-                <div
-                  className="absolute left-0 bottom-full mb-2 bg-white rounded-full py-2 shadow-lg z-10 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
-                  style={{ backgroundColor: "hsl(var(--input-gray))" }} // Add inline style
-                >
-                  <div
-                    className="p-2 hover:text-gray-800 cursor-pointer opacity-70 hover:opacity-100"
-                    onClick={attachDocument}
-                  >
-                    <Paperclip size={20} className="text-gray-600" />
-                  </div>
-                  <div
-                    className="p-2 hover:text-gray-800 cursor-pointer opacity-70 hover:opacity-100"
-                    onClick={saveChat}
-                  >
-                    <Download size={20} className="text-gray-600" />
-                  </div>
-                  <div
-                    className="p-2 hover:text-gray-800 cursor-pointer opacity-70 hover:opacity-100"
-                    onClick={startRecording}
-                  >
-                    <Mic
-                      size={20}
-                      className={isRecording ? (isPaused ? "text-yellow-500" : "text-red-500") : "text-gray-600"}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Record UI */}
-              {showRecordUI && (
-                <div
-                  className={`absolute bottom-full mb-3 bg-white rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 transition-all duration-300 ${
-                    recordUIVisible ? "opacity-100" : "opacity-0"
-                  }`}
-                  ref={recordUIRef}
-                  onMouseMove={handleRecordUIMouseMove}
-                  onClick={(e) => e.stopPropagation()} // Prevent clicks from bubbling up
-                  style={{
-                    marginLeft: `${recordUIPosition.left}px`,
-                    backgroundColor: "hsl(var(--input-gray))", // Add inline style
-                  }}
-                >
-                  <button
-                    className="p-1"
-                    onClick={toggleRecording}
-                    style={{
-                      color:
-                        isRecording && !isPaused
-                          ? "#ef4444"
-                          : isPaused
-                            ? "#eab308"
-                            : theme === "dark"
-                              ? darkModeGray // Darker gray for dark mode
-                              : "",
-                    }}
-                  >
-                    {isRecording && !isPaused ? (
-                      <Pause size={20} style={{ color: "#ef4444", stroke: "#ef4444" }} />
-                    ) : (
-                      <Play
-                        size={20}
-                        style={{
-                          color: isPaused
-                            ? "#eab308"
-                            : theme === "dark"
-                              ? darkModeGray // Darker gray for dark mode
-                              : "",
-                          stroke: isPaused
-                            ? "#eab308"
-                            : theme === "dark"
-                              ? darkModeGray // Darker gray for dark mode
-                              : "",
-                        }}
-                      />
-                    )}
-                  </button>
-                  <button
-                    className="p-1"
-                    onClick={stopRecording}
-                    disabled={!isRecording}
-                    style={{
-                      color: !isRecording
-                        ? "rgba(0,0,0,0.5)"
-                        : theme === "dark"
-                          ? darkModeGray // Darker gray for dark mode
-                          : "",
-                      opacity: !isRecording ? "0.5" : "1",
-                    }}
-                  >
-                    <StopCircle
-                      size={20}
-                      style={{
-                        color: !isRecording
-                          ? "rgba(0,0,0,0.5)"
-                          : theme === "dark"
-                            ? darkModeGray // Darker gray for dark mode
-                            : "",
-                      }}
-                    />
-                  </button>
-                  {isRecording && (
-                    <span className="text-sm font-medium text-gray-700 ml-1">{formatTime(recordingTime)}</span>
-                  )}
-                </div>
-              )}
+                            return (
+                                <motion.div
+                                    key={message.id}
+                                    initial={{ opacity: 0, y: 20 }} // Animation initial state
+                                    animate={{ opacity: 1, y: 0 }} // Animation end state
+                                    transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98], }} // Animation timing
+                                    className={`flex flex-col ${isUser ? "items-end" : isSystem ? "items-center" : "items-start"} relative group mb-8`} // Dynamic classes for alignment
+                                    onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} // Show actions on hover (desktop)
+                                    onMouseLeave={() => !isMobile && setHoveredMessage(null)} // Hide actions on mouse leave
+                                    onClick={() => !isSystem && handleMessageInteraction(message.id)} // Toggle actions on click (mobile)
+                                >
+                                    {/* Display attachments above user message */}
+                                    {isUser && hasAttachments && (
+                                        <div className="mb-2 file-attachment-wrapper">
+                                            <FileAttachmentMinimal
+                                                files={messageAttachments}
+                                                onRemove={() => {}} // Read-only view
+                                                className="file-attachment-message"
+                                                maxVisible={1} // Show only one initially in history
+                                                isSubmitted={true}
+                                                messageId={message.id} // Pass message ID for consistency
+                                            />
+                                        </div>
+                                    )}
+                                    {/* Message Bubble */}
+                                    <div className={`rounded-2xl p-3 max-w-[80%] message-bubble ${
+                                        isUser ? `bg-input-gray text-black user-bubble ${hasAttachments ? "with-attachment" : ""}` // User style
+                                        : isSystem ? `bg-transparent text-muted-foreground text-sm italic text-center max-w-[90%]` // System style
+                                        : "bg-transparent text-white ai-bubble pl-0" // Assistant style
+                                    }`}>
+                                        {/* Render message content, converting newlines to <br> */}
+                                        <span dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br />') }} />
+                                    </div>
+                                    {/* Message Actions (Copy, Edit, Read Aloud) - Conditionally rendered */}
+                                    {!isSystem && (
+                                        <div
+                                            className={`message-actions flex ${isUser ? "user-actions" : "assistant-actions"}`}
+                                            style={{
+                                                opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, // Control visibility
+                                                visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden",
+                                                bottom: isUser ? "-36px" : "-24px", // Position below bubble
+                                            }}
+                                        >
+                                            {/* User Actions */}
+                                            {isUser && (
+                                                <div className="flex">
+                                                    <button onClick={() => copyToClipboard(message.content, message.id)} className="action-button" aria-label="Copy message">
+                                                        {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                                    </button>
+                                                    <button onClick={() => editMessage(message.id)} className="action-button" aria-label="Edit message">
+                                                        <Pencil className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {/* Assistant Actions */}
+                                            {!isUser && (
+                                                <div className="flex" style={{ paddingLeft: "8px" }}>
+                                                    <button onClick={() => copyToClipboard(message.content, message.id)} className="action-button" aria-label="Copy message">
+                                                        {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                                    </button>
+                                                    {/* Show read aloud only on hover */}
+                                                    {hoveredMessage === message.id && (
+                                                        <button onClick={() => readAloud(message.content)} className="action-button" aria-label="Read message aloud">
+                                                            <Volume2 className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
+                {/* Empty div to ensure scrolling to the absolute bottom */}
+                <div ref={messagesEndRef} />
             </div>
 
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={handleInputChange}
-              placeholder="Ask anything"
-              className="flex-1 px-3 py-1 bg-transparent border-none outline-none text-black dark:text-black"
-              disabled={isLoading}
-            />
-
-            <button
-              type="submit"
-              className="p-2 transition-all duration-200"
-              disabled={!input.trim() && !isLoading}
-              style={{
-                color:
-                  !input.trim() && !isLoading
-                    ? "rgba(0,0,0,0.5)"
-                    : theme === "dark" && input.trim() && !isLoading
-                      ? darkModeGray // Darker gray for active submit in dark mode
-                      : "",
-                opacity: !input.trim() && !isLoading ? "0.5" : "1",
-              }}
-              onClick={(e) => {
-                if (isLoading) {
-                  e.preventDefault()
-                  stop()
-                }
-              }}
-            >
-              {isLoading ? (
-                <Square size={20} className="fill-current" style={{ color: "currentColor" }} />
-              ) : (
-                <ArrowUp
-                  size={20}
-                  style={{
-                    color: !input.trim()
-                      ? "rgba(0,0,0,0.5)"
-                      : theme === "dark"
-                        ? darkModeGray // Darker gray for active submit in dark mode
-                        : "",
-                  }}
-                />
-              )}
-            </button>
-          </div>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            onChange={handleFileChange}
-            multiple
-            accept=".txt,.md,.json"
-          />
-        </form>
-
-        <div className="text-center text-white/70 dark:text-white/70 text-xs py-4 font-light status-bar">
-          river |{" "}
-          <span ref={statusRecordingRef} className="cursor-pointer">
-            {isRecording ? (
-              <>
-                {isPaused ? (
-                  <>
-                    listening: paused{" "}
-                    <span
-                      className="inline-block ml-1 h-2 w-2 rounded-full"
-                      style={{ backgroundColor: "#eab308" }}
-                    ></span>{" "}
-                    <span className="ml-1">{formatTime(recordingTime)}</span>
-                  </>
-                ) : (
-                  <>
-                    listening: live{" "}
-                    <span
-                      className="inline-block ml-1 h-2 w-2 rounded-full animate-pulse"
-                      style={{ backgroundColor: "#ef4444" }}
-                    ></span>{" "}
-                    <span className="ml-1">{formatTime(recordingTime)}</span>
-                  </>
-                )}
-              </>
-            ) : (
-              "listening: no"
+            {/* Scroll to bottom button (conditionally rendered) */}
+            {showScrollToBottom && (
+                <button onClick={scrollToBottom} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
+                    <ChevronDown size={24} />
+                </button>
             )}
-          </span>
+
+            {/* Input area */}
+            <div className="p-2 input-area-container">
+                {/* Display staged attachments */}
+                {attachedFiles.length > 0 && (
+                    <div className="flex justify-end mb-0.5 input-attachments-container">
+                        <FileAttachmentMinimal
+                            files={attachedFiles}
+                            onRemove={removeFile} // Allow removal from staging area
+                            className="max-w-[50%] file-attachment-container"
+                            maxVisible={1} // Keep it compact
+                        />
+                    </div>
+                )}
+                {/* Chat Input Form */}
+                <form onSubmit={onSubmit} className="relative">
+                    <div className="bg-input-gray rounded-full p-2 flex items-center" ref={inputContainerRef}>
+                        {/* Plus Button & Menus */}
+                        <div className="relative" ref={plusMenuRef}>
+                            <button type="button" className="p-2 text-gray-600 hover:text-gray-800" onClick={handlePlusMenuClick} aria-label="More options">
+                                <Plus size={20} />
+                            </button>
+                            {/* Plus Menu Popup */}
+                            {showPlusMenu && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center" // Use flex-col
+                                >
+                                    <button type="button" className="p-2 text-gray-600 hover:text-gray-800 opacity-70 hover:opacity-100" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button>
+                                    <button type="button" className="p-2 text-gray-600 hover:text-gray-800 opacity-70 hover:opacity-100" onClick={saveChat} title="Save chat"><Download size={20} /></button>
+                                    <button type="button" className="p-2 hover:text-gray-800 opacity-70 hover:opacity-100" onClick={startRecording} title="Start recording">
+                                        <Mic size={20} className={isRecording ? (isPaused ? "text-yellow-500" : "text-red-500") : "text-gray-600"} />
+                                    </button>
+                                </motion.div>
+                            )}
+                            {/* Recording UI Popup */}
+                            {showRecordUI && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                    animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2"
+                                    ref={recordUIRef}
+                                    onMouseMove={handleRecordUIMouseMove}
+                                    onClick={(e) => e.stopPropagation()} // Prevent closing menu
+                                    style={{ marginLeft: `${recordUIPosition.left}px`}}
+                                >
+                                    <button type="button" className="p-1" onClick={isRecording && !isPaused ? pauseRecording : resumeRecording} aria-label={isRecording && !isPaused ? "Pause recording" : "Resume recording"}>
+                                        {isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={isPaused ? "text-yellow-500" : "text-gray-600"} />}
+                                    </button>
+                                    <button type="button" className="p-1" onClick={stopRecording} disabled={!isRecording} aria-label="Stop recording" style={{ opacity: !isRecording ? "0.5" : "1" }}>
+                                        <StopCircle size={20} className={!isRecording ? "text-gray-500" : "text-gray-600"}/>
+                                    </button>
+                                    {isRecording && <span className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(recordingTime)}</span>}
+                                </motion.div>
+                            )}
+                        </div>
+                        {/* Text Input Field */}
+                        <input
+                            ref={inputRef}
+                            value={input}
+                            onChange={handleInputChange}
+                            placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"}
+                            className="flex-1 px-3 py-1 bg-transparent border-none outline-none text-black dark:text-black" // Ensure text color contrast
+                            disabled={isLoading || !isReady} // Disable when loading or not ready
+                            aria-label="Chat input"
+                        />
+                        {/* Submit/Stop Button */}
+                        <button
+                            type="submit"
+                            className="p-2 transition-all duration-200"
+                            // Disable if not ready OR (no input AND no files attached AND not loading)
+                            disabled={!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)}
+                            aria-label={isLoading ? "Stop generating" : "Send message"}
+                        >
+                            {isLoading ? <Square size={20} className="fill-current" /> : <ArrowUp size={20} />}
+                        </button>
+                    </div>
+                    {/* Hidden file input for attach button */}
+                    <input
+                         type="file"
+                         ref={fileInputRef}
+                         className="hidden"
+                         onChange={handleFileChange}
+                         multiple
+                         accept=".txt,.md,.json,.pdf,.docx" // Specify accepted file types
+                     />
+                </form>
+                {/* Status Bar */}
+                <div className="text-center text-foreground/70 dark:text-foreground/70 text-xs pt-4 pb-2 font-light status-bar">
+                    <span className="lowercase">{agentName || '...'}</span> / <span className="lowercase">{eventId || '...'}</span> |{" "}
+                    {/* Clickable status text to start recording */}
+                    <span
+                        ref={statusRecordingRef}
+                        className="cursor-pointer"
+                        onClick={isRecording ? undefined : startRecording} // Only allow click to start if not already recording
+                        title={isRecording ? "Recording Status" : "Click to Start Recording"}
+                    >
+                         listen:{" "}
+                        {isRecording ? (
+                            isPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></> )
+                                     : ( <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500 animate-pulse"></span></> )
+                        ) : ( "no" )}
+                        {/* Show timer only when recording */}
+                        {isRecording && <span className="ml-1">{formatTime(recordingTime)}</span>}
+                    </span>
+                </div>
+            </div>
+
+            {/* Confirmation Modal is rendered in the parent (page.tsx) */}
         </div>
-      </div>
+    )
+});
 
-      {/* Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
-        onConfirm={startNewChat}
-        title="Start New Chat"
-        message="Are you sure you want to start a new chat? This will clear the current conversation and stop any active recording."
-        confirmText="Start New"
-        cancelText="Cancel"
-      />
-    </div>
-  )
-})
-
-export default SimpleChatInterface
+export default SimpleChatInterface;

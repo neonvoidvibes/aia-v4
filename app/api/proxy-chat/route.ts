@@ -1,108 +1,172 @@
-// /aia-v4-frontend/app/api/proxy-chat/route.ts
 import { type NextRequest } from 'next/server';
-import { StreamingTextResponse } from 'ai'; // Use Vercel AI SDK for easy streaming
+// Use StreamingTextResponse from 'ai' package
+import { StreamingTextResponse } from 'ai';
 
-// IMPORTANT: Replace with your actual backend URL
-// Best practice: Use an environment variable
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:5001';
-
-// Allow streaming responses up to 60 seconds for the proxy route
 export const maxDuration = 60;
+
+// Helper function to format text chunk according to Vercel AI SDK Text Stream format
+// Prefix '0:' indicates a text chunk.
+function formatTextChunk(text: string): string {
+    // Ensure proper JSON stringification, including escaping special chars
+    return `0:${JSON.stringify(text)}\n`;
+}
+
+ // Helper function to format error chunk
+ function formatErrorChunk(errorMsg: string): string {
+     // Prefix '2:' for errors (common convention in Vercel AI SDK internal format)
+     return `2:${JSON.stringify(errorMsg)}\n`;
+ }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { messages, agent, event } = body; // Extract necessary data
+    // Filter out system messages added by the onError handler before proxying
+    const userMessages = body.messages?.filter((msg: { role: string }) => msg.role === 'user' || msg.role === 'assistant') || [];
+    const { agent, event } = body;
 
-    if (!messages) {
-      return new Response(JSON.stringify({ error: 'Missing messages in request body' }), { status: 400 });
-    }
-    if (!agent) {
-       return new Response(JSON.stringify({ error: 'Missing agent in request body' }), { status: 400 });
-     }
-     // event can default if needed, backend handles '0000'
+    if (!userMessages || userMessages.length === 0) return new Response(JSON.stringify({ error: 'Missing user/assistant messages' }), { status: 400 });
+    if (!agent) return new Response(JSON.stringify({ error: 'Missing agent' }), { status: 400 });
 
-    console.log(`Proxying chat request for Agent: ${agent}, Event: ${event || '0000'}`);
-    console.log("Messages being proxied:", JSON.stringify(messages, null, 2)); // Log messages being sent
+    console.log(`[Proxy] Chat request for Agent: ${agent}, Event: ${event || '0000'}`);
 
     const backendResponse = await fetch(`${BACKEND_API_URL}/api/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Add any other necessary headers (like authorization if you implement it later)
-      },
-      body: JSON.stringify({
-          messages: messages, // Pass the original messages structure
-          agent: agent,
-          event: event || '0000' // Ensure event is passed
-      }),
-      // IMPORTANT: Set duplex: 'half' to allow streaming the request body
-      // (although less critical for simple JSON POST, it's vital for streaming uploads)
-      // And crucially, to handle streaming *responses* from the Python backend
-      // We need to tell fetch *not* to buffer the entire response.
-      // However, the standard fetch doesn't directly expose low-level stream control like Node's http.request.
-      // The key is that `fetch` *will* return a ReadableStream in `backendResponse.body`
-      // if the server sends a chunked response, which Flask/FastAPI streaming does.
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: userMessages, agent: agent, event: event || '0000' }),
     });
 
-    if (!backendResponse.ok) {
-      const errorBody = await backendResponse.text();
-      console.error(`Backend API error: ${backendResponse.status} ${backendResponse.statusText}`, errorBody);
-      return new Response(JSON.stringify({ error: `Backend error: ${errorBody || backendResponse.statusText}` }), { status: backendResponse.status });
+    console.log(`[Proxy] Backend fetch status: ${backendResponse.status}`); // Log status
+
+    if (!backendResponse.ok || !backendResponse.body) {
+       const errorBody = await backendResponse.text();
+       console.error(`[Proxy] Backend API error: ${backendResponse.status} ${backendResponse.statusText}`, errorBody);
+       return new Response(`Backend error: ${errorBody || backendResponse.statusText}`, { status: backendResponse.status });
     }
 
-    if (!backendResponse.body) {
-       return new Response(JSON.stringify({ error: 'Backend response missing body' }), { status: 500 });
-     }
+    console.log("[Proxy] Backend response OK and has body. Creating ReadableStream..."); // Log before stream creation
 
-    // --- Adapt Python SSE stream to Vercel AI SDK format ---
-    const pythonStream = backendResponse.body;
-    const transformStream = new TransformStream({
-        async transform(chunk, controller) {
-            const textDecoder = new TextDecoder();
-            const chunkText = textDecoder.decode(chunk);
-            // console.log("Raw chunk from backend:", chunkText); // Debugging
+    // --- Manual ReadableStream Creation ---
+    const backendStream = backendResponse.body;
+    const textDecoder = new TextDecoder();
+    let buffer = '';
+    const eventSeparator = '\n\n'; // Python backend uses double newline
+    const encoder = new TextEncoder(); // Need encoder to send bytes
 
-            // Split potential multiple SSE events in one chunk
-            const lines = chunkText.split('\n').filter(line => line.trim() !== '');
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        console.log("[Proxy] Manual ReadableStream start() entered."); // Log entry
+        const reader = backendStream.getReader();
+        let chunkCounter = 0; // Count chunks
 
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                  try {
-                      const jsonData = JSON.parse(line.slice(6));
-                      if (jsonData.delta) {
-                          // console.log("Yielding delta:", jsonData.delta); // Debugging
-                          controller.enqueue(jsonData.delta); // Send only the text content
-                      } else if (jsonData.error) {
-                          console.error("Error received from backend stream:", jsonData.error);
-                          // Handle error - maybe enqueue an error message or terminate?
-                          // For now, we'll just log it. The 'done' signal won't be processed.
-                          // You might want to signal an error state to the frontend differently.
-                          // controller.enqueue(`[STREAM ERROR: ${jsonData.error}]`);
-                      } else if (jsonData.done) {
-                          console.log("Backend signaled done.");
-                          // Don't enqueue anything for 'done', just let the stream close naturally
-                      }
-                  } catch (e) {
-                      console.error('Error parsing JSON from backend stream line:', e, 'Line:', line);
-                  }
-              }
+        try {
+          while (true) {
+            const logPrefix = `[Proxy Chunk ${++chunkCounter}]`; // Prefix for logs related to this chunk
+            console.log(`${logPrefix} Reading from backend stream...`);
+            const { value, done } = await reader.read();
+
+            if (done) {
+              console.log(`${logPrefix} Backend stream finished (reader.read done=true).`);
+              // Process final buffer content
+              if (buffer.length > 0) {
+                  console.log(`${logPrefix} Processing final buffer content: '${buffer.substring(0,100)}...'`);
+                   // Attempt to process even if no trailing separator
+                   const lines = buffer.split('\n');
+                   for (const line of lines) {
+                       if (line.startsWith('data: ')) {
+                           try {
+                               const content = line.slice(6).trim();
+                               if(content) {
+                                   const jsonData = JSON.parse(content);
+                                   if (jsonData.delta) {
+                                       const formattedChunk = formatTextChunk(jsonData.delta);
+                                       console.log(`${logPrefix} Enqueuing formatted chunk (final buffer):`, formattedChunk.trim());
+                                       controller.enqueue(encoder.encode(formattedChunk));
+                                   }
+                               }
+                           } catch(e) { console.error(`${logPrefix} Error parsing final buffer JSON:`, e, buffer);}
+                       }
+                   }
+                   buffer = ''; // Clear buffer after final processing
+               }
+              console.log(`${logPrefix} Closing controller.`);
+              controller.close();
+              break;
             }
-        },
-        flush(controller) {
-            console.log("Proxy stream flushing and closing.");
-            controller.terminate();
+
+             if (value) {
+                console.log(`${logPrefix} Received ${value.byteLength} bytes. Decoding...`);
+                buffer += textDecoder.decode(value, { stream: true });
+                console.log(`${logPrefix} Buffer state (first 100): '${buffer.substring(0,100)}'`);
+                let eventIndex = buffer.indexOf(eventSeparator);
+                console.log(`${logPrefix} Found event separator at index: ${eventIndex}`);
+
+                while (eventIndex !== -1) {
+                  const eventData = buffer.substring(0, eventIndex);
+                  buffer = buffer.substring(eventIndex + eventSeparator.length); // Consume event and separator
+                  console.log(`${logPrefix} Processing complete event data: '${eventData}'`);
+                  console.log(`${logPrefix} Remaining buffer (first 100): '${buffer.substring(0,100)}'`);
+
+                  const lines = eventData.split('\n');
+                  for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                      try {
+                        const content = line.slice(6).trim();
+                        if (content) {
+                           const jsonData = JSON.parse(content);
+                           if (jsonData.delta) {
+                               // Format the delta using the SDK convention '0:"..."\n'
+                               const formattedChunk = formatTextChunk(jsonData.delta);
+                               console.log(`${logPrefix} Enqueuing formatted chunk:`, formattedChunk.trim());
+                               controller.enqueue(encoder.encode(formattedChunk)); // Enqueue encoded formatted chunk
+                           } else if (jsonData.error) {
+                               console.error(`${logPrefix} Error from backend stream (event data):`, jsonData.error);
+                               controller.enqueue(encoder.encode(formatErrorChunk(jsonData.error)));
+                           } // Ignore 'done' messages within the data payload for now
+                        } else {
+                             console.log(`${logPrefix} Empty data content after 'data: '`);
+                         }
+                      } catch (e) {
+                        console.error(`${logPrefix} Error parsing backend JSON:`, e, 'Line:', line);
+                      }
+                    } else if (line.trim() !== '') {
+                         console.warn(`${logPrefix} Received non-data line within event:`, line);
+                     }
+                  }
+                  eventIndex = buffer.indexOf(eventSeparator); // Check for more events in the updated buffer
+                  console.log(`${logPrefix} Found next event separator at index: ${eventIndex}`);
+                } // end while(eventIndex !== -1)
+             } else {
+                 console.log(`${logPrefix} Received empty chunk value.`);
+             }
+          } // end while(true) reader loop
+        } catch (error) {
+          console.error("[Proxy] Error reading from backend stream:", error);
+          try {
+              controller.enqueue(encoder.encode(formatErrorChunk(`Stream read error: ${error}`)));
+              controller.error(error); // Propagate error to our stream
+          } catch (e) {
+               console.error("[Proxy] Error enqueuing/closing controller after read error:", e);
+           }
+        } finally {
+           // Ensure controller is closed if not already
+           try { controller.close(); } catch (e) {}
+           console.log("[Proxy] Manual ReadableStream finally block executed.");
         }
+      },
+      cancel(reason) {
+         console.log("[Proxy] Manual ReadableStream cancelled:", reason);
+      }
     });
 
-    // Pipe the Python stream through the transformer
-    const readableStream = pythonStream.pipeThrough(transformStream);
-
-    // Return the transformed stream using Vercel AI SDK's StreamingTextResponse
+    // Use StreamingTextResponse (requires import 'ai')
+    // Pass the manually created and formatted stream
+    console.log("[Proxy] Returning StreamingTextResponse.");
     return new StreamingTextResponse(readableStream);
 
   } catch (error: any) {
-    console.error("Error in proxy chat route:", error);
-    return new Response(JSON.stringify({ error: error.message || 'An internal server error occurred' }), { status: 500 });
+    console.error("[Proxy] Error in top-level POST handler:", error);
+    if (error.cause) { console.error("[Proxy] Fetch Error Cause:", error.cause); }
+    return new Response(error.message || 'An internal server error occurred', { status: 500 });
   }
 }
