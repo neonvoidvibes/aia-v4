@@ -241,15 +241,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const isScrollable = scrollHeight > clientHeight;
         const isAtStrictBottom = scrollHeight - scrollTop - clientHeight < 2; // Strict check for bottom
 
-        // Lock if user scrolls up (is not at the bottom anymore)
-        if (!isAtStrictBottom && !userHasScrolledRef.current) {
-             // Check if scroll actually happened to avoid locking on initial load/render shifts
-             if (scrollTop > 0) { // Only lock if not at the very top
-                 console.log("User scrolled away from bottom, locking auto-scroll.");
-                 userHasScrolledRef.current = true;
-             }
+        // LOCK auto-scroll ONLY if an UPWARD scroll is detected
+        if (scrollTop > prevScrollTopRef.current && scrollTop > 10 && !userHasScrolledRef.current) {
+            // scrollTop > 10 prevents locking on initial tiny scrolls near the top
+            console.log("User scrolled UP, locking auto-scroll.");
+            userHasScrolledRef.current = true;
         }
-        // Unlock ONLY if user manually scrolls back to the very bottom
+        // UNLOCK auto-scroll ONLY if user manually scrolls back to the very bottom
         else if (userHasScrolledRef.current && isAtStrictBottom) {
             console.log("User manually scrolled to strict bottom, unlocking auto-scroll.");
             userHasScrolledRef.current = false;
