@@ -619,8 +619,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         <div
                                             // Apply conditional margins directly here for spacing
                                             className={cn(
-                                                "message-actions flex",
-                                                isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-1" // Changed Assistant from -mt-2 back to -mt-1 for less overlap
+                                              "message-actions flex",
+                                              isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-4" // Reverted assistant margin back to -mt-2 for closer vertical padding
                                             )}
                                             style={{
                                                 opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0,
