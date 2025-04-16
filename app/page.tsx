@@ -105,7 +105,8 @@ export default function Home() {
   return (
     // Use min-h-dvh and h-dvh for better mobile viewport height handling
     // Add overflow-hidden to prevent the container itself from scrolling
-    <div className="max-w-[800px] mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
+    // Make container full-width by default, apply max-width/centering only on sm screens and up
+    <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
       <header className="py-4 px-4 text-center relative flex-shrink-0"> {/* Prevent header shrinking */}
         <div className="flex items-center justify-between">
           <button
