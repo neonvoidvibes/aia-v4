@@ -9,118 +9,91 @@
   font-style: normal;
 }
 
-/* Theme variables with improved organization */
+/* --- Base Theme Variables --- */
 :root {
   /* Base colors */
-  --background: 220 13% 40%;
-  --foreground: 0 0% 100%;
+  --background: 220 13% 40%; /* Dark background */
+  --foreground: 0 0% 100%; /* White foreground */
 
   /* UI elements */
   --radius: 1.5rem;
   --message-radius: 2rem;
-  --input-gray: 0 0% 100%; /* Pure white in default/dark theme */
+  --input-gray: 0 0% 90%; /* Light gray for input/bubbles in dark mode */
 
   /* Text colors */
-  --text-primary: 0 0% 100%; /* White text in dark mode */
-  --text-secondary: 0 0% 70%;
-  --text-muted: 0 0% 60%;
-
-  /* Button states */
-  --button-active: 0 0% 20%;
-  --button-inactive: 0 0% 50%; /* Mid-gray for inactive buttons */
-}
-
-.dark {
-  --background: 220 13% 40%;
-  --foreground: 0 0% 100%;
-  --input-gray: 0 0% 90%; /* Light gray for dark mode */
-  --text-primary: 0 0% 100%; /* White text */
+  --text-primary: 0 0% 100%;
   --text-secondary: 0 0% 80%;
   --text-muted: 0 0% 60%;
 
-  /* Button states for dark mode */
-  --button-active: 0 0% 80%;
-  --button-inactive: 0 0% 50%; /* Mid-gray for inactive buttons */
+  /* Shadcn Component Variables (Dark Defaults) */
+  --card: 220 13% 40%; /* Match dark background */
+  --popover: 220 13% 40%;
+  --primary: 0 0% 98%; /* White */
+  --primary-foreground: 0 0% 9%; /* Black */
+  --secondary: 0 0% 14.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 14.9%; /* Darker gray for muted elements */
+  --accent: 0 0% 14.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 25%; /* Slightly lighter border */
+  --input: 0 0% 25%;
+  --ring: 0 0% 83.1%;
+
+  /* Custom Button State Variables (Dark Defaults) */
+  --button-active: 0 0% 0%; /* Black icon */
+  --button-active-bg: 0 0% 100%; /* White background */
+  --button-inactive: 0 0% 30%; /* Darker gray */
+}
+
+.dark {
+  /* Reaffirm dark variables if needed, but :root should cover */
 }
 
 .light {
-  --background: 0 0% 95%;
-  --foreground: 0 0% 10%;
-  --input-gray: 0 0% 88%; /* Brighter gray (88%) for light mode input/user bubble */
-  --text-primary: 0 0% 0%; /* Black text */
+  /* Base colors */
+  --background: 0 0% 95%; /* Light background */
+  --foreground: 0 0% 10%; /* Dark foreground */
+
+  /* UI elements */
+  --input-gray: 0 0% 88%; /* Brighter gray for input/bubbles in light mode */
+
+  /* Text colors */
+  --text-primary: 0 0% 0%;
   --text-secondary: 0 0% 30%;
   --text-muted: 0 0% 45%;
 
-  /* Button states for light mode */
-  --button-active: 0 0% 20%; /* Dark gray */
-  --button-inactive: 0 0% 65%; /* Lighter gray for inactive/disabled */
+  /* Shadcn Component Variables (Light Overrides) */
+  --card: 0 0% 100%; /* Default white card */
+  --popover: 0 0% 100%;
+  --primary: 0 0% 9%; /* Black */
+  --primary-foreground: 0 0% 98%; /* White */
+  --secondary: 0 0% 96.1%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 90%; /* Adjusted muted for tab list bg */
+  --accent: 0 0% 96.1%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 89.8%;
+  --input: 0 0% 89.8%;
+  --ring: 0 0% 3.9%;
+
+  /* Custom Button State Variables (Light Overrides) */
+  --button-active: 0 0% 20%; /* Dark gray icon */
+  --button-active-bg: transparent; /* No background */
+  --button-inactive: 0 0% 65%; /* Lighter gray */
 }
 
-/* Specific override for card background inside settings dialog in light mode */
-.light .fixed-dialog .document-upload-card,
-.light .fixed-dialog .tab-content-inner .document-upload-card { /* Increased specificity */
-  --card: 0 0% 95%; /* Match the main light background */
-  background-color: hsl(var(--card)) !important;
-}
-
-/* Ensure the content area within the card also gets the right background */
-/* Target specifically within the settings dialog and memory tab content */
-.light .fixed-dialog .tab-content-inner .memory-section .document-upload-card .upload-container {
-   background-color: hsl(var(--background)) !important; /* Use main light background */
-}
-
-/* Ensure the card itself has the correct background and no extra styling */
-.light .fixed-dialog .tab-content-inner .memory-section .document-upload-card {
-   background-color: hsl(var(--background)) !important;
-   border: none !important;
-   box-shadow: none !important;
-   padding: 0 !important; /* Remove card padding */
-}
-
-/* Ensure the card header also matches */
-.light .fixed-dialog .tab-content-inner .memory-section .document-upload-card .upload-header {
-    background-color: hsl(var(--background)) !important;
-    padding-bottom: 0.5rem !important; /* Adjust padding if needed */
-}
-
-/* Ensure the card content area matches */
-.light .fixed-dialog .tab-content-inner .memory-section .document-upload-card .upload-container {
-    padding-top: 0.5rem !important; /* Adjust padding if needed */
-}
-
-/* --- Settings Dialog: Force Sub-Container Backgrounds in Light Mode --- */
-/* Target DocumentUpload Card within Documents Tab */
-.light .fixed-dialog .tab-content-scrollable[data-state="active"][data-orientation="vertical"] > div[role="tabpanel"][data-state="active"][data-orientation="vertical"] .document-upload-card {
-  background-color: hsl(var(--background)) !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-.light .fixed-dialog .tab-content-scrollable[data-state="active"][data-orientation="vertical"] > div[role="tabpanel"][data-state="active"][data-orientation="vertical"] .document-upload-card .upload-header,
-.light .fixed-dialog .tab-content-scrollable[data-state="active"][data-orientation="vertical"] > div[role="tabpanel"][data-state="active"][data-orientation="vertical"] .document-upload-card .upload-container {
-  background-color: hsl(var(--background)) !important;
-}
-/* --- End Settings Dialog Fixes --- */
-
-
-/* Add new button state variables for dark mode */
-.dark {
-  /* Button states for dark mode */
-  --button-active: 0 0% 0%; /* Black when active */
-  --button-inactive: 0 0% 30%; /* Darker gray for inactive/disabled */
-}
-
+/* --- Global Styles --- */
 body {
   font-family: "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: linear-gradient(to bottom, hsl(220 13% 45%), hsl(220 13% 25%));
-  color: white;
+  /* Use CSS variables for background */
+  background: linear-gradient(to bottom, hsl(var(--background) / 0.9), hsl(var(--background) / 1.1));
+  color: hsl(var(--foreground));
   min-height: 100vh;
   transition: background 0.3s ease, color 0.3s ease;
-}
-
-.light body {
-  background: linear-gradient(to bottom, hsl(0 0% 98%), hsl(0 0% 90%));
-  color: black;
 }
 
 @layer utilities {
@@ -131,18 +104,11 @@ body {
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border; /* Use Shadcn variable */
   }
 }
 
-/* Add these styles to fix text overflow in attachment items */
-.file-name {
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+/* --- Layout Containers --- */
 .chat-container {
   max-width: 800px;
   margin: 0 auto;
@@ -152,54 +118,23 @@ body {
   position: relative;
 }
 
-/* Fix message bubble styling for rounded corners */
-.message-bubble {
-  border-radius: var(--message-radius);
-  max-width: 80%;
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Update the messages container padding */
 .messages-container {
+  flex-grow: 1; /* Allow message container to take up space */
   overflow-y: auto;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  padding: 4px 10px 16px 10px !important; /* Reduced horizontal padding to 10px */
+  padding: 4px 10px 1.5rem 10px; /* Adjusted padding */
 }
 
-/* Update user message styling to ensure rounded corners */
-.user-message,
-.user-bubble {
-  background-color: hsl(var(--input-gray));
-  color: black;
-  align-self: flex-end;
-  max-width: 50%;
-  padding: 12px 16px;
-  border-radius: var(--message-radius) !important; /* Force rounded corners */
-  /* Add even less rounded bottom-right corner by default */
-  border-bottom-right-radius: calc(var(--radius) - 8px) !important; /* Further reduced radius */
-  margin-right: 8px;
-}
-
-/* Special case for attachments: Match top-right radius, keep bottom-right full */
-.user-bubble.with-attachment {
-  border-top-right-radius: calc(var(--radius) - 8px) !important; /* Match reduced radius */
-  border-bottom-right-radius: var(--message-radius) !important; /* Revert bottom-right to full radius */
-}
-
-/* Assistant message styling */
-.ai-message,
-.ai-bubble {
+.input-area-container {
+  display: flex;
+  flex-direction: column;
   background-color: transparent;
-  color: hsl(var(--text-primary));
-  align-self: flex-start;
-  max-width: 100%;
-  padding: 12px 0;
-  border-radius: var(--message-radius) !important; /* Force rounded corners */
-  margin-left: 8px;
+  z-index: 10;
+  position: relative;
+  padding: 0.125rem 16px;
 }
 
-/* Update input container padding */
 .input-container {
   background-color: hsl(var(--input-gray));
   border-radius: 9999px;
@@ -207,77 +142,292 @@ body {
   display: flex;
   align-items: center;
   margin: 16px auto;
-  width: calc(100% - 32px); /* Reduce width to create horizontal padding */
+  width: calc(100% - 32px);
   max-width: 800px;
   position: relative;
 }
 
-/* Ensure input area is white */
-.bg-input-gray {
-  background-color: hsl(var(--input-gray)) !important;
+/* Input field text color (should be black in both themes) */
+.input-container input {
+  color: black; /* Explicitly black */
+  background-color: transparent; /* Ensure transparent background */
+  border: none;
+  outline: none;
+  flex: 1;
+  padding: 0 8px; /* Adjust padding as needed */
 }
 
+/* --- Message Bubbles --- */
+.message-bubble {
+  border-radius: var(--message-radius);
+  max-width: 80%;
+  padding: 12px 16px;
+  white-space: pre-wrap; /* Preserve line breaks */
+  animation: fadeIn 0.3s ease-out;
+  margin-bottom: 8px; /* Add some base margin */
+}
+
+.user-bubble {
+  background-color: hsl(var(--input-gray));
+  color: black; /* User bubble text always black */
+  align-self: flex-end;
+  border-bottom-right-radius: calc(var(--radius) - 8px); /* Less rounded */
+  margin-right: 8px;
+}
+
+.user-bubble.with-attachment {
+  border-top-right-radius: calc(var(--radius) - 8px); /* Match reduced radius */
+  border-bottom-right-radius: var(--message-radius); /* Keep full radius */
+}
+
+.ai-bubble {
+  background-color: transparent;
+  color: hsl(var(--foreground)); /* Inherit theme text color */
+  align-self: flex-start;
+  padding-left: 0; /* Remove default padding */
+  margin-left: 8px;
+}
+
+.light .ai-bubble {
+   color: black; /* Ensure AI text is black in light mode */
+}
+
+/* System message styling */
+.message-bubble[data-role="system"] { /* Assuming data-role attribute is added */
+    background-color: transparent;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem; /* text-sm */
+    font-style: italic;
+    text-align: center;
+    max-width: 90%;
+    align-self: center;
+    padding: 8px 16px;
+}
+
+
+/* --- Input Area Controls --- */
 .plus-button-container {
   display: flex;
   align-items: center;
   justify-content: center;
   padding-right: 4px;
 }
-
-/* Add a more direct approach to fix the popup menu and record UI */
-.plus-menu,
-.record-ui {
-  background-color: hsl(var(--input-gray)) !important;
-}
-
-/* Popup menu styling - FIXED */
-.plus-menu {
-  position: absolute;
-  left: 0;
-  bottom: 100%;
-  background-color: hsl(var(--input-gray)) !important;
-  border-radius: 9999px;
-  padding: 8px 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform-origin: bottom center;
-  z-index: 10;
-  margin-bottom: 8px;
-}
-
 /* Record UI styling - FIXED */
 .record-ui {
   position: absolute;
-  left: -4px; /* Adjusted position slightly right */
+  left: -12px; /* Shift further left */
   bottom: 100%;
   background-color: hsl(var(--input-gray)) !important;
   border-radius: 9999px;
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 10;
   margin-bottom: 8px;
   transition: opacity 0.3s ease;
+  display: flex;
+  align-items: center;
 }
 
-.plus-menu-item {
+.plus-menu {
+  left: 0;
+  padding: 8px 0;
+  flex-direction: column; /* Stack icons vertically */
+}
+
+.record-ui {
+  left: -4px; /* Position adjustment */
+  padding: 8px 12px;
+  gap: 8px;
+}
+
+/* Popup menu items */
+.plus-menu button {
   padding: 8px 10px;
-  color: #666;
-  transition: color 0.2s;
+  color: hsl(var(--text-secondary));
+  opacity: 0.7;
+  transition: color 0.2s, opacity 0.2s;
+  background: none;
+  border: none;
   cursor: pointer;
-  opacity: 0.7; /* Dimmer by default */
+}
+.plus-menu button:hover {
+  color: hsl(var(--text-primary));
+  opacity: 1;
+}
+/* Popup menu mic icon colors */
+.plus-menu button.recording svg {
+  color: #ef4444; /* Red */
+}
+.plus-menu button.paused svg {
+  color: #eab308; /* Yellow */
+}
+/* Default state handled by button's base color */
+
+/* Record UI buttons */
+.record-ui button {
+  padding: 4px; /* Smaller padding */
+  color: hsl(var(--text-secondary));
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.record-ui button:hover {
+  color: hsl(var(--text-primary));
+}
+.record-ui button:disabled {
+  color: hsl(var(--button-inactive)); /* Use inactive variable */
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.record-ui button svg {
+  stroke-width: 2px;
+}
+/* Specific icon colors */
+.record-ui button svg.text-red-500 { color: #ef4444; }
+.record-ui button svg.text-yellow-500 { color: #eab308; }
+.record-ui button svg.text-gray-600 { color: hsl(var(--text-secondary)); } /* Default */
+.record-ui button:disabled svg.text-gray-600 { color: hsl(var(--button-inactive)); } /* Disabled default */
+.record-ui span {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: hsl(var(--text-secondary)); /* Match icon color */
+}
+.light .record-ui span { color: black; } /* Ensure visibility in light mode */
+.dark .record-ui span { color: black; } /* Ensure visibility in dark mode */
+
+/* --- Submit Button --- */
+.input-container button[type="submit"] {
+  border-radius: 9999px;
+  padding: 4px;
+  height: 28px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+  border: none;
+  /* Default/Inactive state */
+  background-color: transparent;
+  color: hsl(var(--button-inactive));
+}
+.input-container button[type="submit"] svg {
+  color: currentColor;
+  stroke: currentColor;
+  fill: none;
+}
+.input-container button[type="submit"] .fill-current {
+  fill: currentColor; /* For Square icon */
+}
+/* Disabled state */
+.input-container button[type="submit"]:disabled {
+  color: hsl(var(--button-inactive));
+  background-color: transparent;
+  cursor: not-allowed;
+}
+/* Active state */
+.input-container button[type="submit"]:not(:disabled) {
+  color: hsl(var(--button-active));
+  background-color: hsl(var(--button-active-bg)); /* Use variable for background */
 }
 
-.plus-menu-item:hover {
-  color: #333;
-  background-color: transparent !important; /* Never show background */
-  opacity: 1; /* Brighter on hover */
+/* --- Message Actions --- */
+.message-actions {
+  position: absolute;
+  z-index: 5;
+  opacity: 0;
+  visibility: hidden;
+  padding: 2px 0;
+  gap: 6px;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+.group:hover .message-actions, .message-actions:hover {
+  opacity: 1;
+  visibility: visible;
+}
+.user-actions { right: 8px; bottom: -36px; }
+.assistant-actions { left: 8px; bottom: -24px; }
+
+.action-button {
+  padding: 4px;
+  border-radius: 4px;
+  background-color: transparent;
+  transition: opacity 0.2s ease;
+  opacity: 0.5;
+  color: hsl(var(--foreground));
+}
+.action-button:hover {
+  opacity: 1;
 }
 
+/* --- Settings Dialog --- */
+.fixed-dialog {
+  width: 600px !important;
+  max-width: 90vw !important;
+  overflow: hidden !important;
+  top: 80px !important; /* Position from top */
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  margin: 0 !important;
+  max-height: calc(100vh - 120px); /* Max height relative to viewport */
+}
+/* Dialog Content */
+.fixed-dialog > div[role="dialog"] {
+  max-height: 100%; /* Allow content to fill dialog */
+  display: flex;
+  flex-direction: column;
+}
+/* Tabs List Background */
+.fixed-dialog .tabs-list-container { /* Add a wrapper if needed or target Shadcn's list directly */
+  background-color: hsl(var(--muted));
+}
+.light .fixed-dialog .tabs-list-container {
+  background-color: hsl(0 0% 90%); /* Slightly darker gray */
+}
+.dark .fixed-dialog .tabs-list-container {
+  background-color: hsl(0 0% 20%); /* Slightly lighter gray */
+}
+/* Tab Content Area */
+.tab-content-wrapper {
+  flex-grow: 1; /* Allow content to fill space */
+  overflow: hidden; /* Prevent wrapper overflow */
+}
+.tab-content-scrollable {
+  max-height: 100%; /* Fill wrapper */
+  overflow-y: auto; /* Scroll content */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+}
+.tab-content-scrollable::-webkit-scrollbar { width: 6px; }
+.tab-content-scrollable::-webkit-scrollbar-track { background: transparent; }
+.tab-content-scrollable::-webkit-scrollbar-thumb { background-color: rgba(155, 155, 155, 0.5); border-radius: 20px; border: transparent; }
+
+/* Settings Sub-Container Backgrounds (Light Mode) */
+.light .fixed-dialog .document-upload-card,
+.light .fixed-dialog .memory-section .document-upload-card {
+  --card: var(--background); /* Override Shadcn variable */
+  background-color: hsl(var(--card)) !important; /* Apply it */
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.light .fixed-dialog .document-upload-card > *,
+.light .fixed-dialog .memory-section .document-upload-card > * {
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Memory Tab Mobile Adjustments */
+@media (max-width: 768px) {
+  .memory-tab-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .section-toggle { display: flex; /* ... other toggle styles */ }
+  .section-content { overflow: hidden; transition: max-height 0.3s ease; }
+  .section-content.open { max-height: 400px; /* Adjust as needed */ overflow-y: auto; }
+}
+
+/* --- Miscellaneous --- */
 .welcome-message {
   font-weight: 700;
   font-size: 2rem;
@@ -292,377 +442,26 @@ body {
   pointer-events: none;
 }
 
-/* Tab content consistency */
-.tab-content-wrapper {
-  position: relative;
-}
-
-.tab-content-scrollable {
-  max-height: 60vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
-}
-
-.tab-content-scrollable::-webkit-scrollbar {
-  width: 6px;
-}
-
-.tab-content-scrollable::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.tab-content-scrollable::-webkit-scrollbar-thumb {
-  background-color: rgba(155, 155, 155, 0.5);
-  border-radius: 20px;
-  border: transparent;
-}
-
-.tab-content-inner {
-  transition: height 0.3s ease;
-}
-
-/* Fixed position dialog */
-.fixed-dialog {
-  position: fixed !important;
-  top: 80px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  margin: 0 !important;
-  max-height: 80vh;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Increase padding for status area */
 .status-bar {
-  color: hsla(var(--text-primary), 0.7);
+  color: hsl(var(--foreground) / 0.7);
   font-size: 0.8rem;
   text-align: center;
   padding: 16px 0 10px 0;
   font-weight: 300;
   transition: color 0.3s ease;
 }
-
 .light .status-bar {
-  color: rgba(0, 0, 0, 0.7);
-}
-
-/* Increase padding between bottommost assistant message and chat input */
-.messages-container {
-  overflow-y: auto;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 4rem !important; /* Increased from 2.5rem to 4rem */
-}
-
-/* Fix message actions positioning */
-.message-actions {
-  transition: all 0.3s ease;
-  position: absolute;
-  bottom: -24px; /* Base positioning for assistant messages */
-  z-index: 5;
-  opacity: 0;
-  visibility: hidden;
-  padding: 2px 0;
-}
-
-.group:hover .message-actions,
-.message-actions:hover {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* Different padding for user vs assistant message actions */
-.user-actions {
-  right: 0;
-  padding-right: 8px;
-}
-
-/* Add specific bottom positioning for user actions - moved downward */
-.user-bubble + .user-actions {
-  bottom: -36px; /* Changed from -24px to -36px to move buttons further downward */
-}
-
-/* Reduce padding between assistant message and copy/sound icons */
-.assistant-actions {
-  left: 0;
-  padding-left: 0; /* Reduced padding for assistant messages */
-  margin-top: 0px; /* Explicitly set to 0px */
-}
-
-/* IMPORTANT: Keep consistent gap between action buttons for both user and assistant messages */
-.message-actions {
-  gap: 6px; /* Reduced from 8px to 6px - consistent but smaller gap between action buttons */
-}
-
-/* Update action button styling for transparency and hover effects */
-.action-button {
-  padding: 4px;
-  border-radius: 4px;
-  background-color: transparent !important; /* Never show background */
-  transition: all 0.2s ease;
-  opacity: 0.5;
-}
-
-.action-button:hover {
-  background-color: transparent !important; /* Never show background on hover */
-  opacity: 1;
-}
-
-.dark .action-button {
-  background-color: transparent !important;
-}
-
-.dark .action-button:hover {
-  background-color: transparent !important;
-}
-
-.app-title {
-  font-weight: 200;
-}
-
-/* User bubble styling */
-.user-bubble {
-  background-color: hsl(var(--input-gray)) !important;
-  color: hsl(var(--text-primary)) !important;
-}
-
-/* Add styles for the attachments container */
-.attachments-container {
-  transition: all 0.3s ease;
-}
-
-.attachment-item {
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.attachment-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-/* Update message bubble styling */
-.user-bubble {
-  background-color: hsl(var(--input-gray)) !important;
-  color: black !important;
-}
-
-/* Ensure message content preserves whitespace */
-.ai-bubble,
-.user-bubble {
-  white-space: pre-wrap;
-}
-
-.ai-bubble {
-  border-radius: var(--message-radius);
-}
-
-/* Add styles for document upload containers */
-.document-upload-container {
-  max-height: 400px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
-}
-
-.document-upload-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.document-upload-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.document-upload-container::-webkit-scrollbar-thumb {
-  background-color: rgba(155, 155, 155, 0.5);
-  border-radius: 20px;
-  border: transparent;
-}
-
-.document-files-container {
-  max-height: 200px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
-}
-
-.document-files-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.document-files-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.document-files-container::-webkit-scrollbar-thumb {
-  background-color: rgba(155, 155, 155, 0.5);
-  border-radius: 20px;
-  border: transparent;
-}
-
-/* Further reduce padding between attached message and chat input */
-.file-attachment-container {
-  margin-bottom: 0.125rem;
-  margin-top: 0.125rem;
-  margin-left: auto;
-}
-
-.file-attachment-message {
-  margin-bottom: 0.125rem;
-  max-width: 100%;
-}
-
-.file-attachment-wrapper {
-  max-width: 33%;
-  margin-left: auto;
-  margin-bottom: 0.125rem;
-}
-
-.attachments-container {
-  margin-top: 0.125rem;
-}
-
-/* Input area container with minimal padding */
-.input-area-container {
-  display: flex;
-  flex-direction: column;
-  background-color: transparent;
-  z-index: 10;
-  position: relative;
-  padding: 0.125rem 16px; /* Reverted to original padding */
-}
-
-/* Messages container */
-.messages-container {
-  overflow-y: auto;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 1.5rem;
-}
-
-/* Document upload card */
-.document-upload-card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background-color: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.sticky-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding-bottom: 1rem;
-  background-color: hsl(var(--background));
-}
-
-.light .sticky-header {
-  background-color: white;
-}
-
-.dark .sticky-header {
-  background-color: hsl(var(--background));
-}
-
-/* Ensure tab content has consistent background */
-.tab-content-inner {
-  background-color: transparent !important;
-}
-
-.light .tab-content-inner {
-  background-color: white;
-}
-
-.dark .tab-content-inner {
-  background-color: hsl(var(--background));
-}
-
-/* Ensure document upload card has consistent background */
-.document-upload-card .upload-container {
-  background-color: transparent !important;
-}
-
-.light .document-upload-card .upload-container {
-  background-color: white;
-}
-
-.dark .document-upload-card .upload-container {
-  background-color: hsl(var(--background));
-}
-
-/* Apply inner container scroll logic to all tabs */
-.tab-content-scrollable {
-  max-height: 70vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
-}
-
-.tab-content-inner {
-  background-color: transparent !important;
-}
-
-/* Fix chevron animation */
-.chevron-rotate {
-  transition: transform 0.3s ease;
-}
-
-.chevron-rotate.open {
-  transform: rotate(180deg);
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(10px);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-.animate-in {
-  animation: fadeIn 0.3s ease forwards, slideUp 0.3s ease forwards;
-}
-
-.fade-in {
-  animation: fadeIn 0.3s ease forwards;
-}
-
-.slide-in-from-bottom-2 {
-  animation: slideUp 0.3s ease forwards;
+  color: hsl(var(--foreground) / 0.7);
 }
 
 /* Scroll to bottom button */
 .scroll-to-bottom-button {
   position: absolute;
-  bottom: 90px;
+  bottom: 90px; /* Adjust position relative to input */
   left: 50%;
   transform: translateX(-50%);
-  background-color: hsl(var(--input-gray)) !important;
-  color: #666;
+  background-color: hsl(var(--input-gray));
+  color: hsl(var(--text-secondary));
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -675,36 +474,21 @@ body {
   transition: all 0.2s ease;
   animation: fadeIn 0.3s ease;
 }
-
 .scroll-to-bottom-button:hover {
-  background-color: hsl(var(--input-gray)) !important;
   filter: brightness(0.95);
   transform: translateX(-50%) translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Dark mode fixes */
-.dark .bg-input-gray {
-  background-color: hsl(var(--input-gray));
-}
+/* Animation Keyframes */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(10px); } to { transform: translateY(0); } }
 
-/* Fix dark mode input text */
-.dark input {
-  color: black !important;
-}
+/* Confirmation Modal Styles (Keep as is - seems okay) */
+.modal-overlay { /* ... */ }
+.modal-content { /* ... */ }
 
-/* User bubble styling */
-.user-bubble {
-  background-color: hsl(var(--input-gray)) !important;
-  color: hsl(var(--text-primary)) !important;
-}
-
-/* Fix the stop button styling */
-.fill-current {
-  fill: currentColor;
-}
-
-/* Confirmation modal styling */
+/* Confirmation Modal Styles (Keep as is - seems okay) */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1161,7 +945,7 @@ button {
   box-sizing: border-box !important;
 }
 
-/* Force the file name is properly truncated */
+/* Ensure the file name is properly truncated */
 .memory-section .document-files-container .truncate {
   max-width: 100% !important;
   overflow: hidden !important;
@@ -1174,19 +958,6 @@ button {
   width: 600px !important; /* Set fixed width */
   max-width: 90vw !important; /* But don't exceed viewport */
   overflow: hidden !important; /* Prevent overflow */
-}
-
-/* Style the TabsList background within the settings dialog */
-.fixed-dialog .grid.w-full.grid-cols-3 { /* Selector for TabsList */
-  background-color: hsl(var(--muted)) !important; /* Use existing muted color */
-}
-
-.light .fixed-dialog .grid.w-full.grid-cols-3 {
-  background-color: hsl(0 0% 90%) !important; /* Slightly darker gray in light mode */
-}
-
-.dark .fixed-dialog .grid.w-full.grid-cols-3 {
-  background-color: hsl(0 0% 20%) !important; /* Slightly lighter gray in dark mode */
 }
 
 /* Ensure memory tab grid maintains consistent width */
@@ -1267,8 +1038,8 @@ button {
 }
 
 /* Comment explaining the purpose of these styles */
-/* These styles ensure that the Agent Memory and System Prompt containers 
-   maintain a consistent width when documents are attached, preventing 
+/* These styles ensure that the Agent Memory and System Prompt containers
+   maintain a consistent width when documents are attached, preventing
    layout disruption and overflow issues. They also add vertical scrolling
    to contain the content within the settings window. */
 
@@ -1291,7 +1062,7 @@ button {
 }
 
 /* Comment explaining the purpose of these styles */
-/* These styles ensure that attached files are consistently displayed above 
+/* These styles ensure that attached files are consistently displayed above
    the drag and drop section in both Agent Memory and System Prompt containers,
    providing a more intuitive user experience. */
 
@@ -1430,7 +1201,8 @@ div.record-ui,
 
 /* Make the arrow darker in light mode */
 .light .input-container button[type="submit"] svg {
-  color: #333 !important; /* Darker color for the arrow in light mode */
+  /* color is handled by button state */
+  stroke-width: 2px !important; /* Make the stroke thicker */
 }
 
 /* Ensure the popup menu and record UI have the correct background color */
@@ -1453,17 +1225,6 @@ div.record-ui,
   background-color: hsl(var(--input-gray)) !important;
 }
 
-/* Add these styles to make the submit button and stop icon darker in light mode */
-/* Make the arrow darker in light mode */
-.light .input-container button[type="submit"] {
-  color: #333 !important; /* Darker color for the button in light mode */
-}
-
-.light .input-container button[type="submit"] svg {
-  color: #333 !important; /* Darker color for the arrow in light mode */
-  stroke-width: 2px !important; /* Make the stroke thicker */
-}
-
 /* Make the stop icon darker in record controls */
 .light .record-ui button.p-1[disabled] svg {
   color: #555 !important; /* Darker color for the disabled stop button */
@@ -1476,136 +1237,6 @@ div.record-ui,
 
 .light .record-ui button svg {
   stroke-width: 2px !important; /* Make the stroke thicker */
-}
-
-/* --- Submit Button Styling --- */
-/* Base style (applies to both themes, represents inactive/disabled state) */
-.input-container button[type="submit"] {
-  border-radius: 9999px;
-  padding: 4px;
-  height: 28px;
-  width: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s, color 0.2s;
-  background-color: transparent !important;
-  color: hsl(var(--button-inactive)) !important; /* Inactive color */
-}
-.input-container button[type="submit"] svg {
-  color: hsl(var(--button-inactive)) !important; /* Inactive color */
-  stroke: hsl(var(--button-inactive)) !important;
-  fill: none !important; /* Default no fill */
-}
-/* Ensure disabled state explicitly uses inactive colors */
-.input-container button[type="submit"]:disabled,
-.input-container button[type="submit"][disabled] {
-  color: hsl(var(--button-inactive)) !important;
-  background-color: transparent !important;
-}
-.input-container button[type="submit"]:disabled svg,
-.input-container button[type="submit"][disabled] svg {
-  color: hsl(var(--button-inactive)) !important;
-  stroke: hsl(var(--button-inactive)) !important;
-  fill: none !important;
-}
-/* Special case for disabled Square icon fill */
-.input-container button[type="submit"]:disabled .fill-current,
-.input-container button[type="submit"][disabled] .fill-current {
-  fill: hsl(var(--button-inactive)) !important;
-}
-
-
-/* Light Mode Active State (:not(:disabled)) */
-.light .input-container button[type="submit"]:not(:disabled) {
-  color: hsl(0 0% 20%) !important; /* Active dark gray */
-}
-.light .input-container button[type="submit"]:not(:disabled) svg {
-  color: hsl(0 0% 20%) !important;
-  stroke: hsl(0 0% 20%) !important;
-}
-/* Square fill for light active */
-.light .input-container button[type="submit"]:not(:disabled) .fill-current {
-   fill: hsl(0 0% 20%) !important;
-}
-
-
-/* Dark Mode Active State (:not(:disabled)) */
-.dark .input-container button[type="submit"]:not(:disabled) {
-  color: hsl(0 0% 0%) !important; /* Black icon */
-  background-color: hsl(0 0% 100%) !important; /* White background circle */
-}
-.dark .input-container button[type="submit"]:not(:disabled) svg {
-  color: hsl(0 0% 0%) !important; /* Black icon */
-  stroke: hsl(0 0% 0%) !important;
-}
-/* Square fill for dark active */
-.dark .input-container button[type="submit"]:not(:disabled) .fill-current {
-   fill: hsl(0 0% 0%) !important; /* Black fill */
-}
-/* --- End Submit Button Styling --- */
-
-/* Record UI buttons */
-.record-ui button {
-  color: hsl(var(--button-active)) !important;
-}
-
-.record-ui button svg {
-  color: hsl(var(--button-active)) !important;
-  stroke: hsl(var(--button-active)) !important;
-}
-
-.record-ui button:disabled,
-.record-ui button[disabled] {
-  color: hsl(var(--button-inactive)) !important;
-}
-
-.record-ui button:disabled svg,
-.record-ui button[disabled] svg {
-  color: hsl(var(--button-inactive)) !important;
-  stroke: hsl(var(--button-inactive)) !important;
-}
-
-/* Special case for Square icon in loading state */
-.input-container button[type="submit"] .fill-current {
-  fill: hsl(var(--button-active)) !important;
-}
-
-.input-container button[type="submit"]:disabled .fill-current,
-.input-container button[type="submit"][disabled] .fill-current {
-  fill: hsl(var(--button-inactive)) !important;
-}
-
-/* Special case for play/pause/record buttons to preserve their colors */
-.record-ui button .text-red-500,
-.record-ui button svg.text-red-500 {
-  color: #ef4444 !important; /* red-500 */
-  stroke: #ef4444 !important;
-  fill: none !important;
-}
-
-.record-ui button .text-yellow-500,
-.record-ui button svg.text-yellow-500 {
-  color: #eab308 !important; /* yellow-500 */
-  stroke: #eab308 !important;
-  fill: none !important;
-}
-
-/* Ensure these special colors are preserved in both light and dark modes */
-.light .record-ui button .text-red-500,
-.light .record-ui button svg.text-red-500,
-.dark .record-ui button .text-red-500,
-.dark .record-ui button svg.text-red-500 {
-  color: #ef4444 !important;
-  stroke: #ef4444 !important;
-}
-
-.light .record-ui button .text-yellow-500,
-.light .record-ui button svg.text-yellow-500,
-.dark .record-ui button .text-yellow-500,
-.dark .record-ui button svg.text-yellow-500 {
-  color: #eab308 !important;
-  stroke: #eab308 !important;
 }
 
 /* Special case for play/pause/record buttons to preserve their colors */
@@ -1629,6 +1260,75 @@ div.record-ui,
 .dark .record-ui button svg.text-yellow-500 {
   color: #eab308 !important;
 }
+
+/* Style the TabsList background within the settings dialog */
+.fixed-dialog .grid.w-full.grid-cols-3 { /* Selector for TabsList */
+  background-color: hsl(var(--muted)); /* Use theme's muted */
+}
+/* Override Shadcn's default list background */
+.fixed-dialog .tabs-list-container {
+   background-color: hsl(var(--muted)) !important;
+}
+.light .fixed-dialog .tabs-list-container {
+  background-color: hsl(0 0% 90%) !important; /* Slightly darker gray in light mode */
+}
+.dark .fixed-dialog .tabs-list-container {
+  background-color: hsl(0 0% 20%) !important; /* Slightly lighter gray in dark mode */
+}
+
+/* --- Submit Button Styling --- */
+/* Base layout */
+.input-container button[type="submit"] {
+  border-radius: 9999px;
+  padding: 4px;
+  height: 28px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer; /* Default cursor */
+}
+/* Base SVG uses currentColor */
+.input-container button[type="submit"] svg {
+  color: currentColor;
+  stroke: currentColor;
+  fill: none;
+}
+/* Base Square fill uses currentColor */
+.input-container button[type="submit"] .fill-current {
+  fill: currentColor;
+}
+
+/* --- Light Mode --- */
+/* Light Inactive/Disabled State */
+.light .input-container button[type="submit"]:disabled,
+.light .input-container button[type="submit"][disabled] {
+  color: hsl(var(--button-inactive)); /* Light inactive gray */
+  background-color: transparent;
+  cursor: not-allowed;
+}
+/* Light Active State */
+.light .input-container button[type="submit"]:not(:disabled) {
+  color: hsl(var(--button-active)); /* Light active dark gray */
+  background-color: transparent;
+}
+
+/* --- Dark Mode --- */
+/* Dark Inactive/Disabled State */
+.dark .input-container button[type="submit"]:disabled,
+.dark .input-container button[type="submit"][disabled] {
+  color: hsl(var(--button-inactive)); /* Dark inactive gray */
+  background-color: transparent;
+  cursor: not-allowed;
+}
+/* Dark Active State */
+.dark .input-container button[type="submit"]:not(:disabled) {
+  color: hsl(var(--button-active)); /* Dark active black */
+  background-color: hsl(var(--button-active-bg)); /* Dark active white background */
+}
+/* --- End Submit Button Styling --- */
 
 /* Popup menu mic icon colors */
 /* Target the SVG element within the button */
