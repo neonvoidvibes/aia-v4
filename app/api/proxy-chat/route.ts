@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
                                    const jsonData = JSON.parse(content);
                                    if (jsonData.delta) {
                                        const formattedChunk = formatTextChunk(jsonData.delta);
-                                       console.log(`${logPrefix} Enqueuing formatted chunk (final buffer):`, formattedChunk.trim());
+                                       // Removed console log for final buffer chunk
                                        controller.enqueue(encoder.encode(formattedChunk));
                                    }
                                }
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
                            if (jsonData.delta) {
                                // Format the delta using the SDK convention '0:"..."\n'
                                const formattedChunk = formatTextChunk(jsonData.delta);
-                               console.log(`${logPrefix} Enqueuing formatted chunk:`, formattedChunk.trim());
+                               // Removed console log for formatted chunk
                                controller.enqueue(encoder.encode(formattedChunk)); // Enqueue encoded formatted chunk
                            } else if (jsonData.error) {
                                console.error(`${logPrefix} Error from backend stream (event data):`, jsonData.error);
@@ -144,7 +144,9 @@ export async function POST(req: NextRequest) {
         } catch (error) {
           console.error("[Proxy] Error reading from backend stream:", error);
           try {
-              controller.enqueue(encoder.encode(formatErrorChunk(`Stream read error: ${error}`)));
+              const errorChunk = formatErrorChunk(`Stream read error: ${error}`);
+              // Removed console log for error chunk
+              controller.enqueue(encoder.encode(errorChunk));
               controller.error(error); // Propagate error to our stream
           } catch (e) {
                console.error("[Proxy] Error enqueuing/closing controller after read error:", e);
@@ -159,12 +161,13 @@ export async function POST(req: NextRequest) {
          console.log("[Proxy] Manual ReadableStream cancelled:", reason);
       }
     });
+    # TODO: Add chat archiving logic here using s3_utils if needed
 
-    // Use StreamingTextResponse (requires import 'ai')
-    // Pass the manually created and formatted stream
-    console.log("[Proxy] Returning StreamingTextResponse.");
-    return new StreamingTextResponse(readableStream);
+    sse_done_data = json.dumps({'done': True})
+    # Removed console log for done chunk
+    yield f"data: {sse_done_data}\n\n"
 
+# Return the streaming response with correct MIME type for SSE
   } catch (error: any) {
     console.error("[Proxy] Error in top-level POST handler:", error);
     if (error.cause) { console.error("[Proxy] Fetch Error Cause:", error.cause); }

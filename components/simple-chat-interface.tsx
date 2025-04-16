@@ -308,8 +308,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [checkScroll]); // checkScroll itself doesn't change often
 
-    // REMOVED direct interaction listeners for locking scroll
-
     // --- UI Interaction Handlers ---
     const hideRecordUI = useCallback(() => {
          setRecordUIVisible(false);
@@ -480,8 +478,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Optionally show a toast message here using a toast hook if available
       }; // <-- This closing brace belongs here
 
-      // Removed stray brace from below
-
       if (navigator.clipboard && window.isSecureContext) {
         // Use modern Clipboard API if available and in secure context
         navigator.clipboard.writeText(text).then(notifySuccess).catch(notifyFailure);
@@ -542,7 +538,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
             originalHandleSubmit(e as React.FormEvent<HTMLFormElement>);
             // No need to manually scroll here, the useEffect triggered by the new message will handle it
-            // setTimeout(() => scrollToBottom('auto'), 50); // Removed manual scroll on submit
 
         }
     }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setPendingAttachments, setAttachedFiles, scrollToBottom]); // scrollToBottom still needed in deps for the effect hook
@@ -710,8 +705,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             files={attachedFiles}
                             onRemove={removeFile} // Allow removal from staging area
                             className="max-w-[50%] file-attachment-container"
-                            // Removed maxVisible={1} to show all staged files
-                            // Removed isSubmitted={true} as default is false
+                            maxVisible={1} // Show up to 3 initially, triggers "+ n more"
                         />
                     </div>
                 )}
