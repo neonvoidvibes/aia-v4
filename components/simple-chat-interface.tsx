@@ -586,17 +586,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             {/* Plus Menu Popup */}
                             {showPlusMenu && (
                                 <motion.div
-                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
                                     transition={{ duration: 0.2 }}
                                     className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu" // Added plus-menu class
                                 >
-                                    <button type="button" className="p-2 text-gray-600 hover:text-gray-800 opacity-70 hover:opacity-100" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button>
-                                    <button type="button" className="p-2 text-gray-600 hover:text-gray-800 opacity-70 hover:opacity-100" onClick={saveChat} title="Save chat"><Download size={20} /></button>
+                                    {/* Removed opacity classes */}
+                                    <button type="button" className="p-2" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button>
+                                    {/* Removed opacity classes */}
+                                    <button type="button" className="p-2" onClick={saveChat} title="Save chat"><Download size={20} /></button>
                                     <button
                                         type="button"
-                                        className={`p-2 hover:text-gray-800 opacity-70 hover:opacity-100 ${isRecording ? 'recording' : ''} ${isPaused ? 'paused' : ''}`}
+                                        // Removed opacity classes
+                                        className={`p-2 ${isRecording ? 'recording' : ''} ${isPaused ? 'paused' : ''}`}
                                         onClick={startRecording}
                                         title={isRecording ? (isPaused ? "Recording Paused" : "Recording Live") : "Start recording"}
                                     >

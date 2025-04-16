@@ -213,11 +213,11 @@ body {
   padding-right: 4px;
 }
 /* Record UI styling - FIXED */
+.plus-menu,
 .record-ui {
   position: absolute;
-  left: -12px; /* Shift further left */
   bottom: 100%;
-  background-color: hsl(var(--input-gray)) !important;
+  background-color: hsl(var(--input-gray)); /* Use variable, removed !important */
   border-radius: 9999px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 10;
@@ -1119,28 +1119,87 @@ select {
   color: black !important;
 }
 
-/* Ensure all icons in menus and controls use the correct color */
-.plus-menu svg,
-.record-ui svg {
+/* --- Popup Menu & Record Control Icons --- */
+/* Default icon colors (use secondary text) */
+.plus-menu button svg, /* Target SVG within button */
+.record-ui button svg { /* Target SVG within button */
   color: hsl(var(--text-secondary));
+  transition: color 0.2s;
 }
-
-.plus-menu svg:hover,
-.record-ui svg:hover {
+/* Hover state (use primary text) */
+.plus-menu button:hover svg,
+.record-ui button:hover svg {
   color: hsl(var(--text-primary));
 }
 
-/* Force light mode to use the correct background color for popup menus and record controls */
-.light .plus-menu,
-.light .record-ui {
-  background-color: hsl(var(--input-gray)) !important;
+/* Dark Mode - Force SVG stroke color */
+.dark .plus-menu button svg,
+.dark .record-ui button svg {
+  stroke: #000000 !important; /* Black stroke */
+  color: #000000 !important; /* Also set color just in case */
+}
+.dark .plus-menu button:hover svg,
+.dark .record-ui button:hover svg {
+  stroke: #000000 !important; /* Black stroke on hover */
+  color: #000000 !important;
 }
 
-/* Force dark mode to use the correct background color for popup menus and record controls */
-.dark .plus-menu,
-.dark .record-ui {
-  background-color: hsl(var(--input-gray)) !important;
+/* Light mode specific icon colors (ensure sufficient contrast) */
+.light .plus-menu button svg,
+.light .record-ui button svg {
+  stroke: hsl(0 0% 30%) !important; /* Use stroke */
+  color: hsl(0 0% 30%) !important; /* Ensure dark enough default */
 }
+.light .plus-menu button:hover svg,
+.light .record-ui button:hover svg {
+  stroke: hsl(0 0% 0%) !important; /* Use stroke */
+  color: hsl(0 0% 0%) !important; /* Black on hover */
+}
+
+/* Disabled state for record UI buttons */
+.record-ui button:disabled svg {
+  stroke: hsl(var(--button-inactive)) !important; /* Use inactive variable for stroke */
+  color: hsl(var(--button-inactive)) !important;
+  opacity: 0.5;
+}
+
+/* Recording/Paused specific icon colors override defaults (Targeting stroke) */
+.dark .plus-menu button.recording svg,
+.light .plus-menu button.recording svg {
+  stroke: #ef4444 !important; /* Red */
+  color: #ef4444 !important;
+}
+.dark .plus-menu button.paused svg,
+.light .plus-menu button.paused svg {
+  stroke: #eab308 !important; /* Yellow */
+  color: #eab308 !important;
+}
+/* Target specific classes added by component if they exist */
+.dark .record-ui button svg.text-red-500,
+.light .record-ui button svg.text-red-500 {
+  stroke: #ef4444 !important; /* Red */
+  color: #ef4444 !important;
+}
+.dark .record-ui button svg.text-yellow-500,
+.light .record-ui button svg.text-yellow-500 {
+  stroke: #eab308 !important; /* Yellow */
+  color: #eab308 !important;
+}
+
+
+/* Ensure background colors are explicitly set (without !important if possible) */
+.plus-menu,
+.record-ui {
+  background-color: hsl(var(--input-gray));
+}
+/* Ensure inner elements don't override */
+.plus-menu *,
+.record-ui * {
+   background-color: transparent; /* Inner elements should be transparent */
+}
+/* Force background for specific states if needed, but avoid if possible */
+/*.light .plus-menu, .light .record-ui { background-color: hsl(var(--input-gray)); } */
+/*.dark .plus-menu, .dark .record-ui { background-color: hsl(var(--input-gray)); } */
 
 /* Ensure the assistant message text is black in light mode */
 .light .ai-message {
@@ -1207,42 +1266,42 @@ div.record-ui,
 
 /* Ensure the popup menu and record UI have the correct background color */
 .plus-menu,
-.record-ui {
-  background-color: hsl(var(--input-gray)) !important;
-}
+/* Add these styles to make the submit button and stop icon darker in light mode */
+.light { /* Open light mode block */
 
-/* Add !important to all background-color properties for these elements */
-.plus-menu,
-.plus-menu *,
-.record-ui,
-.record-ui * {
-  background-color: hsl(var(--input-gray)) !important;
-}
+  /* Submit Button SVG Stroke */
+  .input-container button[type="submit"]:not(:disabled) svg {
+    stroke-width: 2px; /* Make the stroke thicker */
+  }
 
-/* Target the specific elements with their full class names */
-.absolute.left-0.bottom-full.mb-2.bg-white.rounded-full.py-2.shadow-lg.z-10.transition-all.duration-200.animate-in.fade-in.slide-in-from-bottom-2,
-.absolute.bottom-full.mb-3.bg-white.rounded-full.py-2.px-3.shadow-lg.z-10.flex.items-center.gap-2.transition-all.duration-300 {
-  background-color: hsl(var(--input-gray)) !important;
-}
+  /* Record Controls Button Base Color */
+  .record-ui button {
+    color: #333; /* Default icon color in light mode */
+  }
 
-/* Make the stop icon darker in record controls */
-.light .record-ui button.p-1[disabled] svg {
-  color: #555 !important; /* Darker color for the disabled stop button */
-}
+  /* Record Controls SVG Base Stroke */
+  .record-ui button svg {
+    stroke-width: 2px; /* Make the stroke thicker */
+  }
 
-/* Make the record controls more visible in light mode */
-.light .record-ui button {
-  color: #333 !important;
-}
+  /* Record Controls Disabled Stop Icon */
+  .record-ui button[disabled] svg,
+  .record-ui button:disabled svg { /* Cover both possibilities */
+    /* Use inactive variable for disabled color */
+    color: hsl(var(--button-inactive));
+    stroke: hsl(var(--button-inactive));
+  }
+  /* Specifically target the stop icon if needed, but general disabled should cover */
+  /* .record-ui button.p-1[disabled] svg {
+    color: #555;
+  } */
 
-.light .record-ui button svg {
-  stroke-width: 2px !important; /* Make the stroke thicker */
-}
+} /* Close light mode block */
 
-/* Special case for play/pause/record buttons to preserve their colors */
+/* Special case for play/pause/record buttons to preserve their colors (outside theme block) */
 .record-ui button svg.text-red-500,
 .record-ui button .text-red-500 {
-  color: #ef4444 !important; /* red-500 */
+  color: #ef4444 !important; /* red-500 - keep important if needed */
 }
 
 .record-ui button svg.text-yellow-500,
