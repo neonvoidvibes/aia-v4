@@ -643,7 +643,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             className={cn(
                                 "p-2 transition-all duration-200", // Base classes
                                 // Inactive/Disabled state classes based on theme
-                                (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && (theme === 'light' ? "text-gray-500" : "text-gray-500"), // Adjusted inactive colors (medium gray for both)
+                                (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && (theme === 'light' ? "text-gray-400" : "text-gray-400"), // Use text-gray-400 for slightly lighter inactive color
                                 // Active state classes based on theme
                                 isReady && (input.trim() || attachedFiles.length > 0) && !isLoading && (theme === 'light' ? "text-gray-800 hover:text-black" : "text-black hover:opacity-80"), // Removed bg-white for dark active
                                 // Loading state (uses active colors but shows Square)
