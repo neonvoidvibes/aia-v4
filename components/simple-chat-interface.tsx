@@ -89,7 +89,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isPaused, setIsPaused] = useState(false); // Local state reflecting backend status
     const [recordingTime, setRecordingTime] = useState(0); // Elapsed time from backend status
     const [recordUIVisible, setRecordUIVisible] = useState(true) // For fade animation
-    const [recordUIPosition, setRecordUIPosition] = useState({ left: -8 })
+    // Removed recordUIPosition state
     const [attachedFiles, setAttachedFiles] = useState<AttachmentFile[]>([]) // Files staged for upload
     const [allAttachments, setAllAttachments] = useState<AttachmentFile[]>([]) // History of all attachments (for display)
     const [hoveredMessage, setHoveredMessage] = useState<string | null>(null) // For message actions UI
@@ -149,7 +149,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             };
 
             fetchStatus(); // Initial fetch
-            intervalId = setInterval(fetchStatus, 3000); // Poll every 3 seconds
+            intervalId = setInterval(fetchStatus, 1000); // Poll every 1 second
         }
 
         // Cleanup function to clear interval when component unmounts or isReady changes
@@ -308,23 +308,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
        };
      }, [startHideTimeout]); // Re-run if startHideTimeout function instance changes
 
-    // Effect for positioning record UI
-    useEffect(() => {
-        const positionRecordUI = () => {
-            if (inputContainerRef.current && recordUIRef.current) {
-                const inputRect = inputContainerRef.current.getBoundingClientRect();
-                const recordUIRect = recordUIRef.current.getBoundingClientRect();
-                const leftPosition = inputRect.left - recordUIRect.left - 8;
-                setRecordUIPosition({ left: leftPosition });
-            }
-        };
-        if (showRecordUI) {
-            positionRecordUI();
-            const resizeObserver = new ResizeObserver(positionRecordUI);
-            if (inputContainerRef.current) resizeObserver.observe(inputContainerRef.current);
-            return () => resizeObserver.disconnect();
-        }
-    }, [showRecordUI]);
+    // Removed effect for positioning record UI
 
     // Effect for cleaning up hide timer
     useEffect(() => {
@@ -332,6 +316,68 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, []);
 
     // --- Action Handlers ---
+
+    // --- Recording Control API Calls (Defined before usage) ---
+    const callRecordingApi = useCallback(async (endpoint: string) => {
+         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
+         if (!isReady || !agentName ) { // Removed eventId check as it's optional for some calls
+             console.error(`Cannot ${endpoint}: Agent not ready or missing.`);
+             append({ role: 'system', content: `Error: Cannot control recording. Agent missing.` });
+             return;
+         }
+         try {
+             console.log(`Calling backend: ${backendUrl}/api/recording/${endpoint}`);
+             const response = await fetch(`${backendUrl}/api/recording/${endpoint}`, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: endpoint === 'start' ? JSON.stringify({ agent: agentName, event: eventId || '0000' }) : undefined // Include eventId for start
+             });
+             const data = await response.json();
+             if (!response.ok) {
+                 throw new Error(data.message || `Failed to ${endpoint}`);
+             }
+             console.log(`Backend ${endpoint} response:`, data);
+         } catch (error: any) {
+             console.error(`Error calling ${backendUrl}/api/recording/${endpoint}:`, error);
+             append({ role: 'system', content: `Error: ${error.message}` });
+         }
+     }, [isReady, agentName, eventId, append]); // Keep dependencies
+
+    // --- Action Handlers using callRecordingApi ---
+    const startRecording = useCallback(() => {
+        setShowPlusMenu(false);
+        setShowRecordUI(true);
+        setRecordUIVisible(true);
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+        // Only call API if not already recording, but always show UI
+        if (!isRecording) {
+            callRecordingApi('start');
+        } else {
+           console.log("Recording already in progress, showing controls.");
+           // Optionally restart hide timer if just showing controls
+           startHideTimeout();
+        }
+    }, [callRecordingApi, isRecording, startHideTimeout]); // Add dependencies
+
+    const stopRecording = useCallback((e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        callRecordingApi('stop');
+        hideRecordUI();
+    }, [callRecordingApi, hideRecordUI]); // Add dependencies
+
+    const pauseRecording = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        callRecordingApi('pause');
+        startHideTimeout();
+    }, [callRecordingApi, startHideTimeout]); // Add dependencies
+
+    const resumeRecording = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        callRecordingApi('resume');
+        startHideTimeout();
+    }, [callRecordingApi, startHideTimeout]); // Add dependencies
+
+    // --- Other Action Handlers ---
     const saveChat = useCallback(() => {
         const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setShowPlusMenu(false);
     }, [messages, agentName, eventId]);
@@ -347,17 +393,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const removeFile = useCallback((id: string) => {
         setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); });
     }, []);
-
-    // --- Recording Control API Calls ---
-    const callRecordingApi = useCallback(async (endpoint: string) => {
-         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
-         if (!isReady || !agentName || !eventId) { console.error(`Cannot ${endpoint}: Agent/Event not ready.`); append({ role: 'system', content: `Error: Cannot control recording. Agent or Event missing.` }); return; } try { console.log(`Calling backend: ${backendUrl}/api/recording/${endpoint}`); const response = await fetch(`${backendUrl}/api/recording/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: endpoint === 'start' ? JSON.stringify({ agent: agentName, event: eventId }) : undefined }); const data = await response.json(); if (!response.ok) { throw new Error(data.message || `Failed to ${endpoint}`); } console.log(`Backend ${endpoint} response:`, data); } catch (error: any) { console.error(`Error calling ${backendUrl}/api/recording/${endpoint}:`, error); append({ role: 'system', content: `Error: ${error.message}` }); }
-     }, [isReady, agentName, eventId, append]);
-
-    const startRecording = useCallback(() => { setShowPlusMenu(false); setShowRecordUI(true); setRecordUIVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); callRecordingApi('start'); }, [callRecordingApi]);
-    const stopRecording = useCallback((e?: React.MouseEvent) => { e?.stopPropagation(); callRecordingApi('stop'); hideRecordUI(); }, [callRecordingApi, hideRecordUI]); // Ensure hideRecordUI is dependency
-    const pauseRecording = useCallback((e: React.MouseEvent) => { e.stopPropagation(); callRecordingApi('pause'); startHideTimeout(); }, [callRecordingApi, startHideTimeout]);
-    const resumeRecording = useCallback((e: React.MouseEvent) => { e.stopPropagation(); callRecordingApi('resume'); startHideTimeout(); }, [callRecordingApi, startHideTimeout]);
 
     const handleRecordUIMouseMove = useCallback(() => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); setRecordUIVisible(true); startHideTimeout(); }, [startHideTimeout]);
     const handlePlusMenuClick = useCallback((e: React.MouseEvent) => { e.stopPropagation(); if (showRecordUI && !isRecording) hideRecordUI(); setShowPlusMenu(prev => !prev); }, [showRecordUI, isRecording, hideRecordUI]); // Ensure hideRecordUI is dependency
@@ -554,12 +589,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: 10 }}
                                     transition={{ duration: 0.2 }}
-                                    className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center" // Use flex-col
+                                    className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu" // Added plus-menu class
                                 >
                                     <button type="button" className="p-2 text-gray-600 hover:text-gray-800 opacity-70 hover:opacity-100" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button>
                                     <button type="button" className="p-2 text-gray-600 hover:text-gray-800 opacity-70 hover:opacity-100" onClick={saveChat} title="Save chat"><Download size={20} /></button>
-                                    <button type="button" className="p-2 hover:text-gray-800 opacity-70 hover:opacity-100" onClick={startRecording} title="Start recording">
-                                        <Mic size={20} className={isRecording ? (isPaused ? "text-yellow-500" : "text-red-500") : "text-gray-600"} />
+                                    <button
+                                        type="button"
+                                        className={`p-2 hover:text-gray-800 opacity-70 hover:opacity-100 ${isRecording ? 'recording' : ''} ${isPaused ? 'paused' : ''}`}
+                                        onClick={startRecording}
+                                        title={isRecording ? (isPaused ? "Recording Paused" : "Recording Live") : "Start recording"}
+                                    >
+                                        <Mic size={20} /> {/* Color is handled by CSS now */}
                                     </button>
                                 </motion.div>
                             )}
@@ -570,11 +610,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: 10 }}
                                     transition={{ duration: 0.3 }}
-                                    className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2"
+                                    className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" // Added record-ui class
                                     ref={recordUIRef}
                                     onMouseMove={handleRecordUIMouseMove}
                                     onClick={(e) => e.stopPropagation()} // Prevent closing menu
-                                    style={{ marginLeft: `${recordUIPosition.left}px`}}
+                                    // Removed inline style for position
                                 >
                                     <button type="button" className="p-1" onClick={isRecording && !isPaused ? pauseRecording : resumeRecording} aria-label={isRecording && !isPaused ? "Pause recording" : "Resume recording"}>
                                         {isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={isPaused ? "text-yellow-500" : "text-gray-600"} />}

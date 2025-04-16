@@ -46,14 +46,68 @@
 .light {
   --background: 0 0% 95%;
   --foreground: 0 0% 10%;
-  --input-gray: 0 0% 82%; /* Medium gray (82%) for light mode */
+  --input-gray: 0 0% 88%; /* Brighter gray (88%) for light mode input/user bubble */
   --text-primary: 0 0% 0%; /* Black text */
   --text-secondary: 0 0% 30%;
   --text-muted: 0 0% 45%;
 
   /* Button states for light mode */
-  --button-active: 0 0% 20%;
-  --button-inactive: 0 0% 50%; /* Mid-gray for inactive buttons */
+  --button-active: 0 0% 20%; /* Dark gray */
+  --button-inactive: 0 0% 65%; /* Lighter gray for inactive/disabled */
+}
+
+/* Specific override for card background inside settings dialog in light mode */
+.light .fixed-dialog .document-upload-card,
+.light .fixed-dialog .tab-content-inner .document-upload-card { /* Increased specificity */
+  --card: 0 0% 95%; /* Match the main light background */
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Ensure the content area within the card also gets the right background */
+/* Target specifically within the settings dialog and memory tab content */
+.light .fixed-dialog .tab-content-inner .memory-section .document-upload-card .upload-container {
+   background-color: hsl(var(--background)) !important; /* Use main light background */
+}
+
+/* Ensure the card itself has the correct background and no extra styling */
+.light .fixed-dialog .tab-content-inner .memory-section .document-upload-card {
+   background-color: hsl(var(--background)) !important;
+   border: none !important;
+   box-shadow: none !important;
+   padding: 0 !important; /* Remove card padding */
+}
+
+/* Ensure the card header also matches */
+.light .fixed-dialog .tab-content-inner .memory-section .document-upload-card .upload-header {
+    background-color: hsl(var(--background)) !important;
+    padding-bottom: 0.5rem !important; /* Adjust padding if needed */
+}
+
+/* Ensure the card content area matches */
+.light .fixed-dialog .tab-content-inner .memory-section .document-upload-card .upload-container {
+    padding-top: 0.5rem !important; /* Adjust padding if needed */
+}
+
+/* --- Settings Dialog: Force Sub-Container Backgrounds in Light Mode --- */
+/* Target DocumentUpload Card within Documents Tab */
+.light .fixed-dialog .tab-content-scrollable[data-state="active"][data-orientation="vertical"] > div[role="tabpanel"][data-state="active"][data-orientation="vertical"] .document-upload-card {
+  background-color: hsl(var(--background)) !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.light .fixed-dialog .tab-content-scrollable[data-state="active"][data-orientation="vertical"] > div[role="tabpanel"][data-state="active"][data-orientation="vertical"] .document-upload-card .upload-header,
+.light .fixed-dialog .tab-content-scrollable[data-state="active"][data-orientation="vertical"] > div[role="tabpanel"][data-state="active"][data-orientation="vertical"] .document-upload-card .upload-container {
+  background-color: hsl(var(--background)) !important;
+}
+/* --- End Settings Dialog Fixes --- */
+
+
+/* Add new button state variables for dark mode */
+.dark {
+  /* Button states for dark mode */
+  --button-active: 0 0% 0%; /* Black when active */
+  --button-inactive: 0 0% 30%; /* Darker gray for inactive/disabled */
 }
 
 body {
@@ -110,7 +164,7 @@ body {
   overflow-y: auto;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  padding: 4px 40px 16px 40px !important; /* Increased horizontal padding to 40px (16px + 24px) */
+  padding: 4px 10px 16px 10px !important; /* Reduced horizontal padding to 10px */
 }
 
 /* Update user message styling to ensure rounded corners */
@@ -122,12 +176,15 @@ body {
   max-width: 50%;
   padding: 12px 16px;
   border-radius: var(--message-radius) !important; /* Force rounded corners */
+  /* Add even less rounded bottom-right corner by default */
+  border-bottom-right-radius: calc(var(--radius) - 8px) !important; /* Further reduced radius */
   margin-right: 8px;
 }
 
-/* Keep the special case for attachments */
+/* Special case for attachments: Match top-right radius, keep bottom-right full */
 .user-bubble.with-attachment {
-  border-top-right-radius: 3px !important; /* Keep the top right corner special for attachments */
+  border-top-right-radius: calc(var(--radius) - 8px) !important; /* Match reduced radius */
+  border-bottom-right-radius: var(--message-radius) !important; /* Revert bottom-right to full radius */
 }
 
 /* Assistant message styling */
@@ -193,7 +250,7 @@ body {
 /* Record UI styling - FIXED */
 .record-ui {
   position: absolute;
-  left: 0;
+  left: -4px; /* Adjusted position slightly right */
   bottom: 100%;
   background-color: hsl(var(--input-gray)) !important;
   border-radius: 9999px;
@@ -1104,7 +1161,7 @@ button {
   box-sizing: border-box !important;
 }
 
-/* Ensure the file name is properly truncated */
+/* Force the file name is properly truncated */
 .memory-section .document-files-container .truncate {
   max-width: 100% !important;
   overflow: hidden !important;
@@ -1117,6 +1174,19 @@ button {
   width: 600px !important; /* Set fixed width */
   max-width: 90vw !important; /* But don't exceed viewport */
   overflow: hidden !important; /* Prevent overflow */
+}
+
+/* Style the TabsList background within the settings dialog */
+.fixed-dialog .grid.w-full.grid-cols-3 { /* Selector for TabsList */
+  background-color: hsl(var(--muted)) !important; /* Use existing muted color */
+}
+
+.light .fixed-dialog .grid.w-full.grid-cols-3 {
+  background-color: hsl(0 0% 90%) !important; /* Slightly darker gray in light mode */
+}
+
+.dark .fixed-dialog .grid.w-full.grid-cols-3 {
+  background-color: hsl(0 0% 20%) !important; /* Slightly lighter gray in dark mode */
 }
 
 /* Ensure memory tab grid maintains consistent width */
@@ -1408,29 +1478,72 @@ div.record-ui,
   stroke-width: 2px !important; /* Make the stroke thicker */
 }
 
-/* Button state styles with more specific selectors */
-/* Submit button */
+/* --- Submit Button Styling --- */
+/* Base style (applies to both themes, represents inactive/disabled state) */
 .input-container button[type="submit"] {
-  color: hsl(var(--button-active)) !important;
+  border-radius: 9999px;
+  padding: 4px;
+  height: 28px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+  background-color: transparent !important;
+  color: hsl(var(--button-inactive)) !important; /* Inactive color */
 }
-
 .input-container button[type="submit"] svg {
-  color: hsl(var(--button-active)) !important;
-  stroke: hsl(var(--button-active)) !important;
-  fill: hsl(var(--button-active)) !important;
+  color: hsl(var(--button-inactive)) !important; /* Inactive color */
+  stroke: hsl(var(--button-inactive)) !important;
+  fill: none !important; /* Default no fill */
 }
-
+/* Ensure disabled state explicitly uses inactive colors */
 .input-container button[type="submit"]:disabled,
 .input-container button[type="submit"][disabled] {
   color: hsl(var(--button-inactive)) !important;
+  background-color: transparent !important;
 }
-
 .input-container button[type="submit"]:disabled svg,
 .input-container button[type="submit"][disabled] svg {
   color: hsl(var(--button-inactive)) !important;
   stroke: hsl(var(--button-inactive)) !important;
+  fill: none !important;
+}
+/* Special case for disabled Square icon fill */
+.input-container button[type="submit"]:disabled .fill-current,
+.input-container button[type="submit"][disabled] .fill-current {
   fill: hsl(var(--button-inactive)) !important;
 }
+
+
+/* Light Mode Active State (:not(:disabled)) */
+.light .input-container button[type="submit"]:not(:disabled) {
+  color: hsl(0 0% 20%) !important; /* Active dark gray */
+}
+.light .input-container button[type="submit"]:not(:disabled) svg {
+  color: hsl(0 0% 20%) !important;
+  stroke: hsl(0 0% 20%) !important;
+}
+/* Square fill for light active */
+.light .input-container button[type="submit"]:not(:disabled) .fill-current {
+   fill: hsl(0 0% 20%) !important;
+}
+
+
+/* Dark Mode Active State (:not(:disabled)) */
+.dark .input-container button[type="submit"]:not(:disabled) {
+  color: hsl(0 0% 0%) !important; /* Black icon */
+  background-color: hsl(0 0% 100%) !important; /* White background circle */
+}
+.dark .input-container button[type="submit"]:not(:disabled) svg {
+  color: hsl(0 0% 0%) !important; /* Black icon */
+  stroke: hsl(0 0% 0%) !important;
+}
+/* Square fill for dark active */
+.dark .input-container button[type="submit"]:not(:disabled) .fill-current {
+   fill: hsl(0 0% 0%) !important; /* Black fill */
+}
+/* --- End Submit Button Styling --- */
 
 /* Record UI buttons */
 .record-ui button {
@@ -1515,4 +1628,20 @@ div.record-ui,
 .light .record-ui button svg.text-yellow-500,
 .dark .record-ui button svg.text-yellow-500 {
   color: #eab308 !important;
+}
+
+/* Popup menu mic icon colors */
+/* Target the SVG element within the button */
+.plus-menu button.recording svg {
+  color: #ef4444 !important; /* Red when recording */
+}
+.plus-menu button.paused svg {
+  color: #eab308 !important; /* Yellow when paused */
+}
+/* Ensure default color applies otherwise */
+.plus-menu button:not(.recording):not(.paused) svg {
+   color: hsl(var(--text-secondary)); /* Default secondary text color */
+}
+.plus-menu button:not(.recording):not(.paused):hover svg {
+   color: hsl(var(--text-primary)); /* Hover color */
 }
