@@ -449,7 +449,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, []);
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); console.log("Files staged:", newFiles); } if (fileInputRef.current) fileInputRef.current.value = ""; // Clear input
+        if (e.target.files && e.target.files.length > 0) {
+             const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), }));
+             // Removed console log
+             setAttachedFiles((prev) => [...prev, ...newFiles]);
+         }
+         if (fileInputRef.current) fileInputRef.current.value = ""; // Clear input
     }, []);
 
 
@@ -705,7 +710,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             files={attachedFiles}
                             onRemove={removeFile} // Allow removal from staging area
                             className="max-w-[50%] file-attachment-container"
-                            maxVisible={1} // Keep it compact
+                            // Removed maxVisible={1} to show all staged files
+                            // Removed isSubmitted={true} as default is false
                         />
                     </div>
                 )}
