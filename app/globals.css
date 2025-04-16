@@ -235,8 +235,15 @@ body {
   white-space: pre-wrap; /* Preserve line breaks */
   animation: fadeIn 0.3s ease-out;
   margin-bottom: 8px; /* Add some base margin */
-  overflow-wrap: break-word; /* Prevent overflow from long words */
-  white-space: pre-wrap; /* Respect newlines, wrap long lines */
+  /* Removed overflow-wrap: break-word; Let parent handle overflow if needed */
+  /* Removed white-space: pre-wrap; */
+}
+
+/* Target the span directly for word break control */
+.message-bubble span {
+    word-break: normal !important; /* Prevent breaking mid-word */
+    display: inline-block; /* Or block, depending on desired layout, prevents some odd flex/inline breaks */
+    max-width: 100%; /* Ensure span doesn't overflow bubble */
 }
 
 .user-bubble {
@@ -669,8 +676,8 @@ body {
 }
 
 .thinking-dot {
-  width: 12px; /* Larger dot */
-  height: 12px;
+  width: 18px; /* Further increased size */
+  height: 18px;
   background-color: hsl(var(--foreground) / 0.6); /* Slightly less transparent base */
   border-radius: 50%;
   animation: breathing-dot 2s infinite ease-in-out; /* Apply new animation */

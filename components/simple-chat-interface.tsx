@@ -621,7 +621,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             {/* Message Actions (Now placed AFTER the bubble div) */}
                                             {!isSystem && (
                                                 <div
-                                                    className={`message-actions flex ${isUser ? "justify-end mr-1" : "justify-start"}`} // Removed ml-1 for assistant
+                                                    // User messages have margin (mr-1) to inset from bubble edge.
+                                                    // Assistant messages have no margin (buttons align left edge) because no bubble bg.
+                                                    className={`message-actions flex ${isUser ? "justify-end mr-1" : "justify-start"}`}
                                                     style={{
                                                         opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, // Control visibility
                                                         visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden",
@@ -645,7 +647,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     )}
                                                     {/* Assistant Actions */}
                                                     {!isUser && (
-                                                        <div className="flex" style={{ paddingLeft: "8px" }}>
+                                                        <div className="flex"> {/* Removed inline style={{ paddingLeft: "8px" }} */}
                                                           <button
                                                             onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} // Primarily use onClick
                                                             className="action-button"
