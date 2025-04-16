@@ -113,6 +113,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const messagesContainerRef = useRef<HTMLDivElement>(null) // For scroll detection
     const prevMessagesLengthRef = useRef(messages.length) // Track message changes for scroll
     const userHasScrolledRef = useRef(false) // Track if user scrolled up manually
+    const prevScrollTopRef = useRef<number>(0); // Store previous scroll position
     const lastMessageIdRef = useRef<string | null>(null) // Track last message for attachment logic
 
     // --- Backend Recording State Polling ---
@@ -236,38 +237,41 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Scrolling Logic ---
     const checkScroll = useCallback(() => {
         const container = messagesContainerRef.current; if (!container) return;
-        const threshold = 50; // Pixels from bottom to trigger hiding button
         const { scrollTop, scrollHeight, clientHeight } = container;
         const isScrollable = scrollHeight > clientHeight;
-        const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
-        // How far scrolled up? Compare scrollTop to 0 or scrollHeight - clientHeight
-        const isScrolledUp = scrollTop > 0 && !isAtBottom; // More precise check for being scrolled up
+        const isAtStrictBottom = scrollHeight - scrollTop - clientHeight < 2; // Strict check for bottom
 
-        // Lock auto-scroll if user scrolls up significantly
-        // Add a buffer zone, don't lock on tiny scrolls
-        if (isScrolledUp && scrollHeight - scrollTop - clientHeight > threshold * 2 && !userHasScrolledRef.current) {
-             console.log("User scrolled up, locking auto-scroll.");
-             userHasScrolledRef.current = true;
+        // Lock if user scrolls up (is not at the bottom anymore)
+        if (!isAtStrictBottom && !userHasScrolledRef.current) {
+             // Check if scroll actually happened to avoid locking on initial load/render shifts
+             if (scrollTop > 0) { // Only lock if not at the very top
+                 console.log("User scrolled away from bottom, locking auto-scroll.");
+                 userHasScrolledRef.current = true;
+             }
         }
-        // Unlock auto-scroll if user scrolls back to the bottom manually
-        else if (isAtBottom && userHasScrolledRef.current) {
-            console.log("User scrolled down, unlocking auto-scroll.");
+        // Unlock ONLY if user manually scrolls back to the very bottom
+        else if (userHasScrolledRef.current && isAtStrictBottom) {
+            console.log("User manually scrolled to strict bottom, unlocking auto-scroll.");
             userHasScrolledRef.current = false;
         }
 
-        // Show scroll-to-bottom button if scrollable and user isn't at the bottom
-        setShowScrollToBottom(isScrollable && !isAtBottom);
-    }, []); // Dependencies remain minimal, relies on closure for refs
+        // Update previous scroll position
+        prevScrollTopRef.current = scrollTop;
+
+        // Show scroll-to-bottom button if scrollable and not at the bottom
+        setShowScrollToBottom(isScrollable && !isAtStrictBottom);
+
+    }, []); // Dependencies remain minimal
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
         // Check if the component is mounted and the ref is current
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: behavior });
         }
-        // It's generally safe to reset these flags when explicitly scrolling down
+        // Explicitly unlock auto-scroll when this function is called
+        console.log("scrollToBottom called, unlocking auto-scroll.");
         userHasScrolledRef.current = false;
-        // Visibility update handled by checkScroll called from useEffect or event listener
-        // setShowScrollToBottom(false); // Avoid direct set here
+        setShowScrollToBottom(false); // Hide button immediately
     }, []);
 
      // Auto-scroll on new messages or when loading stops
@@ -297,6 +301,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
        // OR when loading state transitions from true to false.
      }, [messages, isLoading, scrollToBottom, checkScroll]); // Keep dependency on the whole messages array for robust detection
 
+
     // Attach scroll listener
      useEffect(() => {
         const container = messagesContainerRef.current;
@@ -306,6 +311,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [checkScroll]); // checkScroll itself doesn't change often
 
+    // REMOVED direct interaction listeners for locking scroll
 
     // --- UI Interaction Handlers ---
     const hideRecordUI = useCallback(() => {
@@ -576,7 +582,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     </div>
                 )}
                 {messages.length > 0 && (
-                    <div className="space-y-0"> {/* Remove space-y-6 */}
+                    <div> {/* Removed space-y-0 class */}
                         {messages.map((message: Message) => { // Explicitly type message
                             const isUser = message.role === "user";
                             const isSystem = message.role === "system";
@@ -591,7 +597,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     animate={{ opacity: 1, y: 0 }} // Animation end state
                                     transition={{ duration: 0.2, ease: "easeOut" }} // Faster transition
                                     // Simplified structure: motion.div is the main row container
-                                    className={`flex flex-col ${isUser ? "items-end" : isSystem ? "items-center" : "items-start"} relative group mb-1`} // Use mb-1 for spacing
+                                    // Default mb-1, add mb-4 only for assistant messages
+                                    className={cn(
+                                        "flex flex-col relative group mb-1", // Default spacing
+                                        isUser ? "items-end" : isSystem ? "items-center" : "items-start",
+                                        !isUser && !isSystem && "mb-4" // Add extra margin below assistant messages
+                                    )}
                                     onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)}
                                     onMouseLeave={() => !isMobile && setHoveredMessage(null)}
                                     onClick={() => !isSystem && handleMessageInteraction(message.id)}
@@ -623,8 +634,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         <div
                                             // Apply conditional margins directly here for spacing
                                             className={cn(
-                                              "message-actions flex",
-                                              isUser ? "justify-end mr-1 mt-0" : "justify-start ml-1 -mt-4" // Reverted assistant margin back to -mt-2 for closer vertical padding
+                                                "message-actions flex",
+                                                isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" // Reverted assistant margin back to -mt-2 for closer vertical padding
                                             )}
                                             style={{
                                                 opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0,
