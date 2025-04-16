@@ -593,8 +593,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     onClick={() => !isSystem && handleMessageInteraction(message.id)} // Toggle actions on click (mobile)
                                 >
                                     {/* Main container for a single message item */}
-                                    {/* Restore consistent mb-1 for all message rows */}
-                                    <div className={`flex w-full mb-1 ${isUser ? "justify-end" : "justify-start"}`}>
+                                    {/* Revert user row bottom margin to mb-1, assistant row has no margin here */}
+                                    <div className={`flex w-full ${isUser ? "justify-end mb-1" : "justify-start"}`}>
                                         {/* Flex container for bubble + actions */}
                                         <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
                                             {/* Display attachments above user message */}
@@ -622,11 +622,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             {/* Message Actions (Now placed AFTER the bubble div) */}
                                             {!isSystem && (
                                                 <div
-                                                    // User messages: mr-1 for inset.
-                                                    // Assistant messages: ml-1 for 4px horizontal padding, -mt-2 to counteract parent mb-1 AND reduce visual gap further.
+                                                    // User messages: mr-1 for inset, mt-1 for vertical padding above controls.
+                                                    // Assistant messages: ml-1 for horizontal padding, -mt-2 to counteract parent mb-1 for vertical padding.
                                                     className={cn(
                                                       "message-actions flex",
-                                                      isUser ? "justify-end mr-1" : "justify-start ml-1 -mt-2" // Use -mt-2 for assistant
+                                                      isUser ? "justify-end mr-1 mt-0" : "justify-start ml-1 -mt-4" // Added mt-1 for user
                                                     )}
                                                     style={{
                                                         opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, // Control visibility
