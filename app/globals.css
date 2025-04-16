@@ -237,6 +237,8 @@ body {
   overflow-wrap: break-word; /* Ensure long words wrap */
   animation: fadeIn 0.3s ease-out;
   margin-bottom: 8px; /* Add some base margin */
+  overflow-wrap: break-word; /* Ensure long words wrap */
+  white-space: pre-wrap; /* Ensure newlines are respected */
   /* Base text style - should inherit body unless overridden */
   font-style: normal;
   font-size: inherit;
@@ -244,9 +246,7 @@ body {
 
 .user-bubble {
   max-width: 80%; /* Standard user max width */
-  /* Removed display: inline-block; */
   background-color: hsl(var(--input-gray));
-  color: black; /* User bubble text always black */
   align-self: flex-end;
   border-radius: var(--message-radius); /* Set default radius for all corners */
   /* Override bottom-right corner */

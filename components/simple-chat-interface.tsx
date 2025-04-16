@@ -586,91 +586,74 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     initial={{ opacity: 0, y: 10 }} // Slightly reduced y offset
                                     animate={{ opacity: 1, y: 0 }} // Animation end state
                                     transition={{ duration: 0.2, ease: "easeOut" }} // Faster transition
-                                    // Removed mb-8, spacing handled by bubble + actions container
-                                    className={`flex flex-col ${isUser ? "items-end" : isSystem ? "items-center" : "items-start"} relative group`}
-                                    onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} // Show actions on hover (desktop)
-                                    onMouseLeave={() => !isMobile && setHoveredMessage(null)} // Hide actions on mouse leave
-                                    onClick={() => !isSystem && handleMessageInteraction(message.id)} // Toggle actions on click (mobile)
+                                    // Simplified structure: motion.div is the main row container
+                                    className={`flex flex-col ${isUser ? "items-end" : isSystem ? "items-center" : "items-start"} relative group mb-1`} // Use mb-1 for spacing
+                                    onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)}
+                                    onMouseLeave={() => !isMobile && setHoveredMessage(null)}
+                                    onClick={() => !isSystem && handleMessageInteraction(message.id)}
                                 >
-                                    {/* Main container for a single message item */}
-                                    {/* Revert user row bottom margin to mb-1, assistant row has no margin here */}
-                                    <div className={`flex w-full ${isUser ? "justify-end mb-1" : "justify-start"}`}>
-                                        {/* Flex container for bubble + actions */}
-                                        <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-                                            {/* Display attachments above user message */}
-                                            {isUser && hasAttachments && (
-                                                <div className="mb-2 file-attachment-wrapper">
-                                                    <FileAttachmentMinimal
-                                                        files={messageAttachments}
-                                                        onRemove={() => {}} // Read-only view
-                                                        className="file-attachment-message"
-                                                        maxVisible={1} // Show only one initially in history
-                                                        isSubmitted={true}
-                                                        messageId={message.id} // Pass message ID for consistency
-                                                    />
+                                    {/* Display attachments above user message */}
+                                    {isUser && hasAttachments && (
+                                        <div className="mb-2 file-attachment-wrapper self-end mr-1"> {/* Align attachment block right */}
+                                            <FileAttachmentMinimal
+                                                files={messageAttachments}
+                                                onRemove={() => {}} // Read-only view
+                                                className="file-attachment-message"
+                                                maxVisible={1}
+                                                isSubmitted={true}
+                                                messageId={message.id}
+                                            />
+                                        </div>
+                                    )}
+                                    {/* Message Bubble (Direct child of motion.div) */}
+                                    <div className={`rounded-2xl p-3 message-bubble ${
+                                        isUser ? `bg-input-gray text-black user-bubble ${hasAttachments ? "with-attachment" : ""}` // User style
+                                        : isSystem ? `bg-transparent text-muted-foreground text-sm italic text-center max-w-[90%]` // System style
+                                        : "bg-transparent text-white ai-bubble pl-0" // Assistant style
+                                    }`}>
+                                        {/* Render message content */}
+                                        <span dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br />') }} />
+                                    </div>
+                                    {/* Message Actions (Direct child of motion.div, after bubble) */}
+                                    {!isSystem && (
+                                        <div
+                                            // Apply conditional margins directly here for spacing
+                                            className={cn(
+                                                "message-actions flex",
+                                                isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-1" // Changed Assistant from -mt-2 back to -mt-1 for less overlap
+                                            )}
+                                            style={{
+                                                opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0,
+                                                visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden",
+                                                transition: 'opacity 0.2s ease-in-out',
+                                            }}
+                                        >
+                                            {/* User Actions */}
+                                            {isUser && (
+                                                <div className="flex">
+                                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button" aria-label="Copy message">
+                                                        {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                                    </button>
+                                                    <button onClick={() => editMessage(message.id)} className="action-button" aria-label="Edit message">
+                                                        <Pencil className="h-4 w-4" />
+                                                    </button>
                                                 </div>
                                             )}
-                                            {/* Message Bubble */}
-                                            <div className={`rounded-2xl p-3 max-w-[80%] message-bubble ${
-                                                isUser ? `bg-input-gray text-black user-bubble ${hasAttachments ? "with-attachment" : ""}` // User style
-                                                : isSystem ? `bg-transparent text-muted-foreground text-sm italic text-center max-w-[90%]` // System style
-                                                : "bg-transparent text-white ai-bubble pl-0" // Assistant style
-                                            }`}>
-                                                {/* Render message content, converting newlines to <br> */}
-                                                <span dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br />') }} />
-                                            </div>
-                                            {/* Message Actions (Now placed AFTER the bubble div) */}
-                                            {!isSystem && (
-                                                <div
-                                                    // User messages: mr-1 for inset, mt-1 for vertical padding above controls.
-                                                    // Assistant messages: ml-1 for horizontal padding, -mt-2 to counteract parent mb-1 for vertical padding.
-                                                    className={cn(
-                                                      "message-actions flex",
-                                                      isUser ? "justify-end mr-1 mt-0" : "justify-start ml-1 -mt-4" // Added mt-1 for user
-                                                    )}
-                                                    style={{
-                                                        opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, // Control visibility
-                                                        visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden",
-                                                        transition: 'opacity 0.2s ease-in-out', // Smooth transition
-                                                    }}
-                                                >
-                                                    {/* User Actions */}
-                                                    {isUser && (
-                                                        <div className="flex">
-                                                          <button
-                                                            onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} // Primarily use onClick
-                                                            className="action-button"
-                                                            aria-label="Copy message"
-                                                          >
-                                                              {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
-                                                          </button>
-                                                          <button onClick={() => editMessage(message.id)} className="action-button" aria-label="Edit message">
-                                                              <Pencil className="h-4 w-4" />
-                                                          </button>
-                                                        </div>
-                                                    )}
-                                                    {/* Assistant Actions */}
-                                                    {!isUser && (
-                                                        <div className="flex"> {/* Removed inline style={{ paddingLeft: "8px" }} */}
-                                                          <button
-                                                            onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} // Primarily use onClick
-                                                            className="action-button"
-                                                            aria-label="Copy message"
-                                                          >
-                                                              {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
-                                                          </button>
-                                                          {/* Show read aloud only on hover */}
-                                                          {hoveredMessage === message.id && (
-                                                              <button onClick={() => readAloud(message.content)} className="action-button" aria-label="Read message aloud">
-                                                                  <Volume2 className="h-4 w-4" />
-                                                              </button>
-                                                          )}
-                                                        </div>
+                                            {/* Assistant Actions */}
+                                            {!isUser && (
+                                                <div className="flex">
+                                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button" aria-label="Copy message">
+                                                        {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                                    </button>
+                                                    {hoveredMessage === message.id && (
+                                                        <button onClick={() => readAloud(message.content)} className="action-button" aria-label="Read message aloud">
+                                                            <Volume2 className="h-4 w-4" />
+                                                        </button>
                                                     )}
                                                 </div>
                                             )}
-                                        </div> {/* Close inner flex container (bubble + actions) */}
-                                    </div> {/* Close outer flex container (message item row) */}
+                                        </div>
+                                    )}
                                 </motion.div>
                             );
                         })}
