@@ -1288,7 +1288,7 @@ div.record-ui,
   justify-content: center;
   transition: background-color 0.2s, color 0.2s;
   border: none;
-  cursor: pointer; /* Default cursor */
+  cursor: pointer;
 }
 /* Base SVG uses currentColor */
 .input-container button[type="submit"] svg {
@@ -1303,30 +1303,30 @@ div.record-ui,
 
 /* --- Light Mode --- */
 /* Light Inactive/Disabled State */
-.light .input-container button[type="submit"]:disabled,
-.light .input-container button[type="submit"][disabled] {
-  color: hsl(var(--button-inactive)); /* Light inactive gray */
-  background-color: transparent;
+html.light .input-container button[type="submit"]:disabled,
+html.light .input-container button[type="submit"][disabled] {
+  color: hsl(var(--button-inactive)) !important; /* Light inactive gray */
+  background-color: transparent !important;
   cursor: not-allowed;
 }
 /* Light Active State */
-.light .input-container button[type="submit"]:not(:disabled) {
-  color: hsl(var(--button-active)); /* Light active dark gray */
-  background-color: transparent;
+html.light .input-container button[type="submit"]:not(:disabled) {
+  color: hsl(var(--button-active)) !important; /* Light active dark gray */
+  background-color: transparent !important;
 }
 
 /* --- Dark Mode --- */
 /* Dark Inactive/Disabled State */
-.dark .input-container button[type="submit"]:disabled,
-.dark .input-container button[type="submit"][disabled] {
-  color: hsl(var(--button-inactive)); /* Dark inactive gray */
-  background-color: transparent;
+html.dark .input-container button[type="submit"]:disabled,
+html.dark .input-container button[type="submit"][disabled] {
+  color: hsl(var(--button-inactive)) !important; /* Dark inactive gray */
+  background-color: transparent !important;
   cursor: not-allowed;
 }
 /* Dark Active State */
-.dark .input-container button[type="submit"]:not(:disabled) {
-  color: hsl(var(--button-active)); /* Dark active black */
-  background-color: hsl(var(--button-active-bg)); /* Dark active white background */
+html.dark .input-container button[type="submit"]:not(:disabled) {
+  color: hsl(var(--button-active)) !important; /* Dark active black */
+  background-color: hsl(var(--button-active-bg)) !important; /* Dark active white background */
 }
 /* --- End Submit Button Styling --- */
 

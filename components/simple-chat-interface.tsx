@@ -21,10 +21,11 @@ import {
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { useMobile } from "@/hooks/use-mobile"
-import { useTheme } from "next-themes"
+import { useTheme } from "next-themes" // Already imported, ensure it's used
 // Removed ConfirmationModal import - managed by parent
 import { motion } from "framer-motion"
 import { useSearchParams } from 'next/navigation';
+import { cn } from "@/lib/utils" // Import cn utility
 
 interface SimpleChatInterfaceProps {
   onAttachmentsUpdate?: (attachments: AttachmentFile[]) => void
@@ -639,8 +640,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         {/* Submit/Stop Button */}
                         <button
                             type="submit"
-                            className="p-2 transition-all duration-200"
-                            // Disable if not ready OR (no input AND no files attached AND not loading)
+                            className={cn(
+                                "p-2 transition-all duration-200", // Base classes
+                                // Inactive/Disabled state classes based on theme
+                                (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && (theme === 'light' ? "text-gray-300" : "text-gray-600"), // Inactive colors (adjust if needed)
+                                // Active state classes based on theme
+                                isReady && (input.trim() || attachedFiles.length > 0) && !isLoading && (theme === 'light' ? "text-gray-800 hover:text-black" : "text-black bg-white hover:bg-gray-200"),
+                                // Loading state (uses active colors but shows Square)
+                                isLoading && (theme === 'light' ? "text-gray-800" : "text-black bg-white")
+                            )}
                             disabled={!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)}
                             aria-label={isLoading ? "Stop generating" : "Send message"}
                         >
