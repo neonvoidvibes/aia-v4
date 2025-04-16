@@ -1135,13 +1135,13 @@ select {
 /* Dark Mode - Force SVG stroke color */
 .dark .plus-menu button svg,
 .dark .record-ui button svg {
-  stroke: #000000 !important; /* Black stroke */
-  color: #000000 !important; /* Also set color just in case */
+  stroke: #333333 !important; /* Dark Gray stroke */
+  color: #333333 !important; /* Dark Gray color */
 }
 .dark .plus-menu button:hover svg,
 .dark .record-ui button:hover svg {
   stroke: #000000 !important; /* Black stroke on hover */
-  color: #000000 !important;
+  color: #000000 !important; /* Black color on hover */
 }
 
 /* Light mode specific icon colors (ensure sufficient contrast) */
