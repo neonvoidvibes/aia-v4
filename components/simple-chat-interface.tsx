@@ -293,9 +293,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         else if (isLoading === false && userHasScrolledRef.current) {
              checkScroll(); // Update button visibility based on final position
         }
-       // Trigger this effect whenever the messages array *changes* (length or content of last message)
+       // Trigger this effect whenever the messages array *changes* (length or content)
        // OR when loading state transitions from true to false.
-     }, [messages, isLoading, scrollToBottom, checkScroll]); // Depend on the whole messages array
+     }, [messages, isLoading, scrollToBottom, checkScroll]); // Keep dependency on the whole messages array for robust detection
 
     // Attach scroll listener
      useEffect(() => {
@@ -526,12 +526,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 setPendingAttachments(prev => [...prev, ...filesToSubmit]); // Add to pending list
                 setAttachedFiles([]); // Clear staging area
             }
+            // Reset scroll lock *before* submitting, ensuring next response auto-scrolls
+            userHasScrolledRef.current = false;
+            setShowScrollToBottom(false); // Hide button immediately on submit
+
             originalHandleSubmit(e as React.FormEvent<HTMLFormElement>);
-            userHasScrolledRef.current = false; // Reset scroll lock on submit
-            setTimeout(() => scrollToBottom('auto'), 50); // Ensure scroll happens after DOM update
+            // No need to manually scroll here, the useEffect triggered by the new message will handle it
+            // setTimeout(() => scrollToBottom('auto'), 50); // Removed manual scroll on submit
 
         }
-    }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setPendingAttachments, setAttachedFiles, scrollToBottom]); // Added missing state setters/scroll function to deps
+    }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setPendingAttachments, setAttachedFiles, scrollToBottom]); // scrollToBottom still needed in deps for the effect hook
 
 
     // --- Keyboard Handling Effect ---
@@ -620,7 +624,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             // Apply conditional margins directly here for spacing
                                             className={cn(
                                               "message-actions flex",
-                                              isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-4" // Reverted assistant margin back to -mt-2 for closer vertical padding
+                                              isUser ? "justify-end mr-1 mt-0" : "justify-start ml-1 -mt-4" // Reverted assistant margin back to -mt-2 for closer vertical padding
                                             )}
                                             style={{
                                                 opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0,
