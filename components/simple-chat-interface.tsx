@@ -167,14 +167,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     useEffect(() => {
       // TODO: Refactor this upload/association logic.
-      // This current logic might incorrectly associate files if messages update rapidly.
-      // Proper flow: Upload file -> Get ID -> Include ID in chat submit -> Backend associates.
         if (pendingAttachments.length > 0 && messages.length > 0) {
             console.log("Checking for new messages to associate files with (Frontend state)...");
             const userMessages = messages.filter((m) => m.role === "user");
             if (userMessages.length === 0) return;
             const lastUserMessage = userMessages[userMessages.length - 1];
-            // Check if it's the newest message in the array *and* different from last processed
             if (lastUserMessage.id !== lastMessageIdRef.current && messages.indexOf(lastUserMessage) === messages.length - 1) {
                 console.log("Found new user message in frontend state:", lastUserMessage.id);
                 lastMessageIdRef.current = lastUserMessage.id;
@@ -189,7 +186,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // +++ DEBUGGING: Log messages state when it changes +++
     useEffect(() => {
       console.log("--- useChat Messages Updated ---");
-      // Use try-catch for JSON.stringify in case of circular refs, though unlikely here
       try {
           console.log(JSON.stringify(messages, null, 2));
       } catch (e) {
@@ -203,27 +199,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useImperativeHandle(ref, () => ({
         startNewChat: () => {
             console.log("Imperative handle: startNewChat called");
-            // If currently recording, attempt to stop it via backend API
             if (isRecording) {
                  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
                 fetch(`${backendUrl}/api/recording/stop`, { method: 'POST' }) // <-- Hit backend URL
                     .then(res => { if (!res.ok) console.error("Failed to stop recording on new chat"); })
                     .catch(err => console.error("Error calling stop recording:", err))
-                    // Always reset local state regardless of backend call success for immediate UI feedback
                     .finally(() => { setIsRecording(false); setIsPaused(false); setRecordingTime(0); });
             }
-            // Clear frontend chat state
-            setMessages([]); // Clear messages via useChat hook state setter
-            setAttachedFiles([]); // Clear files staged for upload
-            setAllAttachments([]); // Clear attachment history display
-            setPendingAttachments([]); // Clear any pending files
-            lastMessageIdRef.current = null; // Reset last message tracking
+            setMessages([]);
+            setAttachedFiles([]);
+            setAllAttachments([]);
+            setPendingAttachments([]);
+            lastMessageIdRef.current = null;
         },
         getMessagesCount: () => {
-            // Provide message count to parent
             return messages.length;
         },
-    }), [isRecording, setMessages, messages.length]); // Dependencies for the imperative handle
+    }), [isRecording, setMessages, messages.length]); // Dependencies
 
     // --- Time Formatting ---
     const formatTime = (seconds: number) => {
@@ -235,244 +227,149 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Scrolling Logic ---
     const checkScroll = useCallback(() => {
         const container = messagesContainerRef.current; if (!container) return;
-        const threshold = 50; // Pixels from bottom to consider "at bottom"
+        const threshold = 50;
         const { scrollTop, scrollHeight, clientHeight } = container;
         const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
-        if (userHasScrolledRef.current && isAtBottom) {
-            userHasScrolledRef.current = false; // User scrolled back down
-        } else if (!isAtBottom) {
-            userHasScrolledRef.current = true; // User scrolled up
-        }
-        setShowScrollToBottom(!isAtBottom && messages.length > 0); // Show button if scrolled up and messages exist
-    }, [messages.length]); // Re-evaluate only if message count changes visibility condition
+        if (userHasScrolledRef.current && isAtBottom) { userHasScrolledRef.current = false; }
+        else if (!isAtBottom) { userHasScrolledRef.current = true; }
+        setShowScrollToBottom(!isAtBottom && messages.length > 0);
+    }, [messages.length]);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        userHasScrolledRef.current = false; // Reset scroll lock
-        setShowScrollToBottom(false); // Hide button
+        userHasScrolledRef.current = false;
+        setShowScrollToBottom(false);
     }, []);
 
-    // Effect for auto-scrolling on new messages
     useEffect(() => {
-        // Auto-scroll ONLY if the user hasn't scrolled up manually
-        if (!userHasScrolledRef.current) {
-            // Use timeout to ensure scroll happens after DOM update and rendering
-            const timer = setTimeout(() => {
-                scrollToBottom();
-            }, 100); // Small delay helps ensure layout is stable
-            return () => clearTimeout(timer); // Cleanup timeout
-        }
-    }, [messages, scrollToBottom]); // Trigger on messages change
+        if (!userHasScrolledRef.current) { const timer = setTimeout(() => { scrollToBottom(); }, 100); return () => clearTimeout(timer); }
+    }, [messages, scrollToBottom]);
 
-    // Effect for adding scroll listener
     useEffect(() => {
-        const container = messagesContainerRef.current;
-        if (container) {
-            // Use passive listener for better scroll performance
-            container.addEventListener("scroll", checkScroll, { passive: true });
-            // Cleanup listener on unmount
-            return () => container.removeEventListener("scroll", checkScroll);
-        }
-    }, [checkScroll]); // Re-add listener if checkScroll function instance changes
+        const container = messagesContainerRef.current; if (container) { container.addEventListener("scroll", checkScroll, { passive: true }); return () => container.removeEventListener("scroll", checkScroll); }
+    }, [checkScroll]);
 
     // --- UI Interaction Handlers ---
-    // Callback to hide the recording UI
     const hideRecordUI = useCallback(() => {
-         setRecordUIVisible(false); // Start fade out
-         setTimeout(() => {
-             setShowRecordUI(false); // Actually hide after transition
-             setRecordUIVisible(true); // Reset opacity for next show
-         }, 300); // Match CSS transition duration
-     }, []); // No dependencies, safe to memoize
+         setRecordUIVisible(false);
+         setTimeout(() => { setShowRecordUI(false); setRecordUIVisible(true); }, 300);
+     }, []);
 
-    // Callback to start the auto-hide timer for recording UI
     const startHideTimeout = useCallback(() => {
-         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); // Clear existing timer
-         hideTimeoutRef.current = setTimeout(() => {
-             // Only auto-hide if not actively recording or paused
-             if (!isRecording) {
-                 hideRecordUI();
-             }
-         }, 3000); // 3 seconds inactivity
-     }, [isRecording, hideRecordUI]); // Dependencies
+         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+         // Only set a new timeout if NOT currently recording
+         if (!isRecording) {
+              hideTimeoutRef.current = setTimeout(() => {
+                  hideRecordUI();
+              }, 3000); // 3 seconds inactivity
+          }
+     }, [isRecording, hideRecordUI]);
 
     // Effect for global click listener to hide menus/UI
     useEffect(() => {
         const handleGlobalClick = (event: MouseEvent) => {
-            // Hide Record UI if shown, not recording, and click is outside UI/status
-            if ( showRecordUI && !isRecording && recordUIRef.current && !recordUIRef.current.contains(event.target as Node) && statusRecordingRef.current && !statusRecordingRef.current.contains(event.target as Node) ) {
-                 hideRecordUI();
+            // Hide Record UI if clicking outside its area OR the status bar trigger
+            if ( showRecordUI && recordUIRef.current && !recordUIRef.current.contains(event.target as Node) && statusRecordingRef.current && !statusRecordingRef.current.contains(event.target as Node) ) {
+                 hideRecordUI(); // Hide regardless of recording state on outside click
              }
-             // Hide Plus Menu if shown and click is outside menu/trigger
+             // Hide Plus menu if click is outside
              if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(event.target as Node)) {
                  setShowPlusMenu(false);
              }
         };
-        document.addEventListener("mousedown", handleGlobalClick, true); // Use mousedown and capture phase
-        return () => { document.removeEventListener("mousedown", handleGlobalClick, true); }; // Cleanup listener
-    }, [showRecordUI, showPlusMenu, isRecording, hideRecordUI]); // Dependencies
+        document.addEventListener("mousedown", handleGlobalClick, true);
+        return () => { document.removeEventListener("mousedown", handleGlobalClick, true); };
+    }, [showRecordUI, showPlusMenu, hideRecordUI]); // Removed isRecording from deps
 
-    // Effect for positioning record UI (when it becomes visible)
+    // Effect for status bar hover interactions
+     useEffect(() => {
+       const statusElement = statusRecordingRef.current;
+       if (!statusElement) return;
+
+       const handleMouseEnter = () => {
+         // Always clear timeout when mouse enters the trigger area
+         if (hideTimeoutRef.current) { clearTimeout(hideTimeoutRef.current); }
+         // Show the UI controls when hovering the status text
+         setRecordUIVisible(true);
+         setShowRecordUI(true);
+       };
+
+       const handleMouseLeave = () => {
+         // Start the hide timeout when mouse leaves the status text
+         startHideTimeout();
+       };
+
+       statusElement.addEventListener("mouseenter", handleMouseEnter);
+       statusElement.addEventListener("mouseleave", handleMouseLeave);
+
+       return () => { // Cleanup listeners
+         statusElement.removeEventListener("mouseenter", handleMouseEnter);
+         statusElement.removeEventListener("mouseleave", handleMouseLeave);
+       };
+     }, [startHideTimeout]); // Re-run if startHideTimeout function instance changes
+
+    // Effect for positioning record UI
     useEffect(() => {
         const positionRecordUI = () => {
             if (inputContainerRef.current && recordUIRef.current) {
                 const inputRect = inputContainerRef.current.getBoundingClientRect();
                 const recordUIRect = recordUIRef.current.getBoundingClientRect();
-                // Adjust position relative to input container
-                const leftPosition = inputRect.left - recordUIRect.left - 8; // Adjust as needed
+                const leftPosition = inputRect.left - recordUIRect.left - 8;
                 setRecordUIPosition({ left: leftPosition });
             }
         };
         if (showRecordUI) {
-            positionRecordUI(); // Position once shown
-            const resizeObserver = new ResizeObserver(positionRecordUI); // Reposition on resize
+            positionRecordUI();
+            const resizeObserver = new ResizeObserver(positionRecordUI);
             if (inputContainerRef.current) resizeObserver.observe(inputContainerRef.current);
-            return () => resizeObserver.disconnect(); // Cleanup observer
+            return () => resizeObserver.disconnect();
         }
     }, [showRecordUI]);
 
-    // Effect for cleaning up hide timer on unmount
+    // Effect for cleaning up hide timer
     useEffect(() => {
         return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
     }, []);
 
     // --- Action Handlers ---
     const saveChat = useCallback(() => {
-        // Basic local download implementation
-        const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n");
-        const blob = new Blob([chatContent], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        setShowPlusMenu(false); // Close menu after action
-    }, [messages, agentName, eventId]); // Dependencies
+        const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setShowPlusMenu(false);
+    }, [messages, agentName, eventId]);
 
     const attachDocument = useCallback(() => {
-        fileInputRef.current?.click(); // Trigger hidden file input
-        setShowPlusMenu(false);
+        fileInputRef.current?.click(); setShowPlusMenu(false);
     }, []);
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        // Handle newly selected files
-        if (e.target.files && e.target.files.length > 0) {
-            const newFiles = Array.from(e.target.files).map((file) => ({
-                id: Math.random().toString(36).substring(2, 9), // Simple unique ID
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                // TODO: Add actual file object here for upload
-                // fileData: file
-            }));
-            setAttachedFiles((prev) => [...prev, ...newFiles]); // Add to staging area
-            console.log("Files staged:", newFiles);
-            // TODO: Implement immediate upload or store for upload on submit
-        }
-        if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input
-    }, []); // No dependencies needed for basic state update
+        if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, })); setAttachedFiles((prev) => [...prev, ...newFiles]); console.log("Files staged:", newFiles); } if (fileInputRef.current) fileInputRef.current.value = "";
+    }, []);
 
     const removeFile = useCallback((id: string) => {
-        // Remove file from staging area
-        setAttachedFiles((prev) => {
-            const fileToRemove = prev.find((file) => file.id === id);
-            if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); // Clean up preview URL if exists
-            return prev.filter((file) => file.id !== id);
-        });
-        // TODO: If file was already uploaded, call backend to delete temp file
+        setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); });
     }, []);
 
     // --- Recording Control API Calls ---
-    // Memoized function to call backend recording endpoints
     const callRecordingApi = useCallback(async (endpoint: string) => {
          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
-         // Ensure agent/event are ready before making calls
-         if (!isReady || !agentName || !eventId) {
-             console.error(`Cannot ${endpoint}: Agent/Event not ready.`);
-             append({ role: 'system', content: `Error: Cannot control recording. Agent or Event missing.` });
-             return; // Prevent API call
-         }
-         try {
-             console.log(`Calling backend: ${backendUrl}/api/recording/${endpoint}`);
-             const response = await fetch(`${backendUrl}/api/recording/${endpoint}`, {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 // Include agent/event only when starting
-                 body: endpoint === 'start' ? JSON.stringify({ agent: agentName, event: eventId }) : undefined
-             });
-             const data = await response.json(); // Assume backend sends JSON response
-             if (!response.ok) { throw new Error(data.message || `Failed to ${endpoint}`); }
-             console.log(`Backend ${endpoint} response:`, data);
-         } catch (error: any) {
-             console.error(`Error calling ${backendUrl}/api/recording/${endpoint}:`, error);
-             append({ role: 'system', content: `Error: ${error.message}` }); // Show error in UI
-         }
-     }, [isReady, agentName, eventId, append]); // Dependencies for the callback
+         if (!isReady || !agentName || !eventId) { console.error(`Cannot ${endpoint}: Agent/Event not ready.`); append({ role: 'system', content: `Error: Cannot control recording. Agent or Event missing.` }); return; } try { console.log(`Calling backend: ${backendUrl}/api/recording/${endpoint}`); const response = await fetch(`${backendUrl}/api/recording/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: endpoint === 'start' ? JSON.stringify({ agent: agentName, event: eventId }) : undefined }); const data = await response.json(); if (!response.ok) { throw new Error(data.message || `Failed to ${endpoint}`); } console.log(`Backend ${endpoint} response:`, data); } catch (error: any) { console.error(`Error calling ${backendUrl}/api/recording/${endpoint}:`, error); append({ role: 'system', content: `Error: ${error.message}` }); }
+     }, [isReady, agentName, eventId, append]);
 
-    // Callbacks for recording UI buttons
-    const startRecording = useCallback(() => {
-        setShowPlusMenu(false); // Close plus menu
-        setShowRecordUI(true); // Show recording controls
-        setRecordUIVisible(true); // Ensure visible
-        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); // Clear auto-hide timer
-        callRecordingApi('start'); // Call backend API
-    }, [callRecordingApi]);
+    const startRecording = useCallback(() => { setShowPlusMenu(false); setShowRecordUI(true); setRecordUIVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); callRecordingApi('start'); }, [callRecordingApi]);
+    const stopRecording = useCallback((e?: React.MouseEvent) => { e?.stopPropagation(); callRecordingApi('stop'); hideRecordUI(); }, [callRecordingApi, hideRecordUI]); // Ensure hideRecordUI is dependency
+    const pauseRecording = useCallback((e: React.MouseEvent) => { e.stopPropagation(); callRecordingApi('pause'); startHideTimeout(); }, [callRecordingApi, startHideTimeout]);
+    const resumeRecording = useCallback((e: React.MouseEvent) => { e.stopPropagation(); callRecordingApi('resume'); startHideTimeout(); }, [callRecordingApi, startHideTimeout]);
 
-    const stopRecording = useCallback((e?: React.MouseEvent) => {
-        e?.stopPropagation(); // Prevent click propagation
-        callRecordingApi('stop');
-        hideRecordUI(); // Hide controls immediately on stop
-    }, [callRecordingApi, hideRecordUI]);
-
-    const pauseRecording = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-        callRecordingApi('pause');
-        startHideTimeout(); // Keep UI visible for a bit after pausing
-    }, [callRecordingApi, startHideTimeout]);
-
-    const resumeRecording = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-        callRecordingApi('resume');
-        startHideTimeout(); // Keep UI visible for a bit after resuming
-    }, [callRecordingApi, startHideTimeout]);
-
-    // Handler for mouse move over record UI (resets auto-hide)
-    const handleRecordUIMouseMove = useCallback(() => {
-        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-        setRecordUIVisible(true); // Make sure it's visible
-        startHideTimeout(); // Restart timer
-    }, [startHideTimeout]);
-
-    // Handler for clicking the plus button
-    const handlePlusMenuClick = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-        // Hide record UI if it's shown and we're not actively recording
-        if (showRecordUI && !isRecording) hideRecordUI();
-        setShowPlusMenu(prev => !prev); // Toggle plus menu
-    }, [showRecordUI, isRecording, hideRecordUI]);
+    const handleRecordUIMouseMove = useCallback(() => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); setRecordUIVisible(true); startHideTimeout(); }, [startHideTimeout]);
+    const handlePlusMenuClick = useCallback((e: React.MouseEvent) => { e.stopPropagation(); if (showRecordUI && !isRecording) hideRecordUI(); setShowPlusMenu(prev => !prev); }, [showRecordUI, isRecording, hideRecordUI]); // Ensure hideRecordUI is dependency
 
     // --- Message Interaction Handlers ---
-    const handleMessageInteraction = useCallback((id: string) => {
-        // Toggle message actions visibility on mobile
-        if (isMobile) setHoveredMessage(prev => prev === id ? null : id);
-    }, [isMobile]); // Dependency on isMobile only
-
-    const copyToClipboard = useCallback((text: string, id: string) => {
-        // Copy text and show checkmark feedback
-        navigator.clipboard.writeText(text);
-        setCopyState({ id, copied: true });
-        setTimeout(() => { setCopyState({ id: "", copied: false }); }, 2000);
-    }, []); // No dependencies needed
-
-    // Placeholder functions
+    const handleMessageInteraction = useCallback((id: string) => { if (isMobile) setHoveredMessage(prev => prev === id ? null : id); }, [isMobile]);
+    const copyToClipboard = useCallback((text: string, id: string) => { navigator.clipboard.writeText(text); setCopyState({ id, copied: true }); setTimeout(() => { setCopyState({ id: "", copied: false }); }, 2000); }, []);
     const editMessage = useCallback((id: string) => console.log("Edit message:", id), []);
     const readAloud = useCallback((text: string) => console.log("Reading aloud:", text), []);
 
 
-    // --- Submit Handler --- moved before useEffect hook ---
+    // --- Submit Handler ---
     const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement>) => {
         e.preventDefault();
         if (!isReady) {
@@ -496,7 +393,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setPendingAttachments, setAttachedFiles]); // Added missing state setters to deps
 
 
-    // --- Keyboard Handling Effect (NOW DECLARED AFTER onSubmit) ---
+    // --- Keyboard Handling Effect ---
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
              // Submit on Enter (if not Shift+Enter, not loading, and input has text or files)
@@ -513,7 +410,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const inputElement = inputRef.current;
         if (inputElement) inputElement.addEventListener("keydown", handleKeyDown as EventListener);
         return () => { if (inputElement) inputElement.removeEventListener("keydown", handleKeyDown as EventListener); }
-    // Ensure all dependencies used inside handleKeyDown are listed if they change
     }, [input, isLoading, stop, attachedFiles.length, onSubmit]); // Keep onSubmit dependency here
 
 
