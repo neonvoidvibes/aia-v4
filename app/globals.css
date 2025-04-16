@@ -88,27 +88,27 @@
 /* Target DocumentUpload Card within Memory Tab Sections */
 .light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card {
   --card: var(--background); /* Override Shadcn variable */
-  background-color: hsl(var(--card)); /* Apply it */
-  border: none;
-  box-shadow: none;
-  padding: 0;
+  background-color: hsl(var(--card)) !important; /* Apply it */
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 /* Target inner parts if necessary */
 .light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card > * {
-  background-color: hsl(var(--card));
+  background-color: hsl(var(--card)) !important;
 }
 
 /* Target DocumentUpload Card specifically within Documents Tab using data attribute */
 .light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card {
   --card: var(--background); /* Override Shadcn variable */
-  background-color: hsl(var(--card)); /* Apply it */
-  border: none;
-  box-shadow: none;
-  padding: 0;
+  background-color: hsl(var(--card)) !important; /* Apply it */
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 /* Target inner parts if necessary */
 .light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card > * {
-  background-color: hsl(var(--card));
+  background-color: hsl(var(--card)) !important;
 }
 /* --- End Settings Dialog Fixes --- */
 
@@ -123,6 +123,15 @@ body {
   min-height: 100dvh; /* Use dynamic viewport height */
   transition: background 0.3s ease, color 0.3s ease;
   overflow: hidden; /* Prevent body scrolling */
+  font-size: 19px; /* Adjusted base font size */
+  line-height: 1.6; /* Adjusted line height */
+}
+
+/* Keep mobile font size potentially smaller */
+@media (max-width: 640px) {
+  body {
+    font-size: 16px; /* Default smaller size for mobile */
+  }
 }
 
 .light body {
@@ -160,34 +169,52 @@ body {
   /* Default padding (for desktop/larger screens) */
   padding: 4px 10px 1.5rem 10px;
 }
-/* Mobile: Remove horizontal padding */
+/* Mobile: Add horizontal padding to match header */
 @media (max-width: 640px) {
   .messages-container {
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 1rem; /* 16px */
+    padding-right: 1rem; /* 16px */
   }
 }
-
+/* Input area container */
 .input-area-container {
   display: flex;
   flex-direction: column;
   background-color: transparent;
   z-index: 10;
   position: relative;
-  padding: 0.125rem 0 0 0; /* Remove horizontal padding */
+  padding: 0.125rem 10px 0 10px; /* Default horizontal padding */
 }
+/* Mobile: Ensure input area padding matches message area */
+@media (max-width: 640px) {
+  .input-area-container {
+    padding-left: 1rem; /* 16px */
+    padding-right: 1rem; /* 16px */
+  }
+}
+
 
 .input-container {
   background-color: hsl(var(--input-gray));
   border-radius: 9999px;
-  padding: 8px 16px;
+  padding: 8px 16px; /* Keep internal padding */
   display: flex;
   align-items: center;
-  margin: 8px auto; /* Reduced top/bottom margin globally */
-  width: calc(100% - 16px); /* Consistent width leaving 8px margin each side */
-  max-width: 800px; /* Keep max-width for desktop */
+  /* Desktop styles */
+  margin: 16px auto;
+  width: calc(100% - 32px); /* Default width for desktop */
+  max-width: 800px;
   position: relative;
+  box-sizing: border-box; /* Ensure padding is included in width calc */
 }
+/* Mobile: Make input container fill padded parent */
+@media (max-width: 640px) {
+  .input-container {
+    width: 100%; /* Fill the padded input-area-container */
+    margin: 8px 0; /* Adjust vertical margin, remove side margin */
+  }
+}
+
 
 /* Input field text color (should be black in both themes) */
 .input-container input {
@@ -197,6 +224,7 @@ body {
   outline: none;
   flex: 1;
   padding: 0 8px; /* Adjust padding as needed */
+  font-size: inherit; /* Ensure input inherits body font size */
 }
 
 /* --- Message Bubbles --- */
@@ -207,6 +235,8 @@ body {
   white-space: pre-wrap; /* Preserve line breaks */
   animation: fadeIn 0.3s ease-out;
   margin-bottom: 8px; /* Add some base margin */
+  overflow-wrap: break-word; /* Prevent overflow from long words */
+  white-space: pre-wrap; /* Respect newlines, wrap long lines */
 }
 
 .user-bubble {
@@ -230,6 +260,7 @@ body {
   align-self: flex-start;
   padding-left: 0; /* Remove default padding */
   margin-left: 8px;
+  max-width: 100%; /* Ensure AI bubble can take full container width */
 }
 
 .light .ai-bubble {
@@ -287,7 +318,7 @@ body {
 .plus-menu button {
   padding: 8px 10px;
   /* color handled by theme rules below */
-  opacity: 0.7;
+  opacity: 1; /* Remove default opacity */
   transition: color 0.2s, opacity 0.2s;
   background: none;
   border: none;
@@ -295,7 +326,7 @@ body {
 }
 .plus-menu button:hover {
   /* color handled by theme rules below */
-  opacity: 1;
+  opacity: 0.8; /* Slight dim on hover */
 }
 
 /* Record UI buttons */
@@ -305,10 +336,11 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.2s, opacity 0.2s;
 }
 .record-ui button:hover {
   /* color handled by theme rules below */
+  opacity: 0.8; /* Slight dim on hover */
 }
 .record-ui button:disabled {
   /* color handled by theme rules below */
@@ -372,10 +404,12 @@ body {
 .dark .plus-menu button.recording, /* Target button, not just SVG */
 .dark .plus-menu button.recording svg {
   color: #ef4444 !important; /* Red */
+  stroke: #ef4444 !important; /* Also set stroke */
 }
 .dark .plus-menu button.paused, /* Target button, not just SVG */
 .dark .plus-menu button.paused svg {
   color: #eab308 !important; /* Yellow */
+  stroke: #eab308 !important; /* Also set stroke */
 }
 .dark .record-ui button svg.text-red-500 { color: #ef4444 !important; stroke: #ef4444 !important; } /* Red */
 .dark .record-ui button svg.text-yellow-500 { color: #eab308 !important; stroke: #eab308 !important; } /* Yellow */
@@ -432,8 +466,8 @@ body {
 
 /* --- Message Actions --- */
 .message-actions {
-  position: absolute;
-  z-index: 5;
+  /* Removed position: absolute; */
+  /* Removed z-index: 5; */
   opacity: 0;
   visibility: hidden;
   padding: 2px 0;
@@ -444,8 +478,9 @@ body {
   opacity: 1;
   visibility: visible;
 }
-.user-actions { right: 8px; bottom: -36px; }
-.assistant-actions { left: 8px; bottom: -24px; }
+/* Removed absolute positioning styles */
+/* .user-actions { right: 8px; bottom: -36px; } */
+/* .assistant-actions { left: 8px; bottom: -24px; } */
 
 .action-button {
   padding: 4px;
@@ -549,7 +584,7 @@ body {
   color: hsl(var(--foreground) / 0.7);
   font-size: 0.8rem;
   text-align: center;
-  padding: 16px 0 0 0; /* Ensure no bottom padding */
+  padding: 16px 0 16px 0; /* Added padding-bottom */
   font-weight: 300;
   transition: color 0.3s ease;
 }
@@ -560,7 +595,7 @@ body {
 /* Scroll to bottom button */
 .scroll-to-bottom-button {
   position: absolute;
-  bottom: 90px; /* Adjust position relative to input */
+  bottom: 115px; /* Increased value to move it up */
   left: 50%;
   transform: translateX(-50%);
   background-color: hsl(var(--input-gray));
@@ -577,6 +612,17 @@ body {
   transition: all 0.2s ease;
   animation: fadeIn 0.3s ease;
 }
+/* Dark mode scroll button styling */
+.dark .scroll-to-bottom-button {
+  background-color: rgba(66, 71, 93, 0.5); /* Example: Darker semi-transparent background */
+  color: hsl(var(--text-secondary)); /* Keep text color */
+  backdrop-filter: blur(4px); /* Optional: Add blur for effect */
+  -webkit-backdrop-filter: blur(4px); /* Safari */
+}
+.dark .scroll-to-bottom-button:hover {
+    background-color: rgba(80, 85, 110, 0.6); /* Slightly lighten on hover */
+}
+
 .scroll-to-bottom-button:hover {
   filter: brightness(0.95);
   transform: translateX(-50%) translateY(-2px);
@@ -612,6 +658,36 @@ body {
   animation: slideUp 0.3s ease;
   position: relative; /* Ensure content is targetable */
   z-index: 51; /* Higher than overlay */
+}
+
+/* Thinking Indicator */
+.thinking-indicator {
+  display: flex;
+  gap: 4px; /* Spacing between dots */
+  align-items: center;
+  padding-left: 10px; /* Align with AI bubble */
+}
+
+.thinking-dot {
+  width: 12px; /* Larger dot */
+  height: 12px;
+  background-color: hsl(var(--foreground) / 0.6); /* Slightly less transparent base */
+  border-radius: 50%;
+  animation: breathing-dot 2s infinite ease-in-out; /* Apply new animation */
+}
+
+/* Removed nth-child delays */
+
+/* Keyframes for the dot breathing animation */
+@keyframes breathing-dot {
+  0%, 100% {
+    transform: scale(0.6); /* Smaller size */
+    opacity: 0.5; /* Dimmer */
+  }
+  50% {
+    transform: scale(1.0); /* Full size */
+    opacity: 1.0; /* Solid */
+  }
 }
 
 .modal-title {

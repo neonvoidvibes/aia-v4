@@ -21,7 +21,7 @@ import {
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { useMobile } from "@/hooks/use-mobile"
-import { useTheme } from "next-themes" // Already imported, ensure it's used
+import { useTheme } from "next-themes"
 // Removed ConfirmationModal import - managed by parent
 import { motion } from "framer-motion"
 import { useSearchParams } from 'next/navigation';
@@ -35,6 +35,7 @@ interface SimpleChatInterfaceProps {
 export interface ChatInterfaceHandle { // Export interface if needed by parent directly
   startNewChat: () => void;
   getMessagesCount: () => number;
+  scrollToTop: () => void; // Add method signature
 }
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
@@ -172,16 +173,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             const userMessages = messages.filter((m) => m.role === "user");
             if (userMessages.length === 0) return;
             const lastUserMessage = userMessages[userMessages.length - 1];
-            if (lastUserMessage.id !== lastMessageIdRef.current && messages.indexOf(lastUserMessage) === messages.length - 1) {
-                console.log("Found new user message in frontend state:", lastUserMessage.id);
-                lastMessageIdRef.current = lastUserMessage.id;
-                const filesWithMessageId = pendingAttachments.map((file) => ({ ...file, messageId: lastUserMessage.id, }));
-                console.log("Associating files with frontend message:", filesWithMessageId.length);
+            // Check if the last message is the one just submitted and doesn't have attachments already associated
+            // A robust solution might need message IDs generated *before* sending or a way to link pending files to the response.
+            if (lastUserMessage.id !== lastMessageIdRef.current && !allAttachments.some(att => att.messageId === lastUserMessage.id)) {
+                console.log("Found new user message to associate attachments with:", lastUserMessage.id);
+                lastMessageIdRef.current = lastUserMessage.id; // Track the last message we attached files to
+                const filesWithMessageId = pendingAttachments.map((file) => ({ ...file, messageId: lastUserMessage.id }));
+                console.log("Associating files with message:", filesWithMessageId.length);
                 setAllAttachments((prev) => [...prev, ...filesWithMessageId]); // Add to history display
                 setPendingAttachments([]); // Clear pending
             }
         }
-    }, [messages, pendingAttachments]);
+    }, [messages, pendingAttachments, allAttachments]); // Add allAttachments to deps
 
     // +++ DEBUGGING: Log messages state when it changes +++
     useEffect(() => {
@@ -200,6 +203,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         startNewChat: () => {
             console.log("Imperative handle: startNewChat called");
             if (isRecording) {
+                 // Use the NEXT_PUBLIC_ prefixed environment variable
                  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
                 fetch(`${backendUrl}/api/recording/stop`, { method: 'POST' }) // <-- Hit backend URL
                     .then(res => { if (!res.ok) console.error("Failed to stop recording on new chat"); })
@@ -215,7 +219,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         getMessagesCount: () => {
             return messages.length;
         },
-    }), [isRecording, setMessages, messages.length]); // Dependencies
+        scrollToTop: () => {
+            messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            userHasScrolledRef.current = false; // Reset scroll lock
+            setShowScrollToBottom(false); // Hide scroll down button
+        },
+    }), [isRecording, setMessages, messages.length]); // Dependencies - messagesContainerRef is stable
 
     // --- Time Formatting ---
     const formatTime = (seconds: number) => {
@@ -227,27 +236,76 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Scrolling Logic ---
     const checkScroll = useCallback(() => {
         const container = messagesContainerRef.current; if (!container) return;
-        const threshold = 50;
+        const threshold = 50; // Pixels from bottom to trigger hiding button
         const { scrollTop, scrollHeight, clientHeight } = container;
+        const isScrollable = scrollHeight > clientHeight;
         const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
-        if (userHasScrolledRef.current && isAtBottom) { userHasScrolledRef.current = false; }
-        else if (!isAtBottom) { userHasScrolledRef.current = true; }
-        setShowScrollToBottom(!isAtBottom && messages.length > 0);
-    }, [messages.length]);
+        // How far scrolled up? Compare scrollTop to 0 or scrollHeight - clientHeight
+        const isScrolledUp = scrollTop > 0 && !isAtBottom; // More precise check for being scrolled up
 
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        // Lock auto-scroll if user scrolls up significantly
+        // Add a buffer zone, don't lock on tiny scrolls
+        if (isScrolledUp && scrollHeight - scrollTop - clientHeight > threshold * 2 && !userHasScrolledRef.current) {
+             console.log("User scrolled up, locking auto-scroll.");
+             userHasScrolledRef.current = true;
+        }
+        // Unlock auto-scroll if user scrolls back to the bottom manually
+        else if (isAtBottom && userHasScrolledRef.current) {
+            console.log("User scrolled down, unlocking auto-scroll.");
+            userHasScrolledRef.current = false;
+        }
+
+        // Show scroll-to-bottom button if scrollable and user isn't at the bottom
+        setShowScrollToBottom(isScrollable && !isAtBottom);
+    }, []); // Dependencies remain minimal, relies on closure for refs
+
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+        // Check if the component is mounted and the ref is current
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: behavior });
+        }
+        // It's generally safe to reset these flags when explicitly scrolling down
         userHasScrolledRef.current = false;
-        setShowScrollToBottom(false);
+        // Visibility update handled by checkScroll called from useEffect or event listener
+        // setShowScrollToBottom(false); // Avoid direct set here
     }, []);
 
-    useEffect(() => {
-        if (!userHasScrolledRef.current) { const timer = setTimeout(() => { scrollToBottom(); }, 100); return () => clearTimeout(timer); }
-    }, [messages, scrollToBottom]);
+     // Auto-scroll on new messages or when loading stops
+     useEffect(() => {
+       // Check if we should scroll (user hasn't manually scrolled up)
+       if (!userHasScrolledRef.current) {
+         // Using requestAnimationFrame ensures scroll happens after the browser has painted the latest updates
+         const animationFrameId = requestAnimationFrame(() => {
+            // Add another slight delay with setTimeout, as rAF might still be too fast sometimes
+            const timer = setTimeout(() => {
+                scrollToBottom('smooth');
+            }, 100); // Increased delay slightly
+             // We need a way to clean up the timeout if the component unmounts between rAF and setTimeout
+             // This is tricky, maybe store timer ID in a ref? For now, let's accept potential minor edge case.
+         });
+         // Cleanup function for the effect
+         return () => {
+           cancelAnimationFrame(animationFrameId);
+           // If we had stored the setTimeout timerId, we would clear it here too
+         };
+       }
+        // If user scrolled up, but loading finishes, DON'T auto-scroll, but DO check scroll position
+        else if (isLoading === false && userHasScrolledRef.current) {
+             checkScroll(); // Update button visibility based on final position
+        }
+       // Trigger this effect whenever the messages array *changes* (length or content of last message)
+       // OR when loading state transitions from true to false.
+     }, [messages, isLoading, scrollToBottom, checkScroll]); // Depend on the whole messages array
 
-    useEffect(() => {
-        const container = messagesContainerRef.current; if (container) { container.addEventListener("scroll", checkScroll, { passive: true }); return () => container.removeEventListener("scroll", checkScroll); }
-    }, [checkScroll]);
+    // Attach scroll listener
+     useEffect(() => {
+        const container = messagesContainerRef.current;
+        if (container) {
+            container.addEventListener("scroll", checkScroll, { passive: true });
+            return () => container.removeEventListener("scroll", checkScroll);
+        }
+    }, [checkScroll]); // checkScroll itself doesn't change often
+
 
     // --- UI Interaction Handlers ---
     const hideRecordUI = useCallback(() => {
@@ -307,8 +365,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          statusElement.removeEventListener("mouseleave", handleMouseLeave);
        };
      }, [startHideTimeout]); // Re-run if startHideTimeout function instance changes
-
-    // Removed effect for positioning record UI
 
     // Effect for cleaning up hide timer
     useEffect(() => {
@@ -388,8 +444,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, []);
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, })); setAttachedFiles((prev) => [...prev, ...newFiles]); console.log("Files staged:", newFiles); } if (fileInputRef.current) fileInputRef.current.value = "";
+        if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); console.log("Files staged:", newFiles); } if (fileInputRef.current) fileInputRef.current.value = ""; // Clear input
     }, []);
+
 
     const removeFile = useCallback((id: string) => {
         setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); });
@@ -400,7 +457,51 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // --- Message Interaction Handlers ---
     const handleMessageInteraction = useCallback((id: string) => { if (isMobile) setHoveredMessage(prev => prev === id ? null : id); }, [isMobile]);
-    const copyToClipboard = useCallback((text: string, id: string) => { navigator.clipboard.writeText(text); setCopyState({ id, copied: true }); setTimeout(() => { setCopyState({ id: "", copied: false }); }, 2000); }, []);
+
+    // Updated copyToClipboard with fallback
+    const copyToClipboard = useCallback((text: string, id: string) => {
+      const notifySuccess = () => {
+        setCopyState({ id, copied: true });
+        setTimeout(() => { setCopyState({ id: "", copied: false }); }, 2000);
+      };
+      const notifyFailure = (err?: any) => {
+        console.error("Failed to copy text: ", err);
+        setCopyState({ id, copied: false }); // Indicate failure maybe?
+        // Optionally show a toast message here using a toast hook if available
+      }; // <-- This closing brace belongs here
+
+      // Removed stray brace from below
+
+      if (navigator.clipboard && window.isSecureContext) {
+        // Use modern Clipboard API if available and in secure context
+        navigator.clipboard.writeText(text).then(notifySuccess).catch(notifyFailure);
+      } else {
+        // Fallback using document.execCommand
+        console.warn("Using fallback copy method (execCommand).");
+        try {
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          // Make the textarea out of viewport
+          textArea.style.position = "fixed";
+          textArea.style.left = "-9999px";
+          textArea.style.top = "-9999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          const successful = document.execCommand('copy');
+          document.body.removeChild(textArea);
+
+          if (successful) {
+            notifySuccess();
+          } else {
+            throw new Error('execCommand failed');
+          }
+        } catch (err) {
+          notifyFailure(err);
+        }
+      }
+    }, []); // Keep dependencies minimal
+
     const editMessage = useCallback((id: string) => console.log("Edit message:", id), []);
     const readAloud = useCallback((text: string) => console.log("Reading aloud:", text), []);
 
@@ -418,15 +519,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } else if (input.trim() || attachedFiles.length > 0) {
             console.log("Submitting message. Input:", input, "Files:", attachedFiles.length);
             // TODO: Implement actual file upload logic here before submitting
-            if (attachedFiles.length > 0) {
-                console.warn("File attachment upload not implemented yet.");
-                setPendingAttachments(prev => [...prev, ...attachedFiles]); // Use functional update
-                setAttachedFiles([]);
+            // For now, associate staged files with the *next* message
+            const filesToSubmit = [...attachedFiles]; // Copy current staged files
+            if (filesToSubmit.length > 0) {
+                console.log("Attaching files to next message (pending):", filesToSubmit.length);
+                setPendingAttachments(prev => [...prev, ...filesToSubmit]); // Add to pending list
+                setAttachedFiles([]); // Clear staging area
             }
             originalHandleSubmit(e as React.FormEvent<HTMLFormElement>);
-            userHasScrolledRef.current = false;
+            userHasScrolledRef.current = false; // Reset scroll lock on submit
+            setTimeout(() => scrollToBottom('auto'), 50); // Ensure scroll happens after DOM update
+
         }
-    }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setPendingAttachments, setAttachedFiles]); // Added missing state setters to deps
+    }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setPendingAttachments, setAttachedFiles, scrollToBottom]); // Added missing state setters/scroll function to deps
 
 
     // --- Keyboard Handling Effect ---
@@ -451,8 +556,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // --- Render ---
     return (
+        // Ensure this root div fills height and uses flex column
         <div className="flex flex-col h-full">
-            {/* Messages area */}
+            {/* Messages area - ensure it uses flex-1 to grow/shrink */}
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
                 {/* Conditional Rendering: Loading / Welcome / Messages */}
                 {messages.length === 0 && !isReady && (
@@ -466,98 +572,123 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     </div>
                 )}
                 {messages.length > 0 && (
-                    <div className="space-y-6">
+                    <div className="space-y-0"> {/* Remove space-y-6 */}
                         {messages.map((message: Message) => { // Explicitly type message
-                            // +++ DEBUGGING: Log message being rendered +++
-                            console.log("Rendering message:", message.id, message.role, message.content.substring(0, 30)); // <-- Add log
                             const isUser = message.role === "user";
                             const isSystem = message.role === "system";
-                            // Filter attachments associated with this message ID (requires correct messageId logic)
+                            // Find attachments associated with this message ID
                             const messageAttachments = allAttachments.filter((file) => file.messageId === message.id);
                             const hasAttachments = messageAttachments.length > 0;
 
                             return (
                                 <motion.div
                                     key={message.id}
-                                    initial={{ opacity: 0, y: 20 }} // Animation initial state
+                                    initial={{ opacity: 0, y: 10 }} // Slightly reduced y offset
                                     animate={{ opacity: 1, y: 0 }} // Animation end state
-                                    transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98], }} // Animation timing
-                                    className={`flex flex-col ${isUser ? "items-end" : isSystem ? "items-center" : "items-start"} relative group mb-8`} // Dynamic classes for alignment
+                                    transition={{ duration: 0.2, ease: "easeOut" }} // Faster transition
+                                    // Removed mb-8, spacing handled by bubble + actions container
+                                    className={`flex flex-col ${isUser ? "items-end" : isSystem ? "items-center" : "items-start"} relative group`}
                                     onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} // Show actions on hover (desktop)
                                     onMouseLeave={() => !isMobile && setHoveredMessage(null)} // Hide actions on mouse leave
                                     onClick={() => !isSystem && handleMessageInteraction(message.id)} // Toggle actions on click (mobile)
                                 >
-                                    {/* Display attachments above user message */}
-                                    {isUser && hasAttachments && (
-                                        <div className="mb-2 file-attachment-wrapper">
-                                            <FileAttachmentMinimal
-                                                files={messageAttachments}
-                                                onRemove={() => {}} // Read-only view
-                                                className="file-attachment-message"
-                                                maxVisible={1} // Show only one initially in history
-                                                isSubmitted={true}
-                                                messageId={message.id} // Pass message ID for consistency
-                                            />
-                                        </div>
-                                    )}
-                                    {/* Message Bubble */}
-                                    <div className={`rounded-2xl p-3 max-w-[80%] message-bubble ${
-                                        isUser ? `bg-input-gray text-black user-bubble ${hasAttachments ? "with-attachment" : ""}` // User style
-                                        : isSystem ? `bg-transparent text-muted-foreground text-sm italic text-center max-w-[90%]` // System style
-                                        : "bg-transparent text-white ai-bubble pl-0" // Assistant style
-                                    }`}>
-                                        {/* Render message content, converting newlines to <br> */}
-                                        <span dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br />') }} />
-                                    </div>
-                                    {/* Message Actions (Copy, Edit, Read Aloud) - Conditionally rendered */}
-                                    {!isSystem && (
-                                        <div
-                                            className={`message-actions flex ${isUser ? "user-actions" : "assistant-actions"}`}
-                                            style={{
-                                                opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, // Control visibility
-                                                visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden",
-                                                bottom: isUser ? "-36px" : "-24px", // Position below bubble
-                                            }}
-                                        >
-                                            {/* User Actions */}
-                                            {isUser && (
-                                                <div className="flex">
-                                                    <button onClick={() => copyToClipboard(message.content, message.id)} className="action-button" aria-label="Copy message">
-                                                        {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
-                                                    </button>
-                                                    <button onClick={() => editMessage(message.id)} className="action-button" aria-label="Edit message">
-                                                        <Pencil className="h-4 w-4" />
-                                                    </button>
+                                    {/* Main container for a single message item */}
+                                    <div className={`flex w-full mb-1 ${isUser ? "justify-end" : "justify-start"}`}>
+                                        {/* Flex container for bubble + actions */}
+                                        <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+                                            {/* Display attachments above user message */}
+                                            {isUser && hasAttachments && (
+                                                <div className="mb-2 file-attachment-wrapper">
+                                                    <FileAttachmentMinimal
+                                                        files={messageAttachments}
+                                                        onRemove={() => {}} // Read-only view
+                                                        className="file-attachment-message"
+                                                        maxVisible={1} // Show only one initially in history
+                                                        isSubmitted={true}
+                                                        messageId={message.id} // Pass message ID for consistency
+                                                    />
                                                 </div>
                                             )}
-                                            {/* Assistant Actions */}
-                                            {!isUser && (
-                                                <div className="flex" style={{ paddingLeft: "8px" }}>
-                                                    <button onClick={() => copyToClipboard(message.content, message.id)} className="action-button" aria-label="Copy message">
-                                                        {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
-                                                    </button>
-                                                    {/* Show read aloud only on hover */}
-                                                    {hoveredMessage === message.id && (
-                                                        <button onClick={() => readAloud(message.content)} className="action-button" aria-label="Read message aloud">
-                                                            <Volume2 className="h-4 w-4" />
-                                                        </button>
+                                            {/* Message Bubble */}
+                                            <div className={`rounded-2xl p-3 max-w-[80%] message-bubble ${
+                                                isUser ? `bg-input-gray text-black user-bubble ${hasAttachments ? "with-attachment" : ""}` // User style
+                                                : isSystem ? `bg-transparent text-muted-foreground text-sm italic text-center max-w-[90%]` // System style
+                                                : "bg-transparent text-white ai-bubble pl-0" // Assistant style
+                                            }`}>
+                                                {/* Render message content, converting newlines to <br> */}
+                                                <span dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br />') }} />
+                                            </div>
+                                            {/* Message Actions (Now placed AFTER the bubble div) */}
+                                            {!isSystem && (
+                                                <div
+                                                    className={`message-actions flex ${isUser ? "justify-end mr-1" : "justify-start"}`} // Removed ml-1 for assistant
+                                                    style={{
+                                                        opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, // Control visibility
+                                                        visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden",
+                                                        transition: 'opacity 0.2s ease-in-out', // Smooth transition
+                                                    }}
+                                                >
+                                                    {/* User Actions */}
+                                                    {isUser && (
+                                                        <div className="flex">
+                                                          <button
+                                                            onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} // Primarily use onClick
+                                                            className="action-button"
+                                                            aria-label="Copy message"
+                                                          >
+                                                              {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                                          </button>
+                                                          <button onClick={() => editMessage(message.id)} className="action-button" aria-label="Edit message">
+                                                              <Pencil className="h-4 w-4" />
+                                                          </button>
+                                                        </div>
+                                                    )}
+                                                    {/* Assistant Actions */}
+                                                    {!isUser && (
+                                                        <div className="flex" style={{ paddingLeft: "8px" }}>
+                                                          <button
+                                                            onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} // Primarily use onClick
+                                                            className="action-button"
+                                                            aria-label="Copy message"
+                                                          >
+                                                              {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                                          </button>
+                                                          {/* Show read aloud only on hover */}
+                                                          {hoveredMessage === message.id && (
+                                                              <button onClick={() => readAloud(message.content)} className="action-button" aria-label="Read message aloud">
+                                                                  <Volume2 className="h-4 w-4" />
+                                                              </button>
+                                                          )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}
-                                        </div>
-                                    )}
+                                        </div> {/* Close inner flex container (bubble + actions) */}
+                                    </div> {/* Close outer flex container (message item row) */}
                                 </motion.div>
                             );
                         })}
                     </div>
                 )}
+                 {/* Thinking Indicator */}
+                 {isLoading && messages[messages.length - 1]?.role === 'user' && (
+                     <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        // Use thinking-indicator class for styling from CSS
+                        // Ensure it's placed correctly within the flow (align left)
+                        className="thinking-indicator flex self-start mb-1 mt-1 ml-1"> {/* Align left, add margin */}
+                        <span className="thinking-dot"></span> {/* Render only one dot */}
+                     </motion.div>
+                 )}
                 {/* Empty div to ensure scrolling to the absolute bottom */}
                 <div ref={messagesEndRef} />
             </div>
 
             {/* Scroll to bottom button (conditionally rendered) */}
             {showScrollToBottom && (
-                <button onClick={scrollToBottom} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
+                <button onClick={() => scrollToBottom()} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
                     <ChevronDown size={24} />
                 </button>
             )}
@@ -586,17 +717,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             {/* Plus Menu Popup */}
                             {showPlusMenu && (
                                 <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
                                     transition={{ duration: 0.2 }}
                                     className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu" // Added plus-menu class
                                 >
                                     {/* Removed opacity classes */}
-                                    <button type="button" className="p-2" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button>
+                                    <button type="button" className="p-2 plus-menu-item" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button>
                                     {/* Removed opacity classes */}
-                                    <button type="button" className="p-2" onClick={saveChat} title="Save chat"><Download size={20} /></button>
+                                    <button type="button" className="p-2 plus-menu-item" onClick={saveChat} title="Save chat"><Download size={20} /></button>
                                     <button
                                         type="button"
                                         // Removed opacity classes
-                                        className={`p-2 ${isRecording ? 'recording' : ''} ${isPaused ? 'paused' : ''}`}
+                                        className={`p-2 plus-menu-item ${isRecording ? 'recording' : ''} ${isPaused ? 'paused' : ''}`}
                                         onClick={startRecording}
                                         title={isRecording ? (isPaused ? "Recording Paused" : "Recording Live") : "Start recording"}
                                     >
@@ -617,12 +751,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     onClick={(e) => e.stopPropagation()} // Prevent closing menu
                                     // Removed inline style for position
                                 >
-                                    <button type="button" className="p-1" onClick={isRecording && !isPaused ? pauseRecording : resumeRecording} aria-label={isRecording && !isPaused ? "Pause recording" : "Resume recording"}>
-                                        {isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={isPaused ? "text-yellow-500" : "text-gray-600"} />}
+                                    <button type="button" className="p-1 record-ui-button" onClick={isRecording && !isPaused ? pauseRecording : resumeRecording} aria-label={isRecording && !isPaused ? "Pause recording" : "Resume recording"}>
+                                        {/* Keep red/yellow, remove default gray */}
+                                        {isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={isPaused ? "text-yellow-500" : ""} />}
                                     </button>
-                                    <button type="button" className="p-1" onClick={stopRecording} disabled={!isRecording} aria-label="Stop recording" style={{ opacity: !isRecording ? "0.5" : "1" }}>
-                                        <StopCircle size={20} className={!isRecording ? "text-gray-500" : "text-gray-600"}/>
+                                    <button type="button" className="p-1 record-ui-button" onClick={stopRecording} disabled={!isRecording} aria-label="Stop recording">
+                                        {/* Remove conditional grays */}
+                                        <StopCircle size={20} className={""}/>
                                     </button>
+                                    {/* Keep span styling as is, it seems okay */}
                                     {isRecording && <span className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(recordingTime)}</span>}
                                 </motion.div>
                             )}

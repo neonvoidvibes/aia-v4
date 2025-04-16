@@ -107,11 +107,17 @@ export default function Home() {
     // Add overflow-hidden to prevent the container itself from scrolling
     // Make container full-width by default, apply max-width/centering only on sm screens and up
     <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
-      <header className="py-4 px-4 text-center relative flex-shrink-0"> {/* Prevent header shrinking */}
+      <header className="py-4 px-4 text-center relative flex-shrink-0" onClick={() => {
+          // Scroll to top on mobile header tap
+          if (isMobile && chatInterfaceRef.current) {
+              chatInterfaceRef.current.scrollToTop();
+          }
+        }}> {/* Prevent header shrinking */}
         <div className="flex items-center justify-between">
           <button
             className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105"
-            onClick={handleNewChatRequest} // Use the page's handler
+            // Prevent event bubbling up to the header's onClick
+            onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} // Use the page's handler
             aria-label="New chat"
           >
             <PenSquare size={20} />
@@ -119,7 +125,8 @@ export default function Home() {
           <h1 className="text-lg font-extralight">{pageAgentName ? `${pageAgentName} AI` : "River AI"}</h1> {/* Display Agent Name */}
           <button
             className="text-foreground/70 hover:text-foreground transition-colors"
-            onClick={() => setShowSettings(!showSettings)}
+            // Prevent event bubbling up to the header's onClick
+            onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }}
             aria-label="Toggle settings"
           >
             <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings ? "rotate(180deg)" : "rotate(0deg)" }}>
