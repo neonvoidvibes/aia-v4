@@ -123,14 +123,21 @@ body {
   min-height: 100dvh; /* Use dynamic viewport height */
   transition: background 0.3s ease, color 0.3s ease;
   overflow: hidden; /* Prevent body scrolling */
-  font-size: 19px; /* Adjusted base font size */
+  font-size: 18px; /* Base font size for desktop */
+  font-weight: 200; /* Extra-light font weight for desktop */
   line-height: 1.6; /* Adjusted line height */
 }
 
-/* Keep mobile font size potentially smaller */
+/* Increase mobile font size and keep normal weight */
 @media (max-width: 640px) {
   body {
-    font-size: 16px; /* Default smaller size for mobile */
+    font-size: 20px; /* Increased font size for mobile */
+    font-weight: 400; /* Keep standard weight for mobile */
+  }
+}
+@media (max-width: 640px) {
+  body {
+    font-size: 17px; /* Increased font size for mobile */
   }
 }
 

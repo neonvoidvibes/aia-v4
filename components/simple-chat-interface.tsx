@@ -114,6 +114,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const prevMessagesLengthRef = useRef(messages.length) // Track message changes for scroll
     const userHasScrolledRef = useRef(false) // Track if user scrolled up manually
     const prevScrollTopRef = useRef<number>(0); // Store previous scroll position
+    // Removed isProgrammaticScrollRef and programmaticScrollTimeoutRef
     const lastMessageIdRef = useRef<string | null>(null) // Track last message for attachment logic
 
     // --- Backend Recording State Polling ---
@@ -241,13 +242,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const isScrollable = scrollHeight > clientHeight;
         const isAtStrictBottom = scrollHeight - scrollTop - clientHeight < 2; // Strict check for bottom
 
-        // LOCK auto-scroll ONLY if an UPWARD scroll is detected
-        if (scrollTop > prevScrollTopRef.current && scrollTop > 10 && !userHasScrolledRef.current) {
-            // scrollTop > 10 prevents locking on initial tiny scrolls near the top
-            console.log("User scrolled UP, locking auto-scroll.");
+        // LOCK if user scrolls UPWARD and is NOT already near the bottom
+        if (scrollTop > prevScrollTopRef.current && !isAtStrictBottom && !userHasScrolledRef.current) {
+            console.log("Detected user scrolled UP away from bottom, locking auto-scroll.");
             userHasScrolledRef.current = true;
         }
-        // UNLOCK auto-scroll ONLY if user manually scrolls back to the very bottom
+        // UNLOCK if user manually scrolls back to the very bottom
         else if (userHasScrolledRef.current && isAtStrictBottom) {
             console.log("User manually scrolled to strict bottom, unlocking auto-scroll.");
             userHasScrolledRef.current = false;
@@ -262,15 +262,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, []); // Dependencies remain minimal
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-        // Check if the component is mounted and the ref is current
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: behavior });
         }
-        // Explicitly unlock auto-scroll when this function is called
+        // Explicitly unlock user scroll lock when initiating auto-scroll or clicking button
         console.log("scrollToBottom called, unlocking auto-scroll.");
         userHasScrolledRef.current = false;
         setShowScrollToBottom(false); // Hide button immediately
-    }, []);
+    }, []); // Dependencies remain minimal
 
      // Auto-scroll on new messages or when loading stops
      useEffect(() => {
@@ -370,9 +369,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
        };
      }, [startHideTimeout]); // Re-run if startHideTimeout function instance changes
 
-    // Effect for cleaning up hide timer
+    // Effect for cleaning up hide timer on unmount
     useEffect(() => {
-        return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
+        return () => {
+            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+        };
     }, []);
 
     // --- Action Handlers ---
@@ -545,15 +546,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Keyboard Handling Effect ---
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-             // Submit on Enter (if not Shift+Enter, not loading, and input has text or files)
-            if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { // Check files here too
+            // Submit on Enter ONLY if NOT loading and input has content or files
+            if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) {
                 e.preventDefault();
                 onSubmit(e as any); // Trigger form submission logic
             }
-            // Stop generation on Enter (if loading)
+            // Prevent Enter from doing anything (like stopping) while loading
             else if (e.key === "Enter" && !e.shiftKey && isLoading) {
                  e.preventDefault();
-                 stop(); // Call useChat's stop function
+                 // Removed stop() call - rely on button click
             }
         };
         const inputElement = inputRef.current;
@@ -773,7 +774,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             onChange={handleInputChange}
                             placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"}
                             className="flex-1 px-3 py-1 bg-transparent border-none outline-none text-black dark:text-black" // Ensure text color contrast
-                            disabled={isLoading || !isReady} // Disable when loading or not ready
+                            disabled={!isReady} // Disable only if not ready, allow typing while loading
                             aria-label="Chat input"
                         />
                         {/* Submit/Stop Button */}
@@ -791,7 +792,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             disabled={!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)}
                             aria-label={isLoading ? "Stop generating" : "Send message"}
                         >
-                            {isLoading ? <Square size={20} className="fill-current" /> : <ArrowUp size={20} />}
+                            {/* Apply size/opacity conditionally to Square icon */}
+                            {isLoading
+                              ? <Square size={20} className="fill-current h-4 w-4 opacity-70" />
+                              : <ArrowUp size={20} />
+                            }
                         </button>
                     </div>
                     {/* Hidden file input for attach button */}
