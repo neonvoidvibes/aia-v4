@@ -9,7 +9,8 @@
   font-style: normal;
 }
 
-/* --- Base Theme Variables --- */
+/* --- Base Theme Variables (Dark Mode Defaults) --- */
+/* These variables define the default dark theme and are used by Shadcn components */
 :root {
   /* Base colors */
   --background: 220 13% 40%; /* Dark background */
@@ -41,16 +42,13 @@
   --input: 0 0% 25%;
   --ring: 0 0% 83.1%;
 
-  /* Custom Button State Variables (Dark Defaults) */
-  --button-active: 0 0% 0%; /* Black icon */
-  --button-active-bg: 0 0% 100%; /* White background */
-  --button-inactive: 0 0% 30%; /* Darker gray */
+  /* Custom Button State Variables (Define defaults, overridden by .light/.dark) */
+  --button-active: 0 0% 0%; /* e.g., Submit button icon color when active */
+  --button-active-bg: 0 0% 100%; /* e.g., Submit button background when active */
+  --button-inactive: 0 0% 30%; /* e.g., Submit button icon color when inactive/disabled */
 }
 
-.dark {
-  /* Reaffirm dark variables if needed, but :root should cover */
-}
-
+/* --- Light Theme Overrides --- */
 .light {
   /* Base colors */
   --background: 0 0% 95%; /* Light background */
@@ -86,6 +84,35 @@
   --button-inactive: 0 0% 65%; /* Lighter gray */
 }
 
+/* --- Settings Dialog: Force Sub-Container Backgrounds in Light Mode --- */
+/* Target DocumentUpload Card within Memory Tab Sections */
+.light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card {
+  --card: var(--background); /* Override Shadcn variable */
+  background-color: hsl(var(--card)); /* Apply it */
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+/* Target inner parts if necessary */
+.light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card > * {
+  background-color: hsl(var(--card));
+}
+
+/* Target DocumentUpload Card specifically within Documents Tab using data attribute */
+.light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card {
+  --card: var(--background); /* Override Shadcn variable */
+  background-color: hsl(var(--card)); /* Apply it */
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+/* Target inner parts if necessary */
+.light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card > * {
+  background-color: hsl(var(--card));
+}
+/* --- End Settings Dialog Fixes --- */
+
+
 /* --- Global Styles --- */
 body {
   font-family: "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -100,13 +127,18 @@ body {
 
 .light body {
   background: linear-gradient(to bottom, hsl(0 0% 98%), hsl(0 0% 90%));
+  color: black;
+}
+
+@layer utilities {
+  .text-balance {
     text-wrap: balance;
   }
-/* Removed extra closing brace here */
+}
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border; /* Use Shadcn variable */
   }
 }
 
@@ -125,9 +157,17 @@ body {
   overflow-y: auto;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  padding: 4px 0 1.5rem 0; /* Remove horizontal padding */
+  /* Default padding (for desktop/larger screens) */
+  padding: 4px 10px 1.5rem 10px;
 }
-/* Input area container */
+/* Mobile: Remove horizontal padding */
+@media (max-width: 640px) {
+  .messages-container {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
 .input-area-container {
   display: flex;
   flex-direction: column;
@@ -137,19 +177,17 @@ body {
   padding: 0.125rem 0 0 0; /* Remove horizontal padding */
 }
 
-/* Messages container */
-.messages-container {
-  /* flex-grow is handled by parent flex */
-  overflow-y: auto;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
+.input-container {
+  background-color: hsl(var(--input-gray));
+  border-radius: 9999px;
+  padding: 8px 16px;
+  display: flex;
   align-items: center;
   margin: 8px auto; /* Reduced top/bottom margin globally */
   width: calc(100% - 16px); /* Consistent width leaving 8px margin each side */
   max-width: 800px; /* Keep max-width for desktop */
   position: relative;
 }
-/* Removed mobile-specific media query for input container */
 
 /* Input field text color (should be black in both themes) */
 .input-container input {
@@ -158,14 +196,12 @@ body {
   border: none;
   outline: none;
   flex: 1;
-  padding: 4px 0 1.5rem 0; /* Remove horizontal padding */
+  padding: 0 8px; /* Adjust padding as needed */
 }
-/* Removed mobile-specific media query for message padding */
 
-
-/* Update user message styling to ensure rounded corners */
-.user-message,
-.user-bubble {
+/* --- Message Bubbles --- */
+.message-bubble {
+  border-radius: var(--message-radius);
   max-width: 80%;
   padding: 12px 16px;
   white-space: pre-wrap; /* Preserve line breaks */
@@ -212,6 +248,7 @@ body {
     padding: 8px 16px;
 }
 
+
 /* --- Input Area Controls --- */
 .plus-button-container {
   display: flex;
@@ -219,12 +256,12 @@ body {
   justify-content: center;
   padding-right: 4px;
 }
-/* Record UI styling - FIXED */
+
 .plus-menu,
 .record-ui {
   position: absolute;
   bottom: 100%;
-  background-color: hsl(var(--input-gray)); /* Use variable, removed !important */
+  background-color: hsl(var(--input-gray)); /* Use variable */
   border-radius: 9999px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 10;
@@ -241,7 +278,7 @@ body {
 }
 
 .record-ui {
-  left: -4px; /* Position adjustment */
+  left: -12px; /* Shift further left */
   padding: 8px 12px;
   gap: 8px;
 }
@@ -249,7 +286,7 @@ body {
 /* Popup menu items */
 .plus-menu button {
   padding: 8px 10px;
-  color: hsl(var(--text-secondary));
+  /* color handled by theme rules below */
   opacity: 0.7;
   transition: color 0.2s, opacity 0.2s;
   background: none;
@@ -257,43 +294,30 @@ body {
   cursor: pointer;
 }
 .plus-menu button:hover {
-  color: hsl(var(--text-primary));
+  /* color handled by theme rules below */
   opacity: 1;
 }
-/* Popup menu mic icon colors */
-.plus-menu button.recording svg {
-  color: #ef4444; /* Red */
-}
-.plus-menu button.paused svg {
-  color: #eab308; /* Yellow */
-}
-/* Default state handled by button's base color */
 
 /* Record UI buttons */
 .record-ui button {
   padding: 4px; /* Smaller padding */
-  color: hsl(var(--text-secondary));
+  /* color handled by theme rules below */
   background: none;
   border: none;
   cursor: pointer;
   transition: color 0.2s;
 }
 .record-ui button:hover {
-  color: hsl(var(--text-primary));
+  /* color handled by theme rules below */
 }
 .record-ui button:disabled {
-  color: hsl(var(--button-inactive)); /* Use inactive variable */
+  /* color handled by theme rules below */
   opacity: 0.5;
   cursor: not-allowed;
 }
 .record-ui button svg {
   stroke-width: 2px;
 }
-/* Specific icon colors */
-.record-ui button svg.text-red-500 { color: #ef4444; }
-.record-ui button svg.text-yellow-500 { color: #eab308; }
-.record-ui button svg.text-gray-600 { color: hsl(var(--text-secondary)); } /* Default */
-.record-ui button:disabled svg.text-gray-600 { color: hsl(var(--button-inactive)); } /* Disabled default */
 .record-ui span {
   font-size: 0.875rem; /* text-sm */
   font-weight: 500; /* font-medium */
@@ -302,7 +326,81 @@ body {
 .light .record-ui span { color: black; } /* Ensure visibility in light mode */
 .dark .record-ui span { color: black; } /* Ensure visibility in dark mode */
 
-/* --- Submit Button --- */
+/* --- Popup Menu & Record Control Icons --- */
+/* Default icon colors (use secondary text) */
+.plus-menu button svg, /* Target SVG within button */
+.record-ui button svg { /* Target SVG within button */
+  color: hsl(var(--text-secondary));
+  transition: color 0.2s;
+}
+/* Hover state (use primary text) */
+.plus-menu button:hover svg,
+.record-ui button:hover svg {
+  color: hsl(var(--text-primary));
+}
+/* Dark Mode - Force SVG stroke color */
+.dark .plus-menu button svg,
+.dark .record-ui button svg {
+  stroke: #333333 !important; /* Dark Gray stroke */
+  color: #333333 !important; /* Dark Gray color */
+}
+.dark .plus-menu button:hover svg,
+.dark .record-ui button:hover svg {
+  stroke: #000000 !important; /* Black stroke on hover */
+  color: #000000 !important; /* Black color on hover */
+}
+/* Light mode specific icon colors (ensure sufficient contrast) */
+.light .plus-menu button svg,
+.light .record-ui button svg {
+  stroke: hsl(0 0% 30%) !important; /* Use stroke */
+  color: hsl(0 0% 30%) !important; /* Ensure dark enough default */
+}
+.light .plus-menu button:hover svg,
+.light .record-ui button:hover svg {
+  stroke: hsl(0 0% 0%) !important; /* Use stroke */
+  color: hsl(0 0% 0%) !important; /* Black on hover */
+}
+
+/* Disabled state for record UI buttons */
+.record-ui button:disabled svg {
+  stroke: hsl(var(--button-inactive)) !important; /* Use inactive variable for stroke */
+  color: hsl(var(--button-inactive)) !important;
+  opacity: 0.5;
+}
+
+/* Recording/Paused specific icon colors override inherited button color */
+.dark .plus-menu button.recording, /* Target button, not just SVG */
+.dark .plus-menu button.recording svg {
+  color: #ef4444 !important; /* Red */
+}
+.dark .plus-menu button.paused, /* Target button, not just SVG */
+.dark .plus-menu button.paused svg {
+  color: #eab308 !important; /* Yellow */
+}
+.dark .record-ui button svg.text-red-500 { color: #ef4444 !important; stroke: #ef4444 !important; } /* Red */
+.dark .record-ui button svg.text-yellow-500 { color: #eab308 !important; stroke: #eab308 !important; } /* Yellow */
+/* Keep light mode specific overrides if necessary */
+.light .plus-menu button.recording svg { color: #ef4444 !important; stroke: #ef4444 !important; }
+.light .plus-menu button.paused svg { color: #eab308 !important; stroke: #eab308 !important; }
+.light .record-ui button svg.text-red-500 { color: #ef4444 !important; stroke: #ef4444 !important; }
+.light .record-ui button svg.text-yellow-500 { color: #eab308 !important; stroke: #eab308 !important; }
+
+
+/* Ensure background colors are explicitly set (without !important if possible) */
+.plus-menu,
+.record-ui {
+  background-color: hsl(var(--input-gray));
+}
+/* Ensure inner elements don't override */
+.plus-menu *,
+.record-ui * {
+   background-color: transparent; /* Inner elements should be transparent */
+}
+
+/* --- Submit Button Styling --- */
+/* Detailed active/inactive state styling is handled via conditional */
+/* Tailwind classes in simple-chat-interface.tsx to avoid CSS conflicts. */
+/* Base layout */
 .input-container button[type="submit"] {
   border-radius: 9999px;
   padding: 4px;
@@ -313,29 +411,24 @@ body {
   justify-content: center;
   transition: background-color 0.2s, color 0.2s;
   border: none;
-  /* Default/Inactive state */
-  background-color: transparent;
-  color: hsl(var(--button-inactive));
+  cursor: pointer;
 }
+/* Base SVG uses currentColor */
 .input-container button[type="submit"] svg {
   color: currentColor;
   stroke: currentColor;
   fill: none;
 }
+/* Base Square fill uses currentColor */
 .input-container button[type="submit"] .fill-current {
-  fill: currentColor; /* For Square icon */
+  fill: currentColor;
 }
-/* Disabled state */
+/* Disabled cursor */
 .input-container button[type="submit"]:disabled {
-  color: hsl(var(--button-inactive));
-  background-color: transparent;
-  cursor: not-allowed;
+    cursor: not-allowed;
 }
-/* Active state */
-.input-container button[type="submit"]:not(:disabled) {
-  color: hsl(var(--button-active));
-  background-color: hsl(var(--button-active-bg)); /* Use variable for background */
-}
+/* --- End Submit Button Styling --- */
+
 
 /* --- Message Actions --- */
 .message-actions {
@@ -409,30 +502,33 @@ body {
 .tab-content-scrollable::-webkit-scrollbar-thumb { background-color: rgba(155, 155, 155, 0.5); border-radius: 20px; border: transparent; }
 
 /* Settings Sub-Container Backgrounds (Light Mode) */
-.light .fixed-dialog .document-upload-card,
-.light .fixed-dialog .memory-section .document-upload-card {
+/* Target DocumentUpload Card within Memory Tab Sections */
+.light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card {
   --card: var(--background); /* Override Shadcn variable */
   background-color: hsl(var(--card)) !important; /* Apply it */
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
 }
-.light .fixed-dialog .document-upload-card > *,
-.light .fixed-dialog .memory-section .document-upload-card > * {
+/* Target inner parts if necessary */
+.light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card > * {
   background-color: hsl(var(--card)) !important;
 }
 
-/* Memory Tab Mobile Adjustments */
-@media (max-width: 768px) {
-  .memory-tab-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-  .section-toggle { display: flex; /* ... other toggle styles */ }
-  .section-content { overflow: hidden; transition: max-height 0.3s ease; }
-  .section-content.open { max-height: 400px; /* Adjust as needed */ overflow-y: auto; }
+/* Target DocumentUpload Card specifically within Documents Tab using data attribute */
+.light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card {
+  --card: var(--background); /* Override Shadcn variable */
+  background-color: hsl(var(--card)) !important; /* Apply it */
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
+/* Target inner parts if necessary */
+.light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card > * {
+  background-color: hsl(var(--card)) !important;
+}
+/* --- End Settings Dialog Fixes --- */
+
 
 /* --- Miscellaneous --- */
 .welcome-message {
@@ -448,7 +544,7 @@ body {
   width: 100%;
   pointer-events: none;
 }
-/* Status Bar */
+
 .status-bar {
   color: hsl(var(--foreground) / 0.7);
   font-size: 0.8rem;
@@ -491,11 +587,7 @@ body {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(10px); } to { transform: translateY(0); } }
 
-/* Confirmation Modal Styles (Keep as is - seems okay) */
-.modal-overlay { /* ... */ }
-.modal-content { /* ... */ }
-
-/* Confirmation Modal Styles (Keep as is - seems okay) */
+/* Confirmation Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -506,7 +598,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 50;
+  z-index: 50; /* Lower z-index */
   animation: fadeIn 0.2s ease;
 }
 
@@ -518,6 +610,8 @@ body {
   max-width: 400px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s ease;
+  position: relative; /* Ensure content is targetable */
+  z-index: 51; /* Higher than overlay */
 }
 
 .modal-title {
@@ -544,6 +638,8 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative; /* Ensure buttons are targetable */
+  z-index: 52; /* Higher than content */
 }
 
 .modal-button-cancel {
@@ -570,27 +666,19 @@ body {
 }
 
 @keyframes fadeInOut {
-  0% {
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Improve button touch/click behavior */
 button {
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
-  touch-action: manipulation; /* Optimize for touch */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-/* Make collapse buttons more responsive to all types of clicks/taps */
+/* Make collapse buttons more responsive */
 .attachments-container button {
   cursor: pointer;
   user-select: none;
@@ -599,7 +687,6 @@ button {
   -ms-user-select: none;
 }
 
-/* Completely new approach for toggle buttons */
 .more-button,
 .collapse-button {
   cursor: pointer !important;
@@ -609,24 +696,18 @@ button {
   -ms-user-select: none;
   position: relative;
   z-index: 1;
-  /* Keep original size - do not change */
   transition: background-color 0.2s ease;
   -webkit-tap-highlight-color: transparent;
 }
-
 .more-button:active,
 .collapse-button:active {
   background-color: rgba(0, 0, 0, 0.1) !important;
 }
-
-/* Add focus styles for keyboard navigation */
 .more-button:focus-visible,
 .collapse-button:focus-visible {
   outline: 2px solid #4285f4;
   outline-offset: 2px;
 }
-
-/* Ensure the buttons have sufficient touch targets without changing size */
 .more-button > div,
 .collapse-button > div {
   display: flex;
@@ -639,775 +720,92 @@ button {
   display: none !important;
 }
 
-/* Welcome message overlay */
-.fixed {
-  position: fixed;
-}
+/* --- Utility Classes --- */
+.fixed { position: fixed; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.pointer-events-none { pointer-events: none; }
+.z-10 { z-index: 10; }
 
-.inset-0 {
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-}
-
-.pointer-events-none {
-  pointer-events: none;
-}
-
-.z-10 {
-  z-index: 10;
-}
-
-/* Responsive text sizing for welcome message */
+/* Responsive text sizing */
 @media (max-width: 640px) {
-  .text-2xl.md\:text-3xl {
-    font-size: 1.5rem;
-  }
-
-  .input-area-container {
-    padding: 0.125rem 16px; /* Reverted to original padding */
-  }
-
-  .input-container {
-    width: calc(100% - 32px); /* Reverted to original width calculation */
-  }
+  .text-2xl.md\:text-3xl { font-size: 1.5rem; }
 }
-
 @media (min-width: 641px) {
-  .text-2xl.md\:text-3xl {
-    font-size: 1.875rem;
-  }
+  .text-2xl.md\:text-3xl { font-size: 1.875rem; }
 }
 
-/* Ensure consistent padding and text truncation in document upload cards */
-.document-upload-card .flex-1 {
-  min-width: 0;
-}
+/* Document Upload Card Consistency */
+.document-upload-card .flex-1 { min-width: 0; }
+.document-upload-card .truncate { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.document-upload-card .flex-shrink-0 { flex-shrink: 0; }
+.attachment-item .flex-1 { min-width: 0; }
+.file-attachment-minimal .truncate { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.document-upload-card .truncate {
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Ensure the remove button doesn't cause layout shifts */
-.document-upload-card .flex-shrink-0 {
-  flex-shrink: 0;
-}
-
-/* Ensure consistent spacing in file attachment items */
-.attachment-item .flex-1 {
-  min-width: 0;
-}
-
-/* Ensure proper truncation in file attachment minimal component */
-.file-attachment-minimal .truncate {
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Ensure modals are always on top */
-.modal-overlay {
-  z-index: 100 !important;
-}
-
-.modal-content {
-  z-index: 101 !important;
-}
-
-/* Make buttons more obviously clickable */
-.modal-button {
-  cursor: pointer !important;
-  position: relative !important;
-  z-index: 102 !important;
-  user-select: none !important;
-}
-
-.modal-button:hover {
-  opacity: 0.9 !important;
-}
-
-.modal-button:active {
-  transform: scale(0.98) !important;
-}
-
-/* Add these styles at the end of the file */
-
-/* Super high z-index for modals */
-.fixed.inset-0.bg-black\/50 {
-  z-index: 9999 !important;
-}
-
-/* Ensure modal content is above overlay */
-.fixed.inset-0.bg-black\/50 > div {
-  z-index: 10000 !important;
-  position: relative !important;
-}
-
-/* Ensure buttons are above modal content */
-.fixed.inset-0.bg-black\/50 button {
-  z-index: 10001 !important;
-  position: relative !important;
-  cursor: pointer !important;
-  pointer-events: auto !important;
-}
-
-/* Add visual feedback for button clicks */
-.fixed.inset-0.bg-black\/50 button:active {
-  transform: scale(0.95) !important;
-  transition: transform 0.1s !important;
-}
-
-/* Add responsive padding for mobile */
-@media (max-width: 640px) {
-  .messages-container {
-    padding: 4px 44px 16px 44px !important; /* Increased from 32px to 44px */
-  }
-
-  .input-area-container {
-    padding: 0.125rem 16px; /* Reverted to original padding */
-  }
-
-  .input-container {
-    width: calc(100% - 32px); /* Reverted to original width calculation */
-  }
-}
-
-/* Memory tab styles - CORRECTED */
-
-/* On desktop: no scroll */
-.memory-tab-content {
-  overflow: visible !important;
-  max-height: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  height: auto !important;
-}
-
-/* On mobile: enable scroll when a section is open */
-@media (max-width: 768px) {
-  .memory-tab-content.has-open-section {
-    overflow-y: auto !important;
-    max-height: 70vh !important;
-    padding-bottom: 20px !important;
-  }
-
-  /* Force column layout only on mobile */
-  .memory-tab-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-}
-
-/* Restore grid layout for desktop */
-/* Remove the conflicting grid layout rule that's using !important */
-.memory-tab-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin: 0;
-  padding: 0;
-}
-
-/* Then in the media query, override it for mobile without !important */
-@media (max-width: 768px) {
-  .memory-tab-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin: 0;
-    padding: 0;
-  }
-}
-
-/* Minimal margin for memory sections */
-.memory-section {
-  margin-bottom: 4px !important;
-  padding: 0 !important;
-}
-
-/* Section toggle for mobile */
-.section-toggle {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  /* Show section toggle on mobile */
-  .section-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 8px 10px;
-    background-color: transparent;
-    border: none;
-    border-radius: 8px;
-    margin-bottom: 4px;
-    cursor: pointer;
-  }
-
-  /* Section content styling */
-  .section-content {
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* When open, add minimal padding */
-  .section-content.open {
-    padding-bottom: 8px !important;
-  }
-
-  /* Fix overflow issue by ensuring content stays within bounds */
-  .document-upload-container {
-    max-height: none !important;
-    overflow: visible !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  /* Ensure the dialog doesn't overflow */
-  .fixed-dialog {
-    max-height: 80vh !important;
-    overflow: hidden !important;
-  }
-
-  /* Ensure tab content stays within bounds */
-  .tab-content-wrapper {
-    max-height: 70vh !important;
-    overflow: hidden !important;
-  }
-
-  /* Ensure memory tab content scrolls properly */
-  .memory-tab-content.has-open-section {
-    overflow-y: auto !important;
-    max-height: 60vh !important; /* Reduced from 70vh to prevent overflow */
-  }
-}
-
-/* Ensure the memory tab title is visible */
-.memory-section-title {
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-/* Fix tab content inner spacing */
-.tab-content-inner {
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-/* Fix space-y-4 causing extra space */
-@media (max-width: 768px) {
-  .space-y-4 > :not([hidden]) ~ :not([hidden]) {
-    --tw-space-y-reverse: 0;
-    margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));
-    margin-bottom: calc(0.25rem * var(--tw-space-y-reverse));
-  }
-}
-
-/* Add these specific styles at the end of the file to prevent memory containers from overflowing */
-
-/* IMPORTANT: Container width constraints - prevents overflow when files are added */
-.memory-section .document-upload-container {
-  max-width: 100% !important; /* Prevent container from expanding beyond its parent */
-  overflow-x: hidden !important; /* Prevent horizontal overflow */
-  box-sizing: border-box !important; /* Include padding and border in the element's width */
-  width: 100% !important; /* Ensure the container takes exactly 100% of its parent */
-}
-
-/* Ensure section content doesn't overflow */
-.section-content {
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-  box-sizing: border-box !important;
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-/* Ensure file containers don't overflow */
-.memory-section .document-files-container {
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-  box-sizing: border-box !important;
-}
-
-/* Ensure file items don't cause container expansion */
-.memory-section .document-files-container > div {
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-/* Ensure the file content stays within bounds */
-.memory-section .document-files-container .flex {
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-/* Ensure the file name is properly truncated */
-.memory-section .document-files-container .truncate {
-  max-width: 100% !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-}
-
-/* Fix for dialog content width consistency */
-.fixed-dialog {
-  width: 600px !important; /* Set fixed width */
-  max-width: 90vw !important; /* But don't exceed viewport */
-  overflow: hidden !important; /* Prevent overflow */
-}
-
-/* Ensure memory tab grid maintains consistent width */
-.memory-tab-grid {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-/* Ensure document upload card maintains fixed width */
-.document-upload-card {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-  flex-shrink: 0 !important;
-}
-
-/* Ensure upload container maintains fixed width */
-.upload-container {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-/* Ensure file items maintain fixed width */
-.document-upload-card .flex.items-center.justify-between {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-/* Force file name container to take available space but not expand */
-.document-upload-card .min-w-0.flex-1 {
-  width: 0 !important; /* This forces it to shrink */
-  flex: 1 !important;
-  overflow: hidden !important;
-}
-
-/* Ensure buttons don't cause container expansion */
-.document-upload-card .flex.items-center.gap-1 {
-  flex-shrink: 0 !important;
-}
-
-/* Fix vertical overflow in document containers */
-.memory-section .document-upload-container {
-  max-height: 300px !important; /* Limit height to prevent excessive vertical growth */
-  overflow-y: auto !important; /* Enable vertical scrolling */
-}
-
-/* Fix vertical overflow in document files container */
-.memory-section .document-files-container {
-  max-height: 200px !important; /* Limit height */
-  overflow-y: auto !important; /* Enable vertical scrolling */
-}
-
-/* Ensure section content has proper height constraints */
-.section-content.open {
-  max-height: 400px !important; /* Limit maximum height when open */
-  overflow-y: auto !important; /* Enable vertical scrolling */
-}
-
-/* Fix dialog content to ensure it doesn't overflow vertically */
-.fixed-dialog > div {
-  max-height: 70vh !important; /* Limit height of dialog content */
-  overflow-y: auto !important; /* Enable vertical scrolling */
-}
-
-/* Ensure the tab content doesn't overflow the dialog */
-.tab-content-wrapper {
-  max-height: 65vh !important; /* Slightly less than dialog to account for tabs */
-  overflow: hidden !important; /* Hide overflow */
-}
-
-/* Ensure each tab's content is scrollable */
-.tab-content-scrollable {
-  max-height: 60vh !important; /* Limit height */
-  overflow-y: auto !important; /* Enable vertical scrolling */
-}
-
-/* Comment explaining the purpose of these styles */
-/* These styles ensure that the Agent Memory and System Prompt containers
-   maintain a consistent width when documents are attached, preventing
-   layout disruption and overflow issues. They also add vertical scrolling
-   to contain the content within the settings window. */
-
-/* Add these styles to ensure files appear above the drag and drop section */
-
-/* Reorder the document upload container to show files first */
+/* Reorder document upload */
 .document-upload-card .upload-container {
   display: flex !important;
-  flex-direction: column-reverse !important; /* This reverses the order of children */
+  flex-direction: column-reverse !important;
 }
-
-/* Add some spacing between the files and the drag area */
 .document-upload-card .document-files-container {
   margin-bottom: 16px !important;
 }
-
-/* Ensure consistent spacing when files are present */
 .document-upload-card .border-2.border-dashed {
   margin-top: 0 !important;
 }
 
-/* Comment explaining the purpose of these styles */
-/* These styles ensure that attached files are consistently displayed above
-   the drag and drop section in both Agent Memory and System Prompt containers,
-   providing a more intuitive user experience. */
-
 /* Fix the chevron color in light mode */
-.light .chevron-rotate {
-  color: black;
-}
+.light .chevron-rotate { color: black; }
 
 /* Ensure consistent background colors for UI elements */
-.bg-input-gray {
-  background-color: hsl(var(--input-gray)) !important;
-}
+.bg-input-gray { background-color: hsl(var(--input-gray)) !important; }
+.user-bubble { background-color: hsl(var(--input-gray)) !important; }
+.dark .user-bubble { color: black !important; }
+.light .user-bubble { color: black !important; }
+.plus-menu-item { color: hsl(var(--text-secondary)); }
+.plus-menu-item:hover { color: hsl(var(--text-primary)); }
+.scroll-to-bottom-button { background-color: hsl(var(--input-gray)); color: hsl(var(--text-secondary)); }
+.scroll-to-bottom-button:hover { background-color: hsl(var(--input-gray)); filter: brightness(0.95); }
 
-/* Fix popup menu, record controls, and user bubble background colors */
-.plus-menu,
-.record-ui,
-.user-bubble {
-  background-color: hsl(var(--input-gray)) !important;
-}
+/* Ensure inputs use black text */
+input, textarea, select { color: black !important; }
 
-/* User bubble styling */
-.dark .user-bubble {
-  color: black !important; /* Force black text in user bubbles in dark mode */
-}
-
-.light .user-bubble {
-  color: black !important; /* Force black text in user bubbles in light mode */
-}
-
-/* Add these additional rules to ensure the colors are applied consistently */
-.plus-menu-item {
-  color: hsl(var(--text-secondary));
-}
-
-.plus-menu-item:hover {
-  color: hsl(var(--text-primary));
-}
-
-/* Ensure scroll to bottom button uses theme colors */
-.scroll-to-bottom-button {
-  background-color: hsl(var(--input-gray));
-  color: hsl(var(--text-secondary));
-}
-
-.scroll-to-bottom-button:hover {
-  background-color: hsl(var(--input-gray));
-  filter: brightness(0.95);
-}
-
-/* Ensure all text inputs use the correct text color */
-input,
-textarea,
-select {
-  color: black !important;
-}
-
-/* --- Popup Menu & Record Control Icons --- */
-/* Default icon colors (use secondary text) */
-.plus-menu button svg, /* Target SVG within button */
-.record-ui button svg { /* Target SVG within button */
-  color: hsl(var(--text-secondary));
-  transition: color 0.2s;
-}
-/* Hover state (use primary text) */
-.plus-menu button:hover svg,
-.record-ui button:hover svg {
-  color: hsl(var(--text-primary));
-}
-
-/* Dark Mode - Force SVG stroke color */
-.dark .plus-menu button svg,
-.dark .record-ui button svg {
-  stroke: #333333 !important; /* Dark Gray stroke */
-  color: #333333 !important; /* Dark Gray color */
-}
-.dark .plus-menu button:hover svg,
-.dark .record-ui button:hover svg {
-  stroke: #000000 !important; /* Black stroke on hover */
-  color: #000000 !important; /* Black color on hover */
-}
-
-/* Light mode specific icon colors (ensure sufficient contrast) */
-.light .plus-menu button svg,
-.light .record-ui button svg {
-  stroke: hsl(0 0% 30%) !important; /* Use stroke */
-  color: hsl(0 0% 30%) !important; /* Ensure dark enough default */
-}
-.light .plus-menu button:hover svg,
-.light .record-ui button:hover svg {
-  stroke: hsl(0 0% 0%) !important; /* Use stroke */
-  color: hsl(0 0% 0%) !important; /* Black on hover */
-}
-
-/* Disabled state for record UI buttons */
-.record-ui button:disabled svg {
-  stroke: hsl(var(--button-inactive)) !important; /* Use inactive variable for stroke */
-  color: hsl(var(--button-inactive)) !important;
-  opacity: 0.5;
-}
-
-/* Recording/Paused specific icon colors override defaults (Targeting stroke) */
-.dark .plus-menu button.recording svg,
-.light .plus-menu button.recording svg {
-  stroke: #ef4444 !important; /* Red */
-  color: #ef4444 !important;
-}
-.dark .plus-menu button.paused svg,
-.light .plus-menu button.paused svg {
-  stroke: #eab308 !important; /* Yellow */
-  color: #eab308 !important;
-}
-/* Target specific classes added by component if they exist */
-.dark .record-ui button svg.text-red-500,
-.light .record-ui button svg.text-red-500 {
-  stroke: #ef4444 !important; /* Red */
-  color: #ef4444 !important;
-}
-.dark .record-ui button svg.text-yellow-500,
-.light .record-ui button svg.text-yellow-500 {
-  stroke: #eab308 !important; /* Yellow */
-  color: #eab308 !important;
-}
-
-
-/* Ensure background colors are explicitly set (without !important if possible) */
-.plus-menu,
-.record-ui {
-  background-color: hsl(var(--input-gray));
-}
-/* Ensure inner elements don't override */
-.plus-menu *,
-.record-ui * {
-   background-color: transparent; /* Inner elements should be transparent */
-}
-/* Force background for specific states if needed, but avoid if possible */
-/*.light .plus-menu, .light .record-ui { background-color: hsl(var(--input-gray)); } */
-/*.dark .plus-menu, .dark .record-ui { background-color: hsl(var(--input-gray)); } */
-
-/* Ensure the assistant message text is black in light mode */
-.light .ai-message {
-  color: black !important;
-}
-
-/* Add this more specific rule to ensure it overrides any other styles */
+/* Ensure assistant message text color per theme */
+.light .ai-message,
 .light .ai-bubble,
-.light .message-bubble.ai-message {
-  color: black !important;
+.light .ai-message * { color: black !important; }
+.dark .ai-message { color: white !important; }
+
+/* Memory Tab Mobile Adjustments */
+@media (max-width: 768px) {
+  .memory-tab-content.has-open-section { overflow-y: auto !important; max-height: 70vh !important; padding-bottom: 20px !important; }
+  .memory-tab-grid { display: flex !important; flex-direction: column !important; gap: 0 !important; margin: 0 !important; padding: 0 !important; }
+  .section-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 10px; background-color: transparent; border: none; border-radius: 8px; margin-bottom: 4px; cursor: pointer; }
+  .section-content { overflow: hidden; transition: max-height 0.3s ease; padding: 0 !important; margin: 0 !important; }
+  .section-content.open { padding-bottom: 8px !important; max-height: 400px !important; overflow-y: auto !important; }
+  .document-upload-container { max-height: none !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
+  .fixed-dialog { max-height: 80vh !important; overflow: hidden !important; }
+  .tab-content-wrapper { max-height: 70vh !important; overflow: hidden !important; }
+  .memory-tab-content.has-open-section { max-height: 60vh !important; }
+  .space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: calc(0.25rem * var(--tw-space-y-reverse)); }
 }
 
-/* Also add this rule to target any potential nested elements */
-.light .ai-message * {
-  color: black !important;
-}
+.memory-section-title { font-weight: 600; font-size: 1rem; }
+.tab-content-inner { padding: 0 !important; margin: 0 !important; }
 
-/* Ensure the assistant message text is white in dark mode */
-.dark .ai-message {
-  color: white !important;
-}
+/* Memory Section Overflow Fixes */
+.memory-section .document-upload-container { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; width: 100% !important; max-height: 300px !important; overflow-y: auto !important; }
+.section-content { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; width: 100% !important; }
+.memory-section .document-files-container { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; max-height: 200px !important; overflow-y: auto !important; }
+.memory-section .document-files-container > div { max-width: 100% !important; box-sizing: border-box !important; }
+.memory-section .document-files-container .flex { max-width: 100% !important; box-sizing: border-box !important; }
+.memory-section .document-files-container .truncate { max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
 
-/* Fix popup menu and record controls in light mode with more specific selectors */
-.light .plus-menu,
-.light .record-ui,
-.light div.plus-menu,
-.light div.record-ui {
-  background-color: hsl(var(--input-gray)) !important;
-}
+/* Dialog Overflow Fixes */
+.fixed-dialog > div[role="dialog"] { max-height: 70vh !important; overflow-y: auto !important; }
+.tab-content-wrapper { max-height: 65vh !important; overflow: hidden !important; }
+.tab-content-scrollable { max-height: 60vh !important; overflow-y: auto !important; }
 
-/* Target popup menu items in light mode */
-.light .plus-menu-item,
-.light .plus-menu > div {
-  background-color: hsl(var(--input-gray)) !important;
-}
-
-/* Target record UI buttons in light mode */
-.light .record-ui button,
-.light .record-ui > button {
-  background-color: transparent !important;
-}
-
-/* Ensure popup menu and record controls have consistent styling in both modes */
-html .plus-menu,
-html .record-ui,
-html body .plus-menu,
-html body .record-ui {
-  background-color: hsl(var(--input-gray)) !important;
-}
-
-/* Ensure popup menu and record controls have the correct background in any context */
-div.plus-menu,
-div.record-ui,
-.plus-button-container .plus-menu,
-.plus-button-container .record-ui {
-  background-color: hsl(var(--input-gray)) !important;
-}
-
-/* Make the arrow darker in light mode */
-.light .input-container button[type="submit"] svg {
-  /* color is handled by button state */
-  stroke-width: 2px !important; /* Make the stroke thicker */
-}
-
-/* Ensure the popup menu and record UI have the correct background color */
-.plus-menu,
-/* Add these styles to make the submit button and stop icon darker in light mode */
-.light { /* Open light mode block */
-
-  /* Submit Button SVG Stroke */
-  .input-container button[type="submit"]:not(:disabled) svg {
-    stroke-width: 2px; /* Make the stroke thicker */
-  }
-
-  /* Record Controls Button Base Color */
-  .record-ui button {
-    color: #333; /* Default icon color in light mode */
-  }
-
-  /* Record Controls SVG Base Stroke */
-  .record-ui button svg {
-    stroke-width: 2px; /* Make the stroke thicker */
-  }
-
-  /* Record Controls Disabled Stop Icon */
-  .record-ui button[disabled] svg,
-  .record-ui button:disabled svg { /* Cover both possibilities */
-    /* Use inactive variable for disabled color */
-    color: hsl(var(--button-inactive));
-    stroke: hsl(var(--button-inactive));
-  }
-  /* Specifically target the stop icon if needed, but general disabled should cover */
-  /* .record-ui button.p-1[disabled] svg {
-    color: #555;
-  } */
-
-} /* Close light mode block */
-
-/* Special case for play/pause/record buttons to preserve their colors (outside theme block) */
-.record-ui button svg.text-red-500,
-.record-ui button .text-red-500 {
-  color: #ef4444 !important; /* red-500 - keep important if needed */
-}
-
-.record-ui button svg.text-yellow-500,
-.record-ui button .text-yellow-500 {
-  color: #eab308 !important; /* yellow-500 */
-}
-
-/* Ensure these special colors are preserved in both light and dark modes */
-.light .record-ui button svg.text-red-500,
-.dark .record-ui button svg.text-red-500 {
-  color: #ef4444 !important;
-}
-
-.light .record-ui button svg.text-yellow-500,
-.dark .record-ui button svg.text-yellow-500 {
-  color: #eab308 !important;
-}
-
-/* Style the TabsList background within the settings dialog */
-.fixed-dialog .grid.w-full.grid-cols-3 { /* Selector for TabsList */
-  background-color: hsl(var(--muted)); /* Use theme's muted */
-}
-/* Override Shadcn's default list background */
-.fixed-dialog .tabs-list-container {
-   background-color: hsl(var(--muted)) !important;
-}
-.light .fixed-dialog .tabs-list-container {
-  background-color: hsl(0 0% 90%) !important; /* Slightly darker gray in light mode */
-}
-.dark .fixed-dialog .tabs-list-container {
-  background-color: hsl(0 0% 20%) !important; /* Slightly lighter gray in dark mode */
-}
-
-/* --- Submit Button Styling --- */
-/* Base layout */
-.input-container button[type="submit"] {
-  border-radius: 9999px;
-  padding: 4px;
-  height: 28px;
-  width: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s, color 0.2s;
-  border: none;
-  cursor: pointer;
-}
-/* Base SVG uses currentColor */
-.input-container button[type="submit"] svg {
-  color: currentColor;
-  stroke: currentColor;
-  fill: none;
-}
-/* Base Square fill uses currentColor */
-.input-container button[type="submit"] .fill-current {
-  fill: currentColor;
-}
-
-/* --- Light Mode --- */
-/* Light Inactive/Disabled State */
-html.light .input-container button[type="submit"]:disabled,
-html.light .input-container button[type="submit"][disabled] {
-  color: hsl(var(--button-inactive)) !important; /* Light inactive gray */
-  background-color: transparent !important;
-  cursor: not-allowed;
-}
-/* Light Active State */
-html.light .input-container button[type="submit"]:not(:disabled) {
-  color: hsl(var(--button-active)) !important; /* Light active dark gray */
-  background-color: transparent !important;
-}
-
-/* --- Dark Mode --- */
-/* Dark Inactive/Disabled State */
-html.dark .input-container button[type="submit"]:disabled,
-html.dark .input-container button[type="submit"][disabled] {
-  color: hsl(var(--button-inactive)) !important; /* Dark inactive gray */
-  background-color: transparent !important;
-  cursor: not-allowed;
-}
-/* Dark Active State */
-html.dark .input-container button[type="submit"]:not(:disabled) {
-  color: hsl(var(--button-active)) !important; /* Dark active black */
-  background-color: hsl(var(--button-active-bg)) !important; /* Dark active white background */
-}
-/* --- End Submit Button Styling --- */
-
-/* Popup menu mic icon colors */
-/* Target the SVG element within the button */
-.plus-menu button.recording svg {
-  color: #ef4444 !important; /* Red when recording */
-}
-.plus-menu button.paused svg {
-  color: #eab308 !important; /* Yellow when paused */
-}
-/* Ensure default color applies otherwise */
-.plus-menu button:not(.recording):not(.paused) svg {
-   color: hsl(var(--text-secondary)); /* Default secondary text color */
-}
-.plus-menu button:not(.recording):not(.paused):hover svg {
-   color: hsl(var(--text-primary)); /* Hover color */
-}
+/* Final Modal Z-index Fix */
+.modal-overlay { z-index: 9999 !important; }
+.modal-content { z-index: 10000 !important; }
+.modal-button { z-index: 10001 !important; }
