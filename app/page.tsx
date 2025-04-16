@@ -104,8 +104,9 @@ export default function Home() {
 
   return (
     // Use min-h-dvh and h-dvh for better mobile viewport height handling
-    <div className="max-w-[800px] mx-auto min-h-dvh h-dvh flex flex-col">
-      <header className="py-4 px-4 text-center relative">
+    // Add overflow-hidden to prevent the container itself from scrolling
+    <div className="max-w-[800px] mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
+      <header className="py-4 px-4 text-center relative flex-shrink-0"> {/* Prevent header shrinking */}
         <div className="flex items-center justify-between">
           <button
             className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105"
@@ -127,6 +128,7 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Ensure main grows and contains overflow */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Pass the ref */}
         <SimpleChatInterface ref={chatInterfaceRef} onAttachmentsUpdate={updateChatAttachments} />

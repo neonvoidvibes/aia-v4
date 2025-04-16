@@ -120,8 +120,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (isReady) { // Only start polling if agent/event are known
             const fetchStatus = async () => {
                 try {
-                    // *** Use environment variable for backend URL ***
-                    // Ensure NEXT_PUBLIC_ prefix allows browser access
+                    // Use the NEXT_PUBLIC_ prefixed environment variable
                     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
                     const response = await fetch(`${backendUrl}/api/recording/status`); // <-- Hit backend URL
                     if (!response.ok) {
@@ -320,6 +319,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // --- Recording Control API Calls (Defined before usage) ---
     const callRecordingApi = useCallback(async (endpoint: string) => {
+         // Use the NEXT_PUBLIC_ prefixed environment variable
          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
          if (!isReady || !agentName ) { // Removed eventId check as it's optional for some calls
              console.error(`Cannot ${endpoint}: Agent not ready or missing.`);

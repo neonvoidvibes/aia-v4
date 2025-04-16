@@ -2,7 +2,8 @@ import { type NextRequest } from 'next/server';
 // Use StreamingTextResponse from 'ai' package
 import { StreamingTextResponse } from 'ai';
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:5001';
+// Use NEXT_PUBLIC_ prefix to be consistent and allow access from browser if needed elsewhere
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
 export const maxDuration = 60;
 
 // Helper function to format text chunk according to Vercel AI SDK Text Stream format
