@@ -103,7 +103,8 @@ export default function Home() {
   }, [hasOpenSection]);
 
   return (
-    <div className="max-w-[800px] mx-auto h-screen flex flex-col">
+    // Use min-h-dvh and h-dvh for better mobile viewport height handling
+    <div className="max-w-[800px] mx-auto min-h-dvh h-dvh flex flex-col">
       <header className="py-4 px-4 text-center relative">
         <div className="flex items-center justify-between">
           <button
