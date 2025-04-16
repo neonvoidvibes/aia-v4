@@ -643,11 +643,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             className={cn(
                                 "p-2 transition-all duration-200", // Base classes
                                 // Inactive/Disabled state classes based on theme
-                                (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && (theme === 'light' ? "text-gray-300" : "text-gray-600"), // Inactive colors (adjust if needed)
+                                (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && (theme === 'light' ? "text-gray-500" : "text-gray-500"), // Adjusted inactive colors (medium gray for both)
                                 // Active state classes based on theme
-                                isReady && (input.trim() || attachedFiles.length > 0) && !isLoading && (theme === 'light' ? "text-gray-800 hover:text-black" : "text-black bg-white hover:bg-gray-200"),
+                                isReady && (input.trim() || attachedFiles.length > 0) && !isLoading && (theme === 'light' ? "text-gray-800 hover:text-black" : "text-black hover:opacity-80"), // Removed bg-white for dark active
                                 // Loading state (uses active colors but shows Square)
-                                isLoading && (theme === 'light' ? "text-gray-800" : "text-black bg-white")
+                                isLoading && (theme === 'light' ? "text-gray-800" : "text-black") // Removed bg-white for dark loading
                             )}
                             disabled={!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)}
                             aria-label={isLoading ? "Stop generating" : "Send message"}
