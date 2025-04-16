@@ -593,6 +593,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     onClick={() => !isSystem && handleMessageInteraction(message.id)} // Toggle actions on click (mobile)
                                 >
                                     {/* Main container for a single message item */}
+                                    {/* Restore consistent mb-1 for all message rows */}
                                     <div className={`flex w-full mb-1 ${isUser ? "justify-end" : "justify-start"}`}>
                                         {/* Flex container for bubble + actions */}
                                         <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
@@ -621,9 +622,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             {/* Message Actions (Now placed AFTER the bubble div) */}
                                             {!isSystem && (
                                                 <div
-                                                    // User messages have margin (mr-1) to inset from bubble edge.
-                                                    // Assistant messages have no margin (buttons align left edge) because no bubble bg.
-                                                    className={`message-actions flex ${isUser ? "justify-end mr-1" : "justify-start"}`}
+                                                    // User messages: mr-1 for inset.
+                                                    // Assistant messages: ml-1 for 4px horizontal padding, -mt-2 to counteract parent mb-1 AND reduce visual gap further.
+                                                    className={cn(
+                                                      "message-actions flex",
+                                                      isUser ? "justify-end mr-1" : "justify-start ml-1 -mt-2" // Use -mt-2 for assistant
+                                                    )}
                                                     style={{
                                                         opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, // Control visibility
                                                         visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden",
