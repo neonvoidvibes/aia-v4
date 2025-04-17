@@ -82,7 +82,52 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          // Append error message to the chat UI for visibility
          append({ role: 'system', content: `Error: ${error.message}` });
        },
+       onFinish: (message: Message) => { // Assistant message object
+            console.log("onFinish called. Assistant message ID:", message.id);
+            // Find the user message submitted just before this assistant response
+            // Need to access the *current* state of messages here
+            const currentMessages = messagesRef.current; // Use ref to get latest messages
+            const assistantMessageIndex = currentMessages.findIndex(m => m.id === message.id);
+
+            if (assistantMessageIndex > 0) {
+                const userMessage = currentMessages[assistantMessageIndex - 1];
+                 if (userMessage?.role === 'user') {
+                    console.log("Found preceding user message:", userMessage.id);
+                    if (filesForNextMessageRef.current.length > 0) {
+                        console.log(`Associating ${filesForNextMessageRef.current.length} files with user message ${userMessage.id}`);
+                        const filesWithId = filesForNextMessageRef.current.map(file => ({
+                            ...file,
+                            messageId: userMessage.id
+                        }));
+                        setAllAttachments(prev => [...prev, ...filesWithId]);
+                        filesForNextMessageRef.current = []; // Clear the temp storage
+                    } else {
+                        console.log("onFinish: No files were staged for message", userMessage.id);
+                    }
+                 } else {
+                     console.warn("onFinish: Message preceding assistant was not a user message.");
+                     if (filesForNextMessageRef.current.length > 0) {
+                         console.error("onFinish: Files were staged but couldn't be associated. Clearing temporary storage.");
+                         filesForNextMessageRef.current = [];
+                     }
+                 }
+            } else {
+                 console.warn("onFinish: Could not reliably find preceding user message for assistant message", message.id);
+                 // Fallback or cleanup logic if needed
+                 if (filesForNextMessageRef.current.length > 0) {
+                     console.error("onFinish: Files were staged but couldn't be associated. Clearing temporary storage.");
+                     filesForNextMessageRef.current = [];
+                 }
+            }
+       }
     });
+
+    // Ref to store the latest messages for use in callbacks like onFinish
+    const messagesRef = useRef<Message[]>(messages);
+    useEffect(() => {
+      messagesRef.current = messages;
+    }, [messages]);
+
 
     // --- State Variables ---
     const [showPlusMenu, setShowPlusMenu] = useState(false)
@@ -95,7 +140,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [attachedFiles, setAttachedFiles] = useState<AttachmentFile[]>([]) // Files staged for upload
     const [allAttachments, setAllAttachments] = useState<AttachmentFile[]>([]) // History of all attachments (for display)
     const [hoveredMessage, setHoveredMessage] = useState<string | null>(null) // For message actions UI
-    const [pendingAttachments, setPendingAttachments] = useState<AttachmentFile[]>([]) // Files waiting for message association (needs rework)
+    // Removed pendingAttachments state
     const isMobile = useMobile() // Mobile detection hook
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false }) // Copy button state
     const [showScrollToBottom, setShowScrollToBottom] = useState(false) // Scroll button visibility
@@ -114,7 +159,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const prevMessagesLengthRef = useRef(messages.length) // Track message changes for scroll
     const userHasScrolledRef = useRef(false) // Track if user scrolled up manually
     const prevScrollTopRef = useRef<number>(0); // Store previous scroll position
-    // Removed isProgrammaticScrollRef and programmaticScrollTimeoutRef
+    const filesForNextMessageRef = useRef<AttachmentFile[]>([]); // Store files temporarily
     const lastMessageIdRef = useRef<string | null>(null) // Track last message for attachment logic
 
     // --- Backend Recording State Polling ---
@@ -168,25 +213,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (onAttachmentsUpdate) { onAttachmentsUpdate(allAttachments); }
     }, [allAttachments, onAttachmentsUpdate]);
 
-    useEffect(() => {
-      // TODO: Refactor this upload/association logic.
-        if (pendingAttachments.length > 0 && messages.length > 0) {
-            console.log("Checking for new messages to associate files with (Frontend state)...");
-            const userMessages = messages.filter((m) => m.role === "user");
-            if (userMessages.length === 0) return;
-            const lastUserMessage = userMessages[userMessages.length - 1];
-            // Check if the last message is the one just submitted and doesn't have attachments already associated
-            // A robust solution might need message IDs generated *before* sending or a way to link pending files to the response.
-            if (lastUserMessage.id !== lastMessageIdRef.current && !allAttachments.some(att => att.messageId === lastUserMessage.id)) {
-                console.log("Found new user message to associate attachments with:", lastUserMessage.id);
-                lastMessageIdRef.current = lastUserMessage.id; // Track the last message we attached files to
-                const filesWithMessageId = pendingAttachments.map((file) => ({ ...file, messageId: lastUserMessage.id }));
-                console.log("Associating files with message:", filesWithMessageId.length);
-                setAllAttachments((prev) => [...prev, ...filesWithMessageId]); // Add to history display
-                setPendingAttachments([]); // Clear pending
-            }
-        }
-    }, [messages, pendingAttachments, allAttachments]); // Add allAttachments to deps
+    // Removed effect hook for pendingAttachments
 
     // +++ DEBUGGING: Log messages state when it changes +++
     useEffect(() => {
@@ -215,7 +242,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setMessages([]);
             setAttachedFiles([]);
             setAllAttachments([]);
-            setPendingAttachments([]);
+            filesForNextMessageRef.current = []; // Clear ref too
             lastMessageIdRef.current = null;
         },
         getMessagesCount: () => {
@@ -524,23 +551,26 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             stop();
         } else if (input.trim() || attachedFiles.length > 0) {
             console.log("Submitting message. Input:", input, "Files:", attachedFiles.length);
-            // TODO: Implement actual file upload logic here before submitting
-            // For now, associate staged files with the *next* message
-            const filesToSubmit = [...attachedFiles]; // Copy current staged files
-            if (filesToSubmit.length > 0) {
-                console.log("Attaching files to next message (pending):", filesToSubmit.length);
-                setPendingAttachments(prev => [...prev, ...filesToSubmit]); // Add to pending list
-                setAttachedFiles([]); // Clear staging area
+
+            // Store files intended for this message in the ref
+            if (attachedFiles.length > 0) {
+                 console.log(`Staging ${attachedFiles.length} files in ref for next message.`);
+                 filesForNextMessageRef.current = [...attachedFiles];
+                 setAttachedFiles([]); // Clear the staging area display
+            } else {
+                 filesForNextMessageRef.current = []; // Ensure ref is clear if no files attached
             }
-            // Reset scroll lock *before* submitting, ensuring next response auto-scrolls
+
+            // Reset scroll lock *before* submitting
             userHasScrolledRef.current = false;
-            setShowScrollToBottom(false); // Hide button immediately on submit
+            setShowScrollToBottom(false);
 
+            // Call original handleSubmit
             originalHandleSubmit(e as React.FormEvent<HTMLFormElement>);
-            // No need to manually scroll here, the useEffect triggered by the new message will handle it
 
+            // Attachment association now happens in the onFinish callback
         }
-    }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setPendingAttachments, setAttachedFiles, scrollToBottom]); // scrollToBottom still needed in deps for the effect hook
+    }, [input, isLoading, isReady, stop, originalHandleSubmit, attachedFiles, append, setAttachedFiles, scrollToBottom]); // Removed pending state setters
 
 
     // --- Keyboard Handling Effect ---

@@ -20,8 +20,10 @@ function formatTextChunk(text: string): string {
  }
 
 export async function POST(req: NextRequest) {
+  console.log("[Proxy] Received POST request to /api/proxy-chat"); // Entry log
   try {
     const body = await req.json();
+    console.log("[Proxy] Parsed request body:", body); // Log parsed body
     // Filter out system messages added by the onError handler before proxying
     const userMessages = body.messages?.filter((msg: { role: string }) => msg.role === 'user' || msg.role === 'assistant') || [];
     const { agent, event } = body;
@@ -30,20 +32,37 @@ export async function POST(req: NextRequest) {
     if (!agent) return new Response(JSON.stringify({ error: 'Missing agent' }), { status: 400 });
 
     console.log(`[Proxy] Chat request for Agent: ${agent}, Event: ${event || '0000'}`);
+    const backendUrl = `${BACKEND_API_URL}/api/chat`;
+    const requestBody = JSON.stringify({ messages: userMessages, agent: agent, event: event || '0000' });
+    console.log(`[Proxy] Fetching backend: ${backendUrl} with body:`, requestBody); // Log URL and body
 
-    const backendResponse = await fetch(`${BACKEND_API_URL}/api/chat`, {
+    const backendResponse = await fetch(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: userMessages, agent: agent, event: event || '0000' }),
+      body: requestBody,
     });
 
-    console.log(`[Proxy] Backend fetch status: ${backendResponse.status}`); // Log status
+    // Log raw status immediately
+    console.log(`[Proxy] Raw backend response status: ${backendResponse.status} ${backendResponse.statusText}`);
 
-    if (!backendResponse.ok || !backendResponse.body) {
-       const errorBody = await backendResponse.text();
-       console.error(`[Proxy] Backend API error: ${backendResponse.status} ${backendResponse.statusText}`, errorBody);
+    console.log(`[Proxy] Backend fetch status: ${backendResponse.status}`); // Log status (duplicate, remove if preferred)
+
+    if (!backendResponse.ok) { // Check ok status first
+       let errorBody = "[Could not read error body]";
+       try {
+           errorBody = await backendResponse.text();
+       } catch (readError) {
+           console.error("[Proxy] Failed to read error body from backend response:", readError);
+       }
+       console.error(`[Proxy] Backend fetch failed: ${backendResponse.status} ${backendResponse.statusText}. Body:`, errorBody);
        return new Response(`Backend error: ${errorBody || backendResponse.statusText}`, { status: backendResponse.status });
     }
+
+    if (!backendResponse.body) { // Check for body separately
+        console.error(`[Proxy] Backend response OK (${backendResponse.status}) but body is null.`);
+       return new Response("Backend returned empty response", { status: 500 });
+    }
+
 
     console.log("[Proxy] Backend response OK and has body. Creating ReadableStream..."); // Log before stream creation
 
@@ -161,13 +180,12 @@ export async function POST(req: NextRequest) {
          console.log("[Proxy] Manual ReadableStream cancelled:", reason);
       }
     });
-    # TODO: Add chat archiving logic here using s3_utils if needed
 
-    sse_done_data = json.dumps({'done': True})
-    # Removed console log for done chunk
-    yield f"data: {sse_done_data}\n\n"
+    // Use StreamingTextResponse (requires import 'ai')
+    // Pass the manually created and formatted stream
+    console.log("[Proxy] Returning StreamingTextResponse.");
+    return new StreamingTextResponse(readableStream);
 
-# Return the streaming response with correct MIME type for SSE
   } catch (error: any) {
     console.error("[Proxy] Error in top-level POST handler:", error);
     if (error.cause) { console.error("[Proxy] Fetch Error Cause:", error.cause); }
