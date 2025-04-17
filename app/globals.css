@@ -123,21 +123,22 @@ body {
   min-height: 100dvh; /* Use dynamic viewport height */
   transition: background 0.3s ease, color 0.3s ease;
   overflow: hidden; /* Prevent body scrolling */
-  font-size: 18px; /* Base font size for desktop */
-  font-weight: 200; /* Extra-light font weight for desktop */
+  font-size: 20px; /* Base font size for desktop (+2px) */
+  font-weight: 300; /* Light font weight */
   line-height: 1.6; /* Adjusted line height */
 }
 
 /* Increase mobile font size and keep normal weight */
 @media (max-width: 640px) {
   body {
-    font-size: 20px; /* Increased font size for mobile */
-    font-weight: 400; /* Keep standard weight for mobile */
+    font-size: 22px; /* +2px */
+    font-weight: 300; /* Light weight */
   }
 }
 @media (max-width: 640px) {
   body {
-    font-size: 17px; /* Increased font size for mobile */
+    font-size: 19px; /* 17 px → 19 px (+2px) */
+    font-weight: 300;
   }
 }
 
@@ -256,8 +257,8 @@ body {
   background-color: hsl(var(--input-gray));
   align-self: flex-end;
   border-radius: var(--message-radius); /* Set default radius for all corners */
-  /* Override bottom-right corner */
-  border-bottom-right-radius: 4px; /* Fixed small radius (no !important) */
+  /* No special bottom‑right override – keep uniform rounding */
+  border-bottom-right-radius: var(--message-radius);
   margin-right: 8px;
 }
 
