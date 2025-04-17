@@ -805,7 +805,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         >
                             {/* Apply size/opacity conditionally to Square icon */}
                             {isLoading
-                              ? <Square size={24} className="fill-current h-5 w-5 opacity-70" />
+                              ? <Square size={20} className="fill-current h-5 w-5 opacity-70" />
                               : <ArrowUp size={24} />
                             }
                         </button>

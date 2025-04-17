@@ -131,14 +131,8 @@ body {
 /* Increase mobile font size and keep normal weight */
 @media (max-width: 640px) {
   body {
-    font-size: 22px; /* +2px */
-    font-weight: 300; /* Light weight */
-  }
-}
-@media (max-width: 640px) {
-  body {
-    font-size: 19px; /* 17 px → 19 px (+2px) */
-    font-weight: 300;
+    font-size: 19px; /* +2px */
+    font-weight: 400; /* Light weight */
   }
 }
 
@@ -596,7 +590,7 @@ body {
 
 .status-bar {
   color: hsl(var(--foreground) / 0.7);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   text-align: center;
   padding: 16px 0 16px 0; /* Added padding-bottom */
   font-weight: 300;
