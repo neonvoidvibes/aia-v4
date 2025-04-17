@@ -84,41 +84,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
        },
        onFinish: (message: Message) => { // Assistant message object
             console.log("onFinish called. Assistant message ID:", message.id);
-            // Find the user message submitted just before this assistant response
-            // Need to access the *current* state of messages here
-            const currentMessages = messagesRef.current; // Use ref to get latest messages
-            const assistantMessageIndex = currentMessages.findIndex(m => m.id === message.id);
-
-            if (assistantMessageIndex > 0) {
-                const userMessage = currentMessages[assistantMessageIndex - 1];
-                 if (userMessage?.role === 'user') {
-                    console.log("Found preceding user message:", userMessage.id);
-                    if (filesForNextMessageRef.current.length > 0) {
-                        console.log(`Associating ${filesForNextMessageRef.current.length} files with user message ${userMessage.id}`);
-                        const filesWithId = filesForNextMessageRef.current.map(file => ({
-                            ...file,
-                            messageId: userMessage.id
-                        }));
-                        setAllAttachments(prev => [...prev, ...filesWithId]);
-                        filesForNextMessageRef.current = []; // Clear the temp storage
-                    } else {
-                        console.log("onFinish: No files were staged for message", userMessage.id);
-                    }
-                 } else {
-                     console.warn("onFinish: Message preceding assistant was not a user message.");
-                     if (filesForNextMessageRef.current.length > 0) {
-                         console.error("onFinish: Files were staged but couldn't be associated. Clearing temporary storage.");
-                         filesForNextMessageRef.current = [];
-                     }
-                 }
-            } else {
-                 console.warn("onFinish: Could not reliably find preceding user message for assistant message", message.id);
-                 // Fallback or cleanup logic if needed
-                 if (filesForNextMessageRef.current.length > 0) {
-                     console.error("onFinish: Files were staged but couldn't be associated. Clearing temporary storage.");
-                     filesForNextMessageRef.current = [];
-                 }
-            }
        }
     });
 
@@ -126,6 +91,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const messagesRef = useRef<Message[]>(messages);
     useEffect(() => {
       messagesRef.current = messages;
+    }, [messages]);
+
+    // Attach files to user messages immediately upon submission
+    useEffect(() => {
+      if (filesForNextMessageRef.current.length > 0) {
+        const currentMsgs = messagesRef.current;
+        const lastMsg = currentMsgs[currentMsgs.length - 1];
+        if (lastMsg?.role === 'user') {
+          const filesWithId = filesForNextMessageRef.current.map(file => ({
+            ...file,
+            messageId: lastMsg.id,
+          }));
+          setAllAttachments(prev => [...prev, ...filesWithId]);
+          filesForNextMessageRef.current = [];
+        }
+      }
     }, [messages]);
 
 
