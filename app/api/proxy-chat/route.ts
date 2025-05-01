@@ -1,79 +1,17 @@
 import { type NextRequest } from 'next/server';
-// Use StreamingTextResponse from 'ai' package
 import { StreamingTextResponse } from 'ai';
+import { findActiveBackend, formatErrorChunk } from '../proxyUtils'; // Use shared util
 
-// Use a comma-separated list of potential backend URLs from environment variable
-// Default to localhost if the variable is not set
+// Re-read env var or rely on util to read it if centralized there
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
-// Split the string by commas, trim whitespace from each URL, and filter out any empty strings resulting from extra commas
-const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',')
-                                                    .map(url => url.trim())
-                                                    .filter(url => url);
+const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
 
-export const maxDuration = 60; // Increase max duration if needed
+export const maxDuration = 60;
 
-// Helper function to format text chunk according to Vercel AI SDK Text Stream format
-// Prefix '0:' indicates a text chunk.
+// Chat-specific text formatting remains here
 function formatTextChunk(text: string): string {
-    // Ensure proper JSON stringification, including escaping special chars
     return `0:${JSON.stringify(text)}\n`;
 }
-
- // Helper function to format error chunk
- function formatErrorChunk(errorMsg: string): string {
-     // Prefix '2:' for errors (common convention in Vercel AI SDK internal format)
-     return `2:${JSON.stringify(errorMsg)}\n`;
- }
-
- // --- New Helper Function: findActiveBackend ---
- async function findActiveBackend(urls: string[]): Promise<string | null> {
-    if (!urls || urls.length === 0) {
-        console.error("[Proxy Health Check] No backend URLs configured.");
-        // Attempt default localhost as a last resort if nothing is configured
-        urls = ['http://127.0.0.1:5001'];
-        // return null; // Original behavior if strict checking is needed
-    }
-    console.log("[Proxy Health Check] Checking potential backend URLs:", urls);
-
-    for (const baseUrl of urls) {
-        const healthUrl = `${baseUrl}/api/health`; // Assuming health check endpoint exists
-        try {
-            console.log(`[Proxy Health Check] Pinging ${healthUrl}...`);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2-second timeout
-
-            const response = await fetch(healthUrl, {
-                method: 'GET',
-                signal: controller.signal // Pass the abort signal to fetch
-             });
-             clearTimeout(timeoutId); // Important: clear the timeout if fetch completes
-
-            if (response.ok) {
-                // Optional: Check response body if needed, e.g., for {"status": "ok"}
-                // const healthData = await response.json();
-                // if (healthData.status === 'ok') { ... }
-                console.log(`[Proxy Health Check] Success: ${baseUrl} is active.`);
-                return baseUrl; // Found active backend
-            } else {
-                 // Log non-OK responses but continue checking other URLs
-                 console.warn(`[Proxy Health Check] ${baseUrl} responded with status ${response.status}`);
-             }
-        } catch (error: any) {
-            // Handle fetch errors (network issue, timeout, etc.)
-            if (error.name === 'AbortError') {
-                 console.warn(`[Proxy Health Check] Timeout connecting to ${healthUrl}`);
-             } else {
-                 console.warn(`[Proxy Health Check] Error connecting to ${healthUrl}: ${error.message}`);
-             }
-             // Continue to the next URL
-        }
-    }
-
-    console.error("[Proxy Health Check] No active backend found among:", urls);
-    return null; // No active backend found after checking all URLs
- }
- // --- End Helper Function ---
-
 
 export async function POST(req: NextRequest) {
   console.log("[Proxy] Received POST request to /api/proxy-chat");
@@ -82,7 +20,6 @@ export async function POST(req: NextRequest) {
     const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
 
     if (!activeBackendUrl) {
-        // If no backend is active after checking all potential URLs
         const errorMsg = `Could not connect to any configured backend: ${POTENTIAL_BACKEND_URLS.join(', ')}. Please ensure the backend server is running and accessible.`;
         console.error(`[Proxy] Fatal Error: ${errorMsg}`);
         // Return an error formatted for the AI SDK stream

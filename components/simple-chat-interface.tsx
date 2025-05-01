@@ -149,31 +149,26 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (isReady) { // Only start polling if agent/event are known
             const fetchStatus = async () => {
                 try {
-                    // Use the NEXT_PUBLIC_ prefixed environment variable
-                    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
-                    const response = await fetch(`${backendUrl}/api/recording/status`); // <-- Hit backend URL
+                    // Use the NEW single proxy endpoint for status (GET request)
+                    const response = await fetch(`/api/recording-proxy`); // GET request implies 'status'
+                    const data = await response.json(); // Always expect JSON back from proxy
+
                     if (!response.ok) {
-                        // Log specific error for 404 vs other errors
-                        if (response.status === 404) {
-                             console.error("Error fetching recording status: Backend endpoint /api/recording/status not found (404).");
-                        } else {
-                             // Throw error for other statuses to be caught below
-                             throw new Error(`Status fetch failed: ${response.status} ${response.statusText}`);
-                        }
-                        // Stop polling if endpoint not found
-                         if (intervalId) clearInterval(intervalId);
-                         return; // Exit fetchStatus function
+                         // Use the error message provided by the proxy route
+                         throw new Error(data.message || `Status fetch failed: ${response.status}`);
                     }
-                    const data = await response.json();
-                    // Update local state based on backend status
+
+                    // Update local state based on proxied backend status
                     setIsRecording(data.is_recording || false);
                     setIsPaused(data.is_paused || false);
                     setRecordingTime(data.elapsed_time || 0);
 
-                } catch (error) {
-                    console.error("Error fetching recording status:", error);
-                    // Stop polling on fetch error (e.g., network issue, backend down)
+                } catch (error: any) { // Catch errors from fetch or json parse or non-ok response
+                    console.error("Error fetching/processing recording status via proxy:", error.message);
+                    // Stop polling on error to avoid spamming logs
                     if (intervalId) clearInterval(intervalId);
+                    // Optional: Display error to user via append or toast
+                    // append({ role: 'system', content: `Error updating recording status: ${error.message}` });
                 }
             };
 
@@ -385,29 +380,36 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Action Handlers ---
 
     // --- Recording Control API Calls (Defined before usage) ---
-    const callRecordingApi = useCallback(async (endpoint: string) => {
-         // Use the NEXT_PUBLIC_ prefixed environment variable
-         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:5001';
-         if (!isReady || !agentName ) { // Removed eventId check as it's optional for some calls
-             console.error(`Cannot ${endpoint}: Agent not ready or missing.`);
+    const callRecordingApi = useCallback(async (action: string, payload?: any) => {
+         // Use the NEW single proxy endpoint for all actions (POST request)
+         const apiUrl = `/api/recording-proxy`;
+         if (!isReady || !agentName ) {
+             console.error(`Cannot call ${apiUrl} for action '${action}': Agent not ready or missing.`);
              append({ role: 'system', content: `Error: Cannot control recording. Agent missing.` });
              return;
          }
          try {
-             console.log(`Calling backend: ${backendUrl}/api/recording/${endpoint}`);
-             const response = await fetch(`${backendUrl}/api/recording/${endpoint}`, {
+             console.log(`Calling API: ${apiUrl} with action: ${action}`);
+             const response = await fetch(apiUrl, {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
-                 body: endpoint === 'start' ? JSON.stringify({ agent: agentName, event: eventId || '0000' }) : undefined // Include eventId for start
+                 // Send the action and optional payload in the body
+                 body: JSON.stringify({ action, payload })
              });
-             const data = await response.json();
+             const data = await response.json(); // Always expect JSON back from proxy
              if (!response.ok) {
-                 throw new Error(data.message || `Failed to ${endpoint}`);
+                  // Use error message from proxy response
+                 throw new Error(data.message || `Failed to perform action '${action}'`);
              }
              console.log(`Backend ${endpoint} response:`, data);
+             console.log(`Backend ${endpoint} response:`, data);
          } catch (error: any) {
-             console.error(`Error calling ${backendUrl}/api/recording/${endpoint}:`, error);
-             append({ role: 'system', content: `Error: ${error.message}` });
+             // Log the intended action and the actual error separately
+             console.error(`Error during recording API call for action: '${endpoint}'`);
+             console.error("Caught error object:", error);
+             // Report the original error message (or a fallback) to the user
+             const errorMessage = error?.message || `Failed to perform recording action: ${endpoint}`;
+             append({ role: 'system', content: `Error: ${errorMessage}` });
          }
      }, [isReady, agentName, eventId, append]); // Keep dependencies
 
@@ -419,7 +421,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
         // Only call API if not already recording, but always show UI
         if (!isRecording) {
-            callRecordingApi('start');
+            // Pass agent and event info as the 'payload' for the 'start' action
+            callRecordingApi('start', { agent: agentName, event: eventId || '0000' });
         } else {
            console.log("Recording already in progress, showing controls.");
            // Optionally restart hide timer if just showing controls
