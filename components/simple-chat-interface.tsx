@@ -115,17 +115,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [showRecordUI, setShowRecordUI] = useState(false)
     const [isRecording, setIsRecording] = useState(false); // Local state reflecting backend status
     const [isPaused, setIsPaused] = useState(false); // Local state reflecting backend status
-    const [recordingTime, setRecordingTime] = useState(0); // Elapsed time from backend status
+    // const [recordingTime, setRecordingTime] = useState(0); // Deprecated direct use
     const [recordUIVisible, setRecordUIVisible] = useState(true) // For fade animation
-    // Removed recordUIPosition state
     const [attachedFiles, setAttachedFiles] = useState<AttachmentFile[]>([]) // Files staged for upload
     const [allAttachments, setAllAttachments] = useState<AttachmentFile[]>([]) // History of all attachments (for display)
     const [hoveredMessage, setHoveredMessage] = useState<string | null>(null) // For message actions UI
-    // Removed pendingAttachments state
     const isMobile = useMobile() // Mobile detection hook
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false }) // Copy button state
     const [showScrollToBottom, setShowScrollToBottom] = useState(false) // Scroll button visibility
     const { theme } = useTheme() // Theme state
+    const [displayTime, setDisplayTime] = useState(0); // Local timer state for smooth UI update
 
     // --- Refs ---
     const plusMenuRef = useRef<HTMLDivElement>(null)
@@ -142,6 +141,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const prevScrollTopRef = useRef<number>(0); // Store previous scroll position
     const filesForNextMessageRef = useRef<AttachmentFile[]>([]); // Store files temporarily
     const lastMessageIdRef = useRef<string | null>(null) // Track last message for attachment logic
+    const baseRecordingTimeRef = useRef(0); // Stores elapsed time from backend status
+    const lastFetchTimestampRef = useRef(0); // Stores browser timestamp of last status fetch
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to store the active polling interval ID
 
     // --- Backend Recording State Polling ---
     const fetchStatus = useCallback(async (logSource?: string) => {
@@ -158,11 +160,37 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
             const data = await response.json();
             // console.log("fetchStatus - backend data:", data); // Reduce noise
-            setIsRecording(data.is_recording || false);
-            setIsPaused(data.is_paused || false);
-            setRecordingTime(data.elapsed_time || 0);
+            const backendIsRecording = data.is_recording || false;
+            const backendIsPaused = data.is_paused || false;
+            const backendElapsedTime = data.elapsed_time || 0;
+
+            // Update core state
+            setIsRecording(backendIsRecording);
+            setIsPaused(backendIsPaused);
+            // setRecordingTime(backendElapsedTime); // Deprecate direct use of this state for timer display
+
+            // Update refs for local timer if recording is active
+            if (backendIsRecording) {
+                baseRecordingTimeRef.current = backendElapsedTime;
+                lastFetchTimestampRef.current = Date.now();
+                // If not paused, immediately update displayTime based on newly fetched base
+                if (!backendIsPaused) {
+                     setDisplayTime(backendElapsedTime);
+                } else {
+                // If paused, freeze displayTime at the fetched elapsed time
+                     setDisplayTime(backendElapsedTime);
+                }
+            } else {
+                 // Reset display time if recording stopped
+                 setDisplayTime(0);
+            }
+
         } catch (error: any) {
             console.error(`Error fetching/processing recording status via proxy (source: ${logSource}):`, error.message);
+            // Reset timer display on error? Or leave it? Resetting seems safer.
+            // setDisplayTime(0);
+            // setIsRecording(false); // Consider resetting state fully on error
+            // setIsPaused(false);
         }
     }, [isReady]); // Dependencies for fetchStatus
 
@@ -195,15 +223,57 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
         }
 
-        // Cleanup function: always clear the interval stored in the ref
+        // Cleanup function: always clear the interval stored in the ref when effect re-runs or component unmounts
         return () => {
-            if (intervalIdRef.current) {
-                console.log("Polling Effect Cleanup: Clearing status poll interval.");
-                clearInterval(intervalIdRef.current);
-                intervalIdRef.current = null;
+            if (pollingIntervalRef.current) {
+                console.log("Polling Effect Cleanup: Clearing interval ID:", pollingIntervalRef.current);
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null; // Ensure ref is cleared
             }
         };
     }, [isReady, isRecording, fetchStatus]); // Dependencies include isRecording now
+
+    // Effect for local UI timer update when recording and not paused
+    useEffect(() => {
+        let timerIntervalId: NodeJS.Timeout | null = null;
+
+        if (isRecording && !isPaused) {
+            console.log("Local Timer Effect: Starting UI timer.");
+            // Make sure we have a valid base time and timestamp
+            if (lastFetchTimestampRef.current > 0) {
+                timerIntervalId = setInterval(() => {
+                    const now = Date.now();
+                    const elapsedSinceFetch = (now - lastFetchTimestampRef.current) / 1000;
+                    setDisplayTime(baseRecordingTimeRef.current + elapsedSinceFetch);
+                }, 1000); // Update every second
+            } else {
+                 // If timestamp is missing, rely on next fetchStatus to set it
+                 console.warn("Local Timer Effect: lastFetchTimestampRef is 0, waiting for fetchStatus.");
+                 // Also set displayTime to base time just in case it's 0 but recording is true
+                 setDisplayTime(baseRecordingTimeRef.current);
+            }
+        } else {
+             console.log(`Local Timer Effect: Clearing UI timer (isRecording: ${isRecording}, isPaused: ${isPaused}).`);
+            // Clear interval if paused or stopped
+             if (timerIntervalId) {
+                clearInterval(timerIntervalId);
+            }
+            // If stopped completely, ensure displayTime is reset (might already be handled by fetchStatus)
+            if (!isRecording) {
+                 setDisplayTime(0);
+            } else if (isPaused) {
+                 // When pausing, ensure displayTime reflects the last fetched backend time
+                 setDisplayTime(baseRecordingTimeRef.current);
+            }
+        }
+
+        return () => {
+            if (timerIntervalId) {
+                // console.log("Local Timer Effect Cleanup: Clearing timer interval."); // Reduce noise
+                clearInterval(timerIntervalId);
+            }
+        };
+    }, [isRecording, isPaused]); // Run when recording or paused state changes
 
 
     // --- Attachment Handling Logic (Placeholder) ---
@@ -240,7 +310,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         // Optimistically update state here too for immediate feedback
                         setIsRecording(false);
                         setIsPaused(false);
-                        setRecordingTime(0);
+                        // setRecordingTime(0); // REMOVED: This state setter no longer exists
+                        setDisplayTime(0); // Reset display time correctly
                         // Clear polling interval if it exists
                         if (pollingIntervalRef.current) {
                             clearInterval(pollingIntervalRef.current);
@@ -267,7 +338,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Time Formatting ---
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
+        const secs = Math.floor(seconds % 60); // Use floor to avoid showing decimals during calculation lag
         return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     };
 
@@ -279,7 +350,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const isAtStrictBottom = scrollHeight - scrollTop - clientHeight < 2; // Strict check for bottom
 
         // LOCK if user scrolls UPWARD and is NOT already near the bottom
-        if (scrollTop > prevScrollTopRef.current && !isAtStrictBottom && !userHasScrolledRef.current) {
+        if (scrollTop < prevScrollTopRef.current && !isAtStrictBottom && !userHasScrolledRef.current) {
             // console.log("Detected user scrolled UP away from bottom, locking auto-scroll."); // Reduce noise
             userHasScrolledRef.current = true;
         }
@@ -436,19 +507,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                  throw new Error(data.message || `Failed to perform action '${action}'`);
              }
              console.log(`Backend action '${action}' response:`, data);
-             // Fetch status *after* the API call is confirmed successful
-             fetchStatus(`after callRecordingApi(${action})`); // Don't await this, let it run
+             // REMOVED explicit fetchStatus call on success.
+             // The optimistic state update + polling interval will handle synchronization.
              return { success: true }; // Indicate success
          } catch (error: any) {
              console.error(`Error during recording API call for action: '${action}'`);
              console.error("Caught error object:", error);
              const errorMessage = error?.message || `Failed to perform recording action: ${action}`;
              append({ role: 'system', content: `Error: ${errorMessage}` });
-             // Fetch status even on error to try and sync with backend state
-             fetchStatus(`after callRecordingApi(${action}) ERROR`);
+             // REMOVED explicit fetchStatus call on error.
+             // Revert logic within the calling function handles immediate UI correction.
+             // The polling interval will eventually re-sync if needed.
              return { success: false }; // Indicate failure
          }
-     }, [isReady, agentName, eventId, append, fetchStatus]); // Added fetchStatus
+     }, [isReady, agentName, eventId, append]); // Removed fetchStatus dependency
 
     // --- Action Handlers using callRecordingApi ---
     const showAndPrepareRecordingControls = useCallback(() => {
@@ -462,9 +534,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         startHideTimeout(); // Start hide timer for the controls if user doesn't interact
     }, [fetchStatus, startHideTimeout]);
 
-    // Ref to store the active polling interval ID
-    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
     const stopRecording = useCallback(async (e?: React.MouseEvent) => {
         e?.stopPropagation();
         console.log("stopRecording called - Optimistically updating UI");
@@ -474,7 +543,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Optimistic UI update
         setIsRecording(false);
         setIsPaused(false);
-        setRecordingTime(0); // Reset time immediately
+        setDisplayTime(0); // Reset display time immediately
 
         // Clear polling interval optimistically
         if (pollingIntervalRef.current) {
@@ -491,16 +560,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              console.error("Stop recording failed, attempting to revert UI state.");
              setIsRecording(wasRecording); // Revert
              setIsPaused(wasPaused); // Revert
-             // Re-fetch status to be sure
-             fetchStatus("after stopRecording failure");
+             // Re-fetch status to be sure (or rely on next automatic poll if needed)
+             // fetchStatus("after stopRecording failure"); // Re-enable if revert doesn't work
         }
-    }, [isRecording, isPaused, callRecordingApi, hideRecordUI, fetchStatus]); // Added dependencies
+    }, [isRecording, isPaused, callRecordingApi, hideRecordUI]); // Removed fetchStatus dependency
 
     const pauseRecording = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!isRecording || isPaused) return; // Prevent pausing if not recording or already paused
 
         console.log("pauseRecording called - Optimistically updating UI");
+        // Store current state for potential revert
+        const wasPaused = isPaused;
         // Optimistic UI update
         setIsPaused(true);
 
@@ -508,7 +579,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (!success) {
             // Revert optimistic update on failure
             console.error("Pause recording failed, reverting UI state.");
-            setIsPaused(false); // Revert to not paused
+            setIsPaused(wasPaused); // Revert to previous state
         }
         // Start hide timeout regardless of success/fail as controls were interacted with
         startHideTimeout();
@@ -519,6 +590,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          if (!isRecording || !isPaused) return; // Prevent resuming if not recording or not paused
 
         console.log("resumeRecording called - Optimistically updating UI");
+        // Store current state for potential revert
+        const wasPaused = isPaused;
         // Optimistic UI update
         setIsPaused(false);
 
@@ -526,7 +599,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          if (!success) {
             // Revert optimistic update on failure
             console.error("Resume recording failed, reverting UI state.");
-            setIsPaused(true); // Revert to paused
+            setIsPaused(wasPaused); // Revert to paused
         }
         // Start hide timeout regardless of success/fail
         startHideTimeout();
@@ -541,39 +614,35 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const originalIsRecording = isRecording;
         const originalIsPaused = isPaused;
 
-        let success = false;
+        let apiActionPromise: Promise<{ success: boolean }>;
+
         if (!isRecording) {
             console.log("handlePlayPauseClick: --> Optimistically STARTING recording.");
             setIsRecording(true);
             setIsPaused(false);
-            // API Call
-            const result = await callRecordingApi('start', { agent: agentName, event: eventId || '0000' });
-            success = result.success;
-            if (!success) { // Revert on failure
-                setIsRecording(originalIsRecording);
-                setIsPaused(originalIsPaused);
-            }
+            apiActionPromise = callRecordingApi('start', { agent: agentName, event: eventId || '0000' });
         } else if (isPaused) { // isRecording is true, and it's paused
             console.log("handlePlayPauseClick: --> Optimistically RESUMING recording.");
             setIsPaused(false);
-            // API Call
-            const result = await callRecordingApi('resume');
-            success = result.success;
-             if (!success) { // Revert on failure
-                setIsPaused(originalIsPaused);
-            }
+            apiActionPromise = callRecordingApi('resume');
         } else { // isRecording is true, and it's not paused
             console.log("handlePlayPauseClick: --> Optimistically PAUSING recording.");
             setIsPaused(true);
-             // API Call
-            const result = await callRecordingApi('pause');
-            success = result.success;
-             if (!success) { // Revert on failure
-                setIsPaused(originalIsPaused);
-            }
+            apiActionPromise = callRecordingApi('pause');
         }
-        // fetchStatus is called inside callRecordingApi on success/error to confirm final state
-    }, [isRecording, isPaused, callRecordingApi, agentName, eventId]);
+
+        const { success } = await apiActionPromise;
+
+        if (!success) {
+             console.warn("handlePlayPauseClick: API call failed, reverting optimistic UI state.");
+             setIsRecording(originalIsRecording);
+             setIsPaused(originalIsPaused);
+             // Maybe fetch status again here just to be absolutely sure after revert?
+             // fetchStatus("after handlePlayPauseClick failure revert");
+        }
+        // On success, the state is already optimistically set,
+        // and the polling interval (if needed) will start/stop via the useEffect.
+    }, [isRecording, isPaused, callRecordingApi, agentName, eventId]); // Removed pause/resume handlers as direct deps
 
 
     // --- Other Action Handlers ---
@@ -900,7 +969,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     <button type="button" className="p-1 record-ui-button" onClick={stopRecording} disabled={!isRecording} aria-label="Stop recording">
                                         <StopCircle size={20} className={""}/>
                                     </button>
-                                    {isRecording && <span className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(recordingTime)}</span>}
+                                    {/* Use displayTime for the UI timer */}
+                                    {isRecording && <span className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(displayTime)}</span>}
                                 </motion.div>
                              )}
                         </div>
@@ -963,8 +1033,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             isPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></> )
                                      : ( <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500 animate-pulse"></span></> )
                         ) : ( "no" )}
-                        {/* Show timer only when recording */}
-                        {isRecording && <span className="ml-1">{formatTime(recordingTime)}</span>}
+                        {/* Show timer only when recording, use displayTime */}
+                        {isRecording && <span className="ml-1">{formatTime(displayTime)}</span>}
                     </span>
                 </div>
             </div>
