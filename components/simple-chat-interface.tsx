@@ -213,7 +213,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
             console.log("Polling Effect: Starting status poll because isReady and isRecording are true.");
             // Assign the new interval ID to the ref
-            intervalIdRef.current = setInterval(() => fetchStatus("polling interval"), 1000);
+            intervalIdRef.current = setInterval(() => {
+               console.time("Polling Interval Fetch"); // Start timer
+               fetchStatus("polling interval").finally(() => {
+                   console.timeEnd("Polling Interval Fetch"); // End timer regardless of success/failure
+               });
+           }, 1000);
         } else {
             // Clear the interval if recording stops or component isn't ready
             console.log(`Polling Effect: Not polling (isReady: ${isReady}, isRecording: ${isRecording}). Clearing interval.`);
@@ -507,17 +512,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                  throw new Error(data.message || `Failed to perform action '${action}'`);
              }
              console.log(`Backend action '${action}' response:`, data);
-             // REMOVED explicit fetchStatus call on success.
-             // The optimistic state update + polling interval will handle synchronization.
+             // REMOVED explicit fetchStatus call.
+             // State synchronization will happen via the polling interval reacting to optimistic updates.
              return { success: true }; // Indicate success
          } catch (error: any) {
              console.error(`Error during recording API call for action: '${action}'`);
              console.error("Caught error object:", error);
              const errorMessage = error?.message || `Failed to perform recording action: ${action}`;
              append({ role: 'system', content: `Error: ${errorMessage}` });
-             // REMOVED explicit fetchStatus call on error.
-             // Revert logic within the calling function handles immediate UI correction.
-             // The polling interval will eventually re-sync if needed.
+             // REMOVED explicit fetchStatus call on error. Revert logic is now in the caller.
              return { success: false }; // Indicate failure
          }
      }, [isReady, agentName, eventId, append]); // Removed fetchStatus dependency
@@ -556,14 +559,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         const { success } = await callRecordingApi('stop');
         if (!success) {
-             // Revert optimistic update on failure
-             console.error("Stop recording failed, attempting to revert UI state.");
-             setIsRecording(wasRecording); // Revert
-             setIsPaused(wasPaused); // Revert
-             // Re-fetch status to be sure (or rely on next automatic poll if needed)
-             // fetchStatus("after stopRecording failure"); // Re-enable if revert doesn't work
+              // Revert optimistic update on failure
+              console.error("Stop recording failed, attempting to revert UI state.");
+              setIsRecording(wasRecording); // Revert
+              setIsPaused(wasPaused);     // Revert
+              // Re-fetch status to be sure after reverting
+              fetchStatus("after stopRecording failure revert");
         }
-    }, [isRecording, isPaused, callRecordingApi, hideRecordUI]); // Removed fetchStatus dependency
+        // On success, optimistic state holds and polling stops via useEffect.
+    }, [isRecording, isPaused, callRecordingApi, hideRecordUI, fetchStatus]); // Added fetchStatus dependency back for error handling
 
     const pauseRecording = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -634,15 +638,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const { success } = await apiActionPromise;
 
         if (!success) {
+             // Revert the optimistic update if the API call failed
              console.warn("handlePlayPauseClick: API call failed, reverting optimistic UI state.");
-             setIsRecording(originalIsRecording);
-             setIsPaused(originalIsPaused);
-             // Maybe fetch status again here just to be absolutely sure after revert?
-             // fetchStatus("after handlePlayPauseClick failure revert");
+             setIsRecording(originalIsRecording); // Revert to state *before* optimistic update
+             setIsPaused(originalIsPaused);     // Revert to state *before* optimistic update
+             // Manually fetch status now to ensure we sync with the actual (failed) backend state
+             fetchStatus("after handlePlayPauseClick failure revert");
         }
-        // On success, the state is already optimistically set,
-        // and the polling interval (if needed) will start/stop via the useEffect.
-    }, [isRecording, isPaused, callRecordingApi, agentName, eventId]); // Removed pause/resume handlers as direct deps
+        // On success, the optimistic state remains, and the polling interval handles future updates.
+    }, [isRecording, isPaused, callRecordingApi, agentName, eventId, fetchStatus]); // Added fetchStatus back for error handling
 
 
     // --- Other Action Handlers ---
