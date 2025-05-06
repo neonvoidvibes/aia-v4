@@ -144,58 +144,58 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const lastMessageIdRef = useRef<string | null>(null) // Track last message for attachment logic
 
     // --- Backend Recording State Polling ---
+    const fetchStatus = useCallback(async (logSource?: string) => {
+        if (!isReady) {
+            console.log(`fetchStatus (${logSource || 'unknown'}) aborted: not ready.`);
+            return;
+        }
+        console.log(`fetchStatus called from: ${logSource || 'unknown'}`);
+        try {
+            const response = await fetch(`/api/recording-proxy`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: `Status fetch failed: ${response.status}` }));
+                throw new Error(errorData.message || `Status fetch failed: ${response.status}`);
+            }
+            const data = await response.json();
+            console.log("fetchStatus - backend data:", data);
+            setIsRecording(data.is_recording || false);
+            setIsPaused(data.is_paused || false);
+            setRecordingTime(data.elapsed_time || 0);
+        } catch (error: any) {
+            console.error("Error fetching/processing recording status via proxy:", error.message);
+            // Do not stop polling on error, allow it to retry.
+            // But do clear local recording state if fetch fails to prevent stale UI
+            // setIsRecording(false); 
+            // setIsPaused(false);
+        }
+    }, [isReady]); // Dependencies for fetchStatus
+
     useEffect(() => {
         let intervalId: NodeJS.Timeout | null = null;
 
-        const fetchStatus = async () => {
-            if (!isReady) return; // Ensure agent/event are known before fetching
-            try {
-                const response = await fetch(`/api/recording-proxy`);
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: `Status fetch failed: ${response.status}` }));
-                    throw new Error(errorData.message || `Status fetch failed: ${response.status}`);
-                }
-                const data = await response.json();
-                setIsRecording(data.is_recording || false);
-                setIsPaused(data.is_paused || false);
-                setRecordingTime(data.elapsed_time || 0);
-            } catch (error: any) {
-                console.error("Error fetching/processing recording status via proxy:", error.message);
-                // If polling is active, clear it on error to prevent spamming
-                if (intervalId) {
-                    clearInterval(intervalId);
-                    intervalId = null; // Ensure it's marked as cleared
-                }
-                 // Optionally, set isRecording to false on error if appropriate for UX
-                 // setIsRecording(false); 
-                 // setIsPaused(false);
-            }
-        };
-
         if (isReady) {
-            fetchStatus(); // Initial fetch when component is ready
+            fetchStatus("initial mount/isReady change"); // Initial fetch
 
-            if (isRecording) { // Only set interval if recording is active
-                console.log("Conditional polling: Starting status poll (isRecording=true)");
-                intervalId = setInterval(fetchStatus, 1000); // Poll every 1 second
+            if (isRecording) {
+                console.log("Conditional polling: Starting status poll (isRecording=true).");
+                intervalId = setInterval(() => fetchStatus("interval"), 1000);
             } else {
-                 console.log("Conditional polling: Not starting poll (isRecording=false)");
-                 // Ensure any existing interval is cleared if isRecording becomes false
-                 if (intervalId) {
+                console.log("Conditional polling: Not starting/stopping poll (isRecording=false).");
+                if (intervalId) { // Should not be needed if logic is correct, but as safeguard
                     clearInterval(intervalId);
                     intervalId = null;
-                 }
+                }
             }
         }
 
-        // Cleanup function
         return () => {
             if (intervalId) {
                 console.log("Conditional polling: Clearing status poll interval on cleanup.");
                 clearInterval(intervalId);
             }
         };
-    }, [isReady, isRecording]); // Re-run effect if isReady or isRecording changes
+    }, [isReady, isRecording, fetchStatus]); // fetchStatus is now a dependency
+
 
     // --- Attachment Handling Logic (Placeholder) ---
     useEffect(() => {
@@ -395,7 +395,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // --- Recording Control API Calls (Defined before usage) ---
     const callRecordingApi = useCallback(async (action: string, payload?: any) => {
-         // Use the NEW single proxy endpoint for all actions (POST request)
          const apiUrl = `/api/recording-proxy`;
          if (!isReady || !agentName ) {
              console.error(`Cannot call ${apiUrl} for action '${action}': Agent not ready or missing.`);
@@ -403,89 +402,83 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              return;
          }
          try {
-             console.log(`Calling API: ${apiUrl} with action: ${action}`);
+             console.log(`Calling API: /api/recording-proxy with action: ${action}`);
              const response = await fetch(apiUrl, {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
-                 // Send the action and optional payload in the body
                  body: JSON.stringify({ action, payload })
              });
-             const data = await response.json(); // Always expect JSON back from proxy
+             const data = await response.json(); 
              if (!response.ok) {
-                  // Use error message from proxy response
-                  throw new Error(data.message || `Failed to perform action '${action}'`);
-                }
-                // Corrected: Use 'action' instead of 'endpoint' for logging
-                console.log(`Backend action '${action}' response:`, data);
-            } catch (error: any) {
-                // Log the intended action and the actual error separately
-                // Corrected: Use 'action' instead of 'endpoint' for logging
-                console.error(`Error during recording API call for action: '${action}'`);
-                console.error("Caught error object:", error);
-                // Report the original error message (or a fallback) to the user
-                // Corrected: Use 'action' instead of 'endpoint' for error message
-                const errorMessage = error?.message || `Failed to perform recording action: ${action}`;
-                append({ role: 'system', content: `Error: ${errorMessage}` });
-            }
-        }, [isReady, agentName, eventId, append]); // Keep dependencies
+                 throw new Error(data.message || `Failed to perform action '${action}'`);
+             }
+             console.log(`Backend action '${action}' response:`, data);
+             fetchStatus(`after callRecordingApi(${action})`); // Fetch status immediately after a successful API call
+         } catch (error: any) {
+             console.error(`Error during recording API call for action: '${action}'`);
+             console.error("Caught error object:", error);
+             const errorMessage = error?.message || `Failed to perform recording action: ${action}`;
+             append({ role: 'system', content: `Error: ${errorMessage}` });
+         }
+     }, [isReady, agentName, eventId, append, fetchStatus]); // Added fetchStatus
 
     // --- Action Handlers using callRecordingApi ---
-    const startRecording = useCallback(() => {
+    // Renamed from startRecording to showAndPrepareRecordingControls
+    const showAndPrepareRecordingControls = useCallback(() => {
+        console.log("showAndPrepareRecordingControls called");
         setShowPlusMenu(false);
         setShowRecordUI(true);
         setRecordUIVisible(true);
         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-        // Only call API if not already recording, but always show UI
-        if (!isRecording) {
-            // Pass agent and event info as the 'payload' for the 'start' action
-            callRecordingApi('start', { agent: agentName, event: eventId || '0000' });
-        } else {
-           console.log("Recording already in progress, showing controls.");
-           // Optionally restart hide timer if just showing controls
-           startHideTimeout();
-        }
-    }, [callRecordingApi, isRecording, startHideTimeout]); // Add dependencies
+        // Fetch status to ensure controls show correct state if already recording/paused
+        fetchStatus("showAndPrepareRecordingControls");
+        startHideTimeout(); // Start hide timer for the controls if user doesn't interact
+    }, [fetchStatus, startHideTimeout]);
 
-    const stopRecording = useCallback((e?: React.MouseEvent) => {
+    const stopRecording = useCallback(async (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        callRecordingApi('stop');
-        hideRecordUI();
-    }, [callRecordingApi, hideRecordUI]); // Add dependencies
+        console.log("stopRecording called");
+        await callRecordingApi('stop');
+        // fetchStatus is called inside callRecordingApi on success
+        hideRecordUI(); // Hide controls after stopping
+    }, [callRecordingApi, hideRecordUI]);
 
-    const pauseRecording = useCallback((e: React.MouseEvent) => {
+    const pauseRecording = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
-        callRecordingApi('pause');
+        console.log("pauseRecording called");
+        await callRecordingApi('pause');
+        // fetchStatus is called inside callRecordingApi on success
         startHideTimeout();
-    }, [callRecordingApi, startHideTimeout]); // Add dependencies
+    }, [callRecordingApi, startHideTimeout]);
 
-    const resumeRecording = useCallback((e: React.MouseEvent) => {
+    const resumeRecording = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
-        callRecordingApi('resume');
+        console.log("resumeRecording called");
+        await callRecordingApi('resume');
+        // fetchStatus is called inside callRecordingApi on success
         startHideTimeout();
-    }, [callRecordingApi, startHideTimeout]); // Add dependencies
+    }, [callRecordingApi, startHideTimeout]);
 
     // Explicit handler for the Play/Pause button in the recording UI
-    const handlePlayPauseClick = useCallback((e: React.MouseEvent) => {
+    const handlePlayPauseClick = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
         console.log("handlePlayPauseClick triggered. State:", { isRecording, isPaused });
         if (isRecording && !isPaused) {
-            // Currently recording, should pause
             console.log("--> Pausing recording via handlePlayPauseClick");
-            pauseRecording(e);
+            await pauseRecording(e);
         } else if (isRecording && isPaused) {
-            // Currently paused, should resume
             console.log("--> Resuming recording via handlePlayPauseClick");
-            resumeRecording(e);
+            await resumeRecording(e);
+        } else if (!isRecording) { // If not recording at all, this button acts as START
+            console.log("--> Starting recording via handlePlayPauseClick (Play button)");
+            // Pass agent and event info as the 'payload' for the 'start' action
+            await callRecordingApi('start', { agent: agentName, event: eventId || '0000' });
+            // fetchStatus is called inside callRecordingApi on success
         } else {
-            // This case might occur briefly during state transitions or if UI appears unexpectedly.
-            // Let's log it but avoid calling resume immediately after start.
-            console.warn("handlePlayPauseClick: Unexpected state or called too early. Doing nothing.");
-            // Potentially call resumeRecording(e) here *only* if you explicitly want the play button
-            // to also function as a "start if stopped but UI is visible" button,
-            // but this might re-introduce the original issue if not careful.
-            // For now, we only resume if explicitly paused.
+            console.warn("handlePlayPauseClick: Unhandled state.");
         }
-    }, [isRecording, isPaused, pauseRecording, resumeRecording]); // Dependencies
+    }, [isRecording, isPaused, pauseRecording, resumeRecording, callRecordingApi, agentName, eventId]);
+
 
     // --- Other Action Handlers ---
     const saveChat = useCallback(() => {
@@ -779,22 +772,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     transition={{ duration: 0.2 }}
                                     className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu" // Added plus-menu class
                                 >
-                                    {/* Removed opacity classes */}
                                     <button type="button" className="p-2 plus-menu-item" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button>
-                                    {/* Removed opacity classes */}
                                     <button type="button" className="p-2 plus-menu-item" onClick={saveChat} title="Save chat"><Download size={20} /></button>
                                     <button
                                         type="button"
-                                        // Removed opacity classes
                                         className={`p-2 plus-menu-item ${isRecording ? 'recording' : ''} ${isPaused ? 'paused' : ''}`}
-                                        onClick={startRecording}
-                                        title={isRecording ? (isPaused ? "Recording Paused" : "Recording Live") : "Start recording"}
+                                        onClick={showAndPrepareRecordingControls} // Changed to show controls
+                                        title={isRecording ? (isPaused ? "Recording Paused" : "Recording Live") : "Open recording controls"}
                                     >
-                                        <Mic size={20} /> {/* Color is handled by CSS now */}
+                                        <Mic size={20} />
                                     </button>
-                                    </motion.div>
+                                </motion.div>
                             )}
-                            {/* Recording UI Popup was moved above */}
                         </div>
 
                         {/* Play/Pause button using the new handler */}
@@ -866,12 +855,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 {/* Status Bar */}
                 <div className="text-center text-foreground/70 dark:text-foreground/70 text-xs pt-4 pb-2 font-light status-bar">
                     <span className="lowercase">{agentName || '...'}</span> / <span className="lowercase">{eventId || '...'}</span> |{" "}
-                    {/* Clickable status text to start recording */}
+                    {/* Clickable status text to show recording controls */}
                     <span
                         ref={statusRecordingRef}
                         className="cursor-pointer"
-                        onClick={isRecording ? undefined : startRecording} // Only allow click to start if not already recording
-                        title={isRecording ? "Recording Status" : "Click to Start Recording"}
+                        onClick={showAndPrepareRecordingControls} // Changed to show controls
+                        title={isRecording ? "Recording Status" : "Open recording controls"}
                     >
                          listen:{" "}
                         {isRecording ? (
