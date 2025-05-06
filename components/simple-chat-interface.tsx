@@ -146,10 +146,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Backend Recording State Polling ---
     const fetchStatus = useCallback(async (logSource?: string) => {
         if (!isReady) {
-            console.log(`fetchStatus (${logSource || 'unknown'}) aborted: not ready.`);
+            // console.log(`fetchStatus (${logSource || 'unknown'}) aborted: not ready.`); // Reduce noise
             return;
         }
-        console.log(`fetchStatus called from: ${logSource || 'unknown'}`);
+        // console.log(`fetchStatus called from: ${logSource || 'unknown'}`); // Reduce noise
         try {
             const response = await fetch(`/api/recording-proxy`);
             if (!response.ok) {
@@ -157,44 +157,41 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 throw new Error(errorData.message || `Status fetch failed: ${response.status}`);
             }
             const data = await response.json();
-            console.log("fetchStatus - backend data:", data);
+            // console.log("fetchStatus - backend data:", data); // Reduce noise
             setIsRecording(data.is_recording || false);
             setIsPaused(data.is_paused || false);
             setRecordingTime(data.elapsed_time || 0);
         } catch (error: any) {
-            console.error("Error fetching/processing recording status via proxy:", error.message);
-            // Do not stop polling on error, allow it to retry.
-            // But do clear local recording state if fetch fails to prevent stale UI
-            // setIsRecording(false); 
-            // setIsPaused(false);
+            console.error(`Error fetching/processing recording status via proxy (source: ${logSource}):`, error.message);
         }
     }, [isReady]); // Dependencies for fetchStatus
 
+    // Effect for initial status fetch when component is ready
+    useEffect(() => {
+        if (isReady) {
+            fetchStatus("initial component ready");
+        }
+    }, [isReady, fetchStatus]);
+
+    // Effect for managing the polling interval based on isRecording state
     useEffect(() => {
         let intervalId: NodeJS.Timeout | null = null;
-
-        if (isReady) {
-            fetchStatus("initial mount/isReady change"); // Initial fetch
-
-            if (isRecording) {
-                console.log("Conditional polling: Starting status poll (isRecording=true).");
-                intervalId = setInterval(() => fetchStatus("interval"), 1000);
-            } else {
-                console.log("Conditional polling: Not starting/stopping poll (isRecording=false).");
-                if (intervalId) { // Should not be needed if logic is correct, but as safeguard
-                    clearInterval(intervalId);
-                    intervalId = null;
-                }
+        if (isReady && isRecording) {
+            console.log("Polling Effect: Starting status poll because isReady and isRecording are true.");
+            intervalId = setInterval(() => fetchStatus("polling interval"), 1000);
+        } else {
+            console.log(`Polling Effect: Not polling (isReady: ${isReady}, isRecording: ${isRecording}). Clearing any existing interval.`);
+            if (intervalId) { // This else branch might not always catch an existing interval if isRecording flips quickly.
+                clearInterval(intervalId); // The cleanup function is more reliable for this.
             }
         }
-
         return () => {
             if (intervalId) {
-                console.log("Conditional polling: Clearing status poll interval on cleanup.");
+                console.log("Polling Effect Cleanup: Clearing status poll interval.");
                 clearInterval(intervalId);
             }
         };
-    }, [isReady, isRecording, fetchStatus]); // fetchStatus is now a dependency
+    }, [isReady, isRecording, fetchStatus]);
 
 
     // --- Attachment Handling Logic (Placeholder) ---
@@ -399,7 +396,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          if (!isReady || !agentName ) {
              console.error(`Cannot call ${apiUrl} for action '${action}': Agent not ready or missing.`);
              append({ role: 'system', content: `Error: Cannot control recording. Agent missing.` });
-             return;
+             return; // Prevent API call if not ready
          }
          try {
              console.log(`Calling API: /api/recording-proxy with action: ${action}`);
@@ -408,17 +405,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                  headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({ action, payload })
              });
-             const data = await response.json(); 
+             const data = await response.json();
              if (!response.ok) {
                  throw new Error(data.message || `Failed to perform action '${action}'`);
              }
              console.log(`Backend action '${action}' response:`, data);
-             fetchStatus(`after callRecordingApi(${action})`); // Fetch status immediately after a successful API call
+             // Fetch status *after* the API call is confirmed successful
+             await fetchStatus(`after callRecordingApi(${action})`);
          } catch (error: any) {
              console.error(`Error during recording API call for action: '${action}'`);
              console.error("Caught error object:", error);
              const errorMessage = error?.message || `Failed to perform recording action: ${action}`;
              append({ role: 'system', content: `Error: ${errorMessage}` });
+             // Fetch status even on error to sync with potential backend state changes
+             await fetchStatus(`after callRecordingApi(${action}) ERROR`);
          }
      }, [isReady, agentName, eventId, append, fetchStatus]); // Added fetchStatus
 
@@ -439,7 +439,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         e?.stopPropagation();
         console.log("stopRecording called");
         await callRecordingApi('stop');
-        // fetchStatus is called inside callRecordingApi on success
+        // fetchStatus is called inside callRecordingApi on success/error
         hideRecordUI(); // Hide controls after stopping
     }, [callRecordingApi, hideRecordUI]);
 
@@ -447,7 +447,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         e.stopPropagation();
         console.log("pauseRecording called");
         await callRecordingApi('pause');
-        // fetchStatus is called inside callRecordingApi on success
+        // fetchStatus is called inside callRecordingApi on success/error
         startHideTimeout();
     }, [callRecordingApi, startHideTimeout]);
 
@@ -455,29 +455,26 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         e.stopPropagation();
         console.log("resumeRecording called");
         await callRecordingApi('resume');
-        // fetchStatus is called inside callRecordingApi on success
+        // fetchStatus is called inside callRecordingApi on success/error
         startHideTimeout();
     }, [callRecordingApi, startHideTimeout]);
 
     // Explicit handler for the Play/Pause button in the recording UI
     const handlePlayPauseClick = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
-        console.log("handlePlayPauseClick triggered. State:", { isRecording, isPaused });
-        if (isRecording && !isPaused) {
-            console.log("--> Pausing recording via handlePlayPauseClick");
-            await pauseRecording(e);
-        } else if (isRecording && isPaused) {
-            console.log("--> Resuming recording via handlePlayPauseClick");
-            await resumeRecording(e);
-        } else if (!isRecording) { // If not recording at all, this button acts as START
-            console.log("--> Starting recording via handlePlayPauseClick (Play button)");
-            // Pass agent and event info as the 'payload' for the 'start' action
+        console.log("handlePlayPauseClick: Current state - isRecording:", isRecording, "isPaused:", isPaused);
+        if (!isRecording) {
+            console.log("handlePlayPauseClick: --> Attempting to START recording.");
             await callRecordingApi('start', { agent: agentName, event: eventId || '0000' });
-            // fetchStatus is called inside callRecordingApi on success
-        } else {
-            console.warn("handlePlayPauseClick: Unhandled state.");
+        } else if (isPaused) { // isRecording is true, and it's paused
+            console.log("handlePlayPauseClick: --> Attempting to RESUME recording.");
+            await callRecordingApi('resume');
+        } else { // isRecording is true, and it's not paused
+            console.log("handlePlayPauseClick: --> Attempting to PAUSE recording.");
+            await callRecordingApi('pause');
         }
-    }, [isRecording, isPaused, pauseRecording, resumeRecording, callRecordingApi, agentName, eventId]);
+        // fetchStatus is called inside callRecordingApi on success/error, which will update UI.
+    }, [isRecording, isPaused, callRecordingApi, agentName, eventId]);
 
 
     // --- Other Action Handlers ---
@@ -798,7 +795,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     onMouseMove={handleRecordUIMouseMove}
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    <button type="button" className="p-1 record-ui-button" onClick={handlePlayPauseClick} aria-label={isRecording && !isPaused ? "Pause recording" : "Resume recording"}>
+                                    <button type="button" className="p-1 record-ui-button" onClick={handlePlayPauseClick} aria-label={!isRecording ? "Start recording" : (isPaused ? "Resume recording" : "Pause recording")}>
                                         {isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={isPaused ? "text-yellow-500" : ""} />}
                                     </button>
                                     <button type="button" className="p-1 record-ui-button" onClick={stopRecording} disabled={!isRecording} aria-label="Stop recording">
