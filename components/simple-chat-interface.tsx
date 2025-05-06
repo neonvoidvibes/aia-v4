@@ -399,19 +399,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              const data = await response.json(); // Always expect JSON back from proxy
              if (!response.ok) {
                   // Use error message from proxy response
-                 throw new Error(data.message || `Failed to perform action '${action}'`);
-             }
-             console.log(`Backend ${endpoint} response:`, data);
-             console.log(`Backend ${endpoint} response:`, data);
-         } catch (error: any) {
-             // Log the intended action and the actual error separately
-             console.error(`Error during recording API call for action: '${endpoint}'`);
-             console.error("Caught error object:", error);
-             // Report the original error message (or a fallback) to the user
-             const errorMessage = error?.message || `Failed to perform recording action: ${endpoint}`;
-             append({ role: 'system', content: `Error: ${errorMessage}` });
-         }
-     }, [isReady, agentName, eventId, append]); // Keep dependencies
+                  throw new Error(data.message || `Failed to perform action '${action}'`);
+                }
+                // Corrected: Use 'action' instead of 'endpoint' for logging
+                console.log(`Backend action '${action}' response:`, data);
+            } catch (error: any) {
+                // Log the intended action and the actual error separately
+                // Corrected: Use 'action' instead of 'endpoint' for logging
+                console.error(`Error during recording API call for action: '${action}'`);
+                console.error("Caught error object:", error);
+                // Report the original error message (or a fallback) to the user
+                // Corrected: Use 'action' instead of 'endpoint' for error message
+                const errorMessage = error?.message || `Failed to perform recording action: ${action}`;
+                append({ role: 'system', content: `Error: ${errorMessage}` });
+            }
+        }, [isReady, agentName, eventId, append]); // Keep dependencies
 
     // --- Action Handlers using callRecordingApi ---
     const startRecording = useCallback(() => {
