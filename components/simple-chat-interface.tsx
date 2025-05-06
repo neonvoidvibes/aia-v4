@@ -450,6 +450,29 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         startHideTimeout();
     }, [callRecordingApi, startHideTimeout]); // Add dependencies
 
+    // Explicit handler for the Play/Pause button in the recording UI
+    const handlePlayPauseClick = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        console.log("handlePlayPauseClick triggered. State:", { isRecording, isPaused });
+        if (isRecording && !isPaused) {
+            // Currently recording, should pause
+            console.log("--> Pausing recording via handlePlayPauseClick");
+            pauseRecording(e);
+        } else if (isRecording && isPaused) {
+            // Currently paused, should resume
+            console.log("--> Resuming recording via handlePlayPauseClick");
+            resumeRecording(e);
+        } else {
+            // This case might occur briefly during state transitions or if UI appears unexpectedly.
+            // Let's log it but avoid calling resume immediately after start.
+            console.warn("handlePlayPauseClick: Unexpected state or called too early. Doing nothing.");
+            // Potentially call resumeRecording(e) here *only* if you explicitly want the play button
+            // to also function as a "start if stopped but UI is visible" button,
+            // but this might re-introduce the original issue if not careful.
+            // For now, we only resume if explicitly paused.
+        }
+    }, [isRecording, isPaused, pauseRecording, resumeRecording]); // Dependencies
+
     // --- Other Action Handlers ---
     const saveChat = useCallback(() => {
         const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setShowPlusMenu(false);
@@ -755,34 +778,35 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     >
                                         <Mic size={20} /> {/* Color is handled by CSS now */}
                                     </button>
-                                </motion.div>
+                                    </motion.div>
                             )}
-                            {/* Recording UI Popup */}
-                            {showRecordUI && (
+                            {/* Recording UI Popup was moved above */}
+                        </div>
+
+                        {/* Play/Pause button using the new handler */}
+                        <div className="relative" ref={recordUIRef}> {/* Ensure ref is on a parent if needed */}
+                             {showRecordUI && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9, y: 10 }}
                                     animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: 10 }}
                                     transition={{ duration: 0.3 }}
-                                    className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" // Added record-ui class
-                                    ref={recordUIRef}
+                                    className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui"
                                     onMouseMove={handleRecordUIMouseMove}
-                                    onClick={(e) => e.stopPropagation()} // Prevent closing menu
-                                    // Removed inline style for position
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <button type="button" className="p-1 record-ui-button" onClick={isRecording && !isPaused ? pauseRecording : resumeRecording} aria-label={isRecording && !isPaused ? "Pause recording" : "Resume recording"}>
-                                        {/* Keep red/yellow, remove default gray */}
+                                    <button type="button" className="p-1 record-ui-button" onClick={handlePlayPauseClick} aria-label={isRecording && !isPaused ? "Pause recording" : "Resume recording"}>
                                         {isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={isPaused ? "text-yellow-500" : ""} />}
                                     </button>
                                     <button type="button" className="p-1 record-ui-button" onClick={stopRecording} disabled={!isRecording} aria-label="Stop recording">
-                                        {/* Remove conditional grays */}
                                         <StopCircle size={20} className={""}/>
                                     </button>
-                                    {/* Keep span styling as is, it seems okay */}
                                     {isRecording && <span className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(recordingTime)}</span>}
                                 </motion.div>
-                            )}
+                             )}
                         </div>
+                        {/* End Play/Pause button section */}
+
                         {/* Text Input Field */}
                         <input
                             ref={inputRef}
