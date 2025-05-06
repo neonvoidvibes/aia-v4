@@ -146,42 +146,56 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Backend Recording State Polling ---
     useEffect(() => {
         let intervalId: NodeJS.Timeout | null = null;
-        if (isReady) { // Only start polling if agent/event are known
-            const fetchStatus = async () => {
-                try {
-                    // Use the NEW single proxy endpoint for status (GET request)
-                    const response = await fetch(`/api/recording-proxy`); // GET request implies 'status'
-                    const data = await response.json(); // Always expect JSON back from proxy
 
-                    if (!response.ok) {
-                         // Use the error message provided by the proxy route
-                         throw new Error(data.message || `Status fetch failed: ${response.status}`);
-                    }
-
-                    // Update local state based on proxied backend status
-                    setIsRecording(data.is_recording || false);
-                    setIsPaused(data.is_paused || false);
-                    setRecordingTime(data.elapsed_time || 0);
-
-                } catch (error: any) { // Catch errors from fetch or json parse or non-ok response
-                    console.error("Error fetching/processing recording status via proxy:", error.message);
-                    // Stop polling on error to avoid spamming logs
-                    if (intervalId) clearInterval(intervalId);
-                    // Optional: Display error to user via append or toast
-                    // append({ role: 'system', content: `Error updating recording status: ${error.message}` });
+        const fetchStatus = async () => {
+            if (!isReady) return; // Ensure agent/event are known before fetching
+            try {
+                const response = await fetch(`/api/recording-proxy`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: `Status fetch failed: ${response.status}` }));
+                    throw new Error(errorData.message || `Status fetch failed: ${response.status}`);
                 }
-            };
+                const data = await response.json();
+                setIsRecording(data.is_recording || false);
+                setIsPaused(data.is_paused || false);
+                setRecordingTime(data.elapsed_time || 0);
+            } catch (error: any) {
+                console.error("Error fetching/processing recording status via proxy:", error.message);
+                // If polling is active, clear it on error to prevent spamming
+                if (intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null; // Ensure it's marked as cleared
+                }
+                 // Optionally, set isRecording to false on error if appropriate for UX
+                 // setIsRecording(false); 
+                 // setIsPaused(false);
+            }
+        };
 
-            fetchStatus(); // Initial fetch
-            intervalId = setInterval(fetchStatus, 1000); // Poll every 1 second
+        if (isReady) {
+            fetchStatus(); // Initial fetch when component is ready
+
+            if (isRecording) { // Only set interval if recording is active
+                console.log("Conditional polling: Starting status poll (isRecording=true)");
+                intervalId = setInterval(fetchStatus, 1000); // Poll every 1 second
+            } else {
+                 console.log("Conditional polling: Not starting poll (isRecording=false)");
+                 // Ensure any existing interval is cleared if isRecording becomes false
+                 if (intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                 }
+            }
         }
 
-        // Cleanup function to clear interval when component unmounts or isReady changes
+        // Cleanup function
         return () => {
-            if (intervalId) clearInterval(intervalId);
+            if (intervalId) {
+                console.log("Conditional polling: Clearing status poll interval on cleanup.");
+                clearInterval(intervalId);
+            }
         };
-    }, [isReady]); // Re-run effect if isReady changes
-
+    }, [isReady, isRecording]); // Re-run effect if isReady or isRecording changes
 
     // --- Attachment Handling Logic (Placeholder) ---
     useEffect(() => {
