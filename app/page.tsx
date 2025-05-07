@@ -1,8 +1,10 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { PenSquare, ChevronDown } from "lucide-react"
+import { useRouter, useSearchParams } from 'next/navigation'; // Import useRouter
+import { PenSquare, ChevronDown, AlertTriangle } from "lucide-react" // Added AlertTriangle
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { createClient } from '@/utils/supabase/client'; // Import Supabase client
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
 import DocumentUpload from "@/components/document-upload"
@@ -29,9 +31,89 @@ export default function Home() {
   // Read agent/event from URL ONCE on mount for context (chat component also reads it)
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
   const [pageEventId, setPageEventId] = useState<string | null>(null);
+  const [allowedAgents, setAllowedAgents] = useState<string[]>([]);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null); // null = checking, false = denied, true = allowed
+  const [authError, setAuthError] = useState<string | null>(null); // Store auth/fetch errors
+  const supabase = createClient(); // Instantiate Supabase client
+  const router = useRouter(); // Instantiate router
 
+  // Fetch permissions and check authorization
   useEffect(() => {
-      setPageAgentName(searchParams.get('agent'));
+      const agentParam = searchParams.get('agent');
+      const eventParam = searchParams.get('event');
+      setPageAgentName(agentParam);
+      setPageEventId(eventParam);
+
+      if (!agentParam) {
+          console.error("Authorization Check: Agent parameter missing from URL.");
+          setAuthError("Agent parameter is missing in the URL.");
+          setIsAuthorized(false); // Cannot authorize without an agent ID
+          return;
+      }
+
+      const fetchPermissions = async () => {
+          setIsAuthorized(null); // Set to checking state
+          setAuthError(null);
+
+          try {
+              // Fetch session to get token for the API call
+              const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+              if (sessionError || !session) {
+                  console.error("Authorization Check: No active session found.", sessionError);
+                  // Middleware should ideally handle this, but double-check
+                  setAuthError("Not authenticated.");
+                  router.push('/login'); // Redirect if middleware failed
+                  return;
+              }
+
+              const response = await fetch('/api/user/permissions', {
+                  headers: {
+                      'Authorization': `Bearer ${session.access_token}`,
+                  },
+              });
+
+              if (response.status === 401) {
+                   console.error("Authorization Check: Unauthorized fetching permissions.");
+                   setAuthError("Session expired or invalid. Please log in again.");
+                   await supabase.auth.signOut(); // Sign out if token is invalid
+                   router.push('/login');
+                   return;
+               }
+
+              if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+                  throw new Error(errorData.error || `Failed to fetch permissions: ${response.statusText}`);
+              }
+
+              const data = await response.json();
+              const fetchedAllowedAgents: string[] = data.allowedAgentIds || [];
+              setAllowedAgents(fetchedAllowedAgents);
+
+              // Perform authorization check
+              if (fetchedAllowedAgents.includes(agentParam)) {
+                  console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
+                  setIsAuthorized(true);
+              } else {
+                  console.warn(`Authorization Check: Access DENIED for agent '${agentParam}'. Allowed: [${fetchedAllowedAgents.join(', ')}]`);
+                  setAuthError(`You do not have permission to access the agent specified in the URL ('${agentParam}').`);
+                  setIsAuthorized(false);
+              }
+          } catch (error) {
+              console.error("Authorization Check: Error fetching permissions:", error);
+              const message = error instanceof Error ? error.message : "An unknown error occurred while checking permissions.";
+              setAuthError(message);
+              setIsAuthorized(false);
+          }
+      };
+
+      fetchPermissions();
+
+  }, [searchParams, supabase.auth, router]); // Add dependencies
+
+  // Original useEffect for reading params (now integrated above)
+  // useEffect(() => {
+  //     setPageAgentName(searchParams.get('agent'));
       setPageEventId(searchParams.get('event'));
   }, [searchParams]);
 
@@ -102,11 +184,38 @@ export default function Home() {
     }
   }, [hasOpenSection]);
 
+  // Loading State
+  if (isAuthorized === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-xl animate-pulse">Checking authorization...</p>
+      </div>
+    );
+  }
+
+  // Access Denied State
+  if (isAuthorized === false) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+         <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
+         <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+         <p className="text-muted-foreground mb-4">
+           {authError || "You do not have permission to access this resource."}
+         </p>
+         <Button onClick={() => router.push('/login')}>Go to Login</Button>
+         {/* Optional: Add a logout button if needed */}
+         {/* <Button variant="outline" className="ml-2" onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}>Logout</Button> */}
+      </div>
+    );
+  }
+
+  // Authorized State: Render the Chat UI
   return (
     // Use min-h-dvh and h-dvh for better mobile viewport height handling
     // Add overflow-hidden to prevent the container itself from scrolling
     // Make container full-width by default, apply max-width/centering only on sm screens and up
     <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
+      {/* Header remains the same */}
       <header className="py-4 px-4 text-center relative flex-shrink-0" onClick={() => {
           // Scroll to top on mobile header tap
           if (isMobile && chatInterfaceRef.current) {
@@ -139,9 +248,16 @@ export default function Home() {
       {/* Ensure main grows and contains overflow */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Pass the ref */}
-        <SimpleChatInterface ref={chatInterfaceRef} onAttachmentsUpdate={updateChatAttachments} />
+        {/* Pass agent/event props to ChatInterface */}
+        <SimpleChatInterface
+          ref={chatInterfaceRef}
+          onAttachmentsUpdate={updateChatAttachments}
+          // agent={pageAgentName} // Already read internally via useSearchParams
+          // eventId={pageEventId} // Already read internally via useSearchParams
+        />
       </main>
 
+      {/* Settings Dialog and Confirmation Modal remain within the authorized view */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
         <DialogContent className="sm:max-w-[600px] pt-8 fixed-dialog">
           <EnvWarning />
