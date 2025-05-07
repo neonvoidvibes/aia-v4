@@ -71,17 +71,19 @@ export async function POST(req: NextRequest) {
     console.log(`[Proxy] Fetching backend: ${backendChatUrl} with body:`, requestBody); // Log URL and body
 
     // --- Main fetch call to the selected backend ---
-    // Forward the Authorization header from the *original* request (verified above)
-    // The Python backend needs this token for its own verification
-    const originalAuthHeader = req.headers.get('Authorization');
+    // Get the access token from the server-side session we just validated
+    const { data: { session } } = await supabase.auth.getSession(); // We need the session object too
     const backendHeaders: HeadersInit = { 'Content-Type': 'application/json' };
-    if (originalAuthHeader) {
-      backendHeaders['Authorization'] = originalAuthHeader;
-      console.log("[Proxy] Forwarding Authorization header to backend.");
+
+    if (session?.access_token) {
+      backendHeaders['Authorization'] = `Bearer ${session.access_token}`;
+      console.log("[Proxy] Adding server-side session token to backend request header.");
     } else {
-        // This case should ideally not happen if middleware/frontend adds it,
-        // but log a warning if it does. The backend might reject without it.
-        console.warn("[Proxy] Original Authorization header missing. Request might fail at backend.");
+        // This indicates an issue with the session validation or token availability server-side
+        console.error("[Proxy] Critical: Server-side session valid but access token missing. Aborting backend call.");
+        const errorStreamChunk = formatErrorChunk("Internal Server Error: Failed to retrieve auth token");
+        const errorStream = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(errorStreamChunk)); controller.close(); }});
+        return new StreamingTextResponse(errorStream, { status: 500 });
     }
 
     const backendResponse = await fetch(backendChatUrl, {
