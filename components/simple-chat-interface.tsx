@@ -211,12 +211,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                      backendStatus.event === parsedSession.eventId    // Matches the event we expect
                  ) {
                      console.log(`Backend confirms recording exists for ${parsedSession.agentName}/${parsedSession.eventId}. Forcing PAUSED state on frontend for resume.`);
-                     // Set frontend state based on backend info, but *force* is_paused=true
-                     updateFrontendStateFromBackendStatus({
-                         ...backendStatus,   // Use backend elapsed time, agent, event
-                         is_paused: true,    // Force frontend to show paused
-                         is_recording: true // Ensure frontend knows recording context exists
-                     });
+                     // Update state with backend info (like elapsed time) first
+                     updateFrontendStateFromBackendStatus(backendStatus);
+                     // NOW explicitly force the frontend into a paused state for the UI
+                     setIsRecording(true); // Ensure recording context is active
+                     setIsPaused(true);    // Force UI to show paused state
                      setShowRecordUI(true); // Show controls
                      setRecordUIVisible(true);
                      startHideTimeout(); // Start hide timer
@@ -256,14 +255,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // Update React state and timer refs based on confirmed backend status
     const updateFrontendStateFromBackendStatus = useCallback((status: BackendRecordingStatus) => {
         const statusChanged = isRecording !== status.is_recording || isPaused !== status.is_paused;
-        if (isRecording !== status.is_recording) setIsRecording(status.is_recording);
-        if (isPaused !== status.is_paused) setIsPaused(status.is_paused);
+        // Don't directly set isRecording/isPaused here if forcing paused state on reload
+        // Let the restoreSession logic handle the explicit state setting after calling this
+        // if (isRecording !== status.is_recording) setIsRecording(status.is_recording);
+        // if (isPaused !== status.is_paused) setIsPaused(status.is_paused);
         baseRecordingTimeRef.current = status.elapsed_time || 0;
         lastFetchTimestampRef.current = Date.now();
-        if (statusChanged || !status.is_recording) {
-             updateTimerDisplays(status.elapsed_time || 0);
-        }
-    }, [isRecording, isPaused, updateTimerDisplays]);
+        // Update timer immediately based on backend time
+        updateTimerDisplays(status.elapsed_time || 0);
+    }, [isRecording, isPaused, updateTimerDisplays]); // Keep deps minimal
 
     // Fetch status from backend (polling), guarded by pendingActionRef
     const fetchStatus = useCallback(async (logSource?: string) => {
