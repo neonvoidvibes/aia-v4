@@ -1,15 +1,15 @@
 // Use the server client utility we created
-import { createRouteHandlerClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
+import { createServerActionClient } from '@/utils/supabase/server'
+// We don't need cookies() import directly here anymore if using the helper
+// import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 // import type { Database } from '@/types/supabase' // Comment out or remove if types not generated
 
 export const dynamic = 'force-dynamic' // Ensure fresh data on each request
 
 export async function GET(request: Request) {
-  // Instantiate the client using our server utility function
-  // Pass the cookies object directly
-  const supabase = await createRouteHandlerClient() // Removed <Database>, add await
+  // Instantiate client using our helper (handles cookies internally)
+  const supabase = await createServerActionClient() // Use the correct helper, add await
   try {
     // Get the current user session
     const { data: { user }, error: sessionError } = await supabase.auth.getUser()

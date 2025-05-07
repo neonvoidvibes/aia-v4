@@ -1,7 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/ssr' // Import Supabase server client
-import { cookies } from 'next/headers'
-import type { Database } from '@/types/supabase' // Assuming types exist
+// Import our specific server client helper
+import { createServerActionClient } from '@/utils/supabase/server'
+// We don't need cookies() import directly here anymore if using the helper
+// import { cookies } from 'next/headers'
+// import type { Database } from '@/types/supabase' // Comment out or remove if types not generated
 
 // --- Copy Helper Functions Directly Here (or import if refactored later) ---
 
@@ -48,7 +50,8 @@ function formatErrorResponse(message: string, status: number): NextResponse {
 // Route handler for GET (for status)
 export async function GET(req: NextRequest) {
     console.log("[API /api/recording-proxy] Received GET request (for status)");
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    // Instantiate client using our helper (handles cookies internally)
+    const supabase = await createServerActionClient() // Use the correct helper, add await
 
     // --- Authenticate User ---
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -104,7 +107,8 @@ export async function GET(req: NextRequest) {
 // Route handler for POST (for actions like start, stop, pause, resume)
 export async function POST(req: NextRequest) {
     console.log("[API /api/recording-proxy] Received POST request");
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    // Instantiate client using our helper (handles cookies internally)
+    const supabase = await createServerActionClient() // Use the correct helper, add await
 
     // --- Authenticate User ---
     const { data: { user }, error: authError } = await supabase.auth.getUser();

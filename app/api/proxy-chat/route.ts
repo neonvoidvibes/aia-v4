@@ -1,9 +1,11 @@
 import { type NextRequest } from 'next/server';
 import { StreamingTextResponse } from 'ai';
 import { findActiveBackend, formatErrorChunk } from '../proxyUtils'; // Use shared util
-import { createRouteHandlerClient } from '@supabase/ssr' // Import Supabase server client
-import { cookies } from 'next/headers'
-import type { Database } from '@/types/supabase' // Assuming types exist
+// Import our specific server client helper
+import { createServerActionClient } from '@/utils/supabase/server'
+// We don't need cookies() import directly here anymore if using the helper
+// import { cookies } from 'next/headers'
+// import type { Database } from '@/types/supabase' // Comment out or remove if types not generated
 
 // Re-read env var or rely on util to read it if centralized there
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
@@ -18,7 +20,8 @@ function formatTextChunk(text: string): string {
 
 export async function POST(req: NextRequest) {
   console.log("[Proxy] Received POST request to /api/proxy-chat");
-  const supabase = createRouteHandlerClient<Database>({ cookies }) // Create Supabase client
+  // Instantiate client using our helper (handles cookies internally)
+  const supabase = await createServerActionClient() // Use the correct helper, add await
 
   try {
     // --- Authenticate User ---
