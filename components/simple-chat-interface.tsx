@@ -25,6 +25,7 @@ import { useMobile } from "@/hooks/use-mobile"
 import { useTheme } from "next-themes"
 import { motion } from "framer-motion"
 import { useSearchParams } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client' // Import Supabase client
 import { cn } from "@/lib/utils"
 
 interface SimpleChatInterfaceProps {
@@ -79,11 +80,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
       isLoading, stop, setMessages, append,
     } = useChat({
-      api: "/api/proxy-chat", body: { agent: agentName, event: eventId || '0000' },
+      api: "/api/proxy-chat",
+      body: { agent: agentName, event: eventId || '0000' },
       sendExtraMessageFields: true,
+      // headers removed - rely on cookies verified by the API route
       onError: (error) => { append({ role: 'system', content: `Error: ${error.message}` }); },
       onFinish: (message: Message) => {}
     });
+
+    // Instantiate Supabase client for other API calls
+    const supabase = createClient();
 
     const messagesRef = useRef<Message[]>(messages);
     useEffect(() => { messagesRef.current = messages; }, [messages]);
@@ -179,9 +185,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             // Fetch current backend status to verify
             try {
                 console.log("Fetching current backend status...");
-                const response = await fetch(`/api/recording-proxy`);
+                // Fetch Supabase token for the API call
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                if (sessionError || !session) {
+                    throw new Error("Authentication required to fetch status.");
+                }
+                const response = await fetch(`/api/recording-proxy`, {
+                     headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+
                 if (!response.ok) {
-                    throw new Error(`Backend status fetch failed: ${response.status}`);
+                    const errorBody = await response.text().catch(() => `Status ${response.status}`);
+                    throw new Error(`Backend status fetch failed: ${response.status} - ${errorBody}`);
                 }
                 const backendStatus: BackendRecordingStatus = await response.json();
                 console.log("Received backend status:", backendStatus);
@@ -247,12 +262,27 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (pendingActionRef.current) return;
         if (!isReady) return;
         try {
-            const response = await fetch(`/api/recording-proxy`);
+            // Fetch Supabase token for the API call
+             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+             if (sessionError || !session) {
+                 console.warn(`Fetch Status (${logSource}): No session, cannot fetch.`);
+                 // Optionally attempt logout or redirect here if needed
+                 return;
+             }
+            const response = await fetch(`/api/recording-proxy`, {
+                 headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            // Handle 401/403 from status fetch
+            if (response.status === 401 || response.status === 403) {
+                console.warn(`Fetch Status (${logSource}): Unauthorized (${response.status}).`);
+                // Optionally handle logout/redirect
+                return;
+            }
             if (!response.ok) throw new Error(`Status fetch failed: ${response.status}`);
             const data: BackendRecordingStatus = await response.json();
             updateFrontendStateFromBackendStatus(data);
         } catch (error: any) { console.error(`Error fetching status (source: ${logSource}):`, error.message); }
-    }, [isReady, updateFrontendStateFromBackendStatus]);
+    }, [isReady, updateFrontendStateFromBackendStatus, supabase.auth]);
 
     // Initial status fetch - now handled by restoreSession effect
 
@@ -260,7 +290,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => {
         if (isReady && isRecording) {
             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = setInterval(() => fetchStatus("polling interval"), 1000);
+            pollingIntervalRef.current = setInterval(() => fetchStatus("polling interval"), 1000); // Reduced interval for faster updates
         } else {
             if (pollingIntervalRef.current) { clearInterval(pollingIntervalRef.current); pollingIntervalRef.current = null; }
         }
@@ -306,15 +336,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 }
 
                 // Attempt to pause backend - Fire and forget using keepalive
+                 // Need to get token synchronously if possible, or skip if not available
+                 // Note: navigator.sendBeacon is preferred for reliability but requires endpoint changes
+                 // Trying fetch with keepalive, but cannot await async token fetch here.
+                 // Best effort: If a token was recently fetched/available it might work.
+                 // THIS IS UNRELIABLE for sending auth headers in beforeunload.
+                 // Consider alternative approaches if reliable pause on close is critical.
                 const payload = { action: 'pause' };
                 try {
+                    // Cannot reliably get auth token here synchronously.
+                    // Send without auth header as a fallback, backend might reject.
                     fetch('/api/recording-proxy', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json' }, // Sending without Auth
                         body: JSON.stringify(payload),
                         keepalive: true, // Crucial for beforeunload
                     });
-                     console.log("beforeunload: Sent pause request to backend (keepalive).");
+                     console.log("beforeunload: Sent pause request to backend (keepalive, no auth).");
                 } catch (e) {
                     console.error("beforeunload: Error sending pause request:", e);
                 }
@@ -326,17 +364,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       console.error("beforeunload: Error removing state from localStorage:", e);
                  }
             }
-            // Standard requires returning undefined or void, not a string for modern browsers
-            // event.preventDefault(); // Not needed and potentially problematic
-            // event.returnValue = ''; // Not needed for modern browsers
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-        // Depend on state variables that influence the handler's logic
-    }, [isRecording, agentName, eventId]);
+    }, [isRecording, agentName, eventId]); // Depend on state variables that influence the handler's logic
 
     // --- Attachments Effect ---
     useEffect(() => { if (onAttachmentsUpdate) onAttachmentsUpdate(allAttachments); }, [allAttachments, onAttachmentsUpdate]);
@@ -346,24 +380,51 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          setPendingAction(action);
          const apiUrl = `/api/recording-proxy`;
          if (!isReady || !agentName ) { append({ role: 'system', content: `Error: Cannot ${action}. Agent missing.` }); setPendingAction(null); return { success: false }; }
+
+         // Fetch Supabase token for the API call
+         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+         const headers: HeadersInit = { 'Content-Type': 'application/json' };
+         if (session?.access_token) {
+           headers['Authorization'] = `Bearer ${session.access_token}`;
+         } else {
+             console.warn(`No Supabase token found for recording action: ${action}`);
+             append({ role: 'system', content: `Error: Authentication missing.` });
+             setPendingAction(null);
+             return { success: false };
+         }
+
          try {
              await new Promise(resolve => setTimeout(resolve, 50));
-             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, payload }) });
-             const data = await response.json();
-             if (!response.ok) throw new Error(data.message || `Failed action '${action}'`);
+             // Use updated headers
+             const response = await fetch(apiUrl, { method: 'POST', headers: headers, body: JSON.stringify({ action, payload }) });
+
+             // Improved error handling for non-JSON responses (like 401/403 HTML pages)
+             let data;
+             if (response.headers.get('content-type')?.includes('application/json')) {
+                 data = await response.json();
+             } else {
+                 // If not JSON, read as text and create a basic error object
+                 const errorText = await response.text();
+                 data = { message: errorText || `Request failed with status ${response.status}` };
+                 // Throw an error if response was not OK, using the text as message
+                 if (!response.ok) throw new Error(data.message);
+             }
+
+             if (!response.ok) throw new Error(data.message || data.error || `Failed action '${action}'`);
+
              let statusReceived = data.recording_status;
              if (statusReceived) { updateFrontendStateFromBackendStatus(statusReceived); }
-             else { console.warn(`API response missing 'recording_status'. Polling.`); await fetchStatus(`after ${action} success_NO_STATUS`); const finalStatusResponse = await fetch(`/api/recording-proxy`); if (finalStatusResponse.ok) { statusReceived = await finalStatusResponse.json(); } }
+             else { console.warn(`API response missing 'recording_status'. Polling.`); await fetchStatus(`after ${action} success_NO_STATUS`); const finalStatusResponse = await fetch(`/api/recording-proxy`, { headers: { 'Authorization': `Bearer ${session.access_token}` }}); if (finalStatusResponse.ok) { statusReceived = await finalStatusResponse.json(); } }
              setPendingAction(null);
              return { success: true, newStatus: statusReceived };
          } catch (error: any) {
              console.error(`API Error (${action}):`, error);
              append({ role: 'system', content: `Error: Failed to ${action}. ${error?.message}` });
-             await fetchStatus(`after ${action} ERROR`);
+             await fetchStatus(`after ${action} ERROR`); // Fetch status even after error
              setPendingAction(null);
              return { success: false };
          }
-        }, [isReady, agentName, eventId, append, fetchStatus, updateFrontendStateFromBackendStatus]);
+        }, [isReady, agentName, append, fetchStatus, updateFrontendStateFromBackendStatus, supabase.auth]); // Added supabase.auth
 
         // --- Action Handlers (Moved stopRecording earlier) ---
         const stopRecording = useCallback(async (e?: React.MouseEvent) => {
@@ -380,7 +441,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                  setShowRecordUI(false);
              }
         }, [callRecordingApi, updateTimerDisplays]);
-    
+
         // --- Imperative Handle ---
          useImperativeHandle(ref, () => ({
             startNewChat: async () => {
@@ -392,8 +453,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           },
          getMessagesCount: () => messages.length,
          scrollToTop: () => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); userHasScrolledRef.current = false; setShowScrollToBottom(false); },
-     // Add stopRecording to dependency array if it's used directly
-     }), [isRecording, setMessages, messages.length, stopRecording, updateTimerDisplays]);
+     }), [isRecording, setMessages, messages.length, stopRecording, updateTimerDisplays]); // Add stopRecording
 
 
     // --- Scrolling ---
@@ -433,7 +493,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          };
          document.addEventListener("mousedown", handleClick, true);
          return () => document.removeEventListener("mousedown", handleClick, true);
-     // Removed isRecording/isPaused deps as they are no longer needed for this check
      }, [showRecordUI, showPlusMenu, hideRecordUI]);
 
     useEffect(() => { // Mouse hover trigger
@@ -447,7 +506,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => { return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }; }, []); // Unmount cleanup
 
     // --- Action Handlers ---
-    const showAndPrepareRecordingControls = useCallback(() => { if (pendingAction) return; setShowPlusMenu(false); setShowRecordUI(true); setRecordUIVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); fetchStatus("showAndPrepare"); startHideTimeout(); }, [pendingAction, fetchStatus, startHideTimeout]);
+    const showAndPrepareRecordingControls = useCallback(() => { if (pendingActionRef.current) return; setShowPlusMenu(false); setShowRecordUI(true); setRecordUIVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); fetchStatus("showAndPrepare"); startHideTimeout(); }, [pendingActionRef, fetchStatus, startHideTimeout]);
 
     const handlePlayPauseClick = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -464,18 +523,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         else if (currentIsPaused) {
             actionToPerform = 'resume';
             setIsPaused(false); // Optimistic UI update
-            // Fetch status before calling resume to get the most accurate base time? Or rely on backend response?
-            // Let's rely on backend response for simplicity first.
-            // await fetchStatus('before resume'); // Sync time before local timer restarts
         }
         else {
             actionToPerform = 'pause';
             setIsPaused(true); // Optimistic UI update
-            // Stop local timer via useEffect reacting to isPaused
         }
 
         await callRecordingApi(actionToPerform, payloadForAction);
-    }, [isRecording, isPaused, callRecordingApi, agentName, eventId, updateTimerDisplays, fetchStatus]);
+    }, [isRecording, isPaused, callRecordingApi, agentName, eventId, updateTimerDisplays]);
 
 
     // --- Other Handlers ---

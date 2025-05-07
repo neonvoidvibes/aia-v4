@@ -1,6 +1,9 @@
 import { type NextRequest } from 'next/server';
 import { StreamingTextResponse } from 'ai';
 import { findActiveBackend, formatErrorChunk } from '../proxyUtils'; // Use shared util
+import { createRouteHandlerClient } from '@supabase/ssr' // Import Supabase server client
+import { cookies } from 'next/headers'
+import type { Database } from '@/types/supabase' // Assuming types exist
 
 // Re-read env var or rely on util to read it if centralized there
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
@@ -15,7 +18,23 @@ function formatTextChunk(text: string): string {
 
 export async function POST(req: NextRequest) {
   console.log("[Proxy] Received POST request to /api/proxy-chat");
+  const supabase = createRouteHandlerClient<Database>({ cookies }) // Create Supabase client
+
   try {
+    // --- Authenticate User ---
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        console.warn("[Proxy] Unauthorized chat request:", authError?.message);
+        // Return error formatted for AI SDK stream
+        const errorStreamChunk = formatErrorChunk("Unauthorized: Invalid session");
+        const errorStream = new ReadableStream({
+          start(controller) { controller.enqueue(new TextEncoder().encode(errorStreamChunk)); controller.close(); }
+        });
+        return new StreamingTextResponse(errorStream, { status: 401 });
+    }
+    console.log(`[Proxy] Authenticated user: ${user.id}`);
+    // --- End Authentication ---
+
     // --- Find Active Backend URL ---
     const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
 
@@ -52,9 +71,22 @@ export async function POST(req: NextRequest) {
     console.log(`[Proxy] Fetching backend: ${backendChatUrl} with body:`, requestBody); // Log URL and body
 
     // --- Main fetch call to the selected backend ---
+    // Forward the Authorization header from the *original* request (verified above)
+    // The Python backend needs this token for its own verification
+    const originalAuthHeader = req.headers.get('Authorization');
+    const backendHeaders: HeadersInit = { 'Content-Type': 'application/json' };
+    if (originalAuthHeader) {
+      backendHeaders['Authorization'] = originalAuthHeader;
+      console.log("[Proxy] Forwarding Authorization header to backend.");
+    } else {
+        // This case should ideally not happen if middleware/frontend adds it,
+        // but log a warning if it does. The backend might reject without it.
+        console.warn("[Proxy] Original Authorization header missing. Request might fail at backend.");
+    }
+
     const backendResponse = await fetch(backendChatUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: backendHeaders, // Use headers potentially including Authorization
       body: requestBody,
     });
 

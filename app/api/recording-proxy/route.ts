@@ -1,4 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/ssr' // Import Supabase server client
+import { cookies } from 'next/headers'
+import type { Database } from '@/types/supabase' // Assuming types exist
 
 // --- Copy Helper Functions Directly Here (or import if refactored later) ---
 
@@ -45,6 +48,16 @@ function formatErrorResponse(message: string, status: number): NextResponse {
 // Route handler for GET (for status)
 export async function GET(req: NextRequest) {
     console.log("[API /api/recording-proxy] Received GET request (for status)");
+    const supabase = createRouteHandlerClient<Database>({ cookies })
+
+    // --- Authenticate User ---
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        console.warn("[API /api/recording-proxy] Unauthorized GET request:", authError?.message);
+        return formatErrorResponse("Unauthorized: Invalid session", 401);
+    }
+    console.log(`[API /api/recording-proxy] GET Authenticated user: ${user.id}`);
+    // --- End Authentication ---
 
     const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
     if (!activeBackendUrl) {
@@ -91,6 +104,16 @@ export async function GET(req: NextRequest) {
 // Route handler for POST (for actions like start, stop, pause, resume)
 export async function POST(req: NextRequest) {
     console.log("[API /api/recording-proxy] Received POST request");
+    const supabase = createRouteHandlerClient<Database>({ cookies })
+
+    // --- Authenticate User ---
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        console.warn("[API /api/recording-proxy] Unauthorized POST request:", authError?.message);
+        return formatErrorResponse("Unauthorized: Invalid session", 401);
+    }
+    console.log(`[API /api/recording-proxy] POST Authenticated user: ${user.id}`);
+    // --- End Authentication ---
 
     let action: string | undefined;
     let payload: any = {};
@@ -116,10 +139,24 @@ export async function POST(req: NextRequest) {
     console.log(`[API /api/recording-proxy] Forwarding POST to ${targetUrl}`);
 
     try {
+        // Forward the Authorization header from the original frontend request
+        const originalAuthHeader = req.headers.get('Authorization');
+        const backendHeaders: HeadersInit = {};
+        if (action === 'start') { // Only start needs Content-Type json
+             backendHeaders['Content-Type'] = 'application/json';
+        }
+        if (originalAuthHeader) {
+             backendHeaders['Authorization'] = originalAuthHeader;
+             console.log(`[API /api/recording-proxy] Forwarding Authorization header for action '${action}'.`);
+        } else {
+             console.warn(`[API /api/recording-proxy] Original Authorization header missing for action '${action}'. Backend might reject.`);
+             // You might want to return an error here if the header is absolutely required
+             // return formatErrorResponse("Internal error: Auth token missing for backend call", 500);
+        }
+
         const backendResponse = await fetch(targetUrl, {
             method: 'POST',
-            // Send Content-Type and body only for 'start' action which requires agent/event payload
-            headers: action === 'start' ? { 'Content-Type': 'application/json' } : undefined,
+            headers: backendHeaders, // Send potentially updated headers
             // Only 'start' sends a body, other actions (stop, pause, resume) don't need one
             body: action === 'start' ? JSON.stringify(payload) : undefined
         });
