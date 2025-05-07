@@ -86,7 +86,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       // headers removed - rely on cookies verified by the API route
       onError: (error) => { append({ role: 'system', content: `Error: ${error.message}` }); },
       onFinish: (message: Message) => {}
-    });
+    }, [agentName, eventId]); // Add dependencies here
 
     // Instantiate Supabase client for other API calls
     const supabase = createClient();
@@ -564,6 +564,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => { const lKeyDown = (e: KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { e.preventDefault(); onSubmit(e as any); } else if (e.key === "Enter" && !e.shiftKey && isLoading) e.preventDefault(); }; const el = inputRef.current; if (el) el.addEventListener("keydown", lKeyDown as EventListener); return () => { if (el) el.removeEventListener("keydown", lKeyDown as EventListener); } }, [input, isLoading, stop, attachedFiles.length, onSubmit]);
 
     // --- Render ---
+    // Log state just before rendering buttons
+    console.log(`Rendering with isRecording=${isRecording}, isPaused=${isPaused}, pendingAction=${pendingAction}`);
+
     return (
         <div className="flex flex-col h-full">
             {/* Messages Area */}
