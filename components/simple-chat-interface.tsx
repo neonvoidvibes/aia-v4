@@ -86,7 +86,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       // headers removed - rely on cookies verified by the API route
       onError: (error) => { append({ role: 'system', content: `Error: ${error.message}` }); },
       onFinish: (message: Message) => {}
-    }, [agentName, eventId]); // Add dependencies here
+    }); // Dependency array removed
 
     // Instantiate Supabase client for other API calls
     const supabase = createClient();
@@ -201,43 +201,35 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 const backendStatus: BackendRecordingStatus = await response.json();
                 console.log("Received backend status:", backendStatus);
 
-                // --- Restore Logic ---
-                // Case 1: Backend confirms recording is PAUSED for the right agent/event
-                if (
-                    backendStatus.is_recording &&
-                    backendStatus.is_paused &&
-                    backendStatus.agent === parsedSession.agentName &&
-                    backendStatus.event === parsedSession.eventId
-                ) {
-                    console.log("Backend confirms paused recording session. Restoring state.");
-                    updateFrontendStateFromBackendStatus(backendStatus);
-                    setShowRecordUI(true); // Show the controls as paused
-                    setRecordUIVisible(true);
-                    startHideTimeout();
-                }
-                // Case 2: Backend confirms recording is ACTIVE (not paused) for the right agent/event
-                // This handles cases where the beforeunload pause might have failed but the session is still running.
-                else if (
-                    backendStatus.is_recording &&
-                    !backendStatus.is_paused && // Explicitly check it's not paused
-                    backendStatus.agent === parsedSession.agentName &&
-                    backendStatus.event === parsedSession.eventId
-                ) {
-                    console.warn("Backend reports recording is still active (beforeunload pause likely failed). Restoring active state based on backend.");
-                    updateFrontendStateFromBackendStatus(backendStatus); // Restore based on what backend says
-                    setShowRecordUI(true); // Show controls as active/running
-                    setRecordUIVisible(true);
-                    startHideTimeout();
-                }
-                // Case 3: Backend reports not recording, or agent/event mismatch
-                else {
-                    console.warn("Backend status does not match expected state (not recording, or wrong agent/event). Resetting frontend recording state.", { backendStatus, parsedSession });
-                    // Reset frontend state if backend doesn't match or isn't recording
-                    setIsRecording(false);
-                    setIsPaused(false);
-                    updateTimerDisplays(0);
-                    setShowRecordUI(false);
-                }
+                 // --- Revised Restore Logic ---
+                 // If the backend reports a recording IS active for the correct agent/event
+                 // (regardless of whether it's currently paused on the backend),
+                 // force the frontend into a PAUSED state to allow the user to resume.
+                 if (
+                     backendStatus.is_recording && // Backend confirms *some* recording is active
+                     backendStatus.agent === parsedSession.agentName && // Matches the agent we expect
+                     backendStatus.event === parsedSession.eventId    // Matches the event we expect
+                 ) {
+                     console.log(`Backend confirms recording exists for ${parsedSession.agentName}/${parsedSession.eventId}. Forcing PAUSED state on frontend for resume.`);
+                     // Set frontend state based on backend info, but *force* is_paused=true
+                     updateFrontendStateFromBackendStatus({
+                         ...backendStatus,   // Use backend elapsed time, agent, event
+                         is_paused: true,    // Force frontend to show paused
+                         is_recording: true // Ensure frontend knows recording context exists
+                     });
+                     setShowRecordUI(true); // Show controls
+                     setRecordUIVisible(true);
+                     startHideTimeout(); // Start hide timer
+                 }
+                 // Otherwise (backend reports not recording, or agent/event mismatch)
+                 else {
+                     console.warn("Backend status shows no active recording for this agent/event, or mismatch. Resetting frontend recording state.", { backendStatus, parsedSession });
+                     // Reset frontend state fully
+                     setIsRecording(false);
+                     setIsPaused(false);
+                     updateTimerDisplays(0);
+                     setShowRecordUI(false);
+                 }
             } catch (error: any) {
                 console.error("Error fetching/reconciling backend status:", error.message);
                 append({ role: 'system', content: `Error restoring recording: ${error.message}` });
