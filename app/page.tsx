@@ -14,7 +14,7 @@ import ConfirmationModal from "@/components/confirmation-modal"
 import CollapsibleSection from "@/components/collapsible-section"
 import type { AttachmentFile } from "@/components/file-attachment-minimal" // Renamed import to avoid conflict
 import { useMobile } from "@/hooks/use-mobile" // Assuming this hook exists and works
-import { useSearchParams } from 'next/navigation'; // Import useSearchParams for reading initial params
+import { Button } from "@/components/ui/button"; // Import Button
 
 export default function Home() {
   const searchParams = useSearchParams(); // Hook to read URL query parameters
@@ -111,12 +111,6 @@ export default function Home() {
 
   }, [searchParams, supabase.auth, router]); // Add dependencies
 
-  // Original useEffect for reading params (now integrated above)
-  // useEffect(() => {
-  //     setPageAgentName(searchParams.get('agent'));
-      setPageEventId(searchParams.get('event'));
-  }, [searchParams]);
-
 
   // Refs
   const tabContentRef = useRef<HTMLDivElement>(null);
@@ -169,8 +163,6 @@ export default function Home() {
 
   // Mobile Memory Tab Layout Logic
   const handleSectionToggle = (isOpen: boolean) => {
-    // A bit simplified: if ANY section is open, set the flag
-    // A more precise implementation might track open sections individually
     setHasOpenSection(isOpen);
   };
 
@@ -247,7 +239,6 @@ export default function Home() {
 
       {/* Ensure main grows and contains overflow */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Pass the ref */}
         {/* Pass agent/event props to ChatInterface */}
         <SimpleChatInterface
           ref={chatInterfaceRef}
