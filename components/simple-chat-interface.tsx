@@ -125,8 +125,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pendingActionRef = useRef<string | null>(null);
     const localTimerIntervalRef = useRef<NodeJS.Timeout | null>(null); 
-    const timerDisplayRef = useRef<HTMLSpanElement>(null); // Ref for status bar timer
-    const recordControlsTimerDisplayRef = useRef<HTMLSpanElement>(null); // Ref for controls timer
+    const timerDisplayRef = useRef<HTMLSpanElement>(null); 
+    const recordControlsTimerDisplayRef = useRef<HTMLSpanElement>(null); 
 
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
 
@@ -138,24 +138,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, []);
 
     // Update React state and timer refs based on confirmed backend status
-    // Only force-updates timer display if NOT live recording
     const updateFrontendStateFromBackendStatus = useCallback((status: BackendRecordingStatus) => {
         const statusChanged = isRecording !== status.is_recording || isPaused !== status.is_paused;
-        
         if (isRecording !== status.is_recording) setIsRecording(status.is_recording);
         if (isPaused !== status.is_paused) setIsPaused(status.is_paused);
-        
         baseRecordingTimeRef.current = status.elapsed_time || 0;
         lastFetchTimestampRef.current = Date.now(); 
-
-        // *Only* update display directly if state changed to paused/stopped, 
-        // or if the recording isn't active (to ensure 00:00 shows when stopped)
-        // Let the local interval handle updates while actively running.
         if (statusChanged || !status.is_recording) {
              updateTimerDisplays(status.elapsed_time || 0);
         }
-        
-    }, [isRecording, isPaused, updateTimerDisplays]); // Include state vars for comparison
+    }, [isRecording, isPaused, updateTimerDisplays]); 
 
     // Fetch status from backend (polling), guarded by pendingActionRef
     const fetchStatus = useCallback(async (logSource?: string) => {
@@ -186,20 +178,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // Local timer effect for smooth UI updates via DOM
     useEffect(() => {
         if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-
         if (isRecording && !isPaused) {
-            // Start interval only if recording and not paused
-            localTimerIntervalRef.current = setInterval(() => {
-                const elapsedSinceFetch = (Date.now() - lastFetchTimestampRef.current) / 1000;
-                const calculatedTime = Math.max(0, baseRecordingTimeRef.current + elapsedSinceFetch); 
-                updateTimerDisplays(calculatedTime); // Update DOM directly
-            }, 1000); 
-        }
-        // Cleanup function
-        return () => {
-            if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-        };
-    }, [isRecording, isPaused, updateTimerDisplays]); // Rerun when state changes
+             if (lastFetchTimestampRef.current > 0 || baseRecordingTimeRef.current > 0) { 
+                localTimerIntervalRef.current = setInterval(() => {
+                    const elapsedSinceFetch = (Date.now() - lastFetchTimestampRef.current) / 1000;
+                    const calculatedTime = Math.max(0, baseRecordingTimeRef.current + elapsedSinceFetch); 
+                    updateTimerDisplays(calculatedTime);
+                }, 1000); 
+             } else { updateTimerDisplays(baseRecordingTimeRef.current); }
+        } else { updateTimerDisplays(baseRecordingTimeRef.current); }
+        return () => { if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current); };
+    }, [isRecording, isPaused, updateTimerDisplays]); 
 
     // --- Attachments Effect ---
     useEffect(() => { if (onAttachmentsUpdate) onAttachmentsUpdate(allAttachments); }, [allAttachments, onAttachmentsUpdate]);
@@ -214,23 +203,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, payload }) });
              const data = await response.json(); 
              if (!response.ok) throw new Error(data.message || `Failed action '${action}'`);
-             
              let statusReceived = data.recording_status;
-             if (statusReceived) { 
-                 updateFrontendStateFromBackendStatus(statusReceived); 
-             } else { 
-                 console.warn(`API response missing 'recording_status'. Polling.`); 
-                 await fetchStatus(`after ${action} success_NO_STATUS`); 
-                 // We need to get the status after polling if it wasn't returned
-                 // This is less ideal, but necessary as a fallback.
-                 // Re-fetch status to ensure we have the *absolute* latest after the fallback poll.
-                 const finalStatusResponse = await fetch(`/api/recording-proxy`);
-                 if (finalStatusResponse.ok) {
-                     statusReceived = await finalStatusResponse.json();
-                 }
-             } 
+             if (statusReceived) { updateFrontendStateFromBackendStatus(statusReceived); } 
+             else { console.warn(`API response missing 'recording_status'. Polling.`); await fetchStatus(`after ${action} success_NO_STATUS`); const finalStatusResponse = await fetch(`/api/recording-proxy`); if (finalStatusResponse.ok) { statusReceived = await finalStatusResponse.json(); } } 
              setPendingAction(null); 
-             return { success: true, newStatus: statusReceived }; // Return potentially updated status
+             return { success: true, newStatus: statusReceived };
          } catch (error: any) {
              console.error(`API Error (${action}):`, error);
              append({ role: 'system', content: `Error: Failed to ${action}. ${error?.message}` });
@@ -257,12 +234,49 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => { if (!userHasScrolledRef.current) { const id = requestAnimationFrame(() => { setTimeout(() => { scrollToBottom('smooth'); }, 50); }); return () => cancelAnimationFrame(id); } else if (!isLoading && userHasScrolledRef.current) checkScroll(); }, [messages, isLoading, scrollToBottom, checkScroll]);
     useEffect(() => { const c = messagesContainerRef.current; if (c) { c.addEventListener("scroll", checkScroll, { passive: true }); return () => c.removeEventListener("scroll", checkScroll); } }, [checkScroll]);
     
-    // --- UI Visibility/Interaction ---
-    const hideRecordUI = useCallback(() => { if (pendingActionRef.current) return; setRecordUIVisible(false); setTimeout(() => { setShowRecordUI(false); setRecordUIVisible(true); }, 300); }, []);
-    const startHideTimeout = useCallback(() => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); if ((!isRecording || isPaused) && !pendingActionRef.current) { hideTimeoutRef.current = setTimeout(hideRecordUI, 3000); } }, [isRecording, isPaused, hideRecordUI]);
-    useEffect(() => { const handleClick = (e: MouseEvent) => { const outControls = showRecordUI && recordUIRef.current && !recordUIRef.current.contains(e.target as Node); const outTrigger = statusRecordingRef.current && !statusRecordingRef.current.contains(e.target as Node); if (outControls && outTrigger && !pendingActionRef.current && (!isRecording || isPaused)) { hideRecordUI(); } if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) { setShowPlusMenu(false); } }; document.addEventListener("mousedown", handleClick, true); return () => document.removeEventListener("mousedown", handleClick, true); }, [showRecordUI, showPlusMenu, hideRecordUI, isRecording, isPaused]); 
-    useEffect(() => { const el = statusRecordingRef.current; if (!el) return; const enter = () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); setRecordUIVisible(true); setShowRecordUI(true); }; const leave = () => startHideTimeout(); el.addEventListener("mouseenter", enter); el.addEventListener("mouseleave", leave); return () => { el.removeEventListener("mouseenter", enter); el.removeEventListener("mouseleave", leave); }; }, [startHideTimeout]);
-    useEffect(() => { return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }; }, []); 
+    // --- UI Visibility/Interaction (Hide Logic Updated) ---
+    const hideRecordUI = useCallback(() => {
+         if (pendingActionRef.current) return; // Don't hide if pending
+         setRecordUIVisible(false); 
+         setTimeout(() => { setShowRecordUI(false); setRecordUIVisible(true); }, 300);
+     }, []);
+
+    const startHideTimeout = useCallback(() => {
+         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+         // Set timeout ONLY if no action is pending (allow hide even if recording)
+         if (!pendingActionRef.current) { 
+              hideTimeoutRef.current = setTimeout(hideRecordUI, 3000); 
+          }
+     }, [hideRecordUI]); // Removed isRecording/isPaused deps
+
+    useEffect(() => { // Global click listener
+         const handleClick = (e: MouseEvent) => {
+             const isOutsideControls = showRecordUI && recordUIRef.current && !recordUIRef.current.contains(e.target as Node);
+             const isOutsideTrigger = statusRecordingRef.current && !statusRecordingRef.current.contains(e.target as Node);
+
+             // Hide if click is outside and no action is pending
+             if (isOutsideControls && isOutsideTrigger && !pendingActionRef.current) {
+                 hideRecordUI();
+             }
+             // Hide plus menu if click is outside
+             if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
+                 setShowPlusMenu(false);
+             }
+         };
+         document.addEventListener("mousedown", handleClick, true);
+         return () => document.removeEventListener("mousedown", handleClick, true);
+     // Removed isRecording/isPaused deps as they are no longer needed for this check
+     }, [showRecordUI, showPlusMenu, hideRecordUI]); 
+
+    useEffect(() => { // Mouse hover trigger
+         const el = statusRecordingRef.current; if (!el) return;
+         const enter = () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); setRecordUIVisible(true); setShowRecordUI(true); };
+         const leave = () => startHideTimeout(); 
+         el.addEventListener("mouseenter", enter); el.addEventListener("mouseleave", leave);
+         return () => { el.removeEventListener("mouseenter", enter); el.removeEventListener("mouseleave", leave); };
+     }, [startHideTimeout]);
+
+    useEffect(() => { return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }; }, []); // Unmount cleanup
     
     // --- Action Handlers ---
     const showAndPrepareRecordingControls = useCallback(() => { if (pendingAction) return; setShowPlusMenu(false); setShowRecordUI(true); setRecordUIVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); fetchStatus("showAndPrepare"); startHideTimeout(); }, [pendingAction, fetchStatus, startHideTimeout]);
@@ -273,29 +287,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         let actionToPerform: string; let payloadForAction: { agent: string | null; event: string } | undefined = undefined; 
         const currentIsRecording = isRecording; const currentIsPaused = isPaused;
 
-        // Optimistic Updates
         if (!currentIsRecording) { 
             actionToPerform = 'start'; payloadForAction = { agent: agentName, event: eventId || '0000' }; 
             setIsRecording(true); setIsPaused(false); 
-            // Reset timer refs and display immediately
-            baseRecordingTimeRef.current = 0;
-            lastFetchTimestampRef.current = Date.now(); 
+            baseRecordingTimeRef.current = 0; lastFetchTimestampRef.current = Date.now(); 
             updateTimerDisplays(0); 
         } 
         else if (currentIsPaused) { 
             actionToPerform = 'resume'; 
             setIsPaused(false); 
-            // Immediately fetch status to get accurate base time before local timer restarts
-            await fetchStatus('before resume'); 
+            await fetchStatus('before resume'); // Sync time before local timer restarts
         } 
         else { 
             actionToPerform = 'pause'; 
             setIsPaused(true); 
-            // Stop local timer via useEffect
+            // Stop local timer via useEffect reacting to isPaused
         } 
         
         await callRecordingApi(actionToPerform, payloadForAction);
-    }, [isRecording, isPaused, callRecordingApi, agentName, eventId, updateTimerDisplays, fetchStatus]); // Added fetchStatus
+    }, [isRecording, isPaused, callRecordingApi, agentName, eventId, updateTimerDisplays, fetchStatus]);
 
     const stopRecording = useCallback(async (e?: React.MouseEvent) => {
         e?.stopPropagation();
@@ -353,7 +363,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     <button type="button" className={cn("p-1 record-ui-button", pendingAction === 'stop' && "opacity-50 cursor-wait")} onClick={stopRecording} disabled={!isRecording || !!pendingAction} aria-label="Stop recording">
                                          {pendingAction === 'stop' ? <Loader2 className="h-5 w-5 animate-spin" /> : <StopCircle size={20} className={!isRecording ? "text-gray-400 dark:text-gray-400" : "text-gray-700 dark:text-gray-700"}/>}
                                     </button>
-                                    {/* Controls Timer Span - Use Ref */}
+                                    {/* Controls Timer Span */}
                                     {isRecording && <span ref={recordControlsTimerDisplayRef} className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(baseRecordingTimeRef.current)}</span>}
                                 </motion.div>
                              )}
@@ -377,7 +387,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             isPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></> )
                                      : ( <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500 animate-pulse"></span></> )
                         ) : ( "no" )}
-                        {/* Status Bar Timer Span - Use Ref */}
+                        {/* Status Bar Timer Span */}
                         {isRecording && <span ref={timerDisplayRef} className="ml-1">{formatTime(baseRecordingTimeRef.current)}</span>} 
                     </span>
                 </div>
