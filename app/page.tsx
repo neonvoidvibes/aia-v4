@@ -87,7 +87,8 @@ export default function Home() {
               }
 
               const data = await response.json();
-              const fetchedAllowedAgents: string[] = data.allowedAgentIds || [];
+              // Use the correct key from the API response
+              const fetchedAllowedAgents: string[] = data.allowedAgentNames || [];
               setAllowedAgents(fetchedAllowedAgents);
 
               // Perform authorization check
