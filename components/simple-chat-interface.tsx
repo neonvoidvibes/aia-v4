@@ -18,6 +18,7 @@ import {
   Volume2,
   Check,
   ChevronDown,
+  Loader2, // Import Loader icon
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { useMobile } from "@/hooks/use-mobile"
@@ -110,7 +111,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [showScrollToBottom, setShowScrollToBottom] = useState(false)
     const { theme } = useTheme()
     const [displayTime, setDisplayTime] = useState(0); 
-    const [pendingAction, setPendingAction] = useState<string | null>(null);
+    const [pendingAction, setPendingAction] = useState<string | null>(null); // Track pending API actions
 
     // --- Refs ---
     const plusMenuRef = useRef<HTMLDivElement>(null)
@@ -128,46 +129,37 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const baseRecordingTimeRef = useRef(0); 
     const lastFetchTimestampRef = useRef(0); 
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const pendingActionRef = useRef<string | null>(null);
-    const localTimerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref for the local timer interval
+    const pendingActionRef = useRef<string | null>(null); // Ref to track pending action
+    const localTimerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref for local timer
 
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
 
-    // Update frontend state based on confirmed backend status (gentle update)
+    // Update frontend state based on confirmed backend status
     const updateFrontendStateFromBackendStatus = useCallback((status: BackendRecordingStatus) => {
-        // Only update if NOT matching the current state to avoid redundant renders
+        // Only update if the state actually differs
         if (isRecording !== status.is_recording) setIsRecording(status.is_recording);
         if (isPaused !== status.is_paused) setIsPaused(status.is_paused);
 
-        // Always update the refs for the local timer
+        // Update refs used by local timer
         baseRecordingTimeRef.current = status.elapsed_time || 0;
         lastFetchTimestampRef.current = Date.now();
 
-        // Gently correct displayTime if needed, but prioritize local timer if running
-        if (!status.is_recording) {
-            setDisplayTime(0);
-        } else if (status.is_paused) {
-            // If paused, ensure displayTime matches the exact backend pause time
-             setDisplayTime(status.elapsed_time || 0);
-        }
-         // If recording and not paused, the local timer effect will handle displayTime
-    }, [isRecording, isPaused]); // Add dependencies
+        // Set display time - local timer effect will take over if recording & not paused
+        setDisplayTime(status.elapsed_time || 0);
+
+    }, [isRecording, isPaused]); // Add state vars as deps to ensure comparison is fresh
 
     // Fetch status from backend (polling), guarded by pendingActionRef
     const fetchStatus = useCallback(async (logSource?: string) => {
-        if (pendingActionRef.current) {
-            // console.log(`fetchStatus (${logSource}) skipped: Action '${pendingActionRef.current}' pending.`);
-            return;
-        }
+        if (pendingActionRef.current) return; // Skip polling if an action is pending
         if (!isReady) return;
         try {
             const response = await fetch(`/api/recording-proxy`);
-            if (!response.ok) { throw new Error(`Status fetch failed: ${response.status}`); }
+            if (!response.ok) throw new Error(`Status fetch failed: ${response.status}`);
             const data: BackendRecordingStatus = await response.json();
-            // console.log(`fetchStatus (${logSource}) received:`, data); // Debug
             updateFrontendStateFromBackendStatus(data);
         } catch (error: any) { console.error(`Error fetching status (source: ${logSource}):`, error.message); }
-    }, [isReady, updateFrontendStateFromBackendStatus]); // Depends on isReady and the update function
+    }, [isReady, updateFrontendStateFromBackendStatus]);
 
     // Initial status fetch
     useEffect(() => { if (isReady) fetchStatus("initial ready"); }, [isReady, fetchStatus]);
@@ -185,38 +177,26 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // Local timer effect for smooth UI updates
     useEffect(() => {
-        // Clear previous interval if it exists
-        if (localTimerIntervalRef.current) {
-            clearInterval(localTimerIntervalRef.current);
-            localTimerIntervalRef.current = null;
-        }
+        if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current); // Clear existing first
 
         if (isRecording && !isPaused) {
             // Start new interval only if recording and not paused
-            if (lastFetchTimestampRef.current > 0) { // Ensure we have a base timestamp
-                localTimerIntervalRef.current = setInterval(() => {
-                    const elapsedSinceFetch = (Date.now() - lastFetchTimestampRef.current) / 1000;
-                    setDisplayTime(baseRecordingTimeRef.current + elapsedSinceFetch);
-                }, 1000); // Update UI every second
-            } else {
-                 // If refs aren't ready, displayTime relies on updateFrontendStateFromBackendStatus
-                 setDisplayTime(baseRecordingTimeRef.current);
-            }
+            localTimerIntervalRef.current = setInterval(() => {
+                // Calculate based on last *known good* sync time from backend
+                const elapsedSinceFetch = (Date.now() - lastFetchTimestampRef.current) / 1000;
+                setDisplayTime(baseRecordingTimeRef.current + elapsedSinceFetch);
+            }, 1000); // Update UI every second
         }
-        // Cleanup function to clear interval on unmount or when state changes
+        // Cleanup function
         return () => {
-            if (localTimerIntervalRef.current) {
-                clearInterval(localTimerIntervalRef.current);
-                localTimerIntervalRef.current = null;
-            }
+            if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
         };
-    }, [isRecording, isPaused]); // Re-run when recording/paused state changes
+    }, [isRecording, isPaused]); // Rerun only when recording/paused state changes
 
-
-    // Attachments Effect (no changes)
+    // --- Attachments Effect ---
     useEffect(() => { if (onAttachmentsUpdate) onAttachmentsUpdate(allAttachments); }, [allAttachments, onAttachmentsUpdate]);
 
-    // API Call Handler (Handles Pending Action)
+    // --- API Call Handler ---
     const callRecordingApi = useCallback(async (action: string, payload?: any): Promise<{ success: boolean, newStatus?: BackendRecordingStatus }> => {
          setPendingAction(action); // Set pending flag
          const apiUrl = `/api/recording-proxy`;
@@ -226,26 +206,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          }
          try {
              console.log(`API POST: action: ${action}`);
-             // Short delay before sending API call to allow optimistic UI render
+             // Small delay allows optimistic UI to render before blocking API call
              await new Promise(resolve => setTimeout(resolve, 50)); 
              const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, payload }) });
              const data = await response.json(); 
              if (!response.ok) throw new Error(data.message || `Failed action '${action}'`);
              
              console.log(`API OK (${action}):`, data);
-             if (data.recording_status) {
-                 updateFrontendStateFromBackendStatus(data.recording_status); // Update state from response
-             } else {
-                 console.warn(`API response missing 'recording_status'. Polling.`);
-                 await fetchStatus(`after ${action} success_NO_STATUS`); // Poll as fallback
-             }
-             setPendingAction(null); // Clear pending flag AFTER processing
+             if (data.recording_status) { updateFrontendStateFromBackendStatus(data.recording_status); } // Update from response
+             else { await fetchStatus(`after ${action} success_NO_STATUS`); } // Fallback poll
+             setPendingAction(null); // Clear pending flag AFTER processing response
              return { success: true, newStatus: data.recording_status };
          } catch (error: any) {
              console.error(`API Error (${action}):`, error);
              append({ role: 'system', content: `Error: Failed to ${action}. ${error?.message}` });
-             // Revert optimistic UI by fetching current state on error
-             await fetchStatus(`after ${action} ERROR`); 
+             await fetchStatus(`after ${action} ERROR`); // Re-sync on error
              setPendingAction(null); // Clear pending flag after error handling
              return { success: false };
          }
@@ -254,23 +229,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // --- Imperative Handle ---
      useImperativeHandle(ref, () => ({
         startNewChat: async () => {
-             if (isRecording) await callRecordingApi('stop'); // Ensure recording stops
+             if (isRecording) await callRecordingApi('stop');
              setMessages([]); setAttachedFiles([]); setAllAttachments([]); filesForNextMessageRef.current = [];
          },
         getMessagesCount: () => messages.length,
         scrollToTop: () => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); userHasScrolledRef.current = false; setShowScrollToBottom(false); },
-    }), [isRecording, setMessages, messages.length, callRecordingApi]); // Added callRecordingApi
+    }), [isRecording, setMessages, messages.length, callRecordingApi]);
 
     // --- Formatting ---
     const formatTime = (seconds: number) => { const mins = Math.floor(seconds / 60); const secs = Math.floor(seconds % 60); return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`; };
     
-    // --- Scrolling (no changes) ---
+    // --- Scrolling ---
     const checkScroll = useCallback(() => { const c = messagesContainerRef.current; if (!c) return; const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c; const isScrollable = sh > ch; const isBottom = sh - st - ch < 2; if (st < prevScrollTopRef.current && !isBottom && !userHasScrolledRef.current) userHasScrolledRef.current = true; else if (userHasScrolledRef.current && isBottom) userHasScrolledRef.current = false; prevScrollTopRef.current = st; setShowScrollToBottom(isScrollable && !isBottom); }, []);
     const scrollToBottom = useCallback((b: ScrollBehavior = "smooth") => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: b }); userHasScrolledRef.current = false; setShowScrollToBottom(false); }, []);
     useEffect(() => { if (!userHasScrolledRef.current) { const id = requestAnimationFrame(() => { setTimeout(() => { scrollToBottom('smooth'); }, 50); }); return () => cancelAnimationFrame(id); } else if (!isLoading && userHasScrolledRef.current) checkScroll(); }, [messages, isLoading, scrollToBottom, checkScroll]);
     useEffect(() => { const c = messagesContainerRef.current; if (c) { c.addEventListener("scroll", checkScroll, { passive: true }); return () => c.removeEventListener("scroll", checkScroll); } }, [checkScroll]);
     
-    // --- UI Visibility/Interaction (no changes) ---
+    // --- UI Visibility/Interaction ---
     const hideRecordUI = useCallback(() => { setRecordUIVisible(false); setTimeout(() => { setShowRecordUI(false); setRecordUIVisible(true); }, 300); }, []);
     const startHideTimeout = useCallback(() => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); if (!isRecording || isPaused) hideTimeoutRef.current = setTimeout(hideRecordUI, 3000); }, [isRecording, isPaused, hideRecordUI]);
     useEffect(() => { const handleClick = (e: MouseEvent) => { if (showRecordUI && recordUIRef.current && !recordUIRef.current.contains(e.target as Node) && statusRecordingRef.current && !statusRecordingRef.current.contains(e.target as Node)) { if (!isRecording || isPaused) hideRecordUI(); } if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) setShowPlusMenu(false); }; document.addEventListener("mousedown", handleClick, true); return () => document.removeEventListener("mousedown", handleClick, true); }, [showRecordUI, showPlusMenu, hideRecordUI, isRecording, isPaused]);
@@ -278,59 +253,41 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => { return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }; }, []);
     
     // --- Action Handlers (with Optimistic UI and Pending Flag) ---
-    const showAndPrepareRecordingControls = useCallback(() => { setShowPlusMenu(false); setShowRecordUI(true); setRecordUIVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); fetchStatus("showAndPrepare"); startHideTimeout(); }, [fetchStatus, startHideTimeout]);
+    const showAndPrepareRecordingControls = useCallback(() => { if (pendingAction) return; setShowPlusMenu(false); setShowRecordUI(true); setRecordUIVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); fetchStatus("showAndPrepare"); startHideTimeout(); }, [pendingAction, fetchStatus, startHideTimeout]);
 
     const handlePlayPauseClick = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (pendingActionRef.current) return; // Prevent rapid clicks
+        if (pendingActionRef.current) return; 
 
         let actionToPerform: string;
-        let payloadForAction: { agent: string | null; event: string } | undefined = undefined;
+        let payloadForAction: { agent: string | null; event: string } | undefined = undefined; 
         const currentIsRecording = isRecording; const currentIsPaused = isPaused;
 
         // --- OPTIMISTIC UPDATES ---
         if (!currentIsRecording) {
             actionToPerform = 'start';
             payloadForAction = { agent: agentName, event: eventId || '0000' };
-            setIsRecording(true); setIsPaused(false); setDisplayTime(0); // Optimistic Start
-            // Manually trigger local timer start if needed (refs might not be updated yet)
-            if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-             localTimerIntervalRef.current = setInterval(() => setDisplayTime(prev => prev + 1), 1000);
+            setIsRecording(true); setIsPaused(false); setDisplayTime(0); 
         } else if (currentIsPaused) {
             actionToPerform = 'resume';
-            setIsPaused(false); // Optimistic Resume
-            // Manually trigger local timer restart
-            if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-            lastFetchTimestampRef.current = Date.now(); // Assume resume starts now locally
-            baseRecordingTimeRef.current = displayTime; // Use current display as base
-            localTimerIntervalRef.current = setInterval(() => {
-                 const elapsedSinceFetch = (Date.now() - lastFetchTimestampRef.current) / 1000;
-                 setDisplayTime(baseRecordingTimeRef.current + elapsedSinceFetch);
-            }, 1000);
+            setIsPaused(false); 
         } else {
             actionToPerform = 'pause';
-            setIsPaused(true); // Optimistic Pause
-            // Manually stop local timer
-            if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-             localTimerIntervalRef.current = null;
+            setIsPaused(true); 
         }
         console.log(`Optimistic UI for ${actionToPerform}. Calling API.`);
         await callRecordingApi(actionToPerform, payloadForAction);
-        // Backend response handled by callRecordingApi -> updateFrontendStateFromBackendStatus
-    }, [isRecording, isPaused, callRecordingApi, agentName, eventId, displayTime]); // Added displayTime dep
+    }, [isRecording, isPaused, callRecordingApi, agentName, eventId]);
 
     const stopRecording = useCallback(async (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        if (pendingActionRef.current) return;
+        if (pendingActionRef.current) return; 
         setIsRecording(false); setIsPaused(false); setDisplayTime(0); // Optimistic Stop
-        // Manually stop local timer
-        if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-         localTimerIntervalRef.current = null;
         hideRecordUI();
         await callRecordingApi('stop');
     }, [callRecordingApi, hideRecordUI]);
     
-    // --- Other Handlers (Unchanged) ---
+    // --- Other Handlers ---
     const saveChat = useCallback(() => { const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setShowPlusMenu(false); }, [messages, agentName, eventId]);
     const attachDocument = useCallback(() => { fileInputRef.current?.click(); setShowPlusMenu(false); }, []);
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); } if (fileInputRef.current) fileInputRef.current.value = ""; }, []);
@@ -349,8 +306,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         <div className="flex flex-col h-full">
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
+                {/* Welcome / Loading Messages */}
                 {messages.length === 0 && !isReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {messages.length === 0 && isReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-80">What is alive today?</p> </div> )}
+                {/* Chat Messages */}
                 {messages.length > 0 && (
                     <div>
                         {messages.map((message: Message) => {
@@ -370,6 +329,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         })}
                     </div>
                 )}
+                {/* Thinking Indicator */}
                  {isLoading && messages[messages.length - 1]?.role === 'user' && ( <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1"> <span className="thinking-dot"></span> </motion.div> )}
                 <div ref={messagesEndRef} />
             </div>
@@ -382,8 +342,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 {attachedFiles.length > 0 && ( <div className="flex justify-end mb-0.5 input-attachments-container"> <FileAttachmentMinimal files={attachedFiles} onRemove={removeFile} className="max-w-[50%] file-attachment-container" maxVisible={1} /> </div> )}
                 <form onSubmit={onSubmit} className="relative">
                     <div className="bg-input-gray rounded-full p-2 flex items-center" ref={inputContainerRef}>
+                        {/* Plus Button & Menu */}
                         <div className="relative" ref={plusMenuRef}>
-                            <button type="button" className="p-2 text-gray-600 hover:text-gray-800" onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingAction}> <Plus size={20} /> </button>
+                            <button type="button" className={cn("p-2 text-gray-600 hover:text-gray-800", pendingAction && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingAction}> <Plus size={20} /> </button>
                             {showPlusMenu && (
                                 <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu" >
                                     <button type="button" className="p-2 plus-menu-item" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button>
@@ -394,6 +355,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 </motion.div>
                             )}
                         </div>
+                        {/* Recording Controls Popup */}
                         <div className="relative" ref={recordUIRef}>
                              {showRecordUI && (
                                 <motion.div
@@ -404,17 +366,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui"
                                     onMouseMove={handleRecordUIMouseMove}
                                     onClick={(e) => e.stopPropagation()} >
-                                    <button type="button" className="p-1 record-ui-button" onClick={handlePlayPauseClick} disabled={!!pendingAction} aria-label={!isRecording ? "Start recording" : (isPaused ? "Resume recording" : "Pause recording")}>
-                                        {isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={cn(isPaused ? "text-yellow-500" : "", !isRecording && "text-gray-700 dark:text-gray-700")} />}
+                                    {/* Play/Pause Button */}
+                                    <button type="button" className={cn("p-1 record-ui-button", pendingAction === 'start' || pendingAction === 'pause' || pendingAction === 'resume' ? "opacity-50 cursor-wait" : "")} onClick={handlePlayPauseClick} disabled={!!pendingAction} aria-label={!isRecording ? "Start recording" : (isPaused ? "Resume recording" : "Pause recording")}>
+                                        {pendingAction === 'start' || pendingAction === 'pause' || pendingAction === 'resume' ? <Loader2 className="h-5 w-5 animate-spin" /> : (isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={cn(isPaused ? "text-yellow-500" : "", !isRecording && "text-gray-700 dark:text-gray-700")} />)}
                                     </button>
-                                    <button type="button" className="p-1 record-ui-button" onClick={stopRecording} disabled={!isRecording || !!pendingAction} aria-label="Stop recording">
-                                        <StopCircle size={20} className={!isRecording ? "text-gray-400 dark:text-gray-400" : "text-gray-700 dark:text-gray-700"}/>
+                                    {/* Stop Button */}
+                                    <button type="button" className={cn("p-1 record-ui-button", pendingAction === 'stop' ? "opacity-50 cursor-wait" : "")} onClick={stopRecording} disabled={!isRecording || !!pendingAction} aria-label="Stop recording">
+                                         {pendingAction === 'stop' ? <Loader2 className="h-5 w-5 animate-spin" /> : <StopCircle size={20} className={!isRecording ? "text-gray-400 dark:text-gray-400" : "text-gray-700 dark:text-gray-700"}/>}
                                     </button>
+                                    {/* Timer Display */}
                                     {isRecording && <span className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(displayTime)}</span>}
                                 </motion.div>
                              )}
                         </div>
-                        <input ref={inputRef} value={input} onChange={handleInputChange} placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"} className="flex-1 px-3 py-1 bg-transparent border-none outline-none text-black dark:text-black" disabled={!isReady} aria-label="Chat input" />
+                        {/* Text Input */}
+                        <input ref={inputRef} value={input} onChange={handleInputChange} placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"} className="flex-1 px-3 py-1 bg-transparent border-none outline-none text-black dark:text-black" disabled={!isReady || !!pendingAction} aria-label="Chat input" />
+                        {/* Submit/Stop Button */}
                         <button type="submit"
                             className={cn( "p-2 transition-all duration-200", (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && (theme === 'light' ? "text-gray-400" : "text-gray-400"), isReady && (input.trim() || attachedFiles.length > 0) && !isLoading && (theme === 'light' ? "text-gray-800 hover:text-black" : "text-black hover:opacity-80"), isLoading && (theme === 'light' ? "text-gray-800" : "text-black") )}
                             disabled={!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading) || !!pendingAction} 
@@ -422,9 +389,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             {isLoading ? <Square size={20} className="fill-current h-5 w-5 opacity-70" /> : <ArrowUp size={24} /> }
                         </button>
                     </div>
+                    {/* Hidden File Input */}
                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple accept=".txt,.md,.json,.pdf,.docx" />
                 </form>
-                <div className="text-center text-foreground/70 dark:text-foreground/70 text-xs pt-4 pb-2 font-light status-bar">
+                {/* Status Bar */}
+                <div className={cn("text-center text-foreground/70 dark:text-foreground/70 text-xs pt-4 pb-2 font-light status-bar", pendingAction && "opacity-50")}>
                     <span className="lowercase">{agentName || '...'}</span> / <span className="lowercase">{eventId || '...'}</span> |{" "}
                     <span ref={statusRecordingRef} className="cursor-pointer" onClick={showAndPrepareRecordingControls} title={isRecording ? "Recording Status" : "Open recording controls"} >
                          listen:{" "}
