@@ -18,7 +18,7 @@ import {
   Volume2,
   Check,
   ChevronDown,
-  Loader2, // Import Loader icon
+  Loader2, 
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { useMobile } from "@/hooks/use-mobile"
@@ -45,6 +45,13 @@ interface BackendRecordingStatus {
     event?: string;
 }
 
+// Helper function outside component for formatting
+const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+};
+
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
   function SimpleChatInterface({ onAttachmentsUpdate }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
@@ -58,12 +65,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const event = searchParams.get('event');
         setAgentName(agent);
         setEventId(event);
-        if (agent) {
-            setIsReady(true);
-            // console.log(`Chat Interface Ready: Agent=${agent}, Event=${event || '0000 (default)'}`); // Reduce noise
-        } else {
-             console.warn("Chat Interface Waiting: Agent parameter missing from URL.");
-         }
+        if (agent) setIsReady(true);
+        else console.warn("Chat Interface Waiting: Agent parameter missing.");
     }, [searchParams]);
 
     const {
@@ -73,7 +76,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       api: "/api/proxy-chat", body: { agent: agentName, event: eventId || '0000' },
       sendExtraMessageFields: true,
       onError: (error) => { append({ role: 'system', content: `Error: ${error.message}` }); },
-      onFinish: (message: Message) => { /* console.log("onFinish called. ID:", message.id); */ } // Reduce noise
+      onFinish: (message: Message) => {} 
     });
 
     const messagesRef = useRef<Message[]>(messages);
@@ -101,7 +104,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false })
     const [showScrollToBottom, setShowScrollToBottom] = useState(false)
     const { theme } = useTheme()
-    const [displayTime, setDisplayTime] = useState(0); 
+    // REMOVED displayTime state
     const [pendingAction, setPendingAction] = useState<string | null>(null);
 
     // --- Refs ---
@@ -117,32 +120,37 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const userHasScrolledRef = useRef(false)
     const prevScrollTopRef = useRef<number>(0);
     const filesForNextMessageRef = useRef<AttachmentFile[]>([]);
-    const baseRecordingTimeRef = useRef(0); 
-    const lastFetchTimestampRef = useRef(0); 
+    const baseRecordingTimeRef = useRef(0); // Stores the accurate base time from backend
+    const lastFetchTimestampRef = useRef(0); // Stores browser time when base was last updated
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pendingActionRef = useRef<string | null>(null);
     const localTimerIntervalRef = useRef<NodeJS.Timeout | null>(null); 
+    const timerDisplayRef = useRef<HTMLSpanElement>(null); // NEW: Ref for direct DOM update of timer
 
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
 
-    // Update frontend state based on confirmed backend status (forces displayTime sync)
+    // Update React state and timer refs based on confirmed backend status
     const updateFrontendStateFromBackendStatus = useCallback((status: BackendRecordingStatus) => {
-        // Update core states
-        setIsRecording(status.is_recording);
-        setIsPaused(status.is_paused);
+        setIsRecording(prev => prev !== status.is_recording ? status.is_recording : prev);
+        setIsPaused(prev => prev !== status.is_paused ? status.is_paused : prev);
         
-        // Update refs used by local timer *before* setting display time
+        // Update refs used by local timer calculation
         baseRecordingTimeRef.current = status.elapsed_time || 0;
         lastFetchTimestampRef.current = Date.now(); 
 
-        // Force display time to sync with backend
-        setDisplayTime(status.elapsed_time || 0); 
+        // Update timer display directly IF NOT actively running locally OR if stopped/paused
+        // This corrects drift or sets initial/paused/stopped values
+        if (!localTimerIntervalRef.current || !status.is_recording || status.is_paused) {
+             if (timerDisplayRef.current) {
+                  timerDisplayRef.current.textContent = formatTime(status.elapsed_time || 0);
+             }
+        }
         
-    }, []); // Removed dependencies
+    }, []); // Removed isRecording/isPaused deps
 
     // Fetch status from backend (polling), guarded by pendingActionRef
     const fetchStatus = useCallback(async (logSource?: string) => {
-        if (pendingActionRef.current) return; // Skip polling if action pending
+        if (pendingActionRef.current) return; 
         if (!isReady) return;
         try {
             const response = await fetch(`/api/recording-proxy`);
@@ -166,23 +174,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         return () => { if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current); };
     }, [isReady, isRecording, fetchStatus]);
 
-    // ** RESTORED & REFINED: Local timer effect for smooth UI updates **
+    // ** REVISED: Local timer effect for smooth UI updates via DOM **
     useEffect(() => {
         if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
 
         if (isRecording && !isPaused) {
-            // Use refs updated by updateFrontendStateFromBackendStatus
-            // Only start interval if we have a valid sync point
-             if (lastFetchTimestampRef.current > 0 || baseRecordingTimeRef.current > 0) { 
-                localTimerIntervalRef.current = setInterval(() => {
+            localTimerIntervalRef.current = setInterval(() => {
+                // Update DOM directly
+                if (timerDisplayRef.current) {
                     const elapsedSinceFetch = (Date.now() - lastFetchTimestampRef.current) / 1000;
                     const calculatedTime = Math.max(0, baseRecordingTimeRef.current + elapsedSinceFetch); 
-                    setDisplayTime(calculatedTime);
-                }, 1000); // Update UI every second
-             } else {
-                 // If refs aren't set yet (e.g., initial load before first poll completes), 
-                 // displayTime relies on the initial value set by updateFrontendStateFromBackendStatus
-                 setDisplayTime(baseRecordingTimeRef.current); 
+                    timerDisplayRef.current.textContent = formatTime(calculatedTime);
+                }
+            }, 1000); // Update UI every second
+        } else {
+            // Ensure correct time is displayed when paused/stopped based on last backend sync
+             if (timerDisplayRef.current) {
+                  timerDisplayRef.current.textContent = formatTime(baseRecordingTimeRef.current);
              }
         }
         // Cleanup function
@@ -198,33 +206,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const callRecordingApi = useCallback(async (action: string, payload?: any): Promise<{ success: boolean, newStatus?: BackendRecordingStatus }> => {
          setPendingAction(action); 
          const apiUrl = `/api/recording-proxy`;
-         if (!isReady || !agentName ) {
-             append({ role: 'system', content: `Error: Cannot ${action}. Agent missing.` });
-             setPendingAction(null); return { success: false };
-         }
+         if (!isReady || !agentName ) { append({ role: 'system', content: `Error: Cannot ${action}. Agent missing.` }); setPendingAction(null); return { success: false }; }
          try {
-             // console.log(`API POST: action: ${action}`); // Reduce noise
              await new Promise(resolve => setTimeout(resolve, 50)); 
              const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, payload }) });
              const data = await response.json(); 
              if (!response.ok) throw new Error(data.message || `Failed action '${action}'`);
              
-             // console.log(`API OK (${action}):`, data); // Reduce noise
-             if (data.recording_status) { 
-                updateFrontendStateFromBackendStatus(data.recording_status); 
-                // If stopping via API response, ensure local timer is also cleared
-                if (action === 'stop' && localTimerIntervalRef.current) {
-                     clearInterval(localTimerIntervalRef.current);
-                     localTimerIntervalRef.current = null;
-                }
-             }
+             if (data.recording_status) { updateFrontendStateFromBackendStatus(data.recording_status); } 
              else { await fetchStatus(`after ${action} success_NO_STATUS`); } 
              setPendingAction(null); 
              return { success: true, newStatus: data.recording_status };
          } catch (error: any) {
              console.error(`API Error (${action}):`, error);
              append({ role: 'system', content: `Error: Failed to ${action}. ${error?.message}` });
-             // Fetch status on error to resync and potentially revert optimistic UI
              await fetchStatus(`after ${action} ERROR`); 
              setPendingAction(null); 
              return { success: false };
@@ -236,13 +231,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         startNewChat: async () => {
              if (isRecording) await callRecordingApi('stop');
              setMessages([]); setAttachedFiles([]); setAllAttachments([]); filesForNextMessageRef.current = [];
+             // Explicitly reset timer display on new chat
+             if (timerDisplayRef.current) timerDisplayRef.current.textContent = formatTime(0);
          },
         getMessagesCount: () => messages.length,
         scrollToTop: () => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); userHasScrolledRef.current = false; setShowScrollToBottom(false); },
     }), [isRecording, setMessages, messages.length, callRecordingApi]);
 
     // --- Formatting ---
-    const formatTime = (seconds: number) => { const mins = Math.floor(seconds / 60); const secs = Math.floor(seconds % 60); return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`; };
+    // formatTime moved outside component
     
     // --- Scrolling ---
     const checkScroll = useCallback(() => { const c = messagesContainerRef.current; if (!c) return; const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c; const isScrollable = sh > ch; const isBottom = sh - st - ch < 2; if (st < prevScrollTopRef.current && !isBottom && !userHasScrolledRef.current) userHasScrolledRef.current = true; else if (userHasScrolledRef.current && isBottom) userHasScrolledRef.current = false; prevScrollTopRef.current = st; setShowScrollToBottom(isScrollable && !isBottom); }, []);
@@ -252,8 +249,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     
     // --- UI Visibility/Interaction (Hide Logic Refined) ---
     const hideRecordUI = useCallback(() => {
-         // Prevent hiding if an action is pending
-         if (pendingActionRef.current) return;
+         if (pendingActionRef.current) return; // Don't hide if pending
          setRecordUIVisible(false); 
          setTimeout(() => { setShowRecordUI(false); setRecordUIVisible(true); }, 300);
      }, []);
@@ -264,18 +260,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          if ((!isRecording || isPaused) && !pendingActionRef.current) { 
               hideTimeoutRef.current = setTimeout(hideRecordUI, 3000); 
           }
-     }, [isRecording, isPaused, hideRecordUI]);
+     }, [isRecording, isPaused, hideRecordUI]); // Dependencies
 
-    useEffect(() => { // Global click listener
+    useEffect(() => { // Global click listener for hiding controls
          const handleClick = (e: MouseEvent) => {
              const isOutsideControls = showRecordUI && recordUIRef.current && !recordUIRef.current.contains(e.target as Node);
              const isOutsideTrigger = statusRecordingRef.current && !statusRecordingRef.current.contains(e.target as Node);
 
-             // Hide Record UI if click is outside, not pending, and not live recording
+             // Hide if click is outside, not pending, and not live recording
              if (isOutsideControls && isOutsideTrigger && !pendingActionRef.current && (!isRecording || isPaused)) {
                  hideRecordUI();
              }
-             // Hide plus menu if click is outside
              if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
                  setShowPlusMenu(false);
              }
@@ -292,7 +287,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          return () => { el.removeEventListener("mouseenter", enter); el.removeEventListener("mouseleave", leave); };
      }, [startHideTimeout]);
 
-    useEffect(() => { return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }; }, []); // Cleanup timeout on unmount
+    useEffect(() => { return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }; }, []); // Cleanup timeout
     
     // --- Action Handlers ---
     const showAndPrepareRecordingControls = useCallback(() => { if (pendingAction) return; setShowPlusMenu(false); setShowRecordUI(true); setRecordUIVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); fetchStatus("showAndPrepare"); startHideTimeout(); }, [pendingAction, fetchStatus, startHideTimeout]);
@@ -303,47 +298,32 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         let actionToPerform: string; let payloadForAction: { agent: string | null; event: string } | undefined = undefined; 
         const currentIsRecording = isRecording; const currentIsPaused = isPaused;
 
-        // Optimistic Updates + Manual Timer Control
+        // Optimistic Updates
         if (!currentIsRecording) { 
             actionToPerform = 'start'; payloadForAction = { agent: agentName, event: eventId || '0000' }; 
-            setIsRecording(true); setIsPaused(false); setDisplayTime(0); 
-            if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current); // Clear just in case
-            localTimerIntervalRef.current = setInterval(() => setDisplayTime(prev => prev + 1), 1000); // Start optimistic timer
+            setIsRecording(true); setIsPaused(false); 
+            if (timerDisplayRef.current) timerDisplayRef.current.textContent = formatTime(0); // Optimistic time reset
         } 
         else if (currentIsPaused) { 
             actionToPerform = 'resume'; 
             setIsPaused(false); 
-            // Restart local timer based on current displayed time
-            if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-            lastFetchTimestampRef.current = Date.now(); // Reset timestamp for local calc
-            baseRecordingTimeRef.current = displayTime; // Use current display as base
-            localTimerIntervalRef.current = setInterval(() => {
-                 const elapsedSinceFetch = (Date.now() - lastFetchTimestampRef.current) / 1000;
-                 setDisplayTime(baseRecordingTimeRef.current + elapsedSinceFetch);
-            }, 1000);
         } 
         else { 
             actionToPerform = 'pause'; 
             setIsPaused(true); 
-            // Stop local timer
-            if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-            localTimerIntervalRef.current = null;
         } 
-        
+        // The local timer useEffect will handle starting/stopping the interval based on isRecording/isPaused state change
         await callRecordingApi(actionToPerform, payloadForAction);
-    }, [isRecording, isPaused, callRecordingApi, agentName, eventId, displayTime]); // Added displayTime
+    }, [isRecording, isPaused, callRecordingApi, agentName, eventId]);
 
     const stopRecording = useCallback(async (e?: React.MouseEvent) => {
         e?.stopPropagation();
         if (pendingActionRef.current) return; 
-        setIsRecording(false); setIsPaused(false); setDisplayTime(0); // Optimistic Stop
-        // Stop local timer
-        if (localTimerIntervalRef.current) clearInterval(localTimerIntervalRef.current);
-        localTimerIntervalRef.current = null;
+        setIsRecording(false); setIsPaused(false); // Optimistic Stop
+        if (timerDisplayRef.current) timerDisplayRef.current.textContent = formatTime(0); // Optimistic time reset
         // Keep controls visible while pending
-        // hideRecordUI(); // REMOVED
         await callRecordingApi('stop');
-    }, [callRecordingApi]); // Removed hideRecordUI
+    }, [callRecordingApi]);
     
     // --- Other Handlers ---
     const saveChat = useCallback(() => { const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setShowPlusMenu(false); }, [messages, agentName, eventId]);
@@ -392,7 +372,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     <button type="button" className={cn("p-1 record-ui-button", pendingAction === 'stop' && "opacity-50 cursor-wait")} onClick={stopRecording} disabled={!isRecording || !!pendingAction} aria-label="Stop recording">
                                          {pendingAction === 'stop' ? <Loader2 className="h-5 w-5 animate-spin" /> : <StopCircle size={20} className={!isRecording ? "text-gray-400 dark:text-gray-400" : "text-gray-700 dark:text-gray-700"}/>}
                                     </button>
-                                    {isRecording && <span className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(displayTime)}</span>}
+                                    {/* Timer Display Span - Use Ref */}
+                                    {isRecording && <span ref={timerDisplayRef} className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(baseRecordingTimeRef.current)}</span>}
                                 </motion.div>
                              )}
                         </div>
@@ -406,6 +387,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     </div>
                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple accept=".txt,.md,.json,.pdf,.docx" />
                 </form>
+                {/* Status Bar - Also uses the timerDisplayRef */}
                 <div className={cn("text-center text-foreground/70 dark:text-foreground/70 text-xs pt-4 pb-2 font-light status-bar", pendingAction && "opacity-50")}>
                     <span className="lowercase">{agentName || '...'}</span> / <span className="lowercase">{eventId || '...'}</span> |{" "}
                     <span ref={statusRecordingRef} className="cursor-pointer" onClick={showAndPrepareRecordingControls} title={isRecording ? "Recording Status" : "Open recording controls"} >
@@ -414,7 +396,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             isPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></> )
                                      : ( <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500 animate-pulse"></span></> )
                         ) : ( "no" )}
-                        {isRecording && <span className="ml-1">{formatTime(displayTime)}</span>}
+                        {/* Timer display span - Also uses ref */}
+                        {isRecording && <span ref={timerDisplayRef} className="ml-1">{formatTime(baseRecordingTimeRef.current)}</span>} 
                     </span>
                 </div>
             </div>
