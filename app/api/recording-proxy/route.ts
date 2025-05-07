@@ -64,8 +64,9 @@ export async function GET(req: NextRequest) {
         const contentType = backendResponse.headers.get("content-type");
         if (backendResponse.ok && contentType && contentType.includes("application/json")) {
             const data = await backendResponse.json();
+            // Ensure we return the full status object as received from the backend
             console.log("[API /api/recording-proxy] Status success:", data);
-            return NextResponse.json(data);
+            return NextResponse.json(data); // Return the full object
         } else if (backendResponse.ok) {
              const textResponse = await backendResponse.text().catch(() => "Could not read response text");
              console.warn(`[API /api/recording-proxy] Status backend returned OK but non-JSON: ${contentType}`);
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         action = body?.action; // Expect 'action' in the body
         payload = body?.payload || {}; // Optional payload for 'start'
-        if (!action || !['start', 'stop', 'pause', 'resume'].includes(action)) {
+        if (!action || !['start', 'stop', 'pause', 'resume'].includes(action)) { // Add 'resume' to valid actions
             return formatErrorResponse("Missing or invalid 'action' in request body (start, stop, pause, resume)", 400);
         }
     } catch (e) {
@@ -117,8 +118,9 @@ export async function POST(req: NextRequest) {
     try {
         const backendResponse = await fetch(targetUrl, {
             method: 'POST',
-            // Only send Content-Type and body for 'start' action which requires agent/event
+            // Send Content-Type and body only for 'start' action which requires agent/event payload
             headers: action === 'start' ? { 'Content-Type': 'application/json' } : undefined,
+            // Only 'start' sends a body, other actions (stop, pause, resume) don't need one
             body: action === 'start' ? JSON.stringify(payload) : undefined
         });
 
