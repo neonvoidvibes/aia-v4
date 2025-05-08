@@ -586,22 +586,43 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                              {showRecordUI && (
                                 <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.3 }} className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" onMouseMove={handleRecordUIMouseMove} onClick={(e) => e.stopPropagation()} >
                                     <button type="button" className={cn("p-1 record-ui-button", (pendingAction === 'start' || pendingAction === 'pause' || pendingAction === 'resume') && "opacity-50 cursor-wait")} onClick={handlePlayPauseClick} disabled={!!pendingAction} aria-label={!isRecording ? "Start recording" : (isPaused ? "Resume recording" : "Pause recording")}>
-                                        {(pendingAction === 'start' || pendingAction === 'pause' || pendingAction === 'resume') ? <Loader2 className="h-5 w-5 animate-spin" /> : (isRecording && !isPaused ? <Pause size={20} className="text-red-500" /> : <Play size={20} className={cn(isPaused ? "text-yellow-500" : "", !isRecording && "text-gray-700 dark:text-gray-700")} />)}
+                                        {/* Icon colors re-verified for dark mode contrast */}
+                                        {(pendingAction === 'start' || pendingAction === 'pause' || pendingAction === 'resume')
+                                          ? <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-400" /> // Spinner color (Adjusted dark)
+                                          : (isRecording && !isPaused
+                                              ? <Pause size={20} className="text-red-500 dark:text-red-400" /> // Active recording color
+                                              : <Play size={20} className={cn(
+                                                  isPaused ? "text-yellow-500 dark:text-yellow-400" : "", // Paused color
+                                                  !isRecording && "text-gray-600 dark:text-gray-300" // Initial/inactive color (Adjusted dark)
+                                                )} />
+                                            )
+                                        }
                                     </button>
                                     <button type="button" className={cn("p-1 record-ui-button", pendingAction === 'stop' && "opacity-50 cursor-wait")} onClick={stopRecording} disabled={!isRecording || !!pendingAction} aria-label="Stop recording">
-                                         {pendingAction === 'stop' ? <Loader2 className="h-5 w-5 animate-spin" /> : <StopCircle size={20} className={!isRecording ? "text-gray-400 dark:text-gray-400" : "text-gray-700 dark:text-gray-700"}/>}
+                                         {pendingAction === 'stop'
+                                           ? <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-400" /> // Spinner color (Adjusted dark)
+                                           : <StopCircle size={20} className={!isRecording ? "text-gray-500 dark:text-gray-400" : "text-gray-700 dark:text-gray-300"}/> // Stop icon color (Adjusted dark)
+                                         }
                                     </button>
-                                    {/* Controls Timer Span */}
-                                    {isRecording && <span ref={recordControlsTimerDisplayRef} className="text-sm font-medium text-gray-700 dark:text-gray-700 ml-1">{formatTime(baseRecordingTimeRef.current)}</span>}
+                                    {/* Controls Timer Span - ensure dark:text-gray-200 is present */}
+                                    {isRecording && <span ref={recordControlsTimerDisplayRef} className="text-sm font-medium text-gray-700 dark:text-gray-200 ml-1">{formatTime(baseRecordingTimeRef.current)}</span>}
                                 </motion.div>
                              )}
                         </div>
-                        <input ref={inputRef} value={input} onChange={handleInputChange} placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"} className="flex-1 px-3 py-1 bg-transparent border-none outline-none text-black dark:text-black" disabled={!isReady || !!pendingAction} aria-label="Chat input" />
+                        {/* Removed dark:text-black, should inherit body foreground */}
+                        <input ref={inputRef} value={input} onChange={handleInputChange} placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"} className="flex-1 px-3 py-1 bg-transparent border-none outline-none text-black" disabled={!isReady || !!pendingAction} aria-label="Chat input" />
                         <button type="submit"
-                            className={cn( "p-2 transition-all duration-200", (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && (theme === 'light' ? "text-gray-400" : "text-gray-400"), isReady && (input.trim() || attachedFiles.length > 0) && !isLoading && (theme === 'light' ? "text-gray-800 hover:text-black" : "text-black hover:opacity-80"), isLoading && (theme === 'light' ? "text-gray-800" : "text-black") )}
+                            className={cn( "p-2 transition-all duration-200",
+                              // Inactive state: Lighter gray for dark mode
+                              (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && "text-gray-400 dark:text-gray-600",
+                              // Active state: Near-white for dark mode
+                              isReady && (input.trim() || attachedFiles.length > 0) && !isLoading && (theme === 'light' ? "text-gray-800 hover:text-black" : "text-gray-200 hover:text-white"),
+                              // Loading state (Stop icon): Adjusted reds for visibility
+                              isLoading && (theme === 'light' ? "text-red-600 hover:text-red-700" : "text-red-500 hover:text-red-400")
+                            )}
                             disabled={!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading) || !!pendingAction}
                             aria-label={isLoading ? "Stop generating" : "Send message"} >
-                            {isLoading ? <Square size={20} className="fill-current h-5 w-5 opacity-70" /> : <ArrowUp size={24} /> }
+                            {isLoading ? <Square size={20} className="fill-current h-5 w-5" /> : <ArrowUp size={24} /> }
                         </button>
                     </div>
                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple accept=".txt,.md,.json,.pdf,.docx" />
