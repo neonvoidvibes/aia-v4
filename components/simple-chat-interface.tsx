@@ -579,7 +579,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 <form onSubmit={onSubmit} className="relative">
                     <div className="bg-input-gray rounded-full p-2 flex items-center" ref={inputContainerRef}>
                         <div className="relative" ref={plusMenuRef}>
-                            <button type="button" className={cn("p-2 text-gray-600 hover:text-gray-800", pendingAction && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingAction}> <Plus size={20} /> </button>
+                             {/* Added dark:text-gray-400 for plus icon */}
+                            <button type="button" className={cn("p-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200", pendingAction && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingAction}> <Plus size={20} /> </button>
                             {showPlusMenu && ( <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu" > <button type="button" className="p-2 plus-menu-item" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button> <button type="button" className="p-2 plus-menu-item" onClick={saveChat} title="Save chat"><Download size={20} /></button> <button type="button" className={cn("p-2 plus-menu-item", isRecording && "recording", isPaused && "paused")} onClick={showAndPrepareRecordingControls} title={isRecording ? (isPaused ? "Recording Paused" : "Recording Live") : "Open recording controls"} > <Mic size={20} /> </button> </motion.div> )}
                         </div>
                         <div className="relative" ref={recordUIRef}>
@@ -609,12 +610,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 </motion.div>
                              )}
                         </div>
-                        {/* Removed dark:text-black, should inherit body foreground */}
-                        <input ref={inputRef} value={input} onChange={handleInputChange} placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"} className="flex-1 px-3 py-1 bg-transparent border-none outline-none text-black" disabled={!isReady || !!pendingAction} aria-label="Chat input" />
+                         {/* Removed text-black, added placeholder styles */}
+                        <input
+                          ref={inputRef}
+                          value={input}
+                          onChange={handleInputChange}
+                          placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"}
+                          className="flex-1 px-3 py-1 bg-transparent border-none outline-none placeholder:text-gray-500 dark:placeholder:text-gray-500"
+                          disabled={!isReady || !!pendingAction}
+                          aria-label="Chat input"
+                        />
                         <button type="submit"
                             className={cn( "p-2 transition-all duration-200",
-                              // Inactive state: Lighter gray for dark mode
-                              (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && "text-gray-400 dark:text-gray-600",
+                              // Inactive state: Adjusted dark color
+                              (!isReady || (!input.trim() && attachedFiles.length === 0 && !isLoading)) && "text-gray-400 dark:text-gray-400",
                               // Active state: Near-white for dark mode
                               isReady && (input.trim() || attachedFiles.length > 0) && !isLoading && (theme === 'light' ? "text-gray-800 hover:text-black" : "text-gray-200 hover:text-white"),
                               // Loading state (Stop icon): Adjusted reds for visibility
