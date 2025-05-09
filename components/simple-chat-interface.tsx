@@ -616,7 +616,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           value={input}
                           onChange={handleInputChange}
                           placeholder={!isReady ? "Waiting for Agent/Event..." : "Ask anything"}
-                          className="flex-1 px-3 py-1 bg-transparent border-none outline-none placeholder:text-gray-500 dark:placeholder:text-gray-500"
+                          className="flex-1 px-3 py-1 bg-transparent border-none outline-none placeholder:text-zink-500 dark:placeholder:text-zink-500"
                           disabled={!isReady || !!pendingAction}
                           aria-label="Chat input"
                         />
