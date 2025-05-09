@@ -94,35 +94,6 @@
   --button-inactive: 0 0% 65%; /* Lighter gray */
 }
 
-/* --- Settings Dialog: Force Sub-Container Backgrounds in Light Mode --- */
-/* Target DocumentUpload Card within Memory Tab Sections */
-.light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card {
-  --card: var(--background); /* Override Shadcn variable */
-  background-color: hsl(var(--card)) !important; /* Apply it */
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-/* Target inner parts if necessary */
-.light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card > * {
-  background-color: hsl(var(--card)) !important;
-}
-
-/* Target DocumentUpload Card specifically within Documents Tab using data attribute */
-.light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card {
-  --card: var(--background); /* Override Shadcn variable */
-  background-color: hsl(var(--card)) !important; /* Apply it */
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-/* Target inner parts if necessary */
-.light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card > * {
-  background-color: hsl(var(--card)) !important;
-}
-/* --- End Settings Dialog Fixes --- */
-
-
 /* --- Global Styles --- */
 body {
   font-family: "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -543,33 +514,11 @@ body {
 .tab-content-scrollable::-webkit-scrollbar-track { background: transparent; }
 .tab-content-scrollable::-webkit-scrollbar-thumb { background-color: rgba(155, 155, 155, 0.5); border-radius: 20px; border: transparent; }
 
-/* Settings Sub-Container Backgrounds (Light Mode) */
-/* Target DocumentUpload Card within Memory Tab Sections */
-.light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card {
-  --card: var(--background); /* Override Shadcn variable */
-  background-color: hsl(var(--card)) !important; /* Apply it */
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-/* Target inner parts if necessary */
-.light .fixed-dialog .memory-tab-grid .memory-section .document-upload-card > * {
-  background-color: hsl(var(--card)) !important;
-}
-
-/* Target DocumentUpload Card specifically within Documents Tab using data attribute */
-.light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card {
-  --card: var(--background); /* Override Shadcn variable */
-  background-color: hsl(var(--card)) !important; /* Apply it */
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-/* Target inner parts if necessary */
-.light .fixed-dialog [role="tabpanel"][data-radix-value="documents"] .document-upload-card > * {
-  background-color: hsl(var(--card)) !important;
-}
-/* --- End Settings Dialog Fixes --- */
+/*
+  CSS rules for .document-upload-card transparency in settings dialog
+  have been removed from here as the transparency is now handled by
+  a prop in the DocumentUpload component itself.
+*/
 
 
 /* --- Miscellaneous --- */
@@ -834,15 +783,29 @@ input, textarea, select {
 
 /* Memory Tab Mobile Adjustments */
 @media (max-width: 768px) {
-  .memory-tab-content.has-open-section { overflow-y: auto !important; max-height: 70vh !important; padding-bottom: 20px !important; }
+  .memory-tab-content.has-open-section {
+    /* max-height: 70vh !important; */ /* Controlled by .tab-content-scrollable on .tab-content-inner */
+    /* overflow-y: auto !important; */ /* Controlled by .tab-content-scrollable on .tab-content-inner */
+    padding-bottom: 20px !important;
+  }
   .memory-tab-grid { display: flex !important; flex-direction: column !important; gap: 0 !important; margin: 0 !important; padding: 0 !important; }
   .section-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 10px; background-color: transparent; border: none; border-radius: 8px; margin-bottom: 4px; cursor: pointer; }
   .section-content { overflow: hidden; transition: max-height 0.3s ease; padding: 0 !important; margin: 0 !important; }
-  .section-content.open { padding-bottom: 8px !important; max-height: 400px !important; overflow-y: auto !important; }
+  .section-content.open {
+    padding-bottom: 8px !important;
+    max-height: none !important; /* Allow full expansion */
+    overflow-y: visible !important; /* Ensure parent scrolls */
+  }
   .document-upload-container { max-height: none !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
   .fixed-dialog { max-height: 80vh !important; overflow: hidden !important; }
   .tab-content-wrapper { max-height: 70vh !important; overflow: hidden !important; }
-  .memory-tab-content.has-open-section { max-height: 60vh !important; }
+  .memory-tab-content.has-open-section {
+      /* This rule's max-height might conflict or be redundant if .tab-content-inner.tab-content-scrollable controls height.
+         Let's keep it for now, but it might need adjustment based on testing.
+         If .tab-content-inner.tab-content-scrollable has max-height: 60vh, this could be more restrictive.
+      */
+      max-height: 60vh !important;
+  }
   .space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: calc(0.25rem * var(--tw-space-y-reverse)); }
 }
 
@@ -850,8 +813,9 @@ input, textarea, select {
 .tab-content-inner { padding: 0 !important; margin: 0 !important; }
 
 /* Memory Section Overflow Fixes */
+/* These define internal scroll for file lists within DocumentUpload, which is OK */
 .memory-section .document-upload-container { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; width: 100% !important; max-height: 300px !important; overflow-y: auto !important; }
-.section-content { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; width: 100% !important; }
+.section-content { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; width: 100% !important; } /* This `section-content` is the direct child of CollapsibleSection. For mobile, its overflow-y is changed. */
 .memory-section .document-files-container { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; max-height: 200px !important; overflow-y: auto !important; }
 .memory-section .document-files-container > div { max-width: 100% !important; box-sizing: border-box !important; }
 .memory-section .document-files-container .flex { max-width: 100% !important; box-sizing: border-box !important; }

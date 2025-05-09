@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import type { AttachmentFile } from "./file-attachment-minimal"
 import ConfirmationModal from "./confirmation-modal"
 import FileEditor from "./file-editor"
+import { cn } from "@/lib/utils" // Import cn
 
 type DocumentUploadProps = {
   title?: string
@@ -20,6 +21,7 @@ type DocumentUploadProps = {
   readOnly?: boolean
   allowRemove?: boolean
   persistKey?: string
+  transparentBackground?: boolean // New prop
 }
 
 export default function DocumentUpload({
@@ -31,6 +33,7 @@ export default function DocumentUpload({
   readOnly = false,
   allowRemove = true,
   persistKey,
+  transparentBackground = false, // Default to false
 }: DocumentUploadProps) {
   const [files, setFiles] = useState<AttachmentFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
@@ -203,12 +206,27 @@ export default function DocumentUpload({
 
   return (
     <>
-      <Card className="document-upload-card">
-        <CardHeader className={`upload-header sticky-header ${!title ? "pb-0" : ""}`}>
+      <Card
+        className={cn(
+          "document-upload-card", // Keep this for any existing general styling if needed
+          transparentBackground && "bg-transparent border-none shadow-none p-0"
+        )}
+      >
+        <CardHeader
+          className={cn(
+            `upload-header sticky-header ${!title ? "pb-0" : ""}`,
+            transparentBackground && "bg-transparent" // Ensure header is also transparent
+          )}
+        >
           {title && <CardTitle>{title}</CardTitle>}
           <CardDescription>{description}</CardDescription>
         </CardHeader>
-        <CardContent className="upload-container">
+        <CardContent
+          className={cn(
+            "upload-container",
+            transparentBackground && "bg-transparent" // Ensure content area is also transparent
+          )}
+        >
           {!readOnly && (
             <div
               className={`border-2 border-dashed rounded-lg p-6 text-center ${

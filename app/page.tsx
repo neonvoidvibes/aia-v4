@@ -273,13 +273,14 @@ export default function Home() {
                       existingFiles={allChatAttachments} // Use renamed state
                       readOnly={true}
                       allowRemove={false}
+                      transparentBackground={true} // ADDED
                     />
                   </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
-                <div className="tab-content-inner">
+                <div className="tab-content-inner tab-content-scrollable">
                   <h2 className="text-xl font-semibold mb-2">Memory Management</h2>
                   <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
                     <CollapsibleSection
@@ -294,6 +295,7 @@ export default function Home() {
                           allowRemove={true}
                           persistKey={`agent-memory-${pageAgentName}-${pageEventId}`} // Include agent/event in key
                           onFilesAdded={handleAgentMemoryUpdate}
+                          transparentBackground={true} // ADDED
                           // Pass existingFiles if loaded from backend
                         />
                       </div>
@@ -311,6 +313,7 @@ export default function Home() {
                           allowRemove={true}
                           persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} // Include agent/event in key
                           onFilesAdded={handleSystemPromptUpdate}
+                          transparentBackground={true} // ADDED
                            // Pass existingFiles if loaded from backend
                         />
                       </div>
