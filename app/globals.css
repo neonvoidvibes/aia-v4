@@ -104,7 +104,7 @@ body {
   min-height: 100dvh; /* Use dynamic viewport height */
   transition: background 0.3s ease, color 0.3s ease;
   overflow: hidden; /* Prevent body scrolling */
-  font-size: 20px; /* Base font size for desktop (+2px) */
+  font-size: 17px; /* Base font size for desktop (+2px) */
   font-weight: 300; /* Light font weight */
   line-height: 1.6; /* Adjusted line height */
 }
