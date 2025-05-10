@@ -1,0 +1,103 @@
+"use client"
+
+import type React from "react"
+import { FileText, Eye, DownloadCloud, BrainCircuit } from "lucide-react" // Added BrainCircuit for Pinecone
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+export type FetchedFile = {
+  name: string
+  size?: number
+  lastModified?: string
+  s3Key?: string
+  type?: string // e.g., 'text/plain', 'application/json', 'pinecone/document'
+  id?: string // Optional, can be s3Key or generated
+}
+
+type FetchedFileListItemProps = {
+  file: FetchedFile
+  onView?: (fileInfo: { s3Key: string; name: string; type: string }) => void
+  onDownload?: (fileInfo: { s3Key: string; name: string }) => void
+  showViewIcon?: boolean
+  showDownloadIcon?: boolean
+}
+
+export default function FetchedFileListItem({
+  file,
+  onView,
+  onDownload,
+  showViewIcon = false,
+  showDownloadIcon = false,
+}: FetchedFileListItemProps) {
+  const formatFileSize = (bytes?: number) => {
+    if (bytes === undefined || bytes === null) return ""
+    if (bytes === 0) return "0 Bytes" // Handle 0 byte files explicitly
+    if (bytes < 1024) return bytes + " Bytes"
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB"
+    else return (bytes / 1048576).toFixed(1) + " MB"
+  }
+
+  const getFileIcon = (fileType?: string) => {
+    if (fileType === 'pinecone/document') return <BrainCircuit className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+    // Add more specific icons based on file.type if needed
+    return <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+  }
+
+  const handleViewClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onView && file.s3Key && file.type) {
+      onView({ s3Key: file.s3Key, name: file.name, type: file.type })
+    }
+  }
+
+  const handleDownloadClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onDownload && file.s3Key) {
+      onDownload({ s3Key: file.s3Key, name: file.name })
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between p-3 border rounded-md my-1 hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {getFileIcon(file.type)}
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm truncate max-w-full" title={file.name}>
+            {file.name}
+          </p>
+          {(file.size !== undefined || file.lastModified) && (
+            <p className="text-xs text-muted-foreground">
+              {file.size !== undefined && formatFileSize(file.size)}
+              {file.size !== undefined && file.lastModified && " • "}
+              {file.lastModified && `Modified: ${new Date(file.lastModified).toLocaleDateString()}`}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+        {showViewIcon && onView && file.s3Key && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleViewClick}
+            className="h-8 w-8"
+            title={`View ${file.name}`}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        )}
+        {showDownloadIcon && onDownload && file.s3Key && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDownloadClick}
+            className="h-8 w-8"
+            title={`Download ${file.name}`}
+          >
+            <DownloadCloud className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}

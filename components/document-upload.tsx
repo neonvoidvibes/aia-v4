@@ -22,6 +22,7 @@ type DocumentUploadProps = {
   allowRemove?: boolean
   persistKey?: string
   transparentBackground?: boolean // New prop
+  hideDropZone?: boolean // New prop to hide drag & drop area
 }
 
 export default function DocumentUpload({
@@ -34,6 +35,7 @@ export default function DocumentUpload({
   allowRemove = true,
   persistKey,
   transparentBackground = false, // Default to false
+  hideDropZone = false, // Add to destructuring with default
 }: DocumentUploadProps) {
   const [files, setFiles] = useState<AttachmentFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
@@ -233,7 +235,7 @@ export default function DocumentUpload({
             !title ? "pt-0 px-0" : "p-6 pt-0"
           )}
         >
-          {!readOnly && (
+          {!readOnly && !hideDropZone && (
             <div
               className={`border-2 border-dotted rounded-lg p-6 text-center mt-6 ${ // Changed to border-dotted, mt-4 to mt-6
                 isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/20"

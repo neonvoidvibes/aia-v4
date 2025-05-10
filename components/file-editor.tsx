@@ -10,9 +10,18 @@ type FileEditorProps = {
   isOpen: boolean
   onClose: () => void
   onSave: (file: AttachmentFile, content: string) => void
+  s3KeyToLoad?: string // New prop for loading S3 file content
+  fileNameToDisplay?: string // New prop for displaying S3 file name
 }
 
-export default function FileEditor({ file, isOpen, onClose, onSave }: FileEditorProps) {
+export default function FileEditor({
+  file,
+  isOpen,
+  onClose,
+  onSave,
+  s3KeyToLoad,
+  fileNameToDisplay,
+}: FileEditorProps) {
   const [content, setContent] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -20,33 +29,57 @@ export default function FileEditor({ file, isOpen, onClose, onSave }: FileEditor
 
   // Load file content when the editor opens
   useEffect(() => {
-    if (isOpen && file) {
+    if (isOpen && (file || s3KeyToLoad)) {
       setIsLoading(true)
+      setContent("") // Reset content
 
-      // If we have a URL (for files from the user's device), fetch the content
-      if (file.url) {
-        fetch(file.url)
-          .then((response) => response.text())
-          .then((text) => {
-            setContent(text)
+      if (s3KeyToLoad) {
+        // Fetch content from S3 via backend API
+        fetch(`/api/s3/view?s3Key=${encodeURIComponent(s3KeyToLoad)}`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`Failed to fetch S3 content: ${response.statusText}`)
+            }
+            return response.json()
+          })
+          .then((data) => {
+            setContent(data.content || "// Empty file or error loading content")
             setIsLoading(false)
           })
           .catch((error) => {
-            console.error("Error loading file content:", error)
-            setContent("// Error loading file content")
+            console.error("Error loading S3 file content:", error)
+            setContent(`// Error loading file content for ${fileNameToDisplay || s3KeyToLoad}:\n// ${error.message}`)
             setIsLoading(false)
           })
-      } else if (file.content) {
-        // If we already have the content stored in the file object
-        setContent(file.content)
-        setIsLoading(false)
+      } else if (file) {
+        // Original logic for client-side files
+        if (file.url) {
+          fetch(file.url)
+            .then((response) => response.text())
+            .then((text) => {
+              setContent(text)
+              setIsLoading(false)
+            })
+            .catch((error) => {
+              console.error("Error loading file content:", error)
+              setContent("// Error loading file content")
+              setIsLoading(false)
+            })
+        } else if (file.content) {
+          setContent(file.content)
+          setIsLoading(false)
+        } else {
+          setContent(`// ${file.name} content would be loaded here`)
+          setIsLoading(false)
+        }
       } else {
-        // For demo purposes, if no content is available
-        setContent(`// ${file.name} content would be loaded here`)
+        // Should not happen if isOpen is true and one of file/s3KeyToLoad is present
+        setContent("// No file specified for editor")
         setIsLoading(false)
       }
     }
-  }, [isOpen, file])
+  }, [isOpen, file, s3KeyToLoad, fileNameToDisplay])
+
 
   // Focus the editor when it opens
   useEffect(() => {
@@ -92,8 +125,9 @@ export default function FileEditor({ file, isOpen, onClose, onSave }: FileEditor
 
   // Get the appropriate icon based on file type
   const getFileIcon = () => {
-    if (file.type.includes("json")) return <FileJson className="h-5 w-5" />
-    if (file.type.includes("xml")) return <Code className="h-5 w-5" />
+    const currentFileType = s3KeyToLoad ? (file?.type || "text/plain") : (file?.type || "text/plain");
+    if (currentFileType.includes("json")) return <FileJson className="h-5 w-5" />
+    if (currentFileType.includes("xml")) return <Code className="h-5 w-5" />
     return <FileText className="h-5 w-5" />
   }
 
@@ -113,7 +147,9 @@ export default function FileEditor({ file, isOpen, onClose, onSave }: FileEditor
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             {getFileIcon()}
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">{file.name}</h2>
+            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              {s3KeyToLoad ? fileNameToDisplay || "S3 File" : file.name}
+            </h2>
           </div>
           <button
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
@@ -136,6 +172,7 @@ export default function FileEditor({ file, isOpen, onClose, onSave }: FileEditor
               onChange={(e) => setContent(e.target.value)}
               className="w-full h-64 p-3 border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700"
               spellCheck={false}
+              readOnly={!!s3KeyToLoad} // Make readOnly if viewing S3 file
             />
           )}
         </div>
@@ -148,23 +185,32 @@ export default function FileEditor({ file, isOpen, onClose, onSave }: FileEditor
           >
             Cancel
           </button>
-          <button
-            className="px-4 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={handleSave}
-            disabled={isLoading || isSaving}
-          >
-            {isSaving ? (
-              <>
-                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <DownloadCloud className="h-4 w-4" />
-                Save
-              </>
-            )}
-          </button>
+          {s3KeyToLoad ? (
+            <button
+              className="px-4 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
+              onClick={onClose} // Simply close if it's an S3 view
+            >
+              Close
+            </button>
+          ) : (
+            <button
+              className="px-4 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleSave}
+              disabled={isLoading || isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <DownloadCloud className="h-4 w-4" />
+                  Save & Download
+                </>
+              )}
+            </button>
+          )}
         </div>
       </motion.div>
     </div>

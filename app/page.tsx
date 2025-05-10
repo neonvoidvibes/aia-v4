@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter, useSearchParams } from 'next/navigation'; // Import useRouter
-import { PenSquare, ChevronDown, AlertTriangle } from "lucide-react" // Added AlertTriangle
+import { PenSquare, ChevronDown, AlertTriangle, Eye } from "lucide-react" // Added AlertTriangle and Eye
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { createClient } from '@/utils/supabase/client'; // Import Supabase client
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -13,6 +13,8 @@ import { EnvWarning } from "@/components/env-warning"
 import ConfirmationModal from "@/components/confirmation-modal"
 import CollapsibleSection from "@/components/collapsible-section"
 import type { AttachmentFile } from "@/components/file-attachment-minimal" // Renamed import to avoid conflict
+import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileListItem" // Import new component
+import FileEditor from "@/components/file-editor"; // Import FileEditor
 import { useMobile } from "@/hooks/use-mobile" // Assuming this hook exists and works
 import { Button } from "@/components/ui/button"; // Import Button
 
@@ -28,6 +30,18 @@ export default function Home() {
   const [systemPromptFiles, setSystemPromptFiles] = useState<AttachmentFile[]>([]);
   const [contextFiles, setContextFiles] = useState<AttachmentFile[]>([]); // New state for Context files
   const [hasOpenSection, setHasOpenSection] = useState(false); // For mobile memory tab layout
+
+  // State for S3/Pinecone fetched files
+  const [transcriptionS3Files, setTranscriptionS3Files] = useState<FetchedFile[]>([]);
+  const [baseSystemPromptS3Files, setBaseSystemPromptS3Files] = useState<FetchedFile[]>([]);
+  const [agentSystemPromptS3Files, setAgentSystemPromptS3Files] = useState<FetchedFile[]>([]);
+  const [orgContextS3Files, setOrgContextS3Files] = useState<FetchedFile[]>([]);
+  const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
+
+  // State for S3 file viewer
+  const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
+  const [showS3FileViewer, setShowS3FileViewer] = useState(false);
+
 
   // Read agent/event from URL ONCE on mount for context (chat component also reads it)
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
@@ -184,6 +198,111 @@ export default function Home() {
     }
   }, [hasOpenSection]);
 
+  // Fetch S3 and Pinecone data when settings dialog is shown or agent/event changes
+  useEffect(() => {
+    const fetchAllData = async () => {
+      if (!showSettings || !pageAgentName || isAuthorized !== true) {
+        // Clear data if settings are closed or agent not set/authorized
+        setTranscriptionS3Files([]);
+        setBaseSystemPromptS3Files([]);
+        setAgentSystemPromptS3Files([]);
+        setOrgContextS3Files([]);
+        setPineconeMemoryDocs([]);
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.warn("No session, cannot fetch settings data.");
+        return;
+      }
+      const commonHeaders = { 'Authorization': `Bearer ${session.access_token}` };
+
+      // Helper to fetch S3 files
+      const fetchS3Data = async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
+        try {
+          const response = await fetch(`/api/s3/list?prefix=${encodeURIComponent(prefix)}`, { headers: commonHeaders });
+          if (!response.ok) throw new Error(`Failed to fetch ${description}: ${response.statusText}`);
+          const data: FetchedFile[] = await response.json();
+          onDataFetched(data); // Call the provided handler with the fetched data
+          console.log(`Fetched ${description}:`, data.length, "files");
+        } catch (error) {
+          console.error(`Error fetching ${description}:`, error);
+          onDataFetched([]); // Call with empty array on error
+        }
+      };
+
+      // Fetch transcriptions
+      if (pageEventId) {
+        fetchS3Data(
+          `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`,
+          setTranscriptionS3Files, // Direct setter works as (data: FetchedFile[]) => void
+          "Transcriptions"
+        );
+      } else {
+        setTranscriptionS3Files([]); // Clear if no eventId
+      }
+      
+      // Fetch base system prompts (any extension)
+      fetchS3Data(
+        `_config/`,
+        (allConfigDocs: FetchedFile[]) => { // Explicitly type allConfigDocs
+           setBaseSystemPromptS3Files(allConfigDocs.filter(f => f.name.startsWith('systemprompt_base.')));
+        },
+        "Base System Prompts"
+      );
+
+      // Fetch agent-specific system prompts
+      fetchS3Data(
+        `organizations/river/agents/${pageAgentName}/_config/`,
+        (agentConfigDocs: FetchedFile[]) => { // Explicitly type agentConfigDocs
+           setAgentSystemPromptS3Files(agentConfigDocs.filter(f => f.name.startsWith(`systemprompt_aID-${pageAgentName}.`)));
+        },
+        "Agent System Prompts"
+      );
+      
+      // Fetch organization context files for the specific agent
+      fetchS3Data(
+        `organizations/river/_config/`,
+        (orgConfigDocs: FetchedFile[]) => { // Explicitly type orgConfigDocs
+          setOrgContextS3Files(orgConfigDocs.filter(f => f.name.startsWith(`context_oID-${pageAgentName}.`)))
+        },
+        "Organization Context"
+      );
+
+      // Fetch Pinecone memory documents
+      try {
+        const pineconeResponse = await fetch(`/api/index/${pageAgentName}/namespace/${pageAgentName}/list_docs`, { headers: commonHeaders });
+        if (!pineconeResponse.ok) throw new Error(`Failed to fetch Pinecone docs: ${pineconeResponse.statusText}`);
+        const pineconeData = await pineconeResponse.json();
+        setPineconeMemoryDocs(pineconeData.unique_document_names?.map((name: string) => ({ name })) || []);
+        console.log("Fetched Pinecone Memory Docs:", pineconeData.unique_document_names?.length || 0);
+      } catch (error) {
+        console.error("Error fetching Pinecone Memory Docs:", error);
+        setPineconeMemoryDocs([]);
+      }
+    };
+
+    fetchAllData();
+  }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth]);
+
+
+  const handleViewS3File = (file: { s3Key: string; name: string; type: string }) => {
+    setS3FileToView(file);
+    setShowS3FileViewer(true);
+  };
+
+  const handleCloseS3FileViewer = () => {
+    setShowS3FileViewer(false);
+    setS3FileToView(null);
+  };
+
+  const handleDownloadS3File = (file: { s3Key: string; name: string }) => {
+    // Trigger download via backend endpoint
+    window.open(`/api/s3/download?s3Key=${encodeURIComponent(file.s3Key)}&filename=${encodeURIComponent(file.name)}`, '_blank');
+  };
+
+
   // Loading State
   if (isAuthorized === null) {
     return (
@@ -291,9 +410,21 @@ export default function Home() {
                     title="Transcription"
                     defaultOpen={true}
                   >
-                    {/* No horizontal padding here, inherits from parent content wrapper in CollapsibleSection */}
-                    <div className="pb-3"> 
-                      <p className="text-sm text-muted-foreground">Transcription settings and options will be available here.</p>
+                    <div className="pb-3 space-y-2">
+                      {transcriptionS3Files.length > 0 ? (
+                        transcriptionS3Files.map(file => (
+                          <FetchedFileListItem
+                            key={file.s3Key || file.name}
+                            file={file}
+                            onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
+                            onDownload={() => handleDownloadS3File({ s3Key: file.s3Key!, name: file.name })}
+                            showViewIcon={true}
+                            showDownloadIcon={true}
+                          />
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>
+                      )}
                     </div>
                   </CollapsibleSection>
                 </div>
@@ -307,14 +438,45 @@ export default function Home() {
                     >
                       <div className="document-upload-container">
                         <DocumentUpload
-                          description="Documents that define the agent's core behavior and persona"
+                          description="Locally added/edited system prompt files. Files from S3 are listed below."
                           type="system"
                           allowRemove={true}
                           persistKey={`system-prompt-${pageAgentName}-${pageEventId}`}
                           onFilesAdded={handleSystemPromptUpdate}
                           existingFiles={systemPromptFiles}
                           transparentBackground={true}
+                          hideDropZone={true} // Comment out drag & drop
                         />
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Base System Prompts (S3)</h4>
+                        {baseSystemPromptS3Files.length > 0 ? (
+                          baseSystemPromptS3Files.map(file => (
+                            <FetchedFileListItem
+                              key={file.s3Key || file.name}
+                              file={file}
+                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
+                              showViewIcon={true}
+                            />
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No base system prompts found in S3.</p>
+                        )}
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Agent-Specific System Prompts (S3)</h4>
+                        {agentSystemPromptS3Files.length > 0 ? (
+                          agentSystemPromptS3Files.map(file => (
+                            <FetchedFileListItem
+                              key={file.s3Key || file.name}
+                              file={file}
+                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
+                              showViewIcon={true}
+                            />
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No agent-specific system prompts found in S3 for '{pageAgentName}'.</p>
+                        )}
                       </div>
                     </CollapsibleSection>
                 </div>
@@ -333,14 +495,30 @@ export default function Home() {
                     >
                       <div className="document-upload-container">
                         <DocumentUpload
-                          description="Documents providing contextual information for the agent"
+                          description="Locally added/edited context files. Organization context from S3 is listed below."
                           type="context"
                           allowRemove={true}
                           persistKey={`context-files-${pageAgentName}-${pageEventId}`}
                           onFilesAdded={handleContextUpdate}
                           existingFiles={contextFiles}
                           transparentBackground={true}
+                          hideDropZone={true} // Comment out drag & drop
                         />
+                      </div>
+                       <div className="mt-4 space-y-2">
+                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Organization Context (S3)</h4>
+                        {orgContextS3Files.length > 0 ? (
+                          orgContextS3Files.map(file => (
+                            <FetchedFileListItem
+                              key={file.s3Key || file.name}
+                              file={file}
+                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
+                              showViewIcon={true}
+                            />
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No organization context files found in S3 for '{pageAgentName}'.</p>
+                        )}
                       </div>
                     </CollapsibleSection>
 
@@ -351,14 +529,29 @@ export default function Home() {
                     >
                       <div className="document-upload-container">
                         <DocumentUpload
-                          description="Documents stored in the agent's long-term memory"
+                          description="Locally added/edited memory files. Documents from Pinecone are listed below."
                           type="memory"
                           allowRemove={true}
                           persistKey={`agent-memory-${pageAgentName}-${pageEventId}`}
                           onFilesAdded={handleAgentMemoryUpdate}
                           existingFiles={agentMemoryFiles}
                           transparentBackground={true}
+                          hideDropZone={true} // Comment out drag & drop
                         />
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Pinecone Memory Documents</h4>
+                        {pineconeMemoryDocs.length > 0 ? (
+                          pineconeMemoryDocs.map(doc => (
+                            <FetchedFileListItem
+                              key={doc.name}
+                              file={{ name: doc.name, type: 'pinecone/document' }}
+                              showViewIcon={false} // Cannot view content for Pinecone docs from this list
+                            />
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No documents found in Pinecone memory for '{pageAgentName}'.</p>
+                        )}
                       </div>
                     </CollapsibleSection>
                   </div>
@@ -390,6 +583,24 @@ export default function Home() {
         confirmText="Start New"
         cancelText="Cancel"
       />
+
+      {/* File Editor for S3 Viewing */}
+      {showS3FileViewer && s3FileToView && (
+        <FileEditor
+          // The 'file' prop needs some minimal structure, even if content is fetched via s3KeyToLoad
+          file={{
+            id: s3FileToView.s3Key, // Use s3Key as a unique identifier for the editor instance
+            name: s3FileToView.name,
+            type: s3FileToView.type,
+            size: 0, // Size is not critical for viewer and might not be readily available from S3 list
+          }}
+          isOpen={showS3FileViewer}
+          onClose={handleCloseS3FileViewer}
+          onSave={() => { /* No save action for S3 view mode */ }}
+          s3KeyToLoad={s3FileToView.s3Key}
+          fileNameToDisplay={s3FileToView.name}
+        />
+      )}
     </div>
   )
 }
