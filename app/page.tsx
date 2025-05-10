@@ -44,6 +44,16 @@ export default function Home() {
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
   const [showS3FileViewer, setShowS3FileViewer] = useState(false);
 
+  // Flags to track if data has been fetched for the current agent/event
+  const [fetchedDataFlags, setFetchedDataFlags] = useState({
+    transcriptions: false,
+    baseSystemPrompts: false,
+    agentSystemPrompts: false,
+    baseFrameworks: false,
+    orgContext: false,
+    pineconeMemory: false,
+  });
+
   // Read agent/event from URL ONCE on mount for context (chat component also reads it)
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
   const [pageEventId, setPageEventId] = useState<string | null>(null);
@@ -57,6 +67,19 @@ export default function Home() {
   useEffect(() => {
       const agentParam = searchParams.get('agent');
       const eventParam = searchParams.get('event');
+
+      if (pageAgentName !== agentParam || pageEventId !== eventParam) {
+        // Reset fetched flags if agent or event changes
+        setFetchedDataFlags({
+          transcriptions: false,
+          baseSystemPrompts: false,
+          agentSystemPrompts: false,
+          baseFrameworks: false,
+          orgContext: false,
+          pineconeMemory: false,
+        });
+      }
+
       setPageAgentName(agentParam);
       setPageEventId(eventParam);
 
@@ -202,17 +225,8 @@ export default function Home() {
   // Fetch S3 and Pinecone data when settings dialog is shown or agent/event changes
   useEffect(() => {
     const fetchAllData = async () => {
-      console.log(`[fetchAllData] Called. showSettings: ${showSettings}, pageAgentName: ${pageAgentName}, pageEventId: ${pageEventId}, isAuthorized: ${isAuthorized}`);
       if (!showSettings || !pageAgentName || isAuthorized !== true) {
-        console.log("[fetchAllData] Conditions not met, clearing data.");
-        // Clear data if settings are closed or agent not set/authorized
-        setTranscriptionS3Files([]);
-        setBaseSystemPromptS3Files([]);
-        setAgentSystemPromptS3Files([]);
-        setBaseFrameworkS3Files([]); // Clear frameworks
-        setOrgContextS3Files([]);
-        setPineconeMemoryDocs([]);
-        return;
+        return; // Don't clear data here, let flags control re-fetching
       }
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -222,118 +236,114 @@ export default function Home() {
       }
       const commonHeaders = { 'Authorization': `Bearer ${session.access_token}` };
 
+      const newFetchedDataFlags = { ...fetchedDataFlags };
+
       // Helper to fetch S3 files
       const fetchS3Data = async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
         const proxyApiUrl = `/api/s3-proxy/list?prefix=${encodeURIComponent(prefix)}`;
-        console.log(`[fetchS3Data] Fetching for "${description}" from Next.js proxy URL: "${proxyApiUrl}"`);
         try {
-          // CommonHeaders (containing Supabase auth token) will be implicitly handled by Next.js server-side API route
           const response = await fetch(proxyApiUrl, { headers: { 
-            // We still need to pass the Authorization header for the Next.js API route to pick up
             'Authorization': commonHeaders.Authorization 
           }});
           if (!response.ok) throw new Error(`Failed to fetch ${description} via proxy: ${response.statusText} (URL: ${proxyApiUrl})`);
           const data: FetchedFile[] = await response.json();
-          console.log(`[fetchS3Data] Raw data for "${description}" (prefix: "${prefix}") from proxy:`, JSON.stringify(data, null, 2));
-          onDataFetched(data); // Call the provided handler with the fetched data
+          onDataFetched(data);
         } catch (error) {
           console.error(`Error fetching ${description} from proxy ${proxyApiUrl}:`, error);
-          onDataFetched([]); // Call with empty array on error
+          onDataFetched([]);
         }
       };
 
       // Fetch transcriptions
-      if (pageEventId) {
-        fetchS3Data(
+      if (pageEventId && !fetchedDataFlags.transcriptions) {
+        await fetchS3Data(
           `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`,
           (data: FetchedFile[]) => {
-            console.log(`[Transcriptions Callback] Raw data:`, data);
-            // Backend already filters 'rolling-' for this prefix, so direct set is fine
             setTranscriptionS3Files(data);
-            console.log(`[Transcriptions Callback] Set ${data.length} transcription files.`);
+            newFetchedDataFlags.transcriptions = true;
           },
           "Transcriptions"
         );
-      } else {
-        console.log("[Transcriptions] No pageEventId, clearing transcriptions.");
-        setTranscriptionS3Files([]); // Clear if no eventId
+      } else if (!pageEventId) {
+        setTranscriptionS3Files([]);
+        newFetchedDataFlags.transcriptions = true; // Mark as "fetched" (or cleared)
       }
       
-      // Fetch base system prompts (any extension)
-      fetchS3Data(
-        `_config/`, 
-        (allConfigDocs: FetchedFile[]) => {
-           console.log(`[Base System Prompts Callback] Raw data from _config/:`, allConfigDocs);
-           const basePromptRegex = new RegExp(`^systemprompt_base(\\.[^.]+)?$`);
-           const filtered = allConfigDocs.filter(f => basePromptRegex.test(f.name));
-           console.log(`[Base System Prompts Callback] Regex: ${basePromptRegex.toString()}, Filtered:`, filtered);
-           setBaseSystemPromptS3Files(filtered);
-        },
-        "Base System Prompts"
-      );
+      // Fetch base system prompts
+      if (!fetchedDataFlags.baseSystemPrompts) {
+        await fetchS3Data(
+          `_config/`,
+          (allConfigDocs: FetchedFile[]) => {
+             const basePromptRegex = new RegExp(`^systemprompt_base(\\.[^.]+)?$`);
+             setBaseSystemPromptS3Files(allConfigDocs.filter(f => basePromptRegex.test(f.name)));
+             newFetchedDataFlags.baseSystemPrompts = true;
+          },
+          "Base System Prompts"
+        );
+      }
 
-      // Fetch base frameworks (any extension)
-      fetchS3Data(
-        `_config/`, 
-        (allConfigDocs: FetchedFile[]) => {
-            console.log(`[Base Frameworks Callback] Raw data from _config/:`, allConfigDocs);
-            const baseFrameworkRegex = new RegExp(`^frameworks_base(\\.[^.]+)?$`);
-            const filtered = allConfigDocs.filter(f => baseFrameworkRegex.test(f.name));
-            console.log(`[Base Frameworks Callback] Regex: ${baseFrameworkRegex.toString()}, Filtered:`, filtered);
-            setBaseFrameworkS3Files(filtered);
-        },
-        "Base Frameworks"
-      );
+      // Fetch base frameworks
+      if (!fetchedDataFlags.baseFrameworks) {
+        await fetchS3Data(
+          `_config/`,
+          (allConfigDocs: FetchedFile[]) => {
+              const baseFrameworkRegex = new RegExp(`^frameworks_base(\\.[^.]+)?$`);
+              setBaseFrameworkS3Files(allConfigDocs.filter(f => baseFrameworkRegex.test(f.name)));
+              newFetchedDataFlags.baseFrameworks = true;
+          },
+          "Base Frameworks"
+        );
+      }
 
-      // Fetch agent-specific system prompts (any extension)
-      fetchS3Data(
-        `organizations/river/agents/${pageAgentName}/_config/`,
-        (agentConfigDocs: FetchedFile[]) => {
-           console.log(`[Agent System Prompts Callback] Raw data for agent ${pageAgentName}:`, agentConfigDocs);
-           const agentPromptRegex = new RegExp(`^systemprompt_aID-${pageAgentName}(\\.[^.]+)?$`);
-           const filtered = agentConfigDocs.filter(f => agentPromptRegex.test(f.name));
-           console.log(`[Agent System Prompts Callback] Regex: ${agentPromptRegex.toString()}, Filtered:`, filtered);
-           setAgentSystemPromptS3Files(filtered);
-        },
-        "Agent System Prompts"
-      );
+      // Fetch agent-specific system prompts
+      if (!fetchedDataFlags.agentSystemPrompts) {
+        await fetchS3Data(
+          `organizations/river/agents/${pageAgentName}/_config/`,
+          (agentConfigDocs: FetchedFile[]) => {
+             const agentPromptRegex = new RegExp(`^systemprompt_aID-${pageAgentName}(\\.[^.]+)?$`);
+             setAgentSystemPromptS3Files(agentConfigDocs.filter(f => agentPromptRegex.test(f.name)));
+             newFetchedDataFlags.agentSystemPrompts = true;
+          },
+          "Agent System Prompts"
+        );
+      }
       
-      // Fetch organization context files for the specific agent (any extension)
-      // S3 path: bucket/organizations/river/_config/context_oID-{{AGENT_NAME}}.*
-      fetchS3Data(
-        `organizations/river/_config/`, 
-        (orgConfigDocs: FetchedFile[]) => {
-          console.log(`[Organization Context Callback] Raw data for agent ${pageAgentName} from org config:`, orgConfigDocs);
-          // Corrected: Backend uses hardcoded 'context_oID-river'
-          const orgContextRegex = new RegExp(`^context_oID-river(\\.[^.]+)?$`);
-          const filtered = orgConfigDocs.filter(f => orgContextRegex.test(f.name));
-          console.log(`[Organization Context Callback] Regex: ${orgContextRegex.toString()}, Filtered:`, filtered);
-          setOrgContextS3Files(filtered)
-        },
-        "Organization Context"
-      );
+      // Fetch organization context files
+      if (!fetchedDataFlags.orgContext) {
+        await fetchS3Data(
+          `organizations/river/_config/`,
+          (orgConfigDocs: FetchedFile[]) => {
+            const orgContextRegex = new RegExp(`^context_oID-river(\\.[^.]+)?$`);
+            setOrgContextS3Files(orgConfigDocs.filter(f => orgContextRegex.test(f.name)))
+            newFetchedDataFlags.orgContext = true;
+          },
+          "Organization Context"
+        );
+      }
 
       // Fetch Pinecone memory documents
-      try {
-        const pineconeProxyUrl = `/api/pinecone-proxy/list-docs?agentName=${encodeURIComponent(pageAgentName)}&namespace=${encodeURIComponent(pageAgentName)}`;
-        console.log(`[Pinecone Memory] Fetching for agent: ${pageAgentName} from Next.js proxy URL: ${pineconeProxyUrl}`);
-        const pineconeResponse = await fetch(pineconeProxyUrl, { headers: {
-          'Authorization': commonHeaders.Authorization
-        }});
-        if (!pineconeResponse.ok) throw new Error(`Failed to fetch Pinecone docs via proxy: ${pineconeResponse.statusText} (URL: ${pineconeProxyUrl})`);
-        const pineconeData = await pineconeResponse.json();
-        console.log(`[Pinecone Memory] Raw data from proxy:`, pineconeData);
-        const mappedDocs = pineconeData.unique_document_names?.map((name: string) => ({ name })) || [];
-        setPineconeMemoryDocs(mappedDocs);
-        console.log("[Pinecone Memory] Processed Pinecone Memory Docs:", mappedDocs.length);
-      } catch (error) {
-        console.error("Error fetching Pinecone Memory Docs via proxy:", error);
-        setPineconeMemoryDocs([]);
+      if (!fetchedDataFlags.pineconeMemory) {
+        try {
+          const pineconeProxyUrl = `/api/pinecone-proxy/list-docs?agentName=${encodeURIComponent(pageAgentName)}&namespace=${encodeURIComponent(pageAgentName)}`;
+          const pineconeResponse = await fetch(pineconeProxyUrl, { headers: {
+            'Authorization': commonHeaders.Authorization
+          }});
+          if (!pineconeResponse.ok) throw new Error(`Failed to fetch Pinecone docs via proxy: ${pineconeResponse.statusText} (URL: ${pineconeProxyUrl})`);
+          const pineconeData = await pineconeResponse.json();
+          const mappedDocs = pineconeData.unique_document_names?.map((name: string) => ({ name })) || [];
+          setPineconeMemoryDocs(mappedDocs);
+          newFetchedDataFlags.pineconeMemory = true;
+        } catch (error) {
+          console.error("Error fetching Pinecone Memory Docs via proxy:", error);
+          setPineconeMemoryDocs([]);
+          newFetchedDataFlags.pineconeMemory = true; // Mark as attempted even on error
+        }
       }
+      setFetchedDataFlags(newFetchedDataFlags);
     };
 
     fetchAllData();
-  }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth]); // Removed activeBackendUrl dependency
+  }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth, fetchedDataFlags]);
 
 
   const handleViewS3File = (file: { s3Key: string; name: string; type: string }) => {
@@ -470,9 +480,7 @@ export default function Home() {
                   >
                     <div className="pb-3 space-y-2">
                       {transcriptionS3Files.length > 0 ? (
-                        transcriptionS3Files.map(file => {
-                          console.log("[Render] Mapping Transcription File:", file.name, file.s3Key);
-                          return (
+                        transcriptionS3Files.map(file => (
                           <FetchedFileListItem
                             key={file.s3Key || file.name}
                             file={file}
@@ -481,8 +489,7 @@ export default function Home() {
                             showViewIcon={true}
                             showDownloadIcon={true}
                           />
-                        );
-                        })
+                        ))
                       ) : (
                         <p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>
                       )}
@@ -512,33 +519,27 @@ export default function Home() {
                       {/* List Base System Prompts from S3 */}
                       {baseSystemPromptS3Files.length > 0 && (
                         <div className="mt-4 space-y-2">
-                          {baseSystemPromptS3Files.map(file => {
-                            console.log("[Render] Mapping Base System Prompt:", file.name, file.s3Key);
-                            return (
+                          {baseSystemPromptS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          );
-                          })}
+                          ))}
                         </div>
                       )}
                       {/* List Agent-Specific System Prompts from S3 */}
                       {agentSystemPromptS3Files.length > 0 && (
                         <div className="mt-2 space-y-2"> {/* Reduced margin if both exist */}
-                          {agentSystemPromptS3Files.map(file => {
-                            console.log("[Render] Mapping Agent System Prompt:", file.name, file.s3Key);
-                            return (
+                          {agentSystemPromptS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          );
-                          })}
+                          ))}
                         </div>
                       )}
                       {(baseSystemPromptS3Files.length === 0 && agentSystemPromptS3Files.length === 0) && (
@@ -552,17 +553,14 @@ export default function Home() {
                       {/* List Base Frameworks from S3 */}
                       {baseFrameworkS3Files.length > 0 ? (
                         <div className="space-y-2">
-                          {baseFrameworkS3Files.map(file => {
-                            console.log("[Render] Mapping Base Framework:", file.name, file.s3Key);
-                            return (
+                          {baseFrameworkS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          );
-                          })}
+                          ))}
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>
@@ -598,17 +596,14 @@ export default function Home() {
                        <div className="mt-4 space-y-2">
                         {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Organization Context (S3)</h4> */}
                         {orgContextS3Files.length > 0 ? (
-                          orgContextS3Files.map(file => {
-                            console.log("[Render] Mapping Org Context File:", file.name, file.s3Key);
-                            return (
+                          orgContextS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          );
-                          })
+                          ))
                         ) : (
                           <p className="text-sm text-muted-foreground">No organization context files found in S3 for '{pageAgentName}'.</p>
                         )}
@@ -635,16 +630,13 @@ export default function Home() {
                       <div className="mt-4 space-y-2">
                         {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Pinecone Memory Documents</h4> */}
                         {pineconeMemoryDocs.length > 0 ? (
-                          pineconeMemoryDocs.map(doc => {
-                            console.log("[Render] Mapping Pinecone Memory Doc:", doc.name);
-                            return (
+                          pineconeMemoryDocs.map(doc => (
                             <FetchedFileListItem
                               key={doc.name}
                               file={{ name: doc.name, type: 'pinecone/document' }}
                               showViewIcon={false} // Cannot view content for Pinecone docs from this list
                             />
-                          );
-                          })
+                          ))
                         ) : (
                           <p className="text-sm text-muted-foreground">No documents found in Pinecone memory for '{pageAgentName}'.</p>
                         )}

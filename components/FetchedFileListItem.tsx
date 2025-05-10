@@ -58,11 +58,13 @@ export default function FetchedFileListItem({
   }
 
   return (
-    <div className="flex items-center justify-between p-3 border rounded-md my-1 hover:bg-muted/50 transition-colors">
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-center justify-between p-3 border rounded-md my-1 hover:bg-muted/50 transition-colors w-full"> {/* Ensure item takes full width of its slot */}
+      {/* Container for icon and text, allows text to truncate */}
+      <div className="flex items-center gap-3 flex-1 min-w-0"> {/* flex-1 allows it to take available space, min-w-0 allows it to shrink */}
         {getFileIcon(file.type)}
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm truncate max-w-full" title={file.name}>
+        {/* Text container that will truncate */}
+        <div className="flex-shrink min-w-0 overflow-hidden"> {/* flex-shrink allows it to shrink, min-w-0 and overflow-hidden are key for truncate */}
+          <p className="font-medium text-sm truncate" title={file.name}>
             {file.name}
           </p>
           {(file.size !== undefined || file.lastModified) && (

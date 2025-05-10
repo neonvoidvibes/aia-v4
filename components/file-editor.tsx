@@ -35,11 +35,11 @@ export default function FileEditor({
 
       if (s3KeyToLoad) {
         const proxyApiUrl = `/api/s3-proxy/view?s3Key=${encodeURIComponent(s3KeyToLoad)}`;
-        console.log(`FileEditor: Fetching S3 content from Next.js proxy URL: ${proxyApiUrl}`);
+        // console.log(`FileEditor: Fetching S3 content from Next.js proxy URL: ${proxyApiUrl}`);
 
         // Fetch content from S3 via Next.js proxy API
-        // No explicit auth header needed here if the proxy route handles it server-side
-        fetch(proxyApiUrl)
+        // No explicit auth header needed here as the proxy route will use the server session (cookie)
+        fetch(proxyApiUrl) 
           .then((response) => {
             if (!response.ok) {
               throw new Error(`Failed to fetch S3 content via proxy: ${response.statusText} (URL: ${proxyApiUrl})`)
@@ -138,9 +138,11 @@ export default function FileEditor({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" onClick={onClose}>
+    // Increased z-index for the overlay
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000]" onClick={onClose}> 
       <motion.div
-        className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl mx-4 overflow-hidden shadow-xl"
+        // Increased z-index for the content
+        className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl mx-4 overflow-hidden shadow-xl z-[10001]"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -183,37 +185,39 @@ export default function FileEditor({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-4 border-t">
-          <button
-            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
           {s3KeyToLoad ? (
             <button
               className="px-4 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
-              onClick={onClose} // Simply close if it's an S3 view
+              onClick={onClose}
             >
               Close
             </button>
           ) : (
-            <button
-              className="px-4 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleSave}
-              disabled={isLoading || isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <DownloadCloud className="h-4 w-4" />
-                  Save & Download
-                </>
-              )}
-            </button>
+            <>
+              <button
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSave}
+                disabled={isLoading || isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <DownloadCloud className="h-4 w-4" />
+                    Save & Download
+                  </>
+                )}
+              </button>
+            </>
           )}
         </div>
       </motion.div>
