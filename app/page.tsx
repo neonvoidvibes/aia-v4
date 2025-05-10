@@ -291,7 +291,8 @@ export default function Home() {
                     title="Transcription"
                     defaultOpen={true}
                   >
-                    <div className="pb-3"> {/* Horizontal padding inherited from .tab-content-inner */}
+                    {/* No horizontal padding here, inherits from parent content wrapper in CollapsibleSection */}
+                    <div className="pb-3"> 
                       <p className="text-sm text-muted-foreground">Transcription settings and options will be available here.</p>
                     </div>
                   </CollapsibleSection>
@@ -323,6 +324,7 @@ export default function Home() {
 
               <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
                 <div className="tab-content-inner tab-content-scrollable">
+                  {/* Removed <h2 className="text-xl font-semibold mb-2">Memory Management</h2> */}
                   <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
                     <CollapsibleSection
                       title="Context"
@@ -365,8 +367,8 @@ export default function Home() {
 
               <TabsContent value="settings" className="mt-0 tab-content-scrollable">
                 <div className="space-y-4 tab-content-inner">
-                  {/* Horizontal padding inherited from .tab-content-inner. Vertical padding via py-X can be added if needed, or rely on space-y-4 */}
-                  <div className="flex items-center justify-between">
+                  {/* No horizontal padding here, inherits from .tab-content-inner. */}
+                  <div className="flex items-center justify-between"> 
                     <span className="memory-section-title">Theme</span>
                     <ThemeToggle />
                   </div>
@@ -377,6 +379,7 @@ export default function Home() {
           </Tabs>
         </DialogContent>
       </Dialog>
+
       {/* Confirmation Modal (Managed by Page) */}
       <ConfirmationModal
         isOpen={showNewChatConfirm}

@@ -810,7 +810,89 @@ input, textarea, select {
 }
 
 .memory-section-title { font-weight: 600; font-size: 1.25rem; /* Changed from 1rem to 1.25rem (text-xl) */ margin-bottom: 0.25rem; /* Reduced space below title to 0.25rem (mb-1) */ }
-.tab-content-inner { padding: 0.75rem 1rem !important; margin: 0 !important; } /* Added px-4 (1rem) horizontal padding */
+.tab-content-inner { 
+  padding-top: 0.75rem !important; 
+  padding-bottom: 0.75rem !important;
+  padding-left: 0.5rem !important; /* mobile: 0.5rem (px-2) */
+  padding-right: 0.5rem !important; /* mobile: 0.5rem (px-2) */
+  margin: 0 !important; 
+}
+@media (min-width: 768px) { /* md breakpoint */
+  .tab-content-inner {
+    padding-left: 1rem !important; /* desktop: 1rem (px-4) */
+    padding-right: 1rem !important; /* desktop: 1rem (px-4) */
+  }
+}
+
+/* Forceful overrides for mobile section header alignment */
+@media (max-width: 767px) {
+  /* Ensure .tab-content-inner dictates the outer boundary */
+  /* This is already set above, but re-iterating for clarity of thought */
+  /* .tab-content-inner {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  } */
+
+  /* The .memory-section div itself should not add horizontal padding if .tab-content-inner does */
+  .memory-section {
+    /* Any px here would be IN ADDITION to .tab-content-inner's padding */
+    /* We want .memory-section to fill the padded .tab-content-inner */
+  }
+
+  /* Target the button within .memory-section used as the toggle on mobile */
+  .memory-section > button.section-toggle {
+    padding-left: 0.5rem !important;  /* Inset title text from left edge of parent's padding */
+    padding-right: 0.5rem !important; /* Inset chevron from right edge of parent's padding */
+    box-sizing: border-box !important; /* Ensure padding is included correctly */
+  }
+  
+  /* If the above button padding makes title/chevron too indented (because .tab-content-inner also has 0.5rem padding),
+     then .tab-content-inner's mobile padding should be 0, and this button takes full responsibility for the 0.5rem inset.
+     Let's assume for now .tab-content-inner provides the 0.5rem, and this button *adds* to it.
+     If the screenshot means the title should be AT the 0.5rem mark set by .tab-content-inner,
+     then this button should have padding-left: 0 !important; padding-right: 0 !important;
+     Given previous failures, let's try to make this button's padding definitive for its content.
+     The current .tab-content-inner gives 0.5rem padding.
+     If this button also gets 0.5rem padding, total indent is 1rem. This is likely NOT what is wanted.
+
+     Let's revise: .tab-content-inner provides 0.5rem.
+     The button.section-toggle should have NO internal padding if its children are to align with that 0.5rem boundary.
+     The screenshot seems to show the title/chevron ARE at the 0.5rem boundary.
+     So, the issue must be that the *content below it* (description) is getting an *additional* inset.
+  */
+
+  /* Reverting to simpler logic based on screenshot:
+     Title/Chevron align with .tab-content-inner's padding (0.5rem).
+     Content below title should ALSO align with .tab-content-inner's padding (0.5rem).
+  */
+  .memory-section > button.section-toggle {
+    padding-left: 0 !important; /* Align with parent padding */
+    padding-right: 0 !important; /* Align with parent padding */
+  }
+
+  /* Ensure content within collapsible section also aligns directly with parent padding on mobile */
+  .memory-section .section-content { /* This is the div that wraps children */
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  /* Specifically for DocumentUpload inside a .section-content on mobile, ensure its CardHeader/CardContent have no extra H padding */
+  .memory-section .section-content .document-upload-card .upload-header {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+   .memory-section .section-content .document-upload-card .upload-container { /* This is CardContent */
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* For non-CollapsibleSection items in Settings Tab, ensure they align with .tab-content-inner padding */
+  .tab-content-inner > .flex.items-center.justify-between { /* Targets the Theme row */
+     padding-left: 0 !important;
+     padding-right: 0 !important;
+  }
+}
+
 
 /* Memory Section Overflow Fixes */
 /* These define internal scroll for file lists within DocumentUpload, which is OK */

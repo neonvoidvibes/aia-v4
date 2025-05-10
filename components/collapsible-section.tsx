@@ -1,10 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import { ChevronRight } from "lucide-react"
 import { useMobile } from "@/hooks/use-mobile"
+import { cn } from "@/lib/utils" // Import cn for potential future use
 
 interface CollapsibleSectionProps {
   title: string
@@ -14,60 +14,97 @@ interface CollapsibleSectionProps {
 }
 
 export default function CollapsibleSection({ title, children, defaultOpen = true, onToggle }: CollapsibleSectionProps) {
-  // Always start closed on mobile
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(defaultOpen) // Default to true for desktop, mobile handles its own state.
   const contentRef = useRef<HTMLDivElement>(null)
   const isMobile = useMobile()
 
-  // Initialize state based on device type
+  // Adjust initial open state for mobile if it differs from desktop default
   useEffect(() => {
-    // On desktop, always show content
-    if (!isMobile && contentRef.current) {
-      contentRef.current.style.maxHeight = "none"
+    if (isMobile) {
+      setIsOpen(false) // Default to closed on mobile if that's the desired UX
+    } else {
+      setIsOpen(defaultOpen) // Respect defaultOpen for desktop
     }
-  }, [isMobile])
+  }, [isMobile, defaultOpen])
+  
+  // Handle content max-height for animation
+  useEffect(() => {
+    if (contentRef.current) {
+      if (isOpen) {
+        // For mobile, or if desktop is also animated (currently not, but for future)
+        contentRef.current.style.maxHeight = contentRef.current.scrollHeight + "px";
+      } else {
+        contentRef.current.style.maxHeight = "0px";
+      }
+    }
+  }, [isOpen, children]) // Re-run if children change, as scrollHeight might change
 
   const toggleSection = () => {
     const newState = !isOpen
     setIsOpen(newState)
-
-    // Notify parent component about the toggle
     if (onToggle) {
       onToggle(newState)
     }
   }
 
-  // If not mobile, render without toggle
-  if (!isMobile) {
-    return (
-      // Horizontal padding removed, will be inherited from .tab-content-inner
-      <div className="memory-section">
-        <h3 className="memory-section-title">{title}</h3> 
-        <div ref={contentRef}>{children}</div>
-      </div>
-    )
-  }
+  // Common header structure
+  const HeaderContent = (
+    <>
+      <span className="memory-section-title">{title}</span>
+      <ChevronRight
+        className={cn(
+          "section-toggle-icon transition-transform duration-200",
+          isOpen ? "rotate-90" : "rotate-0"
+        )}
+        size={20}
+      />
+    </>
+  )
 
   return (
+    // .memory-section has no horizontal padding. It inherits from .tab-content-inner.
     <div className="memory-section">
-      {/* Horizontal padding removed, section-toggle takes full width and text aligns with parent padding */}
-      <button className="section-toggle w-full" onClick={toggleSection}>
-        <span className="memory-section-title">{title}</span> 
-        <ChevronRight
-          className={`section-toggle-icon ${isOpen ? "open" : ""}`}
-          size={20}
-          style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
-        />
-      </button>
+      {isMobile ? (
+        // Mobile: button is the header. px-0 ensures its content aligns with .tab-content-inner padding.
+        <button
+          className="section-toggle w-full flex items-center justify-between px-0 py-2" // Added py-2 for consistent header height
+          onClick={toggleSection}
+          aria-expanded={isOpen}
+        >
+          {HeaderContent}
+        </button>
+      ) : (
+        // Desktop: h3 is the header. px-0 ensures its content aligns with .tab-content-inner padding.
+        // onClick added for desktop toggling as well.
+        <h3
+          className="memory-section-title w-full flex items-center justify-between px-0 py-2 cursor-pointer" // Added py-2, cursor-pointer
+          onClick={toggleSection}
+          role="button"
+          aria-expanded={isOpen}
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleSection(); }}
+        >
+          {HeaderContent}
+        </h3>
+      )}
+      {/* Content wrapper also has px-0. Its children will align with .tab-content-inner padding. */}
       <div
         ref={contentRef}
-        className={`section-content ${isOpen ? "open" : ""}`}
+        className={cn(
+          "section-content overflow-hidden transition-[max-height] duration-300 ease-in-out px-0",
+          // On desktop, if defaultOpen is true, content is visible without animation initially
+          // For mobile, or if animated on desktop, max-height handles visibility.
+          { 'open': isOpen } 
+        )}
         style={{
-          maxHeight: isOpen ? "1000px" : "0px",
-          overflow: "hidden",
+           maxHeight: isOpen || (!isMobile && defaultOpen) ? (contentRef.current?.scrollHeight + "px") : "0px",
         }}
       >
-        {children}
+        {/* This inner div ensures content respects the CollapsibleSection's state,
+            and its children (like DocumentUpload) will align with the header.
+            The actual content (children) should not have horizontal padding if it needs to align.
+        */}
+        <div className="pt-1 pb-3">{children}</div> {/* Added small top/bottom padding for content block */}
       </div>
     </div>
   )

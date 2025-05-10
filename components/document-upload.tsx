@@ -218,7 +218,7 @@ export default function DocumentUpload({
           className={cn(
             "upload-header sticky-header",
             transparentBackground && "bg-transparent",
-            // If no title, remove all horizontal padding so it aligns with parent's padding.
+            // If no title (i.e., CollapsibleSection provides it), CardHeader has no horizontal padding.
             !title ? "pt-0 pb-3 px-0" : "p-6",
           )}
         >
@@ -229,7 +229,8 @@ export default function DocumentUpload({
           className={cn(
             "upload-container",
             transparentBackground && "bg-transparent",
-            !title ? "pt-0 px-0" : "p-6 pt-0" // Content padding also px-0 horizontally if no title
+            // If no title, CardContent also has no horizontal padding.
+            !title ? "pt-0 px-0" : "p-6 pt-0"
           )}
         >
           {!readOnly && (
