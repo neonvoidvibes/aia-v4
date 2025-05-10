@@ -3,7 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter, useSearchParams } from 'next/navigation'; // Import useRouter
 import { PenSquare, ChevronDown, AlertTriangle, Eye } from "lucide-react" // Added AlertTriangle and Eye
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog" // Added DialogTitle, DialogDescription, DialogClose
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden" // For accessibility
 import { createClient } from '@/utils/supabase/client'; // Import Supabase client
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -35,12 +36,16 @@ export default function Home() {
   const [transcriptionS3Files, setTranscriptionS3Files] = useState<FetchedFile[]>([]);
   const [baseSystemPromptS3Files, setBaseSystemPromptS3Files] = useState<FetchedFile[]>([]);
   const [agentSystemPromptS3Files, setAgentSystemPromptS3Files] = useState<FetchedFile[]>([]);
+  const [baseFrameworkS3Files, setBaseFrameworkS3Files] = useState<FetchedFile[]>([]); // New state for frameworks
   const [orgContextS3Files, setOrgContextS3Files] = useState<FetchedFile[]>([]);
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
 
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
   const [showS3FileViewer, setShowS3FileViewer] = useState(false);
+
+  // State for backend URL
+  const [activeBackendUrl, setActiveBackendUrl] = useState<string | null>(null);
 
 
   // Read agent/event from URL ONCE on mount for context (chat component also reads it)
@@ -127,6 +132,21 @@ export default function Home() {
 
   }, [searchParams, supabase.auth, router]); // Add dependencies
 
+  useEffect(() => {
+    const backendUrlsString = process.env.NEXT_PUBLIC_BACKEND_API_URLS;
+    if (backendUrlsString) {
+      const urls = backendUrlsString.split(',').map(url => url.trim()).filter(url => url);
+      if (urls.length > 0) {
+        setActiveBackendUrl(urls[0]); // Use the first URL, or implement more robust selection
+        console.log("Active backend URL set to:", urls[0]);
+      } else {
+        console.error("NEXT_PUBLIC_BACKEND_API_URLS is defined but contains no valid URLs.");
+      }
+    } else {
+      console.error("NEXT_PUBLIC_BACKEND_API_URLS is not defined. Cannot make backend API calls for S3/Pinecone listings.");
+    }
+  }, []);
+
 
   // Refs
   const tabContentRef = useRef<HTMLDivElement>(null);
@@ -201,11 +221,14 @@ export default function Home() {
   // Fetch S3 and Pinecone data when settings dialog is shown or agent/event changes
   useEffect(() => {
     const fetchAllData = async () => {
+      console.log(`[fetchAllData] Called. showSettings: ${showSettings}, pageAgentName: ${pageAgentName}, pageEventId: ${pageEventId}, isAuthorized: ${isAuthorized}`);
       if (!showSettings || !pageAgentName || isAuthorized !== true) {
+        console.log("[fetchAllData] Conditions not met, clearing data.");
         // Clear data if settings are closed or agent not set/authorized
         setTranscriptionS3Files([]);
         setBaseSystemPromptS3Files([]);
         setAgentSystemPromptS3Files([]);
+        setBaseFrameworkS3Files([]); // Clear frameworks
         setOrgContextS3Files([]);
         setPineconeMemoryDocs([]);
         return;
@@ -220,14 +243,21 @@ export default function Home() {
 
       // Helper to fetch S3 files
       const fetchS3Data = async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
+        if (!activeBackendUrl) {
+          console.error(`[fetchS3Data] Cannot fetch "${description}", activeBackendUrl is not set.`);
+          onDataFetched([]);
+          return;
+        }
+        const apiUrl = `${activeBackendUrl}/api/s3/list?prefix=${encodeURIComponent(prefix)}`;
+        console.log(`[fetchS3Data] Fetching for "${description}" from URL: "${apiUrl}"`);
         try {
-          const response = await fetch(`/api/s3/list?prefix=${encodeURIComponent(prefix)}`, { headers: commonHeaders });
-          if (!response.ok) throw new Error(`Failed to fetch ${description}: ${response.statusText}`);
+          const response = await fetch(apiUrl, { headers: commonHeaders });
+          if (!response.ok) throw new Error(`Failed to fetch ${description}: ${response.statusText} (URL: ${apiUrl})`);
           const data: FetchedFile[] = await response.json();
+          console.log(`[fetchS3Data] Raw data for "${description}" (prefix: "${prefix}"):`, JSON.stringify(data, null, 2));
           onDataFetched(data); // Call the provided handler with the fetched data
-          console.log(`Fetched ${description}:`, data.length, "files");
         } catch (error) {
-          console.error(`Error fetching ${description}:`, error);
+          console.error(`Error fetching ${description} from ${apiUrl}:`, error);
           onDataFetched([]); // Call with empty array on error
         }
       };
@@ -236,47 +266,89 @@ export default function Home() {
       if (pageEventId) {
         fetchS3Data(
           `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`,
-          setTranscriptionS3Files, // Direct setter works as (data: FetchedFile[]) => void
+          (data: FetchedFile[]) => {
+            console.log(`[Transcriptions Callback] Raw data:`, data);
+            // Backend already filters 'rolling-' for this prefix, so direct set is fine
+            setTranscriptionS3Files(data);
+            console.log(`[Transcriptions Callback] Set ${data.length} transcription files.`);
+          },
           "Transcriptions"
         );
       } else {
+        console.log("[Transcriptions] No pageEventId, clearing transcriptions.");
         setTranscriptionS3Files([]); // Clear if no eventId
       }
       
       // Fetch base system prompts (any extension)
       fetchS3Data(
-        `_config/`,
-        (allConfigDocs: FetchedFile[]) => { // Explicitly type allConfigDocs
-           setBaseSystemPromptS3Files(allConfigDocs.filter(f => f.name.startsWith('systemprompt_base.')));
+        `_config/`, // Fetch all files in _config/
+        (allConfigDocs: FetchedFile[]) => {
+           console.log(`[Base System Prompts Callback] Raw data from _config/:`, allConfigDocs);
+           const basePromptRegex = new RegExp(`^systemprompt_base(\\.[^.]+)?$`);
+           const filtered = allConfigDocs.filter(f => basePromptRegex.test(f.name));
+           console.log(`[Base System Prompts Callback] Regex: ${basePromptRegex.toString()}, Filtered:`, filtered);
+           setBaseSystemPromptS3Files(filtered);
         },
         "Base System Prompts"
       );
 
-      // Fetch agent-specific system prompts
+      // Fetch base frameworks (any extension)
+      fetchS3Data(
+        `_config/`, // Fetch all files in _config/
+        (allConfigDocs: FetchedFile[]) => {
+            console.log(`[Base Frameworks Callback] Raw data from _config/:`, allConfigDocs);
+            const baseFrameworkRegex = new RegExp(`^frameworks_base(\\.[^.]+)?$`);
+            const filtered = allConfigDocs.filter(f => baseFrameworkRegex.test(f.name));
+            console.log(`[Base Frameworks Callback] Regex: ${baseFrameworkRegex.toString()}, Filtered:`, filtered);
+            setBaseFrameworkS3Files(filtered);
+        },
+        "Base Frameworks"
+      );
+
+      // Fetch agent-specific system prompts (any extension)
       fetchS3Data(
         `organizations/river/agents/${pageAgentName}/_config/`,
-        (agentConfigDocs: FetchedFile[]) => { // Explicitly type agentConfigDocs
-           setAgentSystemPromptS3Files(agentConfigDocs.filter(f => f.name.startsWith(`systemprompt_aID-${pageAgentName}.`)));
+        (agentConfigDocs: FetchedFile[]) => {
+           console.log(`[Agent System Prompts Callback] Raw data for agent ${pageAgentName}:`, agentConfigDocs);
+           const agentPromptRegex = new RegExp(`^systemprompt_aID-${pageAgentName}(\\.[^.]+)?$`);
+           const filtered = agentConfigDocs.filter(f => agentPromptRegex.test(f.name));
+           console.log(`[Agent System Prompts Callback] Regex: ${agentPromptRegex.toString()}, Filtered:`, filtered);
+           setAgentSystemPromptS3Files(filtered);
         },
         "Agent System Prompts"
       );
       
-      // Fetch organization context files for the specific agent
+      // Fetch organization context files for the specific agent (any extension)
+      // S3 path: bucket/organizations/river/_config/context_oID-{{AGENT_NAME}}.*
       fetchS3Data(
-        `organizations/river/_config/`,
-        (orgConfigDocs: FetchedFile[]) => { // Explicitly type orgConfigDocs
-          setOrgContextS3Files(orgConfigDocs.filter(f => f.name.startsWith(`context_oID-${pageAgentName}.`)))
+        `organizations/river/_config/`, // Fetch all files in organizations/river/_config/
+        (orgConfigDocs: FetchedFile[]) => {
+          console.log(`[Organization Context Callback] Raw data for agent ${pageAgentName} from org config:`, orgConfigDocs);
+          // Note: pageAgentName is used for oID here as per instructions.
+          const orgContextRegex = new RegExp(`^context_oID-${pageAgentName}(\\.[^.]+)?$`);
+          const filtered = orgConfigDocs.filter(f => orgContextRegex.test(f.name));
+          console.log(`[Organization Context Callback] Regex: ${orgContextRegex.toString()}, Filtered:`, filtered);
+          setOrgContextS3Files(filtered)
         },
         "Organization Context"
       );
 
       // Fetch Pinecone memory documents
       try {
-        const pineconeResponse = await fetch(`/api/index/${pageAgentName}/namespace/${pageAgentName}/list_docs`, { headers: commonHeaders });
-        if (!pineconeResponse.ok) throw new Error(`Failed to fetch Pinecone docs: ${pineconeResponse.statusText}`);
-        const pineconeData = await pineconeResponse.json();
-        setPineconeMemoryDocs(pineconeData.unique_document_names?.map((name: string) => ({ name })) || []);
-        console.log("Fetched Pinecone Memory Docs:", pineconeData.unique_document_names?.length || 0);
+        if (!activeBackendUrl) {
+          console.error("[Pinecone Memory] Cannot fetch, activeBackendUrl is not set.");
+          setPineconeMemoryDocs([]);
+        } else {
+          const pineconeApiUrl = `${activeBackendUrl}/api/index/${pageAgentName}/namespace/${pageAgentName}/list_docs`;
+          console.log(`[Pinecone Memory] Fetching for agent: ${pageAgentName} from URL: ${pineconeApiUrl}`);
+          const pineconeResponse = await fetch(pineconeApiUrl, { headers: commonHeaders });
+          if (!pineconeResponse.ok) throw new Error(`Failed to fetch Pinecone docs: ${pineconeResponse.statusText} (URL: ${pineconeApiUrl})`);
+          const pineconeData = await pineconeResponse.json();
+          console.log(`[Pinecone Memory] Raw data:`, pineconeData);
+          const mappedDocs = pineconeData.unique_document_names?.map((name: string) => ({ name })) || [];
+          setPineconeMemoryDocs(mappedDocs);
+          console.log("[Pinecone Memory] Processed Pinecone Memory Docs:", mappedDocs.length);
+        }
       } catch (error) {
         console.error("Error fetching Pinecone Memory Docs:", error);
         setPineconeMemoryDocs([]);
@@ -284,7 +356,7 @@ export default function Home() {
     };
 
     fetchAllData();
-  }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth]);
+  }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth, activeBackendUrl]); // Added activeBackendUrl dependency
 
 
   const handleViewS3File = (file: { s3Key: string; name: string; type: string }) => {
@@ -298,8 +370,15 @@ export default function Home() {
   };
 
   const handleDownloadS3File = (file: { s3Key: string; name: string }) => {
-    // Trigger download via backend endpoint
-    window.open(`/api/s3/download?s3Key=${encodeURIComponent(file.s3Key)}&filename=${encodeURIComponent(file.name)}`, '_blank');
+    if (!activeBackendUrl) {
+      console.error("Cannot download S3 file, activeBackendUrl is not set.");
+      // Optionally show a toast or alert to the user
+      alert("Error: Backend URL not configured. Cannot download file.");
+      return;
+    }
+    const downloadUrl = `${activeBackendUrl}/api/s3/download?s3Key=${encodeURIComponent(file.s3Key)}&filename=${encodeURIComponent(file.name)}`;
+    console.log("Triggering S3 download from URL:", downloadUrl);
+    window.open(downloadUrl, '_blank');
   };
 
 
@@ -377,7 +456,13 @@ export default function Home() {
 
       {/* Settings Dialog and Confirmation Modal remain within the authorized view */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="sm:max-w-[750px] pt-8 fixed-dialog"> {/* Adjusted width in globals.css */}
+        <DialogContent className="sm:max-w-[750px] pt-8 fixed-dialog">
+          <DialogTitle>
+            <VisuallyHidden>Settings</VisuallyHidden>
+          </DialogTitle>
+          <DialogDescription>
+            <VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden>
+          </DialogDescription>
           <EnvWarning />
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-4 mb-4"> {/* Updated to grid-cols-4 */}
@@ -448,36 +533,56 @@ export default function Home() {
                           hideDropZone={true} // Comment out drag & drop
                         />
                       </div>
-                      <div className="mt-4 space-y-2">
-                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Base System Prompts (S3)</h4>
-                        {baseSystemPromptS3Files.length > 0 ? (
-                          baseSystemPromptS3Files.map(file => (
+                      {/* List Base System Prompts from S3 */}
+                      {baseSystemPromptS3Files.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          {baseSystemPromptS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No base system prompts found in S3.</p>
-                        )}
-                      </div>
-                      <div className="mt-4 space-y-2">
-                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Agent-Specific System Prompts (S3)</h4>
-                        {agentSystemPromptS3Files.length > 0 ? (
-                          agentSystemPromptS3Files.map(file => (
+                          ))}
+                        </div>
+                      )}
+                      {/* List Agent-Specific System Prompts from S3 */}
+                      {agentSystemPromptS3Files.length > 0 && (
+                        <div className="mt-2 space-y-2"> {/* Reduced margin if both exist */}
+                          {agentSystemPromptS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No agent-specific system prompts found in S3 for '{pageAgentName}'.</p>
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      )}
+                      {(baseSystemPromptS3Files.length === 0 && agentSystemPromptS3Files.length === 0) && (
+                         <p className="text-sm text-muted-foreground mt-2">No system prompts found in S3.</p>
+                      )}
+                    </CollapsibleSection>
+                    <CollapsibleSection
+                      title="Frameworks"
+                      defaultOpen={true}
+                    >
+                      {/* List Base Frameworks from S3 */}
+                      {baseFrameworkS3Files.length > 0 ? (
+                        <div className="space-y-2">
+                          {baseFrameworkS3Files.map(file => (
+                            <FetchedFileListItem
+                              key={file.s3Key || file.name}
+                              file={file}
+                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
+                              showViewIcon={true}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>
+                      )}
+                      {/* Placeholder for Agent-Specific Frameworks if needed in future */}
                     </CollapsibleSection>
                 </div>
               </TabsContent>
@@ -506,7 +611,7 @@ export default function Home() {
                         />
                       </div>
                        <div className="mt-4 space-y-2">
-                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Organization Context (S3)</h4>
+                        {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Organization Context (S3)</h4> */}
                         {orgContextS3Files.length > 0 ? (
                           orgContextS3Files.map(file => (
                             <FetchedFileListItem
@@ -540,7 +645,7 @@ export default function Home() {
                         />
                       </div>
                       <div className="mt-4 space-y-2">
-                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Pinecone Memory Documents</h4>
+                        {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Pinecone Memory Documents</h4> */}
                         {pineconeMemoryDocs.length > 0 ? (
                           pineconeMemoryDocs.map(doc => (
                             <FetchedFileListItem
@@ -597,7 +702,7 @@ export default function Home() {
           isOpen={showS3FileViewer}
           onClose={handleCloseS3FileViewer}
           onSave={() => { /* No save action for S3 view mode */ }}
-          s3KeyToLoad={s3FileToView.s3Key}
+          s3KeyToLoad={s3FileToView.s3Key} // This will be used with activeBackendUrl in FileEditor
           fileNameToDisplay={s3FileToView.name}
         />
       )}
