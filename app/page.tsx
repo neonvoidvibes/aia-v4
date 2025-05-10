@@ -26,6 +26,7 @@ export default function Home() {
   const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]); // Renamed state
   const [agentMemoryFiles, setAgentMemoryFiles] = useState<AttachmentFile[]>([]);
   const [systemPromptFiles, setSystemPromptFiles] = useState<AttachmentFile[]>([]);
+  const [contextFiles, setContextFiles] = useState<AttachmentFile[]>([]); // New state for Context files
   const [hasOpenSection, setHasOpenSection] = useState(false); // For mobile memory tab layout
 
   // Read agent/event from URL ONCE on mount for context (chat component also reads it)
@@ -134,6 +135,12 @@ export default function Home() {
     setSystemPromptFiles(files);
     // TODO: Call backend API to persist these changes if necessary
     console.log("System prompt files updated (frontend state):", files);
+  }, []);
+    
+  const handleContextUpdate = useCallback((files: AttachmentFile[]) => {
+    setContextFiles(files);
+    // TODO: Call backend API to persist these changes if necessary
+    console.log("Context files updated (frontend state):", files);
   }, []);
 
   // Settings Dialog Tabs
@@ -254,8 +261,10 @@ export default function Home() {
         <DialogContent className="sm:max-w-[600px] pt-8 fixed-dialog">
           <EnvWarning />
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsList className="grid w-full grid-cols-5 mb-4"> {/* Updated to grid-cols-5 */}
               <TabsTrigger value="documents">Documents</TabsTrigger>
+              <TabsTrigger value="system">System</TabsTrigger> {/* New System Tab */}
+              <TabsTrigger value="transcript">Transcript</TabsTrigger> {/* New Transcript Tab */}
               <TabsTrigger value="memory">Memory</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
@@ -279,48 +288,91 @@ export default function Home() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
-                <div className="tab-content-inner tab-content-scrollable">
-                  <h2 className="text-xl font-semibold mb-2">Memory Management</h2>
-                  <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
-                    <CollapsibleSection
-                      title="Agent Memory"
-                      defaultOpen={false} // Start closed on mobile implicitly handled by component
-                      onToggle={handleSectionToggle}
-                    >
-                      <div className="document-upload-container">
-                        <DocumentUpload
-                          description="Documents stored in the agent's long-term memory"
-                          type="memory"
-                          allowRemove={true}
-                          persistKey={`agent-memory-${pageAgentName}-${pageEventId}`} // Include agent/event in key
-                          onFilesAdded={handleAgentMemoryUpdate}
-                          transparentBackground={true} // ADDED
-                          // Pass existingFiles if loaded from backend
-                        />
-                      </div>
-                    </CollapsibleSection>
-
-                    <CollapsibleSection
-                      title="System Prompt"
-                      defaultOpen={false}
-                      onToggle={handleSectionToggle}
-                    >
-                      <div className="document-upload-container">
-                        <DocumentUpload
-                          description="Documents that define the agent's behavior"
-                          type="system"
-                          allowRemove={true}
-                          persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} // Include agent/event in key
-                          onFilesAdded={handleSystemPromptUpdate}
-                          transparentBackground={true} // ADDED
-                           // Pass existingFiles if loaded from backend
-                        />
-                      </div>
-                    </CollapsibleSection>
+              {/* New System Tab */}
+          <TabsContent value="system" className="mt-0 tab-content-scrollable">
+            <div className="space-y-4 tab-content-inner">
+              <h2 className="text-xl font-semibold">System Configuration</h2>
+              <CollapsibleSection
+                  title="System Prompt Configuration" // Updated title
+                  defaultOpen={true} // System prompt is important, open by default
+                  // onToggle={handleSectionToggle} // Not needed if always open or using standard collapse
+                >
+                  <div className="document-upload-container">
+                    <DocumentUpload
+                      description="Documents that define the agent's core behavior and persona"
+                      type="system"
+                      allowRemove={true}
+                      persistKey={`system-prompt-${pageAgentName}-${pageEventId}`}
+                      onFilesAdded={handleSystemPromptUpdate}
+                      existingFiles={systemPromptFiles} // Ensure existing files are passed
+                      transparentBackground={true}
+                    />
                   </div>
-                </div>
-              </TabsContent>
+                </CollapsibleSection>
+                {/* Add other system-related sections here if needed in the future */}
+            </div>
+          </TabsContent>
+
+          {/* New Transcript Tab */}
+          <TabsContent value="transcript" className="mt-0 tab-content-scrollable">
+            <div className="space-y-4 tab-content-inner">
+              <h2 className="text-xl font-semibold mb-2">Transcript Settings</h2>
+               <CollapsibleSection
+                  title="Transcription"
+                  defaultOpen={true}
+                >
+                  <div className="p-4">
+                    <p>Transcription settings and options will be available here.</p>
+                    {/* Placeholder for future transcription settings components */}
+                  </div>
+                </CollapsibleSection>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
+            <div className="tab-content-inner tab-content-scrollable">
+              <h2 className="text-xl font-semibold mb-2">Memory Management</h2>
+              <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
+                {/* New Context Section - Placed at the top of Memory Tab */}
+                <CollapsibleSection
+                  title="Context"
+                  defaultOpen={false}
+                  onToggle={handleSectionToggle}
+                >
+                  <div className="document-upload-container">
+                    <DocumentUpload
+                      title="Contextual Documents"
+                      description="Documents providing contextual information for the agent"
+                      type="context" // New type
+                      allowRemove={true}
+                      persistKey={`context-files-${pageAgentName}-${pageEventId}`}
+                      onFilesAdded={handleContextUpdate} // New handler
+                      existingFiles={contextFiles} // New state
+                      transparentBackground={true}
+                    />
+                  </div>
+                </CollapsibleSection>
+
+                <CollapsibleSection
+                  title="Memory" // Renamed from "Agent Memory"
+                  defaultOpen={false}
+                  onToggle={handleSectionToggle}
+                >
+                  <div className="document-upload-container">
+                    <DocumentUpload
+                      description="Documents stored in the agent's long-term memory"
+                      type="memory"
+                      allowRemove={true}
+                      persistKey={`agent-memory-${pageAgentName}-${pageEventId}`}
+                      onFilesAdded={handleAgentMemoryUpdate}
+                      existingFiles={agentMemoryFiles} // Ensure existing files are passed
+                      transparentBackground={true}
+                    />
+                  </div>
+                </CollapsibleSection>
+              </div>
+            </div>
+          </TabsContent>
 
               <TabsContent value="settings" className="mt-0 tab-content-scrollable">
                 <div className="space-y-4 tab-content-inner">

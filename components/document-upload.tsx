@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils" // Import cn
 type DocumentUploadProps = {
   title?: string
   description: string
-  type: "chat" | "memory" | "system"
+  type: "chat" | "memory" | "system" | "context" // Added "context"
   onFilesAdded?: (files: AttachmentFile[]) => void
   existingFiles?: AttachmentFile[]
   readOnly?: boolean
@@ -185,7 +185,7 @@ export default function DocumentUpload({
   const getAcceptTypes = () => {
     if (type === "chat") {
       return ".txt,.md,.json"
-    } else if (type === "memory" || type === "system") {
+    } else if (type === "memory" || type === "system" || type === "context") { // Added "context"
       return ".txt,.md,.xml,.json"
     }
     return ""
@@ -197,6 +197,8 @@ export default function DocumentUpload({
       return "Are you sure you want to remove this file from Agent Memory? This will affect the agent's long-term memory and ability to recall information."
     } else if (type === "system") {
       return "Are you sure you want to remove the System Prompt file? This will remove instructions that define the agent's behavior, which will significantly change how the agent responds in conversations."
+    } else if (type === "context") {
+      return "Are you sure you want to remove this context file? This may affect the information available to the agent for the current session or task."
     }
     return "Are you sure you want to remove this file?"
   }
@@ -357,7 +359,7 @@ export default function DocumentUpload({
         isOpen={showConfirmModal}
         onClose={handleCancelRemove}
         onConfirm={handleConfirmRemove}
-        title={`Remove ${type === "memory" ? "Memory" : "System"} File`}
+        title={`Remove ${type === "memory" ? "Memory" : type === "system" ? "System" : "Context"} File`}
         message={getConfirmationText()}
         confirmText="Remove"
         cancelText="Cancel"

@@ -474,7 +474,7 @@ body {
 
 /* --- Settings Dialog --- */
 .fixed-dialog {
-  width: 600px !important;
+  width: 750px !important; /* Increased width */
   max-width: 90vw !important;
   overflow: hidden !important;
   top: 80px !important; /* Position from top */
