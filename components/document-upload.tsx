@@ -210,14 +210,16 @@ export default function DocumentUpload({
     <>
       <Card
         className={cn(
-          "document-upload-card", // Keep this for any existing general styling if needed
+          "document-upload-card",
           transparentBackground && "bg-transparent border-none shadow-none p-0"
         )}
       >
         <CardHeader
           className={cn(
-            `upload-header sticky-header ${!title ? "pb-0" : ""}`,
-            transparentBackground && "bg-transparent" // Ensure header is also transparent
+            "upload-header sticky-header",
+            transparentBackground && "bg-transparent",
+            // If no title, remove all horizontal padding so it aligns with parent's padding.
+            !title ? "pt-0 pb-3 px-0" : "p-6",
           )}
         >
           {title && <CardTitle>{title}</CardTitle>}
@@ -226,12 +228,13 @@ export default function DocumentUpload({
         <CardContent
           className={cn(
             "upload-container",
-            transparentBackground && "bg-transparent" // Ensure content area is also transparent
+            transparentBackground && "bg-transparent",
+            !title ? "pt-0 px-0" : "p-6 pt-0" // Content padding also px-0 horizontally if no title
           )}
         >
           {!readOnly && (
             <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center ${
+              className={`border-2 border-dotted rounded-lg p-6 text-center mt-6 ${ // Changed to border-dotted, mt-4 to mt-6
                 isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/20"
               }`}
               onDragOver={(e) => {

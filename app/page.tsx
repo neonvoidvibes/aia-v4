@@ -136,7 +136,7 @@ export default function Home() {
     // TODO: Call backend API to persist these changes if necessary
     console.log("System prompt files updated (frontend state):", files);
   }, []);
-    
+
   const handleContextUpdate = useCallback((files: AttachmentFile[]) => {
     setContextFiles(files);
     // TODO: Call backend API to persist these changes if necessary
@@ -258,13 +258,12 @@ export default function Home() {
 
       {/* Settings Dialog and Confirmation Modal remain within the authorized view */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="sm:max-w-[600px] pt-8 fixed-dialog">
+        <DialogContent className="sm:max-w-[750px] pt-8 fixed-dialog"> {/* Adjusted width in globals.css */}
           <EnvWarning />
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-4"> {/* Updated to grid-cols-5 */}
+            <TabsList className="grid w-full grid-cols-4 mb-4"> {/* Updated to grid-cols-4 */}
               <TabsTrigger value="documents">Documents</TabsTrigger>
-              <TabsTrigger value="system">System</TabsTrigger> {/* New System Tab */}
-              <TabsTrigger value="transcript">Transcript</TabsTrigger> {/* New Transcript Tab */}
+              <TabsTrigger value="system">System</TabsTrigger>
               <TabsTrigger value="memory">Memory</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
@@ -272,123 +271,112 @@ export default function Home() {
             <div className="tab-content-wrapper" ref={tabContentRef}>
               <TabsContent value="documents" className="mt-0 tab-content-scrollable">
                 <div className="space-y-4 tab-content-inner">
-                  <h2 className="text-xl font-semibold">Document Management</h2>
-                  <div className="grid gap-4">
-                    {/* This likely needs adjustment based on how attachments are tracked */}
-                    <DocumentUpload
-                      title="Chat Attachments"
-                      description="Documents attached to the current chat session (Read-only)"
-                      type="chat"
-                      existingFiles={allChatAttachments} // Use renamed state
-                      readOnly={true}
-                      allowRemove={false}
-                      transparentBackground={true} // ADDED
-                    />
+                  <CollapsibleSection
+                    title="Chat Attachments"
+                    defaultOpen={true}
+                  >
+                    <div className="document-upload-container">
+                      <DocumentUpload
+                        // title prop removed as CollapsibleSection handles it
+                        description="Documents attached to the current chat session (Read-only)"
+                        type="chat"
+                        existingFiles={allChatAttachments}
+                        readOnly={true}
+                        allowRemove={false}
+                        transparentBackground={true}
+                      />
+                    </div>
+                  </CollapsibleSection>
+                  <CollapsibleSection
+                    title="Transcription"
+                    defaultOpen={true}
+                  >
+                    <div className="pb-3"> {/* Horizontal padding inherited from .tab-content-inner */}
+                      <p className="text-sm text-muted-foreground">Transcription settings and options will be available here.</p>
+                    </div>
+                  </CollapsibleSection>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="system" className="mt-0 tab-content-scrollable">
+                <div className="space-y-4 tab-content-inner">
+                  <CollapsibleSection
+                      title="System Prompt"
+                      defaultOpen={true}
+                    >
+                      <div className="document-upload-container">
+                        <DocumentUpload
+                          description="Documents that define the agent's core behavior and persona"
+                          type="system"
+                          allowRemove={true}
+                          persistKey={`system-prompt-${pageAgentName}-${pageEventId}`}
+                          onFilesAdded={handleSystemPromptUpdate}
+                          existingFiles={systemPromptFiles}
+                          transparentBackground={true}
+                        />
+                      </div>
+                    </CollapsibleSection>
+                </div>
+              </TabsContent>
+
+              {/* Transcript Tab Content Removed */}
+
+              <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
+                <div className="tab-content-inner tab-content-scrollable">
+                  <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
+                    <CollapsibleSection
+                      title="Context"
+                      defaultOpen={true}
+                      onToggle={handleSectionToggle}
+                    >
+                      <div className="document-upload-container">
+                        <DocumentUpload
+                          description="Documents providing contextual information for the agent"
+                          type="context"
+                          allowRemove={true}
+                          persistKey={`context-files-${pageAgentName}-${pageEventId}`}
+                          onFilesAdded={handleContextUpdate}
+                          existingFiles={contextFiles}
+                          transparentBackground={true}
+                        />
+                      </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection
+                      title="Memory"
+                      defaultOpen={true}
+                      onToggle={handleSectionToggle}
+                    >
+                      <div className="document-upload-container">
+                        <DocumentUpload
+                          description="Documents stored in the agent's long-term memory"
+                          type="memory"
+                          allowRemove={true}
+                          persistKey={`agent-memory-${pageAgentName}-${pageEventId}`}
+                          onFilesAdded={handleAgentMemoryUpdate}
+                          existingFiles={agentMemoryFiles}
+                          transparentBackground={true}
+                        />
+                      </div>
+                    </CollapsibleSection>
                   </div>
                 </div>
               </TabsContent>
 
-              {/* New System Tab */}
-          <TabsContent value="system" className="mt-0 tab-content-scrollable">
-            <div className="space-y-4 tab-content-inner">
-              <h2 className="text-xl font-semibold">System Configuration</h2>
-              <CollapsibleSection
-                  title="System Prompt Configuration" // Updated title
-                  defaultOpen={true} // System prompt is important, open by default
-                  // onToggle={handleSectionToggle} // Not needed if always open or using standard collapse
-                >
-                  <div className="document-upload-container">
-                    <DocumentUpload
-                      description="Documents that define the agent's core behavior and persona"
-                      type="system"
-                      allowRemove={true}
-                      persistKey={`system-prompt-${pageAgentName}-${pageEventId}`}
-                      onFilesAdded={handleSystemPromptUpdate}
-                      existingFiles={systemPromptFiles} // Ensure existing files are passed
-                      transparentBackground={true}
-                    />
-                  </div>
-                </CollapsibleSection>
-                {/* Add other system-related sections here if needed in the future */}
-            </div>
-          </TabsContent>
-
-          {/* New Transcript Tab */}
-          <TabsContent value="transcript" className="mt-0 tab-content-scrollable">
-            <div className="space-y-4 tab-content-inner">
-              <h2 className="text-xl font-semibold mb-2">Transcript Settings</h2>
-               <CollapsibleSection
-                  title="Transcription"
-                  defaultOpen={true}
-                >
-                  <div className="p-4">
-                    <p>Transcription settings and options will be available here.</p>
-                    {/* Placeholder for future transcription settings components */}
-                  </div>
-                </CollapsibleSection>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
-            <div className="tab-content-inner tab-content-scrollable">
-              <h2 className="text-xl font-semibold mb-2">Memory Management</h2>
-              <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
-                {/* New Context Section - Placed at the top of Memory Tab */}
-                <CollapsibleSection
-                  title="Context"
-                  defaultOpen={false}
-                  onToggle={handleSectionToggle}
-                >
-                  <div className="document-upload-container">
-                    <DocumentUpload
-                      title="Contextual Documents"
-                      description="Documents providing contextual information for the agent"
-                      type="context" // New type
-                      allowRemove={true}
-                      persistKey={`context-files-${pageAgentName}-${pageEventId}`}
-                      onFilesAdded={handleContextUpdate} // New handler
-                      existingFiles={contextFiles} // New state
-                      transparentBackground={true}
-                    />
-                  </div>
-                </CollapsibleSection>
-
-                <CollapsibleSection
-                  title="Memory" // Renamed from "Agent Memory"
-                  defaultOpen={false}
-                  onToggle={handleSectionToggle}
-                >
-                  <div className="document-upload-container">
-                    <DocumentUpload
-                      description="Documents stored in the agent's long-term memory"
-                      type="memory"
-                      allowRemove={true}
-                      persistKey={`agent-memory-${pageAgentName}-${pageEventId}`}
-                      onFilesAdded={handleAgentMemoryUpdate}
-                      existingFiles={agentMemoryFiles} // Ensure existing files are passed
-                      transparentBackground={true}
-                    />
-                  </div>
-                </CollapsibleSection>
-              </div>
-            </div>
-          </TabsContent>
-
               <TabsContent value="settings" className="mt-0 tab-content-scrollable">
                 <div className="space-y-4 tab-content-inner">
-                  <h2 className="text-xl font-semibold">Settings</h2>
+                  {/* Horizontal padding inherited from .tab-content-inner. Vertical padding via py-X can be added if needed, or rely on space-y-4 */}
                   <div className="flex items-center justify-between">
-                    <span>Theme</span>
+                    <span className="memory-section-title">Theme</span>
                     <ThemeToggle />
                   </div>
-                  {/* Add other settings here */}
+                  {/* Add other settings here, potentially wrapped in CollapsibleSections */}
                 </div>
               </TabsContent>
             </div>
           </Tabs>
         </DialogContent>
       </Dialog>
-
       {/* Confirmation Modal (Managed by Page) */}
       <ConfirmationModal
         isOpen={showNewChatConfirm}

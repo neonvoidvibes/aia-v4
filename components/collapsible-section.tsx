@@ -40,8 +40,9 @@ export default function CollapsibleSection({ title, children, defaultOpen = true
   // If not mobile, render without toggle
   if (!isMobile) {
     return (
+      // Horizontal padding removed, will be inherited from .tab-content-inner
       <div className="memory-section">
-        <h3 className="memory-section-title">{title}</h3>
+        <h3 className="memory-section-title">{title}</h3> 
         <div ref={contentRef}>{children}</div>
       </div>
     )
@@ -49,8 +50,9 @@ export default function CollapsibleSection({ title, children, defaultOpen = true
 
   return (
     <div className="memory-section">
-      <button className="section-toggle" onClick={toggleSection}>
-        <span className="memory-section-title">{title}</span>
+      {/* Horizontal padding removed, section-toggle takes full width and text aligns with parent padding */}
+      <button className="section-toggle w-full" onClick={toggleSection}>
+        <span className="memory-section-title">{title}</span> 
         <ChevronRight
           className={`section-toggle-icon ${isOpen ? "open" : ""}`}
           size={20}

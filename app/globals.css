@@ -751,7 +751,7 @@ button {
 .document-upload-card .document-files-container {
   margin-bottom: 16px !important;
 }
-.document-upload-card .border-2.border-dashed {
+.document-upload-card .border-2.border-dotted { /* Updated from border-dashed */
   margin-top: 0 !important;
 }
 
@@ -809,8 +809,8 @@ input, textarea, select {
   .space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: calc(0.25rem * var(--tw-space-y-reverse)); }
 }
 
-.memory-section-title { font-weight: 600; font-size: 1rem; }
-.tab-content-inner { padding: 0 !important; margin: 0 !important; }
+.memory-section-title { font-weight: 600; font-size: 1.25rem; /* Changed from 1rem to 1.25rem (text-xl) */ margin-bottom: 0.25rem; /* Reduced space below title to 0.25rem (mb-1) */ }
+.tab-content-inner { padding: 0.75rem 1rem !important; margin: 0 !important; } /* Added px-4 (1rem) horizontal padding */
 
 /* Memory Section Overflow Fixes */
 /* These define internal scroll for file lists within DocumentUpload, which is OK */
