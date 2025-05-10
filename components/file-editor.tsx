@@ -34,30 +34,15 @@ export default function FileEditor({
       setContent("") // Reset content
 
       if (s3KeyToLoad) {
-        // Determine backend URL (this is a simplified approach for a component;
-        // ideally, this would come from a context or prop if backend URL can vary more dynamically)
-        const backendUrlsString = process.env.NEXT_PUBLIC_BACKEND_API_URLS;
-        let activeBackendUrl = "";
-        if (backendUrlsString) {
-          const urls = backendUrlsString.split(',').map(url => url.trim()).filter(url => url);
-          if (urls.length > 0) activeBackendUrl = urls[0];
-        }
+        const proxyApiUrl = `/api/s3-proxy/view?s3Key=${encodeURIComponent(s3KeyToLoad)}`;
+        console.log(`FileEditor: Fetching S3 content from Next.js proxy URL: ${proxyApiUrl}`);
 
-        if (!activeBackendUrl) {
-          console.error("FileEditor: NEXT_PUBLIC_BACKEND_API_URLS is not configured. Cannot fetch S3 content.");
-          setContent(`// Error: Backend URL not configured. Cannot load file: ${fileNameToDisplay || s3KeyToLoad}`);
-          setIsLoading(false);
-          return;
-        }
-        
-        const apiUrl = `${activeBackendUrl}/api/s3/view?s3Key=${encodeURIComponent(s3KeyToLoad)}`;
-        console.log(`FileEditor: Fetching S3 content from ${apiUrl}`);
-
-        // Fetch content from S3 via backend API
-        fetch(apiUrl)
+        // Fetch content from S3 via Next.js proxy API
+        // No explicit auth header needed here if the proxy route handles it server-side
+        fetch(proxyApiUrl)
           .then((response) => {
             if (!response.ok) {
-              throw new Error(`Failed to fetch S3 content: ${response.statusText} (URL: ${apiUrl})`)
+              throw new Error(`Failed to fetch S3 content via proxy: ${response.statusText} (URL: ${proxyApiUrl})`)
             }
             return response.json()
           })

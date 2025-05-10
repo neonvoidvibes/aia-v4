@@ -44,10 +44,6 @@ export default function Home() {
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
   const [showS3FileViewer, setShowS3FileViewer] = useState(false);
 
-  // State for backend URL
-  const [activeBackendUrl, setActiveBackendUrl] = useState<string | null>(null);
-
-
   // Read agent/event from URL ONCE on mount for context (chat component also reads it)
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
   const [pageEventId, setPageEventId] = useState<string | null>(null);
@@ -131,21 +127,6 @@ export default function Home() {
       fetchPermissions();
 
   }, [searchParams, supabase.auth, router]); // Add dependencies
-
-  useEffect(() => {
-    const backendUrlsString = process.env.NEXT_PUBLIC_BACKEND_API_URLS;
-    if (backendUrlsString) {
-      const urls = backendUrlsString.split(',').map(url => url.trim()).filter(url => url);
-      if (urls.length > 0) {
-        setActiveBackendUrl(urls[0]); // Use the first URL, or implement more robust selection
-        console.log("Active backend URL set to:", urls[0]);
-      } else {
-        console.error("NEXT_PUBLIC_BACKEND_API_URLS is defined but contains no valid URLs.");
-      }
-    } else {
-      console.error("NEXT_PUBLIC_BACKEND_API_URLS is not defined. Cannot make backend API calls for S3/Pinecone listings.");
-    }
-  }, []);
 
 
   // Refs
@@ -243,21 +224,20 @@ export default function Home() {
 
       // Helper to fetch S3 files
       const fetchS3Data = async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
-        if (!activeBackendUrl) {
-          console.error(`[fetchS3Data] Cannot fetch "${description}", activeBackendUrl is not set.`);
-          onDataFetched([]);
-          return;
-        }
-        const apiUrl = `${activeBackendUrl}/api/s3/list?prefix=${encodeURIComponent(prefix)}`;
-        console.log(`[fetchS3Data] Fetching for "${description}" from URL: "${apiUrl}"`);
+        const proxyApiUrl = `/api/s3-proxy/list?prefix=${encodeURIComponent(prefix)}`;
+        console.log(`[fetchS3Data] Fetching for "${description}" from Next.js proxy URL: "${proxyApiUrl}"`);
         try {
-          const response = await fetch(apiUrl, { headers: commonHeaders });
-          if (!response.ok) throw new Error(`Failed to fetch ${description}: ${response.statusText} (URL: ${apiUrl})`);
+          // CommonHeaders (containing Supabase auth token) will be implicitly handled by Next.js server-side API route
+          const response = await fetch(proxyApiUrl, { headers: { 
+            // We still need to pass the Authorization header for the Next.js API route to pick up
+            'Authorization': commonHeaders.Authorization 
+          }});
+          if (!response.ok) throw new Error(`Failed to fetch ${description} via proxy: ${response.statusText} (URL: ${proxyApiUrl})`);
           const data: FetchedFile[] = await response.json();
-          console.log(`[fetchS3Data] Raw data for "${description}" (prefix: "${prefix}"):`, JSON.stringify(data, null, 2));
+          console.log(`[fetchS3Data] Raw data for "${description}" (prefix: "${prefix}") from proxy:`, JSON.stringify(data, null, 2));
           onDataFetched(data); // Call the provided handler with the fetched data
         } catch (error) {
-          console.error(`Error fetching ${description} from ${apiUrl}:`, error);
+          console.error(`Error fetching ${description} from proxy ${proxyApiUrl}:`, error);
           onDataFetched([]); // Call with empty array on error
         }
       };
@@ -281,7 +261,7 @@ export default function Home() {
       
       // Fetch base system prompts (any extension)
       fetchS3Data(
-        `_config/`, // Fetch all files in _config/
+        `_config/`, 
         (allConfigDocs: FetchedFile[]) => {
            console.log(`[Base System Prompts Callback] Raw data from _config/:`, allConfigDocs);
            const basePromptRegex = new RegExp(`^systemprompt_base(\\.[^.]+)?$`);
@@ -294,7 +274,7 @@ export default function Home() {
 
       // Fetch base frameworks (any extension)
       fetchS3Data(
-        `_config/`, // Fetch all files in _config/
+        `_config/`, 
         (allConfigDocs: FetchedFile[]) => {
             console.log(`[Base Frameworks Callback] Raw data from _config/:`, allConfigDocs);
             const baseFrameworkRegex = new RegExp(`^frameworks_base(\\.[^.]+)?$`);
@@ -321,11 +301,11 @@ export default function Home() {
       // Fetch organization context files for the specific agent (any extension)
       // S3 path: bucket/organizations/river/_config/context_oID-{{AGENT_NAME}}.*
       fetchS3Data(
-        `organizations/river/_config/`, // Fetch all files in organizations/river/_config/
+        `organizations/river/_config/`, 
         (orgConfigDocs: FetchedFile[]) => {
           console.log(`[Organization Context Callback] Raw data for agent ${pageAgentName} from org config:`, orgConfigDocs);
-          // Note: pageAgentName is used for oID here as per instructions.
-          const orgContextRegex = new RegExp(`^context_oID-${pageAgentName}(\\.[^.]+)?$`);
+          // Corrected: Backend uses hardcoded 'context_oID-river'
+          const orgContextRegex = new RegExp(`^context_oID-river(\\.[^.]+)?$`);
           const filtered = orgConfigDocs.filter(f => orgContextRegex.test(f.name));
           console.log(`[Organization Context Callback] Regex: ${orgContextRegex.toString()}, Filtered:`, filtered);
           setOrgContextS3Files(filtered)
@@ -335,28 +315,25 @@ export default function Home() {
 
       // Fetch Pinecone memory documents
       try {
-        if (!activeBackendUrl) {
-          console.error("[Pinecone Memory] Cannot fetch, activeBackendUrl is not set.");
-          setPineconeMemoryDocs([]);
-        } else {
-          const pineconeApiUrl = `${activeBackendUrl}/api/index/${pageAgentName}/namespace/${pageAgentName}/list_docs`;
-          console.log(`[Pinecone Memory] Fetching for agent: ${pageAgentName} from URL: ${pineconeApiUrl}`);
-          const pineconeResponse = await fetch(pineconeApiUrl, { headers: commonHeaders });
-          if (!pineconeResponse.ok) throw new Error(`Failed to fetch Pinecone docs: ${pineconeResponse.statusText} (URL: ${pineconeApiUrl})`);
-          const pineconeData = await pineconeResponse.json();
-          console.log(`[Pinecone Memory] Raw data:`, pineconeData);
-          const mappedDocs = pineconeData.unique_document_names?.map((name: string) => ({ name })) || [];
-          setPineconeMemoryDocs(mappedDocs);
-          console.log("[Pinecone Memory] Processed Pinecone Memory Docs:", mappedDocs.length);
-        }
+        const pineconeProxyUrl = `/api/pinecone-proxy/list-docs?agentName=${encodeURIComponent(pageAgentName)}&namespace=${encodeURIComponent(pageAgentName)}`;
+        console.log(`[Pinecone Memory] Fetching for agent: ${pageAgentName} from Next.js proxy URL: ${pineconeProxyUrl}`);
+        const pineconeResponse = await fetch(pineconeProxyUrl, { headers: {
+          'Authorization': commonHeaders.Authorization
+        }});
+        if (!pineconeResponse.ok) throw new Error(`Failed to fetch Pinecone docs via proxy: ${pineconeResponse.statusText} (URL: ${pineconeProxyUrl})`);
+        const pineconeData = await pineconeResponse.json();
+        console.log(`[Pinecone Memory] Raw data from proxy:`, pineconeData);
+        const mappedDocs = pineconeData.unique_document_names?.map((name: string) => ({ name })) || [];
+        setPineconeMemoryDocs(mappedDocs);
+        console.log("[Pinecone Memory] Processed Pinecone Memory Docs:", mappedDocs.length);
       } catch (error) {
-        console.error("Error fetching Pinecone Memory Docs:", error);
+        console.error("Error fetching Pinecone Memory Docs via proxy:", error);
         setPineconeMemoryDocs([]);
       }
     };
 
     fetchAllData();
-  }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth, activeBackendUrl]); // Added activeBackendUrl dependency
+  }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth]); // Removed activeBackendUrl dependency
 
 
   const handleViewS3File = (file: { s3Key: string; name: string; type: string }) => {
@@ -370,15 +347,11 @@ export default function Home() {
   };
 
   const handleDownloadS3File = (file: { s3Key: string; name: string }) => {
-    if (!activeBackendUrl) {
-      console.error("Cannot download S3 file, activeBackendUrl is not set.");
-      // Optionally show a toast or alert to the user
-      alert("Error: Backend URL not configured. Cannot download file.");
-      return;
-    }
-    const downloadUrl = `${activeBackendUrl}/api/s3/download?s3Key=${encodeURIComponent(file.s3Key)}&filename=${encodeURIComponent(file.name)}`;
-    console.log("Triggering S3 download from URL:", downloadUrl);
-    window.open(downloadUrl, '_blank');
+    const downloadProxyUrl = `/api/s3-proxy/download?s3Key=${encodeURIComponent(file.s3Key)}&filename=${encodeURIComponent(file.name)}`;
+    console.log("Triggering S3 download from Next.js proxy URL:", downloadProxyUrl);
+    // For downloads, we can directly open the proxy URL. The browser will handle the stream.
+    // The proxy route will handle authentication server-side.
+    window.open(downloadProxyUrl, '_blank');
   };
 
 
@@ -497,7 +470,9 @@ export default function Home() {
                   >
                     <div className="pb-3 space-y-2">
                       {transcriptionS3Files.length > 0 ? (
-                        transcriptionS3Files.map(file => (
+                        transcriptionS3Files.map(file => {
+                          console.log("[Render] Mapping Transcription File:", file.name, file.s3Key);
+                          return (
                           <FetchedFileListItem
                             key={file.s3Key || file.name}
                             file={file}
@@ -506,7 +481,8 @@ export default function Home() {
                             showViewIcon={true}
                             showDownloadIcon={true}
                           />
-                        ))
+                        );
+                        })
                       ) : (
                         <p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>
                       )}
@@ -536,27 +512,33 @@ export default function Home() {
                       {/* List Base System Prompts from S3 */}
                       {baseSystemPromptS3Files.length > 0 && (
                         <div className="mt-4 space-y-2">
-                          {baseSystemPromptS3Files.map(file => (
+                          {baseSystemPromptS3Files.map(file => {
+                            console.log("[Render] Mapping Base System Prompt:", file.name, file.s3Key);
+                            return (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          ))}
+                          );
+                          })}
                         </div>
                       )}
                       {/* List Agent-Specific System Prompts from S3 */}
                       {agentSystemPromptS3Files.length > 0 && (
                         <div className="mt-2 space-y-2"> {/* Reduced margin if both exist */}
-                          {agentSystemPromptS3Files.map(file => (
+                          {agentSystemPromptS3Files.map(file => {
+                            console.log("[Render] Mapping Agent System Prompt:", file.name, file.s3Key);
+                            return (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          ))}
+                          );
+                          })}
                         </div>
                       )}
                       {(baseSystemPromptS3Files.length === 0 && agentSystemPromptS3Files.length === 0) && (
@@ -570,14 +552,17 @@ export default function Home() {
                       {/* List Base Frameworks from S3 */}
                       {baseFrameworkS3Files.length > 0 ? (
                         <div className="space-y-2">
-                          {baseFrameworkS3Files.map(file => (
+                          {baseFrameworkS3Files.map(file => {
+                            console.log("[Render] Mapping Base Framework:", file.name, file.s3Key);
+                            return (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          ))}
+                          );
+                          })}
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>
@@ -613,14 +598,17 @@ export default function Home() {
                        <div className="mt-4 space-y-2">
                         {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Organization Context (S3)</h4> */}
                         {orgContextS3Files.length > 0 ? (
-                          orgContextS3Files.map(file => (
+                          orgContextS3Files.map(file => {
+                            console.log("[Render] Mapping Org Context File:", file.name, file.s3Key);
+                            return (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               showViewIcon={true}
                             />
-                          ))
+                          );
+                          })
                         ) : (
                           <p className="text-sm text-muted-foreground">No organization context files found in S3 for '{pageAgentName}'.</p>
                         )}
@@ -647,13 +635,16 @@ export default function Home() {
                       <div className="mt-4 space-y-2">
                         {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Pinecone Memory Documents</h4> */}
                         {pineconeMemoryDocs.length > 0 ? (
-                          pineconeMemoryDocs.map(doc => (
+                          pineconeMemoryDocs.map(doc => {
+                            console.log("[Render] Mapping Pinecone Memory Doc:", doc.name);
+                            return (
                             <FetchedFileListItem
                               key={doc.name}
                               file={{ name: doc.name, type: 'pinecone/document' }}
                               showViewIcon={false} // Cannot view content for Pinecone docs from this list
                             />
-                          ))
+                          );
+                          })
                         ) : (
                           <p className="text-sm text-muted-foreground">No documents found in Pinecone memory for '{pageAgentName}'.</p>
                         )}
