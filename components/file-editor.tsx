@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom" // Import createPortal
 import { X, DownloadCloud, FileText, Code, FileJson } from "lucide-react"
 import { motion } from "framer-motion"
 import type { AttachmentFile } from "./file-attachment-minimal"
@@ -26,6 +27,23 @@ export default function FileEditor({
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const editorRef = useRef<HTMLTextAreaElement>(null)
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true); // Component has mounted, safe to use document.body for portal
+  }, []);
+
+  // Manage body scroll when modal is open/closed
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    return () => {
+      document.body.style.overflow = "auto"; // Ensure cleanup on unmount
+    };
+  }, [isOpen]);
 
   // Load file content when the editor opens
   useEffect(() => {
@@ -135,14 +153,14 @@ export default function FileEditor({
     return <FileText className="h-5 w-5" />
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !isMounted) return null // Don't render or portal if not open or not mounted
 
-  return (
-    // Increased z-index for the overlay and added a root class
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] file-editor-root-modal" onClick={onClose}>
+  const editorModalContent = (
+    // Removed z-[10000] from overlay, portal handles stacking. file-editor-root-modal kept for specific targeting if needed.
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center file-editor-root-modal" onClick={onClose} style={{ zIndex: 10000 }}> {/* Explicit high z-index for portal container */}
       <motion.div
-        // Increased z-index for the content
-        className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl mx-4 overflow-hidden shadow-xl z-[10001]"
+        // Removed z-[10001] from content, relative to overlay.
+        className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl mx-4 overflow-hidden shadow-xl" 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -222,5 +240,7 @@ export default function FileEditor({
         </div>
       </motion.div>
     </div>
-  )
+  );
+
+  return createPortal(editorModalContent, document.body);
 }

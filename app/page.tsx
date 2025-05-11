@@ -25,6 +25,7 @@ export default function Home() {
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState("documents");
+  const [previousActiveTab, setPreviousActiveTab] = useState("documents"); // To restore tab
   const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
   const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]);
   const [agentMemoryFiles, setAgentMemoryFiles] = useState<AttachmentFile[]>([]);
@@ -154,7 +155,7 @@ export default function Home() {
   const tabContentRef = useRef<HTMLDivElement>(null);
   const chatInterfaceRef = useRef<ChatInterfaceHandle>(null);
   const memoryTabRef = useRef<HTMLDivElement>(null);
-  const settingsDialogContentRef = useRef<HTMLDivElement>(null); // Ref for settings dialog content
+  // const settingsDialogContentRef = useRef<HTMLDivElement>(null); // Ref for settings dialog content - REMOVED as direct style manipulation is also removed
   const isMobile = useMobile();
 
   const fileEditorFileProp = useMemo(() => {
@@ -197,6 +198,7 @@ export default function Home() {
   // Settings Dialog Tabs
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    setPreviousActiveTab(value); // Keep track of the last active tab
   };
 
   // New Chat Logic (Managed by Page)
@@ -235,24 +237,9 @@ export default function Home() {
     }
   }, [hasOpenSection]);
 
-  // Effect to manage pointer events on settings dialog when FileEditor opens/closes
-  useEffect(() => {
-    const settingsContent = settingsDialogContentRef.current;
-    if (settingsContent) {
-      if (showS3FileViewer) {
-        settingsContent.style.pointerEvents = "none";
-      } else {
-        settingsContent.style.pointerEvents = "auto";
-      }
-    }
-    // Cleanup function to reset pointer events if component unmounts while FileEditor is open
-    return () => {
-      if (settingsContent) {
-        settingsContent.style.pointerEvents = "auto";
-      }
-    };
-  }, [showS3FileViewer]);
-
+  // Removed useEffect that manipulated body class and settingsDialogContentRef.style.pointerEvents
+  // The FileEditor being portalled and having its own overlay & event handling (onClick on its overlay to close)
+  // along with the Radix Dialog's onPointerDownOutside should manage interactions correctly.
 
   // Fetch S3 and Pinecone data when settings dialog is shown or agent/event changes
   useEffect(() => {
@@ -380,332 +367,183 @@ export default function Home() {
 
   const handleViewS3File = (file: { s3Key: string; name: string; type: string }) => {
     setS3FileToView(file);
+    setPreviousActiveTab(activeTab); // Store current tab before hiding settings
+    setShowSettings(false); // Temporarily hide settings dialog
     setShowS3FileViewer(true);
   };
 
   const handleCloseS3FileViewer = () => {
     setShowS3FileViewer(false);
     setS3FileToView(null);
+    setShowSettings(true); // Re-show settings dialog
+    // setActiveTab(previousActiveTab); // Restore previous tab - this line might be causing issues with re-render logic if tab isn't found immediately
+    // Deferring tab restoration slightly to ensure dialog is fully open
+    setTimeout(() => {
+        setActiveTab(previousActiveTab);
+    }, 0);
   };
 
   const handleDownloadS3File = (file: { s3Key: string; name: string }) => {
     const downloadProxyUrl = `/api/s3-proxy/download?s3Key=${encodeURIComponent(file.s3Key)}&filename=${encodeURIComponent(file.name)}`;
-    console.log("Triggering S3 download from Next.js proxy URL:", downloadProxyUrl);
-    // For downloads, we can directly open the proxy URL. The browser will handle the stream.
-    // The proxy route will handle authentication server-side.
     window.open(downloadProxyUrl, '_blank');
   };
 
-
-  // Loading State
-  if (isAuthorized === null) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-xl animate-pulse">Checking authorization...</p>
-      </div>
-    );
-  }
-
-  // Access Denied State
-  if (isAuthorized === false) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-         <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
-         <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-         <p className="text-muted-foreground mb-4">
-           {authError || "You do not have permission to access this resource."}
-         </p>
-         <Button onClick={() => router.push('/login')}>Go to Login</Button>
-         {/* Optional: Add a logout button if needed */}
-         {/* <Button variant="outline" className="ml-2" onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}>Logout</Button> */}
-      </div>
-    );
-  }
+  if (isAuthorized === null) return (<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Checking authorization...</p></div>);
+  if (isAuthorized === false) return (
+    <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+      <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
+      <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+      <p className="text-muted-foreground mb-4">{authError || "You do not have permission to access this resource."}</p>
+      <Button onClick={() => router.push('/login')}>Go to Login</Button>
+    </div>
+  );
 
   const filesToHideViewIconFor = ['systemprompt_base.md', 'frameworks_base.md'];
 
-
-  // Authorized State: Render the Chat UI
   return (
-    // Use min-h-dvh and h-dvh for better mobile viewport height handling
-    // Add overflow-hidden to prevent the container itself from scrolling
-    // Make container full-width by default, apply max-width/centering only on sm screens and up
     <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
-      {/* Header remains the same */}
-      <header className="py-4 px-4 text-center relative flex-shrink-0" onClick={() => {
-          // Scroll to top on mobile header tap
-          if (isMobile && chatInterfaceRef.current) {
-              chatInterfaceRef.current.scrollToTop();
-          }
-        }}> {/* Prevent header shrinking */}
+      <header className="py-4 px-4 text-center relative flex-shrink-0" onClick={() => { if (isMobile && chatInterfaceRef.current) chatInterfaceRef.current.scrollToTop(); }}>
         <div className="flex items-center justify-between">
-          <button
-            className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105"
-            // Prevent event bubbling up to the header's onClick
-            onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} // Use the page's handler
-            aria-label="New chat"
-          >
-            <PenSquare size={20} />
-          </button>
-          <h1 className="text-lg font-extralight">{pageAgentName ? `${pageAgentName} AI` : "River AI"}</h1> {/* Display Agent Name */}
-          <button
-            className="text-foreground/70 hover:text-foreground transition-colors"
-            // Prevent event bubbling up to the header's onClick
-            onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); }}
-            aria-label="Toggle settings"
-          >
-            <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings ? "rotate(180deg)" : "rotate(0deg)" }}>
-              <ChevronDown size={24} strokeWidth={2.5} />
-            </div>
+          <button className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105" onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} aria-label="New chat"><PenSquare size={20} /></button>
+          <h1 className="text-lg font-extralight">{pageAgentName ? `${pageAgentName} AI` : "River AI"}</h1>
+          <button className="text-foreground/70 hover:text-foreground transition-colors" onClick={(e) => { e.stopPropagation(); setShowSettings(!showS3FileViewer ? !showSettings : true ); }} aria-label="Toggle settings">
+            <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings && !showS3FileViewer ? "rotate(180deg)" : "rotate(0deg)" }}><ChevronDown size={24} strokeWidth={2.5} /></div>
           </button>
         </div>
       </header>
-
-      {/* Ensure main grows and contains overflow */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Pass agent/event props to ChatInterface */}
-        <SimpleChatInterface
-          ref={chatInterfaceRef}
-          onAttachmentsUpdate={updateChatAttachments}
-          // agent={pageAgentName} // Already read internally via useSearchParams
-          // eventId={pageEventId} // Already read internally via useSearchParams
-        />
+        <SimpleChatInterface ref={chatInterfaceRef} onAttachmentsUpdate={updateChatAttachments} />
       </main>
 
-      {/* Settings Dialog and Confirmation Modal remain within the authorized view */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent 
-          ref={settingsDialogContentRef} // Assign ref here
-          className="sm:max-w-[750px] pt-8 fixed-dialog"
-          onPointerDownOutside={(event) => {
-            // This logic might be redundant now with the direct style manipulation,
-            // but keeping it as a fallback or for specific edge cases if needed.
-            // If the click is on an element within the FileEditor modal, prevent the settings dialog from closing.
-            // if ((event.target as HTMLElement)?.closest('.file-editor-root-modal')) {
-            //   event.preventDefault();
-            // }
-          }}
+      {/* Settings Dialog */}
+      {/* Conditionally render Dialog based on showSettings AND !showS3FileViewer */}
+      {/* This ensures it's unmounted when FileEditor is active */}
+      {showSettings && !showS3FileViewer && (
+        <Dialog 
+            open={showSettings && !showS3FileViewer} 
+            onOpenChange={(open) => {
+                setShowSettings(open);
+                if (!open) { // If settings dialog is closed by user, ensure FileEditor is also closed (if it were ever opened from a state where settings was also open)
+                    setShowS3FileViewer(false);
+                    setS3FileToView(null);
+                }
+            }}
         >
-          <DialogTitle>
-            <VisuallyHidden>Settings</VisuallyHidden>
-          </DialogTitle>
-          <DialogDescription>
-            <VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden>
-          </DialogDescription>
-          <EnvWarning />
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full overflow-hidden">
-            <TabsList className="grid w-full grid-cols-4 mb-4"> {/* Updated to grid-cols-4 */}
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-              <TabsTrigger value="system">System</TabsTrigger>
-              <TabsTrigger value="memory">Memory</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
-
-            <div className="tab-content-wrapper" ref={tabContentRef}>
-              <TabsContent value="documents" className="mt-0 tab-content-scrollable">
-                <div className="space-y-4 tab-content-inner">
-                  <CollapsibleSection
-                    title="Chat Attachments"
-                    defaultOpen={true}
-                  >
-                    <div className="document-upload-container">
-                      <DocumentUpload
-                        // title prop removed as CollapsibleSection handles it
-                        description="Documents attached to the current chat session (Read-only)"
-                        type="chat"
-                        existingFiles={allChatAttachments}
-                        readOnly={true}
-                        allowRemove={false}
-                        transparentBackground={true}
-                      />
-                    </div>
-                  </CollapsibleSection>
-                  <CollapsibleSection
-                    title="Transcription"
-                    defaultOpen={true}
-                  >
-                    <div className="pb-3 space-y-2 w-full overflow-hidden">
-                      {transcriptionS3Files.length > 0 ? (
-                        transcriptionS3Files.map(file => (
-                          <FetchedFileListItem
-                            key={file.s3Key || file.name}
-                            file={file}
-                            onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                            onDownload={() => handleDownloadS3File({ s3Key: file.s3Key!, name: file.name })}
-                            showViewIcon={true}
-                            showDownloadIcon={true}
-                          />
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>
-                      )}
-                    </div>
-                  </CollapsibleSection>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="system" className="mt-0 tab-content-scrollable">
-                <div className="space-y-4 tab-content-inner">
-                  <CollapsibleSection
-                      title="System Prompt"
-                      defaultOpen={true}
-                    >
+          <DialogContent 
+            className="sm:max-w-[750px] pt-8 fixed-dialog"
+            onPointerDownOutside={(event) => {
+              // This is kept as a safeguard: if a click happens on the FileEditor (which is portalled),
+              // this prevents the Settings Dialog from interpreting that as an "outside click" and closing itself.
+              if ((event.target as HTMLElement)?.closest('.file-editor-root-modal')) {
+                event.preventDefault();
+              }
+            }}
+          >
+            <DialogTitle><VisuallyHidden>Settings</VisuallyHidden></DialogTitle>
+            <DialogDescription><VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden></DialogDescription>
+            <EnvWarning />
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full overflow-hidden">
+              <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsTrigger value="system">System</TabsTrigger>
+                <TabsTrigger value="memory">Memory</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+              </TabsList>
+              <div className="tab-content-wrapper" ref={tabContentRef}>
+                <TabsContent value="documents" className="mt-0 tab-content-scrollable">
+                  <div className="space-y-4 tab-content-inner">
+                    <CollapsibleSection title="Chat Attachments" defaultOpen={true}>
                       <div className="document-upload-container">
-                        <DocumentUpload
-                          description="Locally added/edited system prompt files. Files from S3 are listed below."
-                          type="system"
-                          allowRemove={true}
-                          persistKey={`system-prompt-${pageAgentName}-${pageEventId}`}
-                          onFilesAdded={handleSystemPromptUpdate}
-                          existingFiles={systemPromptFiles}
-                          transparentBackground={true}
-                          hideDropZone={true} // Comment out drag & drop
-                        />
+                        <DocumentUpload description="Documents attached to the current chat session (Read-only)" type="chat" existingFiles={allChatAttachments} readOnly={true} allowRemove={false} transparentBackground={true} />
                       </div>
-                      {/* List Base System Prompts from S3 */}
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Transcription" defaultOpen={true}>
+                      <div className="pb-3 space-y-2 w-full overflow-hidden">
+                        {transcriptionS3Files.length > 0 ? (
+                          transcriptionS3Files.map(file => (
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} onDownload={() => handleDownloadS3File({ s3Key: file.s3Key!, name: file.name })} showViewIcon={true} showDownloadIcon={true} />
+                          ))
+                        ) : (<p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>)}
+                      </div>
+                    </CollapsibleSection>
+                  </div>
+                </TabsContent>
+                <TabsContent value="system" className="mt-0 tab-content-scrollable">
+                  <div className="space-y-4 tab-content-inner">
+                    <CollapsibleSection title="System Prompt" defaultOpen={true}>
+                      <div className="document-upload-container">
+                        <DocumentUpload description="Locally added/edited system prompt files. Files from S3 are listed below." type="system" allowRemove={true} persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} onFilesAdded={handleSystemPromptUpdate} existingFiles={systemPromptFiles} transparentBackground={true} hideDropZone={true} />
+                      </div>
                       {baseSystemPromptS3Files.length > 0 && (
                         <div className="mt-4 space-y-2 w-full overflow-hidden">
                           {baseSystemPromptS3Files.map(file => (
-                            <FetchedFileListItem
-                              key={file.s3Key || file.name}
-                              file={file}
-                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                              showViewIcon={!filesToHideViewIconFor.includes(file.name)}
-                            />
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!filesToHideViewIconFor.includes(file.name)} />
                           ))}
                         </div>
                       )}
-                      {/* List Agent-Specific System Prompts from S3 */}
                       {agentSystemPromptS3Files.length > 0 && (
-                        <div className="mt-2 space-y-2 w-full overflow-hidden"> {/* Reduced margin if both exist */}
+                        <div className="mt-2 space-y-2 w-full overflow-hidden">
                           {agentSystemPromptS3Files.map(file => (
-                            <FetchedFileListItem
-                              key={file.s3Key || file.name}
-                              file={file}
-                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                              showViewIcon={true} // Agent-specific prompts can always be viewed
-                            />
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
                           ))}
                         </div>
                       )}
-                      {(baseSystemPromptS3Files.length === 0 && agentSystemPromptS3Files.length === 0) && (
-                         <p className="text-sm text-muted-foreground mt-2">No system prompts found in S3.</p>
-                      )}
+                      {(baseSystemPromptS3Files.length === 0 && agentSystemPromptS3Files.length === 0) && (<p className="text-sm text-muted-foreground mt-2">No system prompts found in S3.</p>)}
                     </CollapsibleSection>
-                    <CollapsibleSection
-                      title="Frameworks"
-                      defaultOpen={true}
-                    >
-                      {/* List Base Frameworks from S3 */}
+                    <CollapsibleSection title="Frameworks" defaultOpen={true}>
                       {baseFrameworkS3Files.length > 0 ? (
                         <div className="space-y-2 w-full overflow-hidden">
                           {baseFrameworkS3Files.map(file => (
-                            <FetchedFileListItem
-                              key={file.s3Key || file.name}
-                              file={file}
-                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                              showViewIcon={!filesToHideViewIconFor.includes(file.name)}
-                            />
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!filesToHideViewIconFor.includes(file.name)} />
                           ))}
                         </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>
-                      )}
-                      {/* Placeholder for Agent-Specific Frameworks if needed in future */}
-                    </CollapsibleSection>
-                </div>
-              </TabsContent>
-
-              {/* Transcript Tab Content Removed */}
-
-              <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
-                <div className="tab-content-inner tab-content-scrollable">
-                  {/* Removed <h2 className="text-xl font-semibold mb-2">Memory Management</h2> */}
-                  <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
-                    <CollapsibleSection
-                      title="Context"
-                      defaultOpen={true}
-                      onToggle={handleSectionToggle}
-                    >
-                      <div className="document-upload-container">
-                        <DocumentUpload
-                          description="Locally added/edited context files. Organization context from S3 is listed below."
-                          type="context"
-                          allowRemove={true}
-                          persistKey={`context-files-${pageAgentName}-${pageEventId}`}
-                          onFilesAdded={handleContextUpdate}
-                          existingFiles={contextFiles}
-                          transparentBackground={true}
-                          hideDropZone={true} // Comment out drag & drop
-                        />
-                      </div>
-                       <div className="mt-4 space-y-2 w-full overflow-hidden">
-                        {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Organization Context (S3)</h4> */}
-                        {orgContextS3Files.length > 0 ? (
-                          orgContextS3Files.map(file => (
-                            <FetchedFileListItem
-                              key={file.s3Key || file.name}
-                              file={file}
-                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                              showViewIcon={true}
-                            />
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No organization context files found in S3 for '{pageAgentName}'.</p>
-                        )}
-                      </div>
-                    </CollapsibleSection>
-
-                    <CollapsibleSection
-                      title="Memory"
-                      defaultOpen={true}
-                      onToggle={handleSectionToggle}
-                    >
-                      <div className="document-upload-container">
-                        <DocumentUpload
-                          description="Locally added/edited memory files. Documents from Pinecone are listed below."
-                          type="memory"
-                          allowRemove={true}
-                          persistKey={`agent-memory-${pageAgentName}-${pageEventId}`}
-                          onFilesAdded={handleAgentMemoryUpdate}
-                          existingFiles={agentMemoryFiles}
-                          transparentBackground={true}
-                          hideDropZone={true} // Comment out drag & drop
-                        />
-                      </div>
-                      <div className="mt-4 space-y-2 w-full overflow-hidden">
-                        {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Pinecone Memory Documents</h4> */}
-                        {pineconeMemoryDocs.length > 0 ? (
-                          pineconeMemoryDocs.map(doc => (
-                            <FetchedFileListItem
-                              key={doc.name}
-                              file={{ name: doc.name, type: 'pinecone/document' }}
-                              showViewIcon={false} // Cannot view content for Pinecone docs from this list
-                            />
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No documents found in Pinecone memory for '{pageAgentName}'.</p>
-                        )}
-                      </div>
+                      ) : (<p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>)}
                     </CollapsibleSection>
                   </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="settings" className="mt-0 tab-content-scrollable">
-                <div className="space-y-4 tab-content-inner">
-                  {/* No horizontal padding here, inherits from .tab-content-inner. */}
-                  <div className="flex items-center justify-between"> 
-                    <span className="memory-section-title">Theme</span>
-                    <ThemeToggle />
+                </TabsContent>
+                <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
+                  <div className="tab-content-inner tab-content-scrollable">
+                    <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
+                      <CollapsibleSection title="Context" defaultOpen={true} onToggle={handleSectionToggle}>
+                        <div className="document-upload-container">
+                          <DocumentUpload description="Locally added/edited context files. Organization context from S3 is listed below." type="context" allowRemove={true} persistKey={`context-files-${pageAgentName}-${pageEventId}`} onFilesAdded={handleContextUpdate} existingFiles={contextFiles} transparentBackground={true} hideDropZone={true} />
+                        </div>
+                        <div className="mt-4 space-y-2 w-full overflow-hidden">
+                          {orgContextS3Files.length > 0 ? (
+                            orgContextS3Files.map(file => (
+                              <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
+                            ))
+                          ) : (<p className="text-sm text-muted-foreground">No organization context files found in S3 for '{pageAgentName}'.</p>)}
+                        </div>
+                      </CollapsibleSection>
+                      <CollapsibleSection title="Memory" defaultOpen={true} onToggle={handleSectionToggle}>
+                        <div className="document-upload-container">
+                          <DocumentUpload description="Locally added/edited memory files. Documents from Pinecone are listed below." type="memory" allowRemove={true} persistKey={`agent-memory-${pageAgentName}-${pageEventId}`} onFilesAdded={handleAgentMemoryUpdate} existingFiles={agentMemoryFiles} transparentBackground={true} hideDropZone={true} />
+                        </div>
+                        <div className="mt-4 space-y-2 w-full overflow-hidden">
+                          {pineconeMemoryDocs.length > 0 ? (
+                            pineconeMemoryDocs.map(doc => (
+                              <FetchedFileListItem key={doc.name} file={{ name: doc.name, type: 'pinecone/document' }} showViewIcon={false} />
+                            ))
+                          ) : (<p className="text-sm text-muted-foreground">No documents found in Pinecone memory for '{pageAgentName}'.</p>)}
+                        </div>
+                      </CollapsibleSection>
+                    </div>
                   </div>
-                  {/* Add other settings here, potentially wrapped in CollapsibleSections */}
-                </div>
-              </TabsContent>
-            </div>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+                </TabsContent>
+                <TabsContent value="settings" className="mt-0 tab-content-scrollable">
+                  <div className="space-y-4 tab-content-inner">
+                    <div className="flex items-center justify-between"> 
+                      <span className="memory-section-title">Theme</span>
+                      <ThemeToggle />
+                    </div>
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Confirmation Modal (Managed by Page) */}
       <ConfirmationModal
@@ -719,11 +557,12 @@ export default function Home() {
       />
 
       {/* File Editor for S3 Viewing */}
+      {/* This is rendered independently now due to portalling */}
       {showS3FileViewer && s3FileToView && fileEditorFileProp && (
         <FileEditor
           file={fileEditorFileProp}
           isOpen={showS3FileViewer}
-          onClose={handleCloseS3FileViewer}
+          onClose={handleCloseS3FileViewer} // This will now also re-show settings
           onSave={() => { /* No save action for S3 view mode */ }}
           s3KeyToLoad={s3FileToView.s3Key}
           fileNameToDisplay={s3FileToView.name}

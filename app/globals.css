@@ -908,13 +908,10 @@ input, textarea, select {
 
 /* Dialog Overflow Fixes */
 .fixed-dialog > div[role="dialog"] { max-height: 70vh !important; overflow-y: auto !important; }
-.tab-content-wrapper { max-height: 65vh !important; overflow: hidden !important; }
-.tab-content-scrollable { max-height: 60vh !important; overflow-y: auto !important; }
-
 /* Final Modal Z-index Fix */
-.modal-overlay { z-index: 9999 !important; }
-.modal-content { z-index: 10000 !important; }
-.modal-button { z-index: 10001 !important; }
+.modal-overlay { z-index: 9999 !important; } /* This is for ConfirmationModal */
+.modal-content { z-index: 10000 !important; } /* This is for ConfirmationModal */
+.modal-button { z-index: 10001 !important; } /* This is for ConfirmationModal */
 
 /* Thinking Indicator */
 .thinking-indicator {
