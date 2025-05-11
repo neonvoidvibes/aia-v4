@@ -1,42 +1,42 @@
 "use client"
 
-import React, { useState, useRef, useCallback, useEffect, useMemo } from "react" // Added React and useMemo
-import { useRouter, useSearchParams } from 'next/navigation'; // Import useRouter
-import { PenSquare, ChevronDown, AlertTriangle, Eye } from "lucide-react" // Added AlertTriangle and Eye
-import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog" // Added DialogTitle, DialogDescription, DialogClose
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden" // For accessibility
-import { createClient } from '@/utils/supabase/client'; // Import Supabase client
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import { useRouter, useSearchParams } from 'next/navigation';
+import { PenSquare, ChevronDown, AlertTriangle, Eye } from "lucide-react"
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import { createClient } from '@/utils/supabase/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
 import DocumentUpload from "@/components/document-upload"
-import SimpleChatInterface, { type ChatInterfaceHandle } from "@/components/simple-chat-interface" // Import handle type
+import SimpleChatInterface, { type ChatInterfaceHandle } from "@/components/simple-chat-interface"
 import { EnvWarning } from "@/components/env-warning"
 import ConfirmationModal from "@/components/confirmation-modal"
 import CollapsibleSection from "@/components/collapsible-section"
-import type { AttachmentFile } from "@/components/file-attachment-minimal" // Renamed import to avoid conflict
-import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileListItem" // Import new component
-import FileEditor from "@/components/file-editor"; // Import FileEditor
-import { useMobile } from "@/hooks/use-mobile" // Assuming this hook exists and works
-import { Button } from "@/components/ui/button"; // Import Button
+import type { AttachmentFile } from "@/components/file-attachment-minimal"
+import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileListItem"
+import FileEditor from "@/components/file-editor";
+import { useMobile } from "@/hooks/use-mobile"
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
-  const searchParams = useSearchParams(); // Hook to read URL query parameters
+  const searchParams = useSearchParams();
 
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState("documents");
   const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
-  const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]); // Renamed state
+  const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]);
   const [agentMemoryFiles, setAgentMemoryFiles] = useState<AttachmentFile[]>([]);
   const [systemPromptFiles, setSystemPromptFiles] = useState<AttachmentFile[]>([]);
-  const [contextFiles, setContextFiles] = useState<AttachmentFile[]>([]); // New state for Context files
-  const [hasOpenSection, setHasOpenSection] = useState(false); // For mobile memory tab layout
+  const [contextFiles, setContextFiles] = useState<AttachmentFile[]>([]);
+  const [hasOpenSection, setHasOpenSection] = useState(false);
 
   // State for S3/Pinecone fetched files
   const [transcriptionS3Files, setTranscriptionS3Files] = useState<FetchedFile[]>([]);
   const [baseSystemPromptS3Files, setBaseSystemPromptS3Files] = useState<FetchedFile[]>([]);
   const [agentSystemPromptS3Files, setAgentSystemPromptS3Files] = useState<FetchedFile[]>([]);
-  const [baseFrameworkS3Files, setBaseFrameworkS3Files] = useState<FetchedFile[]>([]); // New state for frameworks
+  const [baseFrameworkS3Files, setBaseFrameworkS3Files] = useState<FetchedFile[]>([]);
   const [orgContextS3Files, setOrgContextS3Files] = useState<FetchedFile[]>([]);
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
 
@@ -54,16 +54,14 @@ export default function Home() {
     pineconeMemory: false,
   });
 
-  // Read agent/event from URL ONCE on mount for context (chat component also reads it)
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
   const [pageEventId, setPageEventId] = useState<string | null>(null);
   const [allowedAgents, setAllowedAgents] = useState<string[]>([]);
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null); // null = checking, false = denied, true = allowed
-  const [authError, setAuthError] = useState<string | null>(null); // Store auth/fetch errors
-  const supabase = createClient(); // Instantiate Supabase client
-  const router = useRouter(); // Instantiate router
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const supabase = createClient();
+  const router = useRouter();
 
-  // Fetch permissions and check authorization
   useEffect(() => {
       const agentParam = searchParams.get('agent');
       const eventParam = searchParams.get('event');
@@ -149,13 +147,14 @@ export default function Home() {
 
       fetchPermissions();
 
-  }, [searchParams, supabase.auth, router, pageAgentName, pageEventId]); // Added pageAgentName, pageEventId to ensure flags reset correctly on change
+  }, [searchParams, supabase.auth, router, pageAgentName, pageEventId]);
 
 
   // Refs
   const tabContentRef = useRef<HTMLDivElement>(null);
-  const chatInterfaceRef = useRef<ChatInterfaceHandle>(null); // Use the handle type
+  const chatInterfaceRef = useRef<ChatInterfaceHandle>(null);
   const memoryTabRef = useRef<HTMLDivElement>(null);
+  const settingsDialogContentRef = useRef<HTMLDivElement>(null); // Ref for settings dialog content
   const isMobile = useMobile();
 
   const fileEditorFileProp = useMemo(() => {
@@ -164,7 +163,7 @@ export default function Home() {
       id: s3FileToView.s3Key,
       name: s3FileToView.name,
       type: s3FileToView.type,
-      size: 0, 
+      size: 0, // Default size, not critical for viewer
       url: undefined,
       messageId: undefined,
       content: undefined,
@@ -235,6 +234,25 @@ export default function Home() {
       }
     }
   }, [hasOpenSection]);
+
+  // Effect to manage pointer events on settings dialog when FileEditor opens/closes
+  useEffect(() => {
+    const settingsContent = settingsDialogContentRef.current;
+    if (settingsContent) {
+      if (showS3FileViewer) {
+        settingsContent.style.pointerEvents = "none";
+      } else {
+        settingsContent.style.pointerEvents = "auto";
+      }
+    }
+    // Cleanup function to reset pointer events if component unmounts while FileEditor is open
+    return () => {
+      if (settingsContent) {
+        settingsContent.style.pointerEvents = "auto";
+      }
+    };
+  }, [showS3FileViewer]);
+
 
   // Fetch S3 and Pinecone data when settings dialog is shown or agent/event changes
   useEffect(() => {
@@ -404,6 +422,9 @@ export default function Home() {
     );
   }
 
+  const filesToHideViewIconFor = ['systemprompt_base.md', 'frameworks_base.md'];
+
+
   // Authorized State: Render the Chat UI
   return (
     // Use min-h-dvh and h-dvh for better mobile viewport height handling
@@ -454,12 +475,15 @@ export default function Home() {
       {/* Settings Dialog and Confirmation Modal remain within the authorized view */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
         <DialogContent 
+          ref={settingsDialogContentRef} // Assign ref here
           className="sm:max-w-[750px] pt-8 fixed-dialog"
           onPointerDownOutside={(event) => {
+            // This logic might be redundant now with the direct style manipulation,
+            // but keeping it as a fallback or for specific edge cases if needed.
             // If the click is on an element within the FileEditor modal, prevent the settings dialog from closing.
-            if ((event.target as HTMLElement)?.closest('.file-editor-root-modal')) {
-              event.preventDefault();
-            }
+            // if ((event.target as HTMLElement)?.closest('.file-editor-root-modal')) {
+            //   event.preventDefault();
+            // }
           }}
         >
           <DialogTitle>
@@ -546,7 +570,7 @@ export default function Home() {
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                              showViewIcon={true}
+                              showViewIcon={!filesToHideViewIconFor.includes(file.name)}
                             />
                           ))}
                         </div>
@@ -559,7 +583,7 @@ export default function Home() {
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                              showViewIcon={true}
+                              showViewIcon={true} // Agent-specific prompts can always be viewed
                             />
                           ))}
                         </div>
@@ -580,7 +604,7 @@ export default function Home() {
                               key={file.s3Key || file.name}
                               file={file}
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                              showViewIcon={true}
+                              showViewIcon={!filesToHideViewIconFor.includes(file.name)}
                             />
                           ))}
                         </div>
