@@ -103,8 +103,9 @@ export default function CollapsibleSection({ title, children, defaultOpen = true
         {/* This inner div ensures content respects the CollapsibleSection's state,
             and its children (like DocumentUpload) will align with the header.
             The actual content (children) should not have horizontal padding if it needs to align.
+            Added w-full to ensure it takes the full width constrained by its parent.
         */}
-        <div className="pt-1 pb-3">{children}</div> {/* Added small top/bottom padding for content block */}
+        <div className="pt-1 pb-3 w-full">{children}</div> {/* Added small top/bottom padding for content block and w-full */}
       </div>
     </div>
   )

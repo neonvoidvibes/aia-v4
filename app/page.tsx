@@ -447,7 +447,7 @@ export default function Home() {
             <VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden>
           </DialogDescription>
           <EnvWarning />
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full overflow-hidden">
             <TabsList className="grid w-full grid-cols-4 mb-4"> {/* Updated to grid-cols-4 */}
               <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="system">System</TabsTrigger>
@@ -478,7 +478,7 @@ export default function Home() {
                     title="Transcription"
                     defaultOpen={true}
                   >
-                    <div className="pb-3 space-y-2">
+                    <div className="pb-3 space-y-2 w-full overflow-hidden">
                       {transcriptionS3Files.length > 0 ? (
                         transcriptionS3Files.map(file => (
                           <FetchedFileListItem
@@ -518,7 +518,7 @@ export default function Home() {
                       </div>
                       {/* List Base System Prompts from S3 */}
                       {baseSystemPromptS3Files.length > 0 && (
-                        <div className="mt-4 space-y-2">
+                        <div className="mt-4 space-y-2 w-full overflow-hidden">
                           {baseSystemPromptS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
@@ -531,7 +531,7 @@ export default function Home() {
                       )}
                       {/* List Agent-Specific System Prompts from S3 */}
                       {agentSystemPromptS3Files.length > 0 && (
-                        <div className="mt-2 space-y-2"> {/* Reduced margin if both exist */}
+                        <div className="mt-2 space-y-2 w-full overflow-hidden"> {/* Reduced margin if both exist */}
                           {agentSystemPromptS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
@@ -552,7 +552,7 @@ export default function Home() {
                     >
                       {/* List Base Frameworks from S3 */}
                       {baseFrameworkS3Files.length > 0 ? (
-                        <div className="space-y-2">
+                        <div className="space-y-2 w-full overflow-hidden">
                           {baseFrameworkS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
@@ -593,7 +593,7 @@ export default function Home() {
                           hideDropZone={true} // Comment out drag & drop
                         />
                       </div>
-                       <div className="mt-4 space-y-2">
+                       <div className="mt-4 space-y-2 w-full overflow-hidden">
                         {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Organization Context (S3)</h4> */}
                         {orgContextS3Files.length > 0 ? (
                           orgContextS3Files.map(file => (
@@ -627,7 +627,7 @@ export default function Home() {
                           hideDropZone={true} // Comment out drag & drop
                         />
                       </div>
-                      <div className="mt-4 space-y-2">
+                      <div className="mt-4 space-y-2 w-full overflow-hidden">
                         {/* <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">Pinecone Memory Documents</h4> */}
                         {pineconeMemoryDocs.length > 0 ? (
                           pineconeMemoryDocs.map(doc => (

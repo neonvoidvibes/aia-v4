@@ -507,6 +507,8 @@ body {
 .tab-content-scrollable {
   max-height: 100%; /* Fill wrapper */
   overflow-y: auto; /* Scroll content */
+  overflow-x: hidden; /* Prevent horizontal overflow and enable truncation */
+  width: 100%; /* Ensure it takes full width of its parent */
   scrollbar-width: thin;
   scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
 }
@@ -811,6 +813,7 @@ input, textarea, select {
 
 .memory-section-title { font-weight: 600; font-size: 1.25rem; /* Changed from 1rem to 1.25rem (text-xl) */ margin-bottom: 0.25rem; /* Reduced space below title to 0.25rem (mb-1) */ }
 .tab-content-inner { 
+  width: 100%; /* Ensure it takes full width of its scrollable parent */
   padding-top: 0.75rem !important; 
   padding-bottom: 0.75rem !important;
   padding-left: 0.5rem !important; /* mobile: 0.5rem (px-2) */

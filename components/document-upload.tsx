@@ -304,7 +304,7 @@ export default function DocumentUpload({
           )}
 
           {displayFiles.length > 0 && (
-            <div className={`${!readOnly ? "mt-4" : ""} space-y-2 document-files-container`}>
+            <div className={`${!readOnly ? "mt-4" : ""} space-y-2 document-files-container w-full overflow-hidden`}>
               <AnimatePresence>
                 {displayFiles.map((file) => (
                   <motion.div
