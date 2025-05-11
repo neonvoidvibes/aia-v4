@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react"
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react" // Added React and useMemo
 import { useRouter, useSearchParams } from 'next/navigation'; // Import useRouter
 import { PenSquare, ChevronDown, AlertTriangle, Eye } from "lucide-react" // Added AlertTriangle and Eye
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog" // Added DialogTitle, DialogDescription, DialogClose
@@ -149,7 +149,7 @@ export default function Home() {
 
       fetchPermissions();
 
-  }, [searchParams, supabase.auth, router]); // Add dependencies
+  }, [searchParams, supabase.auth, router, pageAgentName, pageEventId]); // Added pageAgentName, pageEventId to ensure flags reset correctly on change
 
 
   // Refs
@@ -157,6 +157,20 @@ export default function Home() {
   const chatInterfaceRef = useRef<ChatInterfaceHandle>(null); // Use the handle type
   const memoryTabRef = useRef<HTMLDivElement>(null);
   const isMobile = useMobile();
+
+  const fileEditorFileProp = useMemo(() => {
+    if (!s3FileToView) return null; 
+    return {
+      id: s3FileToView.s3Key,
+      name: s3FileToView.name,
+      type: s3FileToView.type,
+      size: 0, 
+      url: undefined,
+      messageId: undefined,
+      content: undefined,
+      lastModified: undefined,
+    };
+  }, [s3FileToView]);
 
   // Callbacks for child components
   const updateChatAttachments = useCallback((attachments: AttachmentFile[]) => {
@@ -439,7 +453,15 @@ export default function Home() {
 
       {/* Settings Dialog and Confirmation Modal remain within the authorized view */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="sm:max-w-[750px] pt-8 fixed-dialog">
+        <DialogContent 
+          className="sm:max-w-[750px] pt-8 fixed-dialog"
+          onPointerDownOutside={(event) => {
+            // If the click is on an element within the FileEditor modal, prevent the settings dialog from closing.
+            if ((event.target as HTMLElement)?.closest('.file-editor-root-modal')) {
+              event.preventDefault();
+            }
+          }}
+        >
           <DialogTitle>
             <VisuallyHidden>Settings</VisuallyHidden>
           </DialogTitle>
@@ -673,19 +695,13 @@ export default function Home() {
       />
 
       {/* File Editor for S3 Viewing */}
-      {showS3FileViewer && s3FileToView && (
+      {showS3FileViewer && s3FileToView && fileEditorFileProp && (
         <FileEditor
-          // The 'file' prop needs some minimal structure, even if content is fetched via s3KeyToLoad
-          file={{
-            id: s3FileToView.s3Key, // Use s3Key as a unique identifier for the editor instance
-            name: s3FileToView.name,
-            type: s3FileToView.type,
-            size: 0, // Size is not critical for viewer and might not be readily available from S3 list
-          }}
+          file={fileEditorFileProp}
           isOpen={showS3FileViewer}
           onClose={handleCloseS3FileViewer}
           onSave={() => { /* No save action for S3 view mode */ }}
-          s3KeyToLoad={s3FileToView.s3Key} // This will be used with activeBackendUrl in FileEditor
+          s3KeyToLoad={s3FileToView.s3Key}
           fileNameToDisplay={s3FileToView.name}
         />
       )}

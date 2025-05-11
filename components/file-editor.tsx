@@ -138,8 +138,8 @@ export default function FileEditor({
   if (!isOpen) return null
 
   return (
-    // Increased z-index for the overlay
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000]" onClick={onClose}> 
+    // Increased z-index for the overlay and added a root class
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] file-editor-root-modal" onClick={onClose}>
       <motion.div
         // Increased z-index for the content
         className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl mx-4 overflow-hidden shadow-xl z-[10001]"
