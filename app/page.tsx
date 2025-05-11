@@ -1,3 +1,4 @@
+// app/page.tsx
 "use client"
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
@@ -236,6 +237,23 @@ export default function Home() {
       }
     }
   }, [hasOpenSection]);
+
+  // Effect to reset transcription fetch flag when settings dialog is opened
+  useEffect(() => {
+    if (showSettings) {
+      setFetchedDataFlags(prevFlags => {
+        // Only update if the flag was true, to avoid redundant state changes if already false
+        if (prevFlags.transcriptions) { 
+          console.log("Settings opened, resetting transcriptions fetch flag.");
+          return {
+            ...prevFlags,
+            transcriptions: false,
+          };
+        }
+        return prevFlags;
+      });
+    }
+  }, [showSettings]); // Only re-run when showSettings changes
 
   // Removed useEffect that manipulated body class and settingsDialogContentRef.style.pointerEvents
   // The FileEditor being portalled and having its own overlay & event handling (onClick on its overlay to close)
