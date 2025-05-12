@@ -1,7 +1,6 @@
-// app/page.tsx
 "use client"
 
-import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PenSquare, ChevronDown, AlertTriangle, Eye } from "lucide-react"
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
@@ -19,23 +18,18 @@ import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileL
 import FileEditor from "@/components/file-editor";
 import { useMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button";
-  );
-}
-// This is the client-side component that will use the hook
-// Default export that wraps PageContent with Suspense
-export default function HomePage() {
-  const fallbackUI = (
-    <div className="flex items-center justify-center min-h-screen">
-      <p className="text-xl animate-pulse">Loading page content...</p>
-    </div>
-  );
 
-  return (
-    <Suspense fallback={fallbackUI}>
-      <PageContent />
-    </Suspense>
-  );
-}
+// Main content component that uses useSearchParams
+function HomeContent() {
+  const searchParams = useSearchParams();
+
+  // State managed by the page
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState("documents");
+  const [previousActiveTab, setPreviousActiveTab] = useState("documents"); // To restore tab
+  const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
+  const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]);
+  const [agentMemoryFiles, setAgentMemoryFiles] = useState<AttachmentFile[]>([]);
   const [systemPromptFiles, setSystemPromptFiles] = useState<AttachmentFile[]>([]);
   const [contextFiles, setContextFiles] = useState<AttachmentFile[]>([]);
   const [hasOpenSection, setHasOpenSection] = useState(false);
@@ -162,7 +156,6 @@ export default function HomePage() {
   const tabContentRef = useRef<HTMLDivElement>(null);
   const chatInterfaceRef = useRef<ChatInterfaceHandle>(null);
   const memoryTabRef = useRef<HTMLDivElement>(null);
-  // const settingsDialogContentRef = useRef<HTMLDivElement>(null); // Ref for settings dialog content - REMOVED as direct style manipulation is also removed
   const isMobile = useMobile();
 
   const fileEditorFileProp = useMemo(() => {
@@ -186,29 +179,24 @@ export default function HomePage() {
 
   const handleAgentMemoryUpdate = useCallback((files: AttachmentFile[]) => {
     setAgentMemoryFiles(files);
-    // TODO: Call backend API to persist these changes if necessary
     console.log("Agent memory files updated (frontend state):", files);
   }, []);
 
   const handleSystemPromptUpdate = useCallback((files: AttachmentFile[]) => {
     setSystemPromptFiles(files);
-    // TODO: Call backend API to persist these changes if necessary
     console.log("System prompt files updated (frontend state):", files);
   }, []);
 
   const handleContextUpdate = useCallback((files: AttachmentFile[]) => {
     setContextFiles(files);
-    // TODO: Call backend API to persist these changes if necessary
     console.log("Context files updated (frontend state):", files);
   }, []);
 
-  // Settings Dialog Tabs
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    setPreviousActiveTab(value); // Keep track of the last active tab
+    setPreviousActiveTab(value); 
   };
 
-  // New Chat Logic (Managed by Page)
   const handleNewChatRequest = () => {
       if (chatInterfaceRef.current && chatInterfaceRef.current.getMessagesCount() > 0) {
           setShowNewChatConfirm(true);
@@ -228,8 +216,6 @@ export default function HomePage() {
        setShowNewChatConfirm(false);
    };
 
-
-  // Mobile Memory Tab Layout Logic
   const handleSectionToggle = (isOpen: boolean) => {
     setHasOpenSection(isOpen);
   };
@@ -244,11 +230,9 @@ export default function HomePage() {
     }
   }, [hasOpenSection]);
 
-  // Effect to reset transcription fetch flag when settings dialog is opened
   useEffect(() => {
     if (showSettings) {
       setFetchedDataFlags(prevFlags => {
-        // Only update if the flag was true, to avoid redundant state changes if already false
         if (prevFlags.transcriptions) { 
           console.log("Settings opened, resetting transcriptions fetch flag.");
           return {
@@ -259,17 +243,12 @@ export default function HomePage() {
         return prevFlags;
       });
     }
-  }, [showSettings]); // Only re-run when showSettings changes
+  }, [showSettings]); 
 
-  // Removed useEffect that manipulated body class and settingsDialogContentRef.style.pointerEvents
-  // The FileEditor being portalled and having its own overlay & event handling (onClick on its overlay to close)
-  // along with the Radix Dialog's onPointerDownOutside should manage interactions correctly.
-
-  // Fetch S3 and Pinecone data when settings dialog is shown or agent/event changes
   useEffect(() => {
     const fetchAllData = async () => {
       if (!showSettings || !pageAgentName || isAuthorized !== true) {
-        return; // Don't clear data here, let flags control re-fetching
+        return; 
       }
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -281,7 +260,6 @@ export default function HomePage() {
 
       const newFetchedDataFlags = { ...fetchedDataFlags };
 
-      // Helper to fetch S3 files
       const fetchS3Data = async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
         const proxyApiUrl = `/api/s3-proxy/list?prefix=${encodeURIComponent(prefix)}`;
         try {
@@ -297,7 +275,6 @@ export default function HomePage() {
         }
       };
 
-      // Fetch transcriptions
       if (pageEventId && !fetchedDataFlags.transcriptions) {
         await fetchS3Data(
           `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`,
@@ -309,10 +286,9 @@ export default function HomePage() {
         );
       } else if (!pageEventId) {
         setTranscriptionS3Files([]);
-        newFetchedDataFlags.transcriptions = true; // Mark as "fetched" (or cleared)
+        newFetchedDataFlags.transcriptions = true; 
       }
       
-      // Fetch base system prompts
       if (!fetchedDataFlags.baseSystemPrompts) {
         await fetchS3Data(
           `_config/`,
@@ -325,7 +301,6 @@ export default function HomePage() {
         );
       }
 
-      // Fetch base frameworks
       if (!fetchedDataFlags.baseFrameworks) {
         await fetchS3Data(
           `_config/`,
@@ -338,7 +313,6 @@ export default function HomePage() {
         );
       }
 
-      // Fetch agent-specific system prompts
       if (!fetchedDataFlags.agentSystemPrompts) {
         await fetchS3Data(
           `organizations/river/agents/${pageAgentName}/_config/`,
@@ -351,7 +325,6 @@ export default function HomePage() {
         );
       }
       
-      // Fetch organization context files
       if (!fetchedDataFlags.orgContext) {
         await fetchS3Data(
           `organizations/river/_config/`,
@@ -364,7 +337,6 @@ export default function HomePage() {
         );
       }
 
-      // Fetch Pinecone memory documents
       if (!fetchedDataFlags.pineconeMemory) {
         try {
           const pineconeProxyUrl = `/api/pinecone-proxy/list-docs?agentName=${encodeURIComponent(pageAgentName)}&namespace=${encodeURIComponent(pageAgentName)}`;
@@ -379,7 +351,7 @@ export default function HomePage() {
         } catch (error) {
           console.error("Error fetching Pinecone Memory Docs via proxy:", error);
           setPineconeMemoryDocs([]);
-          newFetchedDataFlags.pineconeMemory = true; // Mark as attempted even on error
+          newFetchedDataFlags.pineconeMemory = true; 
         }
       }
       setFetchedDataFlags(newFetchedDataFlags);
@@ -391,17 +363,15 @@ export default function HomePage() {
 
   const handleViewS3File = (file: { s3Key: string; name: string; type: string }) => {
     setS3FileToView(file);
-    setPreviousActiveTab(activeTab); // Store current tab before hiding settings
-    setShowSettings(false); // Temporarily hide settings dialog
+    setPreviousActiveTab(activeTab); 
+    setShowSettings(false); 
     setShowS3FileViewer(true);
   };
 
   const handleCloseS3FileViewer = () => {
     setShowS3FileViewer(false);
     setS3FileToView(null);
-    setShowSettings(true); // Re-show settings dialog
-    // setActiveTab(previousActiveTab); // Restore previous tab - this line might be causing issues with re-render logic if tab isn't found immediately
-    // Deferring tab restoration slightly to ensure dialog is fully open
+    setShowSettings(true); 
     setTimeout(() => {
         setActiveTab(previousActiveTab);
     }, 0);
@@ -439,15 +409,12 @@ export default function HomePage() {
         <SimpleChatInterface ref={chatInterfaceRef} onAttachmentsUpdate={updateChatAttachments} />
       </main>
 
-      {/* Settings Dialog */}
-      {/* Conditionally render Dialog based on showSettings AND !showS3FileViewer */}
-      {/* This ensures it's unmounted when FileEditor is active */}
       {showSettings && !showS3FileViewer && (
         <Dialog 
             open={showSettings && !showS3FileViewer} 
             onOpenChange={(open) => {
                 setShowSettings(open);
-                if (!open) { // If settings dialog is closed by user, ensure FileEditor is also closed (if it were ever opened from a state where settings was also open)
+                if (!open) { 
                     setShowS3FileViewer(false);
                     setS3FileToView(null);
                 }
@@ -456,8 +423,6 @@ export default function HomePage() {
           <DialogContent 
             className="sm:max-w-[750px] pt-8 fixed-dialog"
             onPointerDownOutside={(event) => {
-              // This is kept as a safeguard: if a click happens on the FileEditor (which is portalled),
-              // this prevents the Settings Dialog from interpreting that as an "outside click" and closing itself.
               if ((event.target as HTMLElement)?.closest('.file-editor-root-modal')) {
                 event.preventDefault();
               }
@@ -569,7 +534,6 @@ export default function HomePage() {
         </Dialog>
       )}
 
-      {/* Confirmation Modal (Managed by Page) */}
       <ConfirmationModal
         isOpen={showNewChatConfirm}
         onClose={cancelNewChat}
@@ -580,13 +544,11 @@ export default function HomePage() {
         cancelText="Cancel"
       />
 
-      {/* File Editor for S3 Viewing */}
-      {/* This is rendered independently now due to portalling */}
       {showS3FileViewer && s3FileToView && fileEditorFileProp && (
         <FileEditor
           file={fileEditorFileProp}
           isOpen={showS3FileViewer}
-          onClose={handleCloseS3FileViewer} // This will now also re-show settings
+          onClose={handleCloseS3FileViewer} 
           onSave={() => { /* No save action for S3 view mode */ }}
           s3KeyToLoad={s3FileToView.s3Key}
           fileNameToDisplay={s3FileToView.name}
@@ -594,4 +556,13 @@ export default function HomePage() {
       )}
     </div>
   )
+}
+
+// Default export that wraps HomeContent with Suspense
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Loading page...</p></div>}>
+      <HomeContent />
+    </Suspense>
+  );
 }
