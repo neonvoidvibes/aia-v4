@@ -7,10 +7,10 @@ import { NextResponse } from 'next/server';
  */
 export async function findActiveBackend(urls: string[]): Promise<string | null> {
     if (!urls || urls.length === 0) {
-        console.error("[Proxy Util] No backend URLs provided to findActiveBackend.");
-        // Optionally return default or throw error based on requirements
-        urls = ['http://127.0.0.1:5001']; // Fallback to localhost if empty
-        // return null;
+        // This case implies that the `POTENTIAL_BACKEND_URLS` array, formed from `process.env.NEXT_PUBLIC_BACKEND_API_URLS`,
+        // was empty *after* splitting, trimming, and filtering. This strongly suggests the env var is missing or misconfigured.
+        console.error("[Proxy Util] CRITICAL: No backend URLs were provided to findActiveBackend. This usually means NEXT_PUBLIC_BACKEND_API_URLS is missing, empty, or contains only whitespace in the environment configuration. Cannot proceed to find an active backend.");
+        return null; // Explicitly return null, no fallback to localhost.
     }
     console.log("[Proxy Util] Checking potential backend URLs:", urls);
 
