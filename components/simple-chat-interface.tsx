@@ -236,6 +236,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.log(`[callHttpRecordingApi] Response for ${action}:`, responseData);
             if (!response.ok) throw new Error(responseData.message || responseData.error || `Failed action '${action}'`);
             
+            // Clear pendingAction for 'stop' specifically on success
             if (action === 'stop') {
                  setPendingAction(null);
             }
@@ -243,10 +244,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } catch (error: any) {
             console.error(`[callHttpRecordingApi] API Error (${action}):`, error);
             setUiError(`Error: Failed to ${action} recording. ${error?.message}`);
-            setPendingAction(null); 
+            // Ensure pendingAction is cleared if it matches the failed action, especially 'stop'
+            if (pendingActionRef.current === action) {
+                setPendingAction(null);
+            }
             return { success: false, error: error?.message };
         }
-    }, [isPageReady, agentName, supabase.auth, pendingAction]); 
+    }, [isPageReady, agentName, supabase.auth]); // Removed pendingAction from dependency array as it's managed internally
 
     const resetRecordingStates = useCallback(() => {
         console.log("[resetRecordingStates] Resetting all recording-related states.");
@@ -800,7 +804,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         console.warn("[FocusEffect] Input field is disabled, cannot focus.");
                      }
                 }
-            }, 0); // A timeout of 0 is usually sufficient.
+            }, 50); // Increased timeout slightly to 50ms
             return () => clearTimeout(timerId);
         }
     }, [isBrowserRecording, pendingAction]);
