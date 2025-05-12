@@ -415,14 +415,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setPendingAction(null);
         }
 
-        // Attempt to refocus after a short delay to allow state updates to propagate
-        setTimeout(() => {
-            if (inputRef.current) {
-                console.log("[handleStopRecording] Attempting to focus input.");
-                inputRef.current.focus();
-            }
-        }, 100);
-
+        // The useEffect hook dependent on isBrowserRecording and pendingAction will handle re-focusing the input.
+        // Explicit focus call removed from here to avoid conflicts and ensure correct timing.
 
     }, [sessionId, callHttpRecordingApi, wsStatus, appendToChat]); 
 
