@@ -145,10 +145,9 @@ export async function POST(req: NextRequest) {
     try {
         // Forward the Authorization header from the original frontend request
         const originalAuthHeader = req.headers.get('Authorization');
-        const backendHeaders: HeadersInit = {};
-        if (action === 'start') { // Only start needs Content-Type json
-             backendHeaders['Content-Type'] = 'application/json';
-        }
+        const backendHeaders: HeadersInit = {
+            'Content-Type': 'application/json' // Always set for POST to backend
+        };
         if (originalAuthHeader) {
              backendHeaders['Authorization'] = originalAuthHeader;
              console.log(`[API /api/recording-proxy] Forwarding Authorization header for action '${action}'.`);
@@ -161,8 +160,8 @@ export async function POST(req: NextRequest) {
         const backendResponse = await fetch(targetUrl, {
             method: 'POST',
             headers: backendHeaders, // Send potentially updated headers
-            // Only 'start' sends a body, other actions (stop, pause, resume) don't need one
-            body: action === 'start' ? JSON.stringify(payload) : undefined
+            // 'start' and 'stop' (and potentially others) will send a JSON body
+            body: (action === 'start' || action === 'stop') ? JSON.stringify(payload) : undefined
         });
 
         // Check Content-Type and status before assuming JSON
