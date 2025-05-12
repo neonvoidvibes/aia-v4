@@ -831,7 +831,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         ) : ( "no" )}
                         {isBrowserRecording && <span ref={timerDisplayRef} className="ml-1">{formatTime(clientRecordingTime)}</span>}
                     </span>
-                     | Connection: <span className={cn(wsStatus === 'open' && "text-green-500", wsStatus === 'error' && "text-red-500", wsStatus === 'closed' && "text-yellow-500")}>{wsStatus}</span>
+                    {" "}| Connection: <span className={cn(wsStatus === 'open' && "text-green-500", wsStatus === 'error' && "text-red-500", wsStatus === 'closed' && "text-yellow-500")}>{wsStatus}</span>
                 </div>
             </div>
         </div>
