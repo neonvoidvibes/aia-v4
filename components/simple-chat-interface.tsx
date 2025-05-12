@@ -204,22 +204,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop', payload?: any): Promise<any> => {
         console.log(`[callHttpRecordingApi] Action: ${action}, Payload:`, payload);
-        if (!pendingActionRef.current && (action === 'start' || action === 'stop')) { 
-            setPendingAction(action);
-        }
+        // pendingAction is now set by the caller (handleStart/StopRecordingSession)
         
         const apiUrl = `/api/recording-proxy/`; 
         if (!isPageReady || !agentName) {
-            setUiError(`Error: Cannot ${action} recording. Agent/Event not set.`);
-            if (pendingAction === action) setPendingAction(null); 
-            return { success: false, error: "Agent/Event not set" };
+            const errorMsg = "Agent/Event not set";
+            setUiError(`Error: Cannot ${action} recording. ${errorMsg}`);
+            // Caller will handle pendingAction reset in its finally block
+            return { success: false, error: errorMsg };
         }
 
         const { data: { session: supabaseSession }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !supabaseSession) {
+            const errorMsg = "Authentication required";
             setUiError(`Error: Authentication required to ${action} recording.`);
-            if (pendingAction === action) setPendingAction(null); 
-            return { success: false, error: "Authentication required" };
+            // Caller will handle pendingAction reset
+            return { success: false, error: errorMsg };
         }
 
         try {
@@ -236,21 +236,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.log(`[callHttpRecordingApi] Response for ${action}:`, responseData);
             if (!response.ok) throw new Error(responseData.message || responseData.error || `Failed action '${action}'`);
             
-            // Clear pendingAction for 'stop' specifically on success
-            if (action === 'stop') {
-                 setPendingAction(null);
-            }
+            // pendingAction is reset by the caller after this promise resolves/rejects
+            console.log(`[callHttpRecordingApi] '${action}' action HTTP call successful.`);
             return { success: true, data: responseData };
         } catch (error: any) {
             console.error(`[callHttpRecordingApi] API Error (${action}):`, error);
             setUiError(`Error: Failed to ${action} recording. ${error?.message}`);
-            // Ensure pendingAction is cleared if it matches the failed action, especially 'stop'
-            if (pendingActionRef.current === action) {
-                setPendingAction(null);
-            }
+            // pendingAction is reset by the caller
             return { success: false, error: error?.message };
         }
-    }, [isPageReady, agentName, supabase.auth]); // Removed pendingAction from dependency array as it's managed internally
+    }, [isPageReady, agentName, supabase.auth, setUiError]); 
 
     const resetRecordingStates = useCallback(() => {
         console.log("[resetRecordingStates] Resetting all recording-related states.");
@@ -317,112 +312,106 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.warn("[handleStopRecording] Stop operation already in progress. Ignoring.");
             return;
         }
+        // Set pendingAction at the beginning of the stop process
+        console.log("[handleStopRecording] Setting pendingAction to 'stop'.");
         setPendingAction('stop'); 
 
-        if (mediaRecorderRef.current) {
-            mediaRecorderRef.current.ondataavailable = null;
-            mediaRecorderRef.current.onerror = null; 
-            const recorder = mediaRecorderRef.current; 
-            
-            const onStopHandler = () => {
-                console.log("[handleStopRecording] MediaRecorder.onstop executed.");
-                if (audioStreamRef.current) {
+        try {
+            if (mediaRecorderRef.current) {
+                mediaRecorderRef.current.ondataavailable = null;
+                mediaRecorderRef.current.onerror = null; 
+                const recorder = mediaRecorderRef.current; 
+                
+                const onStopHandler = () => {
+                    console.log("[handleStopRecording] MediaRecorder.onstop executed.");
+                    if (audioStreamRef.current) {
+                        audioStreamRef.current.getTracks().forEach(track => track.stop());
+                        audioStreamRef.current = null;
+                        console.log("[handleStopRecording] Audio stream tracks stopped.");
+                    }
+                    setIsBrowserRecording(false);
+                    setIsBrowserPaused(false);
+                    if (mediaRecorderRef.current === recorder) { 
+                        mediaRecorderRef.current = null;
+                    }
+                };
+                recorder.onstop = onStopHandler;
+
+                if (recorder.state !== "inactive") {
+                    console.log("[handleStopRecording] Calling MediaRecorder.stop().");
+                    try { recorder.stop(); } catch (mrError) { console.warn("[handleStopRecording] Error calling MediaRecorder.stop():", mrError); onStopHandler(); }
+                } else {
+                    console.log(`[handleStopRecording] MediaRecorder already in state: ${recorder.state}. Calling onStop manually.`);
+                    onStopHandler(); 
+                }
+            } else {
+                console.log("[handleStopRecording] mediaRecorderRef.current is null.");
+                 setIsBrowserRecording(false); setIsBrowserPaused(false); 
+                if (audioStreamRef.current) { 
                     audioStreamRef.current.getTracks().forEach(track => track.stop());
                     audioStreamRef.current = null;
-                    console.log("[handleStopRecording] Audio stream tracks stopped.");
                 }
-                setIsBrowserRecording(false);
-                setIsBrowserPaused(false);
-                if (mediaRecorderRef.current === recorder) { 
-                    mediaRecorderRef.current = null;
-                }
-            };
-            recorder.onstop = onStopHandler;
+            }
+            
+            if (wsRef.current) {
+                const wsToClose = wsRef.current;
+                 wsToClose.onopen = null; wsToClose.onmessage = null; wsToClose.onerror = null;
+                
+                wsToClose.onclose = () => { 
+                    console.log("[handleStopRecording] Client WebSocket deliberately closed (onclose event fired).");
+                    if (wsRef.current === wsToClose) wsRef.current = null; 
+                    if (wsStatus !== 'error') setWsStatus('idle');  
+                };
 
-            if (recorder.state !== "inactive") {
-                console.log("[handleStopRecording] Calling MediaRecorder.stop().");
-                try { recorder.stop(); } catch (mrError) { console.warn("[handleStopRecording] Error calling MediaRecorder.stop():", mrError); onStopHandler(); }
+                if (wsToClose.readyState === WebSocket.OPEN) {
+                    console.log("[handleStopRecording] WebSocket: Sending stop_stream message.");
+                    wsToClose.send(JSON.stringify({ action: "stop_stream" }));
+                }
+                
+                if (wsToClose.readyState !== WebSocket.CLOSED && wsToClose.readyState !== WebSocket.CLOSING) {
+                     console.log(`[handleStopRecording] WebSocket: Closing client-side connection (current state: ${wsToClose.readyState}).`);
+                     try { wsToClose.close(1000, "Client initiated stop recording"); } catch(err){ console.warn("Error during ws.close():", err); if (wsStatus !== 'error') setWsStatus('idle'); wsRef.current = null;}
+                } else { 
+                     if (wsRef.current === wsToClose) wsRef.current = null; 
+                     if (wsStatus !== 'error') setWsStatus('idle');
+                }
             } else {
-                console.log(`[handleStopRecording] MediaRecorder already in state: ${recorder.state}. Calling onStop manually.`);
-                onStopHandler(); 
-            }
-        } else {
-            console.log("[handleStopRecording] mediaRecorderRef.current is null.");
-             setIsBrowserRecording(false); setIsBrowserPaused(false); 
-            if (audioStreamRef.current) { 
-                audioStreamRef.current.getTracks().forEach(track => track.stop());
-                audioStreamRef.current = null;
-            }
-        }
-        
-        if (wsRef.current) {
-            const wsToClose = wsRef.current;
-             wsToClose.onopen = null; wsToClose.onmessage = null; wsToClose.onerror = null;
-            
-            wsToClose.onclose = () => { 
-                console.log("[handleStopRecording] Client WebSocket deliberately closed (onclose event fired).");
-                if (wsRef.current === wsToClose) wsRef.current = null; 
-                if (wsStatus !== 'error') setWsStatus('idle');  
-            };
-
-            if (wsToClose.readyState === WebSocket.OPEN) {
-                console.log("[handleStopRecording] WebSocket: Sending stop_stream message.");
-                wsToClose.send(JSON.stringify({ action: "stop_stream" }));
+                setWsStatus('idle'); 
             }
             
-            if (wsToClose.readyState !== WebSocket.CLOSED && wsToClose.readyState !== WebSocket.CLOSING) {
-                 console.log(`[handleStopRecording] WebSocket: Closing client-side connection (current state: ${wsToClose.readyState}).`);
-                 try { wsToClose.close(1000, "Client initiated stop recording"); } catch(err){ console.warn("Error during ws.close():", err); if (wsStatus !== 'error') setWsStatus('idle'); wsRef.current = null;}
-            } else { 
-                 if (wsRef.current === wsToClose) wsRef.current = null; 
-                 if (wsStatus !== 'error') setWsStatus('idle');
-            }
-        } else {
-            setWsStatus('idle'); 
-        }
-        
-        const currentSessionIdToStop = sessionId; 
-        if (currentSessionIdToStop) {
-            console.log("[handleStopRecording] Calling HTTP stop for session:", currentSessionIdToStop);
-            // HTTP stop call is async, but we don't necessarily wait for it to complete client state reset
-            // Let callHttpRecordingApi handle clearing pendingAction for 'stop'
-            callHttpRecordingApi('stop', { session_id: currentSessionIdToStop })
-                .then(result => {
-                    if (result.success) {
-                        console.log("[handleStopRecording] Recording session stopped via HTTP:", result.data);
-                    } else {
-                        console.error("[handleStopRecording] Failed to stop recording session via HTTP:", result.error);
-                        if (!dueToError) {
-                             setUiError(`Error: Could not properly stop recording session (HTTP). ${result.error || ''}`);
-                        }
+            const currentSessionIdToStop = sessionId; 
+            if (currentSessionIdToStop) {
+                console.log("[handleStopRecording] Calling HTTP stop for session:", currentSessionIdToStop);
+                const result = await callHttpRecordingApi('stop', { session_id: currentSessionIdToStop });
+                if (result.success) {
+                    console.log("[handleStopRecording] Recording session stopped via HTTP:", result.data);
+                } else {
+                    console.error("[handleStopRecording] Failed to stop recording session via HTTP:", result.error);
+                    if (!dueToError) {
+                         setUiError(`Error: Could not properly stop recording session (HTTP). ${result.error || ''}`);
                     }
-                })
-                // .finally(() => { // Pending action is cleared inside callHttpRecordingApi for stop
-                // });
-        } else {
-            if (!dueToError) console.warn("[handleStopRecording] No session ID available to send HTTP stop signal.");
-            setPendingAction(null); // Clear pending if no HTTP call and not error path that already cleared it
-        }
-        
-        console.log("[handleStopRecording] Resetting client states (excluding pendingAction which is handled by callHttp or above).");
-        setClientRecordingTime(0);
-        setShowRecordUI(false);
-        setRecordUIVisible(true); 
-        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-        setSessionId(null); 
-        setSessionStartTimeUTC(null);
-        
-        console.log("[handleStopRecording] Finished cleanup logic. DueToError:", dueToError);
-        
-        // If not due to error, or if the error was during the stop action itself, ensure pendingAction is cleared
-        if ((!dueToError && pendingActionRef.current === 'stop') || (dueToError && pendingActionRef.current === 'stop')) {
+                }
+            } else {
+                if (!dueToError) console.warn("[handleStopRecording] No session ID available to send HTTP stop signal.");
+            }
+            
+            console.log("[handleStopRecording] Resetting client states (excluding pendingAction which is handled by callHttp or above).");
+            setClientRecordingTime(0);
+            setShowRecordUI(false);
+            setRecordUIVisible(true); 
+            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+            setSessionId(null); 
+            setSessionStartTimeUTC(null);
+            
+            console.log("[handleStopRecording] Finished cleanup logic. DueToError:", dueToError);
+        // The useEffect hook dependent on isBrowserRecording and pendingAction will handle re-focusing the input.
+        } finally {
+            // Ensure pendingAction is cleared after all operations, regardless of success/failure
+            console.log("[handleStopRecording] In finally block, setting pendingAction to null.");
             setPendingAction(null);
         }
 
-        // The useEffect hook dependent on isBrowserRecording and pendingAction will handle re-focusing the input.
-        // Explicit focus call removed from here to avoid conflicts and ensure correct timing.
-
-    }, [sessionId, callHttpRecordingApi, wsStatus, appendToChat]); 
+    }, [sessionId, callHttpRecordingApi, wsStatus, appendToChat, setPendingAction, setUiError, setIsBrowserRecording, setIsBrowserPaused, setClientRecordingTime, setShowRecordUI, setRecordUIVisible, setSessionId, setSessionStartTimeUTC]);
 
 
     const startBrowserMediaRecording = useCallback(async () => {
@@ -607,19 +596,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         console.log(`[handleStartRecordingSession] Agent/Event set to: ${currentAgent}/${currentEvent}`);
 
         console.log("[handleStartRecordingSession] Calling HTTP start API...");
-        const result = await callHttpRecordingApi('start', { agent: currentAgent, event: currentEvent });
-
-        if (result.success && result.data?.session_id) {
-            console.log("[handleStartRecordingSession] HTTP start successful. New Session ID:", result.data.session_id);
-            setSessionId(result.data.session_id);
-            setSessionStartTimeUTC(result.data.session_start_time_utc);
-            setTimeout(() => connectWebSocket(result.data.session_id), 100);
-        } else {
-            console.error("[handleStartRecordingSession] Failed to start recording session (HTTP):", result.error);
-            setUiError(`Error: Could not start recording session. ${result.error || 'Unknown error'}`);
-            setPendingAction(null); 
+        try {
+            const result = await callHttpRecordingApi('start', { agent: currentAgent, event: currentEvent });
+            if (result.success && result.data?.session_id) {
+                console.log("[handleStartRecordingSession] HTTP start successful. New Session ID:", result.data.session_id);
+                setSessionId(result.data.session_id);
+                setSessionStartTimeUTC(result.data.session_start_time_utc);
+                // connectWebSocket will be called, which eventually clears pendingAction('start') or handles errors.
+                setTimeout(() => connectWebSocket(result.data.session_id), 100); 
+            } else {
+                console.error("[handleStartRecordingSession] Failed to start recording session (HTTP):", result.error);
+                setUiError(`Error: Could not start recording session. ${result.error || 'Unknown error'}`);
+                setPendingAction(null); // Clear pendingAction if HTTP start itself fails
+            }
+        } catch (error) { // Catch errors from callHttpRecordingApi itself
+            console.error("[handleStartRecordingSession] Exception during HTTP start API call:", error);
+            setUiError(`Error: Exception trying to start recording session.`);
+            setPendingAction(null);
         }
-    }, [isBrowserRecording, isPageReady, agentName, eventId, callHttpRecordingApi, connectWebSocket, resetRecordingStates, searchParams]);
+    }, [isBrowserRecording, isPageReady, agentName, eventId, callHttpRecordingApi, connectWebSocket, resetRecordingStates, searchParams, setPendingAction, setUiError, setAgentName, setEventId, setSessionId, setSessionStartTimeUTC]);
 
     const handleToggleBrowserPause = useCallback(() => {
         if (!mediaRecorderRef.current || !isBrowserRecording || pendingActionRef.current) return;
@@ -791,23 +786,41 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [input, isLoading, stop, attachedFiles.length, onSubmit]);
 
     useEffect(() => {
-        if (!isBrowserRecording && !pendingAction && inputRef.current) { // Removed document.activeElement check
-            console.log("[FocusEffect] Recording stopped and no pending action, conditions met for focusing input.");
-            // setTimeout ensures this runs after the current JS stack and DOM updates
+        // This effect handles focusing the input when conditions are met.
+        if (!isBrowserRecording && !pendingAction && isPageReady && inputRef.current) {
+            console.log(`[FocusEffect] Conditions met: !isBrowserRecording (${!isBrowserRecording}), !pendingAction (${!pendingAction}), isPageReady (${isPageReady}).`);
             const timerId = setTimeout(() => {
                 if (inputRef.current) {
-                     // Explicitly check if input is not disabled before focusing
-                     if (!inputRef.current.disabled) {
-                        inputRef.current.focus();
-                        console.log("[FocusEffect] Called inputRef.current.focus()");
-                     } else {
-                        console.warn("[FocusEffect] Input field is disabled, cannot focus.");
-                     }
+                    const inputElement = inputRef.current;
+                    console.log(`[FocusEffect - setTimeout] Attempting focus. input.disabled attribute value: ${inputElement.getAttribute('disabled')}, input.disabled prop value: ${inputElement.disabled}, document.activeElement:`, document.activeElement);
+                    
+                    // The input's 'disabled' prop is now directly tied to 'pendingAction' state.
+                    // So, if !pendingAction is true, inputElement.disabled should be false.
+                    if (!inputElement.disabled) {
+                        inputElement.focus({ preventScroll: true });
+                        console.log(`[FocusEffect - setTimeout] Called inputRef.current.focus(). New activeElement:`, document.activeElement);
+                        if (document.activeElement !== inputElement) {
+                           console.warn("[FocusEffect - setTimeout] Input focus attempt did NOT result in input being active element. Active element is:", document.activeElement);
+                        } else {
+                           console.log("[FocusEffect - setTimeout] Input is NOW the active element.");
+                        }
+                    } else {
+                        console.warn(`[FocusEffect - setTimeout] Input field is reported as disabled (prop: ${inputElement.disabled}) at the moment of focus attempt. State: pendingAction=${pendingAction}, isPageReady=${isPageReady}. Cannot focus.`);
+                    }
+                } else {
+                    console.warn("[FocusEffect - setTimeout] inputRef.current is null, cannot focus.");
                 }
-            }, 50); // Increased timeout slightly to 50ms
+            }, 100); // Delay to allow DOM to update after state changes and ensure all state updates are processed.
             return () => clearTimeout(timerId);
+        } else {
+            // Optional: More detailed logging for when conditions are not met.
+            // if (inputRef.current) {
+            //     console.log(`[FocusEffect] Conditions NOT met: isBrowserRecording=${isBrowserRecording}, pendingAction=${pendingAction}, isPageReady=${isPageReady}, inputDisabled=${inputRef.current.disabled}`);
+            // } else {
+            //     console.log(`[FocusEffect] Conditions NOT met (or inputRef not available): isBrowserRecording=${isBrowserRecording}, pendingAction=${pendingAction}, isPageReady=${isPageReady}`);
+            // }
         }
-    }, [isBrowserRecording, pendingAction]);
+    }, [isBrowserRecording, pendingAction, isPageReady]); // Ensure inputRef is not in deps, as it's stable.
 
 
     const micButtonClass = cn(
@@ -868,11 +881,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         </div>
                         <input
                           ref={inputRef}
+                          data-testid="chat-input-field"
                           value={input}
                           onChange={handleInputChange}
                           placeholder={!isPageReady ? "Waiting for Agent/Event..." : "Ask anything"}
                           className="flex-1 px-3 py-1 bg-transparent border-none outline-none placeholder:text-zink-500 dark:placeholder:text-zink-500"
-                          disabled={!isPageReady || !!pendingActionRef.current}
+                          disabled={!isPageReady || !!pendingAction /* Use pendingAction state directly */}
                           aria-label="Chat input"
                         />
                         <button type="submit"
