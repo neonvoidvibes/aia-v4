@@ -19,17 +19,23 @@ import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileL
 import FileEditor from "@/components/file-editor";
 import { useMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button";
+  );
+}
+// This is the client-side component that will use the hook
+// Default export that wraps PageContent with Suspense
+export default function HomePage() {
+  const fallbackUI = (
+    <div className="flex items-center justify-center min-h-screen">
+      <p className="text-xl animate-pulse">Loading page content...</p>
+    </div>
+  );
 
-export default function Home() {
-  const searchParams = useSearchParams();
-
-  // State managed by the page
-  const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState("documents");
-  const [previousActiveTab, setPreviousActiveTab] = useState("documents"); // To restore tab
-  const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
-  const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]);
-  const [agentMemoryFiles, setAgentMemoryFiles] = useState<AttachmentFile[]>([]);
+  return (
+    <Suspense fallback={fallbackUI}>
+      <PageContent />
+    </Suspense>
+  );
+}
   const [systemPromptFiles, setSystemPromptFiles] = useState<AttachmentFile[]>([]);
   const [contextFiles, setContextFiles] = useState<AttachmentFile[]>([]);
   const [hasOpenSection, setHasOpenSection] = useState(false);
