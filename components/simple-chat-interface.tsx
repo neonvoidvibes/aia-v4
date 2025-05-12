@@ -722,16 +722,86 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const handleRecordUIMouseMove = useCallback(() => { if (isBrowserRecording) { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); setRecordUIVisible(true); startHideTimeout(); }}, [isBrowserRecording, startHideTimeout]);
     const handlePlusMenuClick = useCallback((e: React.MouseEvent) => { e.stopPropagation(); if (showRecordUI && !isBrowserRecording) hideRecordUI(); setShowPlusMenu(prev => !prev); }, [showRecordUI, isBrowserRecording, hideRecordUI]);
     const handleMessageInteraction = useCallback((id: string) => { if (isMobile) setHoveredMessage(prev => prev === id ? null : id); }, [isMobile]);
-    const copyToClipboard = useCallback((text: string, id: string) => { const notifySuccess = () => { setCopyState({ id, copied: true }); setTimeout(() => { setCopyState({ id: "", copied: false }); }, 2000); }; const notifyFailure = (err?: any) => { console.error("Failed copy: ", err); setCopyState({ id, copied: false }); }; if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(notifySuccess).catch(notifyFailure); } else { console.warn("Fallback copy (execCommand)."); try { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.left = "-9999px"; ta.style.top = "-9999px"; document.body.appendChild(ta); ta.focus(); ta.select(); const ok = document.execCommand('copy'); document.body.removeChild(ta); if (ok) notifySuccess(); else throw new Error('execCommand fail'); } catch (err) { notifyFailure(err); } } }, []);
+    
+    const copyToClipboard = useCallback((text: string, id: string) => { 
+      const notifySuccess = () => { setCopyState({ id, copied: true }); setTimeout(() => { setCopyState({ id: "", copied: false }); }, 2000); }; 
+      const notifyFailure = (err?: any) => { console.error("Failed copy: ", err); setCopyState({ id, copied: false }); }; 
+      if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(notifySuccess).catch(notifyFailure); 
+      } else { 
+        console.warn("Fallback copy (execCommand)."); 
+        try { 
+          const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.left = "-9999px"; ta.style.top = "-9999px"; document.body.appendChild(ta); ta.focus(); ta.select(); 
+          const ok = document.execCommand('copy'); document.body.removeChild(ta); 
+          if (ok) notifySuccess(); else throw new Error('execCommand fail'); 
+        } catch (err) { 
+          notifyFailure(err); 
+        } 
+      } 
+    }, []);
+    
     const editMessage = useCallback((id: string) => console.log("Edit:", id), []);
-    const readAloud = useCallback((text: string) => console.log("Read:", text), []);
-    const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement>) => { e.preventDefault(); if (!isPageReady) { setUiError("Error: Agent/Event not set."); return; } if (isLoading) stop(); else if (input.trim() || attachedFiles.length > 0) { if (attachedFiles.length > 0) { filesForNextMessageRef.current = [...attachedFiles]; setAttachedFiles([]); } else filesForNextMessageRef.current = []; userHasScrolledRef.current = false; setShowScrollToBottom(false); originalHandleSubmit(e as React.FormEvent<HTMLFormElement>); } }, [input, isLoading, isPageReady, stop, originalHandleSubmit, attachedFiles, setAttachedFiles]);
-    useEffect(() => { const lKeyDown = (e: KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { e.preventDefault(); onSubmit(e as any); } else if (e.key === "Enter" && !e.shiftKey && isLoading) e.preventDefault(); }; const el = inputRef.current; if (el) el.addEventListener("keydown", lKeyDown as EventListener); return () => { if (el) el.removeEventListener("keydown", lKeyDown as EventListener); } }, [input, isLoading, stop, attachedFiles.length, onSubmit]);
+    
+    const readAloud = useCallback((text: string) => {
+        // Will integrate with TTS service later
+        console.log("Reading aloud:", text)
+    }, []);
+
+    const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement>) => { 
+      e.preventDefault(); 
+      if (!isPageReady) { 
+        setUiError("Error: Agent/Event not set."); return; 
+      } 
+      if (isLoading) {
+        stop(); 
+      } else if (input.trim() || attachedFiles.length > 0) { 
+        if (attachedFiles.length > 0) { 
+          filesForNextMessageRef.current = [...attachedFiles]; 
+          setAttachedFiles([]); 
+        } else {
+          filesForNextMessageRef.current = []; 
+        }
+        userHasScrolledRef.current = false; 
+        setShowScrollToBottom(false); 
+        originalHandleSubmit(e as React.FormEvent<HTMLFormElement>); 
+      } 
+    }, [input, isLoading, isPageReady, stop, originalHandleSubmit, attachedFiles, setAttachedFiles]);
+    
+    useEffect(() => { 
+      const lKeyDown = (e: KeyboardEvent) => { 
+        if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { 
+          e.preventDefault(); 
+          onSubmit(e as any); 
+        } else if (e.key === "Enter" && !e.shiftKey && isLoading) {
+          e.preventDefault(); 
+        }
+      }; 
+      const el = inputRef.current; 
+      if (el) {
+        el.addEventListener("keydown", lKeyDown as EventListener); 
+      }
+      return () => { 
+        if (el) {
+          el.removeEventListener("keydown", lKeyDown as EventListener); 
+        }
+      } 
+    }, [input, isLoading, stop, attachedFiles.length, onSubmit]);
 
     useEffect(() => {
-        if (!isBrowserRecording && !pendingAction && inputRef.current && document.activeElement !== inputRef.current) {
-            console.log("[FocusEffect] Recording stopped and no pending action, focusing input.");
-            setTimeout(() => inputRef.current?.focus(), 0);
+        if (!isBrowserRecording && !pendingAction && inputRef.current) { // Removed document.activeElement check
+            console.log("[FocusEffect] Recording stopped and no pending action, conditions met for focusing input.");
+            // setTimeout ensures this runs after the current JS stack and DOM updates
+            const timerId = setTimeout(() => {
+                if (inputRef.current) {
+                     // Explicitly check if input is not disabled before focusing
+                     if (!inputRef.current.disabled) {
+                        inputRef.current.focus();
+                        console.log("[FocusEffect] Called inputRef.current.focus()");
+                     } else {
+                        console.warn("[FocusEffect] Input field is disabled, cannot focus.");
+                     }
+                }
+            }, 0); // A timeout of 0 is usually sufficient.
+            return () => clearTimeout(timerId);
         }
     }, [isBrowserRecording, pendingAction]);
 
