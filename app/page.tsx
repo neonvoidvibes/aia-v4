@@ -433,7 +433,7 @@ function HomeContent() {
             <EnvWarning />
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full overflow-hidden">
               <TabsList className="grid w-full grid-cols-4 mb-4">
-                <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsTrigger value="documents">{isMobile ? "Docs" : "Documents"}</TabsTrigger>
                 <TabsTrigger value="system">System</TabsTrigger>
                 <TabsTrigger value="memory">Memory</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>

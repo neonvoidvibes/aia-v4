@@ -232,6 +232,8 @@ body {
   /* No special bottom‑right override – keep uniform rounding */
   border-bottom-right-radius: var(--message-radius);
   margin-right: 8px;
+  display: inline-block; /* Makes the bubble wrap its content snugly */
+  text-align: left; /* Ensure text inside aligns left */
 }
 
 .user-bubble.with-attachment {
