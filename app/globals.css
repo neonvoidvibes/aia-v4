@@ -234,6 +234,7 @@ body {
   margin-right: 8px;
   display: inline-block; /* Makes the bubble wrap its content snugly */
   text-align: left; /* Ensure text inside aligns left */
+  width: max-content; /* Further ensures bubble shrinks to content, constrained by max-width */
 }
 
 .user-bubble.with-attachment {
