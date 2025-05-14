@@ -52,9 +52,23 @@
 /* Re-declared here for clarity or if needed for specificity, matches above */
 :root {
   /* ... existing :root vars ... */
-  --button-active: 0 0% 95%; /* Dark mode active: Near white */
-  --button-active-bg: transparent; /* Dark mode active bg: Transparent */
-  --button-inactive: 0 0% 60%; /* Dark mode inactive: Mid-light gray */
+
+  /* New Semantic CSS Variables for UI elements */
+  --button-submit-bg-active: 0 0% 90%; /* Near white for dark mode active submit button BG */
+  --button-submit-fg-active: 0 0% 10%; /* Dark fg for dark mode active submit button */
+  --button-submit-bg-inactive: 0 0% 25%; /* Darker gray for dark mode inactive submit BG */
+  --button-submit-fg-inactive: 0 0% 60%; /* Lighter gray fg for dark mode inactive submit */
+  
+  --icon-primary: 0 0% 90%; /* Primary icon color for dark mode */
+  --icon-secondary: 0 0% 70%; /* Secondary icon color for dark mode */
+  --icon-active: 0 0% 100%; /* Active icon color for dark mode (e.g. recording) */
+  --icon-inactive: 0 0% 50%; /* Inactive/disabled icon color for dark mode */
+  --icon-destructive: 0 84.2% 60.2%; /* Destructive icon color */
+
+  /* Ensure existing button variables are also present, might be redundant if already defined above */
+  --button-active: 0 0% 95%; /* Dark mode active (e.g., plus menu icons) */
+  --button-active-bg: transparent;
+  --button-inactive: 0 0% 60%;
 }
 
 
@@ -92,6 +106,104 @@
   --button-active: 0 0% 20%; /* Dark gray icon */
   --button-active-bg: transparent; /* No background */
   --button-inactive: 0 0% 65%; /* Lighter gray */
+
+  /* New Semantic CSS Variables for Light Theme */
+  --button-submit-bg-active: 0 0% 20%;   /* Dark gray BG for light mode active submit */
+  --button-submit-fg-active: 0 0% 98%;   /* White fg for light mode active submit */
+  --button-submit-bg-inactive: 0 0% 80%; /* Lighter gray BG for light mode inactive submit */
+  --button-submit-fg-inactive: 0 0% 50%; /* Mid gray fg for light mode inactive submit */
+
+  --icon-primary: 0 0% 20%;    /* Primary icon color for light mode */
+  --icon-secondary: 0 0% 40%;  /* Secondary icon color for light mode */
+  --icon-active: 0 0% 0%;      /* Active icon color for light mode (e.g. recording) */
+  --icon-inactive: 0 0% 70%;   /* Inactive/disabled icon color for light mode */
+  /* --icon-destructive uses the default destructive color */
+}
+
+/* --- Custom Themes --- */
+
+/* Neon Sunset Theme */
+.theme-neon-sunset {
+  --background: 260 60% 5%; /* Deep indigo */
+  --foreground: 30 100% 90%; /* Pale orange text */
+  --input-gray: 260 50% 15%; /* Darker indigo for inputs/bubbles */
+  --text-primary: 30 100% 90%;
+  --text-secondary: 30 80% 80%;
+  --text-muted: 30 70% 70%;
+
+  /* Shadcn variables */
+  --card: 260 50% 10%;
+  --popover: 260 50% 10%;
+  --primary: 330 100% 70%; /* Hot pink */
+  --primary-foreground: 0 0% 100%; /* White */
+  --secondary: 260 40% 25%;
+  --secondary-foreground: 30 100% 90%;
+  --muted: 260 50% 20%; /* For TabList background */
+  --accent: 260 40% 25%;
+  --accent-foreground: 330 100% 80%;
+  --destructive: 0 100% 60%; /* Bright red */
+  --destructive-foreground: 0 0% 100%;
+  --border: 260 50% 30%;
+  --input: 260 50% 30%;
+  --ring: 330 100% 70%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 330 100% 60%; /* Hot pink BG */
+  --button-submit-fg-active: 0 0% 100%;   /* White FG */
+  --button-submit-bg-inactive: 260 50% 25%; /* Darker indigo BG */
+  --button-submit-fg-inactive: 30 80% 70%;   /* Muted orange FG */
+  
+  --icon-primary: 30 100% 85%;
+  --icon-secondary: 30 80% 75%;
+  --icon-active: 60 100% 60%; /* Bright yellow for recording active */
+  --icon-inactive: 30 70% 60%;
+  --icon-destructive: 0 100% 60%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 30 100% 90%; /* For plus menu icons, etc. */
+  --button-inactive: 30 70% 70%;
+}
+
+/* Oceanic Calm Theme */
+.theme-oceanic-calm {
+  --background: 200 50% 95%; /* Very light cyan */
+  --foreground: 210 30% 20%; /* Dark desaturated blue text */
+  --input-gray: 200 40% 88%; /* Light cyan-gray for inputs/bubbles */
+  --text-primary: 210 30% 20%;
+  --text-secondary: 210 30% 40%;
+  --text-muted: 210 30% 60%;
+
+  /* Shadcn variables */
+  --card: 200 0% 100%; /* White */
+  --popover: 200 0% 100%;
+  --primary: 190 70% 45%; /* Teal */
+  --primary-foreground: 0 0% 100%; /* White */
+  --secondary: 200 30% 92%;
+  --secondary-foreground: 210 30% 20%;
+  --muted: 200 40% 90%; /* For TabList background */
+  --accent: 200 30% 92%;
+  --accent-foreground: 190 70% 35%;
+  --destructive: 0 70% 50%; /* Coral red */
+  --destructive-foreground: 0 0% 100%;
+  --border: 200 30% 85%;
+  --input: 200 30% 85%;
+  --ring: 190 70% 45%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 190 70% 40%; /* Teal BG */
+  --button-submit-fg-active: 0 0% 100%;   /* White FG */
+  --button-submit-bg-inactive: 200 30% 80%; /* Light cyan-gray BG */
+  --button-submit-fg-inactive: 210 30% 50%;   /* Muted blue FG */
+
+  --icon-primary: 210 30% 30%;
+  --icon-secondary: 210 30% 50%;
+  --icon-active: 180 100% 35%; /* Sea green for recording active */
+  --icon-inactive: 210 30% 70%;
+  --icon-destructive: 0 70% 50%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 210 30% 25%;
+  --button-inactive: 210 30% 65%;
 }
 
 /* --- Global Styles --- */

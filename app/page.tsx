@@ -18,10 +18,14 @@ import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileL
 import FileEditor from "@/components/file-editor";
 import { useMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
+import { useTheme } from "next-themes"; // Import useTheme
 
 // Main content component that uses useSearchParams
 function HomeContent() {
   const searchParams = useSearchParams();
+  const { theme, setTheme } = useTheme(); // Get theme and setTheme from next-themes
 
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
@@ -41,6 +45,8 @@ function HomeContent() {
   const [baseFrameworkS3Files, setBaseFrameworkS3Files] = useState<FetchedFile[]>([]);
   const [orgContextS3Files, setOrgContextS3Files] = useState<FetchedFile[]>([]);
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
+  const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
+
 
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
@@ -229,6 +235,26 @@ function HomeContent() {
       }
     }
   }, [hasOpenSection]);
+  
+  // Effect to load and apply agent-specific theme
+  useEffect(() => {
+    if (pageAgentName) {
+      const agentThemeKey = `agent-theme-${pageAgentName}`;
+      const savedAgentTheme = localStorage.getItem(agentThemeKey);
+      if (savedAgentTheme) {
+        setTheme(savedAgentTheme);
+        setCurrentAgentTheme(savedAgentTheme);
+        // If it's a custom theme, also store it as the "last custom" for this agent for ThemeToggle logic
+        if (predefinedThemes.some(t => t.className === savedAgentTheme)) {
+            localStorage.setItem(`agent-custom-theme-${pageAgentName}`, savedAgentTheme);
+        }
+      } else {
+        // If no theme is stored for this agent, apply the global theme (from next-themes default or ThemeToggle)
+        // and update currentAgentTheme state to reflect that.
+        setCurrentAgentTheme(theme);
+      }
+    }
+  }, [pageAgentName, setTheme, theme]); // Rerun if global theme changes while agent is active
 
   useEffect(() => {
     if (showSettings) {
@@ -523,8 +549,44 @@ function HomeContent() {
                 <TabsContent value="settings" className="mt-0 tab-content-scrollable">
                   <div className="space-y-4 tab-content-inner">
                     <div className="flex items-center justify-between"> 
-                      <span className="memory-section-title">Theme</span>
+                      <span className="memory-section-title">Global Theme</span>
                       <ThemeToggle />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="memory-section-title">Agent Theme</span>
+                      <Select
+                        value={currentAgentTheme || theme} // Fallback to global theme if agent theme not set
+                        onValueChange={(newThemeValue) => {
+                          if (pageAgentName) {
+                            const agentThemeKey = `agent-theme-${pageAgentName}`;
+                            localStorage.setItem(agentThemeKey, newThemeValue);
+                            // If the selected theme is one of the custom ones, also store it as the "last custom"
+                            if (predefinedThemes.some(t => t.className === newThemeValue)) {
+                                localStorage.setItem(`agent-custom-theme-${pageAgentName}`, newThemeValue);
+                            } else {
+                                // If a standard theme (light/dark/system) is chosen for the agent,
+                                // clear the specific "last custom" preference for this agent.
+                                localStorage.removeItem(`agent-custom-theme-${pageAgentName}`);
+                            }
+                            setTheme(newThemeValue);
+                            setCurrentAgentTheme(newThemeValue);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Select theme" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="light">Light</SelectItem>
+                          <SelectItem value="dark">Dark</SelectItem>
+                          <SelectItem value="system">System</SelectItem>
+                          {predefinedThemes.map((customTheme) => (
+                            <SelectItem key={customTheme.className} value={customTheme.className}>
+                              {customTheme.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </TabsContent>

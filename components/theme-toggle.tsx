@@ -1,34 +1,61 @@
 "use client"
 
 import { useTheme } from "next-themes"
-import { Moon, Sun, Settings2, Palette } from "lucide-react" // Added Settings2 and Palette
+import { Moon, Sun, Settings2, Palette } from "lucide-react"
 import { useEffect, useState } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
-import { useMobile } from "@/hooks/use-mobile" // Import useMobile
+import { useMobile } from "@/hooks/use-mobile"
+import { predefinedThemes } from "@/lib/themes" // Import predefined themes
+import { useSearchParams } from "next/navigation" // For agent name (simplified)
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, themes: availableThemes } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const isMobile = useMobile() // Use the hook
+  const isMobile = useMobile()
+  const searchParams = useSearchParams();
+  const agentName = searchParams.get('agent');
 
-  // Ensure component is mounted to avoid hydration mismatch
+
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  if (!mounted) {
-    // Adjusted placeholder size for four items
-    return <div style={{ width: '164px', height: '44px' }} />; 
-  }
+  const getAgentSpecificThemeKey = () => agentName ? `agent-theme-${agentName}` : null;
 
   const handleThemeChange = (value: string) => {
-    if (value) { // Ensure a value is selected
-      // For "custom", we might not want to call setTheme yet if it's a placeholder
-      // For now, we'll allow it to be set, next-themes will fallback if 'custom' is not a real theme.
-      setTheme(value)
+    if (value) {
+      const agentThemeKey = getAgentSpecificThemeKey();
+      if (value === "custom") {
+        // When "Custom" is clicked, try to load the agent's last known custom theme
+        let lastCustomThemeForAgent = localStorage.getItem(`agent-custom-theme-${agentName}`);
+        if (!lastCustomThemeForAgent || !predefinedThemes.find(t => t.className === lastCustomThemeForAgent)) {
+          // Default to first predefined custom theme if none stored or invalid
+          lastCustomThemeForAgent = predefinedThemes[0]?.className || 'dark'; // Fallback to dark if no custom
+        }
+        setTheme(lastCustomThemeForAgent);
+        if (agentThemeKey) {
+          localStorage.setItem(agentThemeKey, lastCustomThemeForAgent);
+        }
+      } else {
+        setTheme(value);
+        if (agentThemeKey) {
+          localStorage.setItem(agentThemeKey, value);
+          // If user explicitly selects light/dark/system, clear the specific "custom" preference for this agent
+          localStorage.removeItem(`agent-custom-theme-${agentName}`);
+        }
+      }
     }
   }
+
+  if (!mounted) {
+    return <div style={{ width: '164px', height: '44px' }} />;
+  }
+
+  // Determine the value for the ToggleGroup
+  // If current theme is one of the custom themes, set ToggleGroup value to "custom"
+  const isCurrentThemeCustom = predefinedThemes.some(t => t.className === theme);
+  const toggleGroupValue = isCurrentThemeCustom ? "custom" : theme;
 
   const commonItemClass = cn(
     "rounded-sm",
@@ -39,45 +66,24 @@ export function ThemeToggle() {
   return (
     <ToggleGroup
       type="single"
-      value={theme}
+      value={toggleGroupValue}
       onValueChange={handleThemeChange}
       className="rounded-md bg-muted p-1"
       aria-label="Theme toggle"
     >
-      <ToggleGroupItem
-        value="light"
-        aria-label="Switch to light mode"
-        size="sm"
-        className={commonItemClass}
-      >
+      <ToggleGroupItem value="light" aria-label="Switch to light mode" size="sm" className={commonItemClass}>
         <Sun className="h-4 w-4" />
         {!isMobile && <span className="ml-2">Light</span>}
       </ToggleGroupItem>
-      <ToggleGroupItem
-        value="dark"
-        aria-label="Switch to dark mode"
-        size="sm"
-        className={commonItemClass}
-      >
+      <ToggleGroupItem value="dark" aria-label="Switch to dark mode" size="sm" className={commonItemClass}>
         <Moon className="h-4 w-4" />
         {!isMobile && <span className="ml-2">Dark</span>}
       </ToggleGroupItem>
-      <ToggleGroupItem
-        value="system"
-        aria-label="Switch to system theme"
-        size="sm"
-        className={commonItemClass}
-      >
+      <ToggleGroupItem value="system" aria-label="Switch to system theme" size="sm" className={commonItemClass}>
         <Settings2 className="h-4 w-4" />
         {!isMobile && <span className="ml-2">System</span>}
       </ToggleGroupItem>
-      <ToggleGroupItem
-        value="custom" // Placeholder for future custom theme
-        aria-label="Switch to custom theme"
-        size="sm"
-        className={commonItemClass}
-        // Potentially disable if not implemented: disabled={true} 
-      >
+      <ToggleGroupItem value="custom" aria-label="Switch to custom theme" size="sm" className={commonItemClass}>
         <Palette className="h-4 w-4" />
         {!isMobile && <span className="ml-2">Custom</span>}
       </ToggleGroupItem>
