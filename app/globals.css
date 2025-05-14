@@ -19,7 +19,8 @@
   /* UI elements */
   --radius: 1.5rem;
   --message-radius: 2rem;
-  --input-gray: 0 0% 30%; /* Changed to a darker gray for dark mode input/bubbles */
+  --input-gray: 0 0% 32%; /* Changed to a darker gray for dark mode input/bubbles */
+  --status-bar: 0 0% 40%;
 
   /* Text colors */
   --text-primary: 0 0% 100%;
@@ -54,6 +55,7 @@
   /* ... existing :root vars ... */
 
   /* New Semantic CSS Variables for UI elements */
+  --status-bar-text-color: hsl(var(--status-bar)); /* Color for status bar text */
   --button-submit-bg-active: 0 0% 90%; /* Near white for dark mode active submit button BG */
   --button-submit-fg-active: 0 0% 10%; /* Dark fg for dark mode active submit button */
   --button-submit-bg-inactive: 0 0% 25%; /* Darker gray for dark mode inactive submit BG */
@@ -80,6 +82,7 @@
 
   /* UI elements */
   --input-gray: 0 0% 88%; /* Brighter gray for input/bubbles in light mode */
+  --status-bar: 0 0% 50%;
 
   /* Text colors */
   --text-primary: 0 0% 0%;
@@ -127,6 +130,7 @@
   --background: 260 60% 5%; /* Deep indigo */
   --foreground: 30 100% 90%; /* Pale orange text */
   --input-gray: 260 50% 15%; /* Darker indigo for inputs/bubbles */
+  --status-bar: 260 35% 30%;
   --text-primary: 30 100% 90%;
   --text-secondary: 30 80% 80%;
   --text-muted: 30 70% 70%;
@@ -169,6 +173,7 @@
   --background: 200 50% 95%; /* Very light cyan */
   --foreground: 210 30% 20%; /* Dark desaturated blue text */
   --input-gray: 200 40% 88%; /* Light cyan-gray for inputs/bubbles */
+  --status-bar: 200 30% 70%;
   --text-primary: 210 30% 20%;
   --text-secondary: 210 30% 40%;
   --text-muted: 210 30% 60%;
@@ -211,6 +216,7 @@
   --background: 120 25% 10%; /* Very dark, desaturated green */
   --foreground: 90 30% 92%; /* Pale moss green / off-white */
   --input-gray: 120 20% 18%; /* Slightly lighter dark green for inputs/bubbles */
+  --status-bar: 120 20% 28%;
   --text-primary: 90 30% 92%;
   --text-secondary: 90 25% 80%;
   --text-muted: 90 20% 65%;
@@ -696,15 +702,12 @@ body {
 }
 
 .status-bar {
-  color: hsl(var(--foreground) / 0.7);
+  color: var(--status-bar-text-color);
   font-size: 0.9rem;
   text-align: center;
   padding: 16px 0 16px 0; /* Added padding-bottom */
   font-weight: 300;
   transition: color 0.3s ease;
-}
-.light .status-bar {
-  color: hsl(var(--foreground) / 0.7);
 }
 
 /* Scroll to bottom button */
