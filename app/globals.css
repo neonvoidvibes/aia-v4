@@ -21,6 +21,7 @@
   --message-radius: 2rem;
   --input-gray: 0 0% 32%; /* Changed to a darker gray for dark mode input/bubbles */
   --status-bar: 0 0% 40%;
+  --placeholder-text: 0 0% 55%;
 
   /* Text colors */
   --text-primary: 0 0% 100%;
@@ -43,19 +44,14 @@
   --input: 0 0% 25%;
   --ring: 0 0% 83.1%;
 
-   /* Custom Button State Variables (Defaults adjusted for dark mode first) */
-   --button-active: 0 0% 95%; /* Dark mode active: Near white */
-   --button-active-bg: transparent; /* Dark mode active bg: Transparent */
-   --button-inactive: 0 0% 60%; /* Dark mode inactive: Mid-light gray */
-}
-
-/* --- Dark Theme Defaults (explicitly define button states here too) --- */
-/* Re-declared here for clarity or if needed for specificity, matches above */
-:root {
-  /* ... existing :root vars ... */
+  /* Custom Button State Variables (Defaults adjusted for dark mode first) */
+  --button-active: 0 0% 95%; /* Dark mode active: Near white */
+  --button-active-bg: transparent; /* Dark mode active bg: Transparent */
+  --button-inactive: 0 0% 60%; /* Dark mode inactive: Mid-light gray */
 
   /* New Semantic CSS Variables for UI elements */
   --status-bar-text-color: hsl(var(--status-bar)); /* Color for status bar text */
+  --placeholder-text-color: hsl(var(--placeholder-text));
   --button-submit-bg-active: 0 0% 90%; /* Near white for dark mode active submit button BG */
   --button-submit-fg-active: 0 0% 10%; /* Dark fg for dark mode active submit button */
   --button-submit-bg-inactive: 0 0% 25%; /* Darker gray for dark mode inactive submit BG */
@@ -83,6 +79,7 @@
   /* UI elements */
   --input-gray: 0 0% 88%; /* Brighter gray for input/bubbles in light mode */
   --status-bar: 0 0% 50%;
+  --placeholder-text: 0 0% 69%;
 
   /* Text colors */
   --text-primary: 0 0% 0%;
@@ -128,11 +125,12 @@
 /* Neon Sunset Theme */
 .theme-neon-sunset {
   --background: 260 60% 5%; /* Deep indigo */
-  --foreground: 30 100% 90%; /* Pale orange text */
+  --foreground: 270 100% 90%; /* Pale orange text */
   --input-gray: 260 50% 15%; /* Darker indigo for inputs/bubbles */
   --status-bar: 260 35% 30%;
-  --text-primary: 30 100% 90%;
-  --text-secondary: 30 80% 80%;
+  --placeholder-text: 260 35% 35%;
+  --text-primary: 270 100% 90%;
+  --text-secondary: 270 80% 80%;
   --text-muted: 30 70% 70%;
 
   /* Shadcn variables */
@@ -155,10 +153,10 @@
   --button-submit-bg-active: 330 100% 60%; /* Hot pink BG */
   --button-submit-fg-active: 0 0% 100%;   /* White FG */
   --button-submit-bg-inactive: 260 50% 25%; /* Darker indigo BG */
-  --button-submit-fg-inactive: 30 80% 70%;   /* Muted orange FG */
+  --button-submit-fg-inactive: 270 80% 70%;   /* Muted orange FG */
   
   --icon-primary: 30 100% 85%;
-  --icon-secondary: 30 80% 75%;
+  --icon-secondary: 270 80% 75%;
   --icon-active: 60 100% 60%; /* Bright yellow for recording active */
   --icon-inactive: 30 70% 60%;
   --icon-destructive: 0 100% 60%;
@@ -171,9 +169,10 @@
 /* Oceanic Calm Theme */
 .theme-oceanic-calm {
   --background: 200 50% 95%; /* Very light cyan */
-  --foreground: 210 30% 20%; /* Dark desaturated blue text */
+  --foreground: 210 20% 45%; /* Dark desaturated blue text */
   --input-gray: 200 40% 88%; /* Light cyan-gray for inputs/bubbles */
   --status-bar: 200 30% 70%;
+  --placeholder-text: 200 30% 68%;
   --text-primary: 210 30% 20%;
   --text-secondary: 210 30% 40%;
   --text-muted: 210 30% 60%;
@@ -214,9 +213,10 @@
 /* Forest Deep Theme */
 .theme-forest-deep {
   --background: 120 25% 10%; /* Very dark, desaturated green */
-  --foreground: 90 30% 92%; /* Pale moss green / off-white */
+  --foreground: 90 20% 68%; /* Pale moss green / off-white */
   --input-gray: 120 20% 18%; /* Slightly lighter dark green for inputs/bubbles */
   --status-bar: 120 20% 28%;
+  --placeholder-text: 120 20% 35%;
   --text-primary: 90 30% 92%;
   --text-secondary: 90 25% 80%;
   --text-muted: 90 20% 65%;
