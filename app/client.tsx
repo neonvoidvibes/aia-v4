@@ -11,7 +11,7 @@ export default function ClientLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true}>
           {children}
         </ThemeProvider>
       </body>
