@@ -254,6 +254,182 @@
   --button-inactive: 90 20% 60%;
 }
 
+/* Midnight Mono Theme */
+.theme-midnight-mono {
+  --background: 240 6% 7%; /* Very dark desaturated blue/grey */
+  --foreground: 240 5% 85%; /* Light grey */
+  --input-gray: 240 6% 15%; /* Darker grey for inputs/bubbles */
+  --status-bar: 240 5% 40%;
+  --placeholder-text: 240 5% 50%;
+  --text-primary: 240 5% 90%;
+  --text-secondary: 240 5% 75%;
+  --text-muted: 240 5% 60%;
+
+  /* Shadcn variables */
+  --card: 240 6% 12%;
+  --popover: 240 6% 12%;
+  --primary: 210 80% 60%; /* Muted Electric Blue */
+  --primary-foreground: 240 5% 95%; /* Lighter grey for contrast */
+  --secondary: 240 6% 20%;
+  --secondary-foreground: 240 5% 88%;
+  --muted: 240 6% 18%; /* For TabList background */
+  --accent: 240 6% 22%;
+  --accent-foreground: 210 80% 70%;
+  --destructive: 0 70% 55%; /* Muted Red */
+  --destructive-foreground: 0 0% 95%;
+  --border: 240 6% 25%;
+  --input: 240 6% 25%;
+  --ring: 210 80% 60%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 210 80% 55%; /* Muted Electric Blue BG */
+  --button-submit-fg-active: 240 5% 95%; /* Light grey FG */
+  --button-submit-bg-inactive: 240 6% 22%; /* Darker grey BG */
+  --button-submit-fg-inactive: 240 5% 60%; /* Mid grey FG */
+
+  --icon-primary: 240 5% 88%;
+  --icon-secondary: 240 5% 70%;
+  --icon-active: 210 90% 70%; /* Brighter Electric Blue for recording active */
+  --icon-inactive: 240 5% 50%;
+  --icon-destructive: 0 70% 55%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 240 5% 90%;
+  --button-inactive: 240 5% 65%;
+}
+
+/* Solar Flare Theme */
+.theme-solar-flare {
+  --background: 45 100% 96%; /* Very light warm yellow/off-white */
+  --foreground: 30 50% 20%; /* Dark warm brown */
+  --input-gray: 40 60% 90%; /* Light sandy yellow for inputs/bubbles */
+  --status-bar: 35 40% 65%;
+  --placeholder-text: 35 40% 60%;
+  --text-primary: 30 60% 15%;
+  --text-secondary: 30 40% 30%;
+  --text-muted: 30 30% 50%;
+
+  /* Shadcn variables */
+  --card: 40 80% 98%; /* Very light sand */
+  --popover: 40 80% 98%;
+  --primary: 15 100% 55%; /* Bright Orange-Red */
+  --primary-foreground: 0 0% 100%; /* White */
+  --secondary: 40 50% 92%;
+  --secondary-foreground: 25 50% 25%;
+  --muted: 40 60% 92%; /* For TabList background */
+  --accent: 40 50% 90%;
+  --accent-foreground: 15 90% 45%;
+  --destructive: 0 80% 60%; /* Strong Red */
+  --destructive-foreground: 0 0% 100%;
+  --border: 35 40% 80%;
+  --input: 35 40% 80%;
+  --ring: 15 100% 55%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 15 100% 50%; /* Bright Orange-Red BG */
+  --button-submit-fg-active: 0 0% 100%; /* White FG */
+  --button-submit-bg-inactive: 40 50% 85%; /* Light sand BG */
+  --button-submit-fg-inactive: 30 40% 55%; /* Muted brown FG */
+
+  --icon-primary: 25 50% 25%;
+  --icon-secondary: 30 40% 45%;
+  --icon-active: 50 100% 50%; /* Bright Yellow for recording active */
+  --icon-inactive: 35 30% 60%;
+  --icon-destructive: 0 80% 60%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 25 60% 20%;
+  --button-inactive: 30 30% 55%;
+}
+
+/* Aurora Borealis Theme */
+.theme-aurora-borealis {
+  --background: 260 70% 8%; /* Deep night sky blue/purple */
+  --foreground: 180 30% 65%; /* Pale icy green/blue text */
+  --input-gray: 250 60% 12%; /* Darker indigo/purple for inputs/bubbles */
+  --status-bar: 250 40% 35%;
+  --placeholder-text: 250 40% 40%;
+  --text-primary: 170 60% 92%;
+  --text-secondary: 180 40% 80%;
+  --text-muted: 200 30% 70%;
+
+  /* Shadcn variables */
+  --card: 255 65% 10%;
+  --popover: 255 65% 10%;
+  --primary: 170 80% 45%; /* Vibrant Teal/Green */
+  --primary-foreground: 260 70% 5%; /* Darkest purple for contrast on primary */
+  --secondary: 250 50% 18%; /* Darker, muted purple */
+  --secondary-foreground: 180 50% 88%;
+  --muted: 250 60% 15%; /* For TabList background */
+  --accent: 250 50% 20%;
+  --accent-foreground: 300 80% 75%; /* Electric Pink/Purple for accent text */
+  --destructive: 0 90% 65%; /* Bright, slightly desaturated red */
+  --destructive-foreground: 0 0% 100%; /* White */
+  --border: 250 50% 28%; /* Dark purple border */
+  --input: 250 50% 28%;
+  --ring: 170 80% 45%; /* Ring color matches primary */
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 170 80% 40%; /* Vibrant Teal/Green BG */
+  --button-submit-fg-active: 260 70% 5%; /* Darkest purple FG */
+  --button-submit-bg-inactive: 250 55% 16%; /* Darker night sky BG */
+  --button-submit-fg-inactive: 180 40% 70%; /* Muted icy green FG */
+
+  --icon-primary: 170 50% 88%;
+  --icon-secondary: 180 40% 75%;
+  --icon-active: 150 100% 60%; /* Bright Lime Green for recording active */
+  --icon-inactive: 200 30% 60%;
+  --icon-destructive: 0 90% 65%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 170 60% 90%;
+  --button-inactive: 180 30% 65%;
+}
+
+/* Desert Mirage Theme */
+.theme-desert-mirage {
+  --background: 40 40% 92%; /* Sandy beige */
+  --foreground: 25 50% 30%; /* Dark terracotta/brown */
+  --input-gray: 35 35% 85%; /* Lighter beige for inputs/bubbles */
+  --status-bar: 30 30% 60%;
+  --placeholder-text: 30 30% 55%;
+  --text-primary: 25 60% 25%;
+  --text-secondary: 25 40% 40%;
+  --text-muted: 30 30% 50%;
+
+  /* Shadcn variables */
+  --card: 35 50% 96%; /* Very light beige */
+  --popover: 35 50% 96%;
+  --primary: 30 80% 50%; /* Deep Ochre/Burnt Orange */
+  --primary-foreground: 40 30% 98%; /* Off-white for contrast */
+  --secondary: 35 30% 88%;
+  --secondary-foreground: 25 50% 35%;
+  --muted: 35 35% 88%; /* For TabList background */
+  --accent: 35 30% 85%;
+  --accent-foreground: 30 70% 40%;
+  --destructive: 0 60% 45%; /* Muted, earthy red */
+  --destructive-foreground: 30 20% 95%; /* Light beige */
+  --border: 30 30% 75%;
+  --input: 30 30% 75%;
+  --ring: 30 80% 50%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 30 80% 45%; /* Deep Ochre BG */
+  --button-submit-fg-active: 40 30% 98%; /* Off-white FG */
+  --button-submit-bg-inactive: 35 30% 80%; /* Lighter beige BG */
+  --button-submit-fg-inactive: 25 40% 50%; /* Muted terracotta FG */
+
+  --icon-primary: 25 55% 30%;
+  --icon-secondary: 25 35% 45%;
+  --icon-active: 190 70% 40%; /* Oasis Turquoise for recording active */
+  --icon-inactive: 30 25% 60%;
+  --icon-destructive: 0 60% 45%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 25 60% 25%;
+  --button-inactive: 30 25% 55%;
+}
+
 /* --- Global Styles --- */
 body {
   font-family: "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;

@@ -11,8 +11,23 @@ export interface ColorTheme {
 
 export const predefinedThemes: ColorTheme[] = [
   {
+    name: "Midnight Mono",
+    className: "theme-midnight-mono",
+    isDark: true,
+  },
+  {
     name: "Neon Sunset",
     className: "theme-neon-sunset",
+    isDark: true,
+  },
+  {
+    name: "Aurora Borealis",
+    className: "theme-aurora-borealis",
+    isDark: true,
+  },
+  {
+    name: "Forest Deep",
+    className: "theme-forest-deep",
     isDark: true,
   },
   {
@@ -21,9 +36,14 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: false,
   },
   {
-    name: "Forest Deep",
-    className: "theme-forest-deep",
-    isDark: true,
+    name: "Solar Flare",
+    className: "theme-solar-flare",
+    isDark: false,
+  },
+  {
+    name: "Desert Mirage",
+    className: "theme-desert-mirage",
+    isDark: false,
   },
   // Add more predefined themes here
 ];
