@@ -20,5 +20,10 @@ export const predefinedThemes: ColorTheme[] = [
     className: "theme-oceanic-calm",
     isDark: false,
   },
+  {
+    name: "Forest Deep",
+    className: "theme-forest-deep",
+    isDark: true,
+  },
   // Add more predefined themes here
 ];
