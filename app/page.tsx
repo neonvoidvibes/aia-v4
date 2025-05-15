@@ -21,6 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
+import ViewSwitcher from "@/components/ui/view-switcher"; // New: Canvas View Switcher
+import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; // New: Canvas View
+import { Switch } from "@/components/ui/switch"; // For canvas toggle
+import { Label } from "@/components/ui/label"; // For canvas toggle label
 
 // Main content component that uses useSearchParams
 function HomeContent() {
@@ -46,6 +50,13 @@ function HomeContent() {
   const [orgContextS3Files, setOrgContextS3Files] = useState<FetchedFile[]>([]);
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
+
+  // State for Canvas View
+  const [currentView, setCurrentView] = useState<"chat" | "canvas">("chat");
+  const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(true); // Default to enabled
+  const [canvasTimeWindow, setCanvasTimeWindow] = useState<string>("Whole Meeting"); // Default, matches CanvasView state
+  const [pinnedCanvasInsights, setPinnedCanvasInsights] = useState<CanvasInsightItem[]>([]);
+  const [activeCanvasInsightsForChat, setActiveCanvasInsightsForChat] = useState<CanvasData | null>(null);
 
 
   // State for S3 file viewer
@@ -256,6 +267,22 @@ function HomeContent() {
     }
   }, [pageAgentName, setTheme, theme]); // Rerun if global theme changes while agent is active
 
+  // Load/save canvas enabled state from localStorage
+  useEffect(() => {
+    const savedCanvasEnabled = localStorage.getItem("canvasViewEnabled");
+    if (savedCanvasEnabled !== null) {
+      setIsCanvasViewEnabled(JSON.parse(savedCanvasEnabled));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("canvasViewEnabled", JSON.stringify(isCanvasViewEnabled));
+    if (!isCanvasViewEnabled && currentView === "canvas") {
+      setCurrentView("chat"); // Switch to chat if canvas is disabled while active
+    }
+  }, [isCanvasViewEnabled, currentView]);
+
+
   useEffect(() => {
     if (showSettings) {
       setFetchedDataFlags(prevFlags => {
@@ -408,6 +435,35 @@ function HomeContent() {
     window.open(downloadProxyUrl, '_blank');
   };
 
+  const handlePinInsight = (insight: CanvasInsightItem) => {
+    setPinnedCanvasInsights((prev) => {
+      if (!prev.find(p => p.highlight === insight.highlight && p.explanation === insight.explanation)) { // Avoid duplicates
+        return [...prev, { ...insight, id: insight.id || `${insight.category}-${Date.now()}` }]; // Ensure ID for pinning
+      }
+      return prev;
+    });
+  };
+
+  const handleUnpinInsight = (insightIdOrHighlight: string) => {
+    setPinnedCanvasInsights((prev) => prev.filter(p => (p.id || p.highlight) !== insightIdOrHighlight));
+  };
+  
+  const handleSendCanvasHighlightToChat = (message: string, originalHighlight: CanvasInsightItem) => {
+    if (chatInterfaceRef.current && pageAgentName) {
+      const prefixedMessage = `🎨 From Canvas: ${message}`;
+      
+      const chatDataForSubmit = {
+        current_canvas_time_window_label: canvasTimeWindow, // Use state from page.tsx
+        active_canvas_insights: activeCanvasInsightsForChat ? JSON.stringify(activeCanvasInsightsForChat) : JSON.stringify({mirror:[], lens:[], portal:[]}),
+        pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
+      };
+      
+      chatInterfaceRef.current.submitMessageWithCanvasContext(prefixedMessage, chatDataForSubmit);
+      setCurrentView("chat"); // Switch back to chat view
+    }
+  };
+
+
   if (isAuthorized === null) return (<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Checking authorization...</p></div>);
   if (isAuthorized === false) return (
     <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
@@ -422,17 +478,52 @@ function HomeContent() {
 
   return (
     <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
-      <header className="py-4 px-4 text-center relative flex-shrink-0" onClick={() => { if (isMobile && chatInterfaceRef.current) chatInterfaceRef.current.scrollToTop(); }}>
-        <div className="flex items-center justify-between">
+      <header className="py-2 px-4 text-center relative flex-shrink-0"> {/* Adjusted padding */}
+        <div className="flex items-center justify-between h-12"> {/* Fixed height for header content */}
           <button className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105" onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} aria-label="New chat"><PenSquare size={20} /></button>
-          <h1 className="text-lg font-extralight">{pageAgentName ? `${pageAgentName} AI` : "River AI"}</h1>
+          
+          {isCanvasViewEnabled ? (
+            <ViewSwitcher 
+              currentView={currentView} 
+              onViewChange={(newView) => {
+                setCurrentView(newView);
+                // Optional: if switching away from canvas, clear activeBubble from CanvasView if it were managed here
+              }} 
+              agentName={pageAgentName}
+              className="flex-grow justify-center max-w-xs sm:max-w-sm" // Added class for sizing
+            />
+          ) : (
+            <h1 className="text-lg font-extralight flex-grow text-center">{pageAgentName ? `${pageAgentName} AI` : "River AI"}</h1>
+          )}
+
           <button className="text-foreground/70 hover:text-foreground transition-colors" onClick={(e) => { e.stopPropagation(); setShowSettings(!showS3FileViewer ? !showSettings : true ); }} aria-label="Toggle settings">
             <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings && !showS3FileViewer ? "rotate(180deg)" : "rotate(0deg)" }}><ChevronDown size={24} strokeWidth={2.5} /></div>
           </button>
         </div>
       </header>
       <main className="flex-1 flex flex-col overflow-hidden">
-        <SimpleChatInterface ref={chatInterfaceRef} onAttachmentsUpdate={updateChatAttachments} />
+        {currentView === "chat" || !isCanvasViewEnabled ? (
+          <SimpleChatInterface 
+            ref={chatInterfaceRef} 
+            onAttachmentsUpdate={updateChatAttachments} 
+            getCanvasContext={() => ({
+                current_canvas_time_window_label: canvasTimeWindow,
+                active_canvas_insights: activeCanvasInsightsForChat ? JSON.stringify(activeCanvasInsightsForChat) : JSON.stringify({mirror:[], lens:[], portal:[]}), 
+                pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
+            })}
+          />
+        ) : (
+          <CanvasView 
+            agentName={pageAgentName} 
+            eventId={pageEventId} 
+            onSendHighlightToChat={handleSendCanvasHighlightToChat}
+            pinnedInsights={pinnedCanvasInsights}
+            onPinInsight={handlePinInsight}
+            onUnpinInsight={handleUnpinInsight}
+            isEnabled={isCanvasViewEnabled}
+            onCanvasDataUpdate={(data) => setActiveCanvasInsightsForChat(data)} // Update page state
+          />
+        )}
       </main>
 
       {showSettings && !showS3FileViewer && (
@@ -587,6 +678,14 @@ function HomeContent() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                        <Label htmlFor="canvas-view-toggle" className="memory-section-title">Enable Canvas View</Label>
+                        <Switch
+                            id="canvas-view-toggle"
+                            checked={isCanvasViewEnabled}
+                            onCheckedChange={setIsCanvasViewEnabled}
+                        />
                     </div>
                   </div>
                 </TabsContent>

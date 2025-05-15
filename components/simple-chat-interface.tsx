@@ -36,13 +36,29 @@ const debugLog = (...args: any[]) => {
 };
 
 interface SimpleChatInterfaceProps {
-  onAttachmentsUpdate?: (attachments: AttachmentFile[]) => void
+  onAttachmentsUpdate?: (attachments: AttachmentFile[]) => void;
+  getCanvasContext?: () => { // New prop to fetch dynamic canvas context
+    current_canvas_time_window_label?: string;
+    active_canvas_insights?: string; // JSON string
+    pinned_canvas_insights?: string; // JSON string
+  };
 }
 
 export interface ChatInterfaceHandle {
   startNewChat: () => void;
   getMessagesCount: () => number;
   scrollToTop: () => void;
+  // New method to allow external components (like CanvasView via page.tsx) to submit messages
+  // with additional canvas context.
+  submitMessageWithCanvasContext: (
+    messageContent: string, 
+    canvasContext: {
+      current_canvas_time_window_label?: string;
+      active_canvas_insights?: string; // JSON string
+      pinned_canvas_insights?: string; // JSON string
+    }
+  ) => void;
+  setInput: (text: string) => void; // To prefill input from canvas
 }
 
 const formatTime = (seconds: number): string => {
@@ -53,7 +69,7 @@ const formatTime = (seconds: number): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, getCanvasContext }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -94,10 +110,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
-      isLoading, stop, setMessages, 
+      isLoading, stop, setMessages, append: originalAppend, // Capture append
     } = useChat({ 
       api: "/api/proxy-chat",
-      body: { agent: agentName, event: eventId || '0000' }, 
+      // Body will be augmented in the custom handleSubmit wrapper
       sendExtraMessageFields: true,
       onError: (error) => { 
         console.error("[ChatInterface] useChat onError:", error);
@@ -109,9 +125,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       },
     });
 
-    const appendToChat = useCallback((message: Message) => {
-        setMessages(prevMessages => [...prevMessages, message]);
-    }, [setMessages]);
+    // Custom append to handle potential metadata for canvas messages
+    const append = useCallback(async (message: Message, options?: { data?: Record<string, string>}) => {
+        // This custom append is mostly for if we needed to pass extra data with messages *added by the system*
+        // For user messages, handleSubmit is the primary point of interest for adding data
+        return originalAppend(message, options);
+    }, [originalAppend]);
+
+
+    const appendToChat = useCallback((message: Message) => { // This is likely for system messages like errors
+        append(message);
+    }, [append]);
 
 
     useEffect(() => {
@@ -674,7 +698,28 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           },
          getMessagesCount: () => messages.length,
          scrollToTop: () => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); userHasScrolledRef.current = false; setShowScrollToBottom(false); },
-     }), [isBrowserRecording, sessionId, setMessages, messages.length, handleStopRecording]);
+         setInput: (text: string) => {
+            handleInputChange({ target: { value: text } } as React.ChangeEvent<HTMLInputElement>);
+         },
+         submitMessageWithCanvasContext: (messageContent, canvasContext) => {
+            // Temporarily set the input value to the message from canvas
+            const originalInputValue = input;
+            handleInputChange({ target: { value: messageContent } } as React.ChangeEvent<HTMLInputElement>);
+            
+            // Call the augmented submit function
+            // We need to create a synthetic event or find a way to call originalHandleSubmit correctly
+            // For now, this will use the input Ref which should be set by handleInputChange
+            debugLog("[submitMessageWithCanvasContext] Submitting with canvas context:", canvasContext);
+            handleSubmitWithCanvasContext(
+              new Event('submit', { cancelable: true }) as unknown as React.FormEvent<HTMLFormElement>, 
+              { data: canvasContext }
+            );
+            
+            // Restore original input if needed, or clear it
+            // handleInputChange({ target: { value: originalInputValue } } as React.ChangeEvent<HTMLInputElement>); // Or clear: handleInputChange({ target: { value: "" } } as React.ChangeEvent<HTMLInputElement>);
+            // Typically, useChat clears input after submit, so this might not be necessary.
+         }
+     }), [isBrowserRecording, sessionId, setMessages, messages.length, handleStopRecording, handleInputChange, input, handleSubmitWithCanvasContext]);
 
 
     const checkScroll = useCallback(() => { const c = messagesContainerRef.current; if (!c) return; const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c; const isScrollable = sh > ch; const isBottom = sh - st - ch < 2; if (st < prevScrollTopRef.current && !isBottom && !userHasScrolledRef.current) userHasScrolledRef.current = true; else if (userHasScrolledRef.current && isBottom) userHasScrolledRef.current = false; prevScrollTopRef.current = st; setShowScrollToBottom(isScrollable && !isBottom); }, []);
@@ -751,31 +796,33 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         console.info("[Read Aloud] Triggered."); // Kept as info for now
     }, []);
 
-    const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement>) => { 
-      e.preventDefault(); 
-      if (!isPageReady) { 
-        setUiError("Error: Agent/Event not set."); return; 
-      } 
-      if (isLoading) {
-        stop(); 
-      } else if (input.trim() || attachedFiles.length > 0) { 
-        if (attachedFiles.length > 0) { 
-          filesForNextMessageRef.current = [...attachedFiles]; 
-          setAttachedFiles([]); 
-        } else {
-          filesForNextMessageRef.current = []; 
-        }
-        userHasScrolledRef.current = false; 
-        setShowScrollToBottom(false); 
-        originalHandleSubmit(e as React.FormEvent<HTMLFormElement>); 
-      } 
-    }, [input, isLoading, isPageReady, stop, originalHandleSubmit, attachedFiles, setAttachedFiles]);
+    // This is the old onSubmit, now wrapped by handleSubmitWithCanvasContext
+    // const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement>) => { 
+    //   e.preventDefault(); 
+    //   if (!isPageReady) { 
+    //     setUiError("Error: Agent/Event not set."); return; 
+    //   } 
+    //   if (isLoading) {
+    //     stop(); 
+    //   } else if (input.trim() || attachedFiles.length > 0) { 
+    //     if (attachedFiles.length > 0) { 
+    //       filesForNextMessageRef.current = [...attachedFiles]; 
+    //       setAttachedFiles([]); 
+    //     } else {
+    //       filesForNextMessageRef.current = []; 
+    //     }
+    //     userHasScrolledRef.current = false; 
+    //     setShowScrollToBottom(false); 
+    //     originalHandleSubmit(e as React.FormEvent<HTMLFormElement>); 
+    //   } 
+    // }, [input, isLoading, isPageReady, stop, originalHandleSubmit, attachedFiles, setAttachedFiles]);
+    const onSubmit = handleSubmitWithCanvasContext; // Use the wrapper
     
     useEffect(() => { 
       const lKeyDown = (e: KeyboardEvent) => { 
         if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { 
           e.preventDefault(); 
-          onSubmit(e as any); 
+          handleSubmitWithCanvasContext(e as any);  // Use the wrapper
         } else if (e.key === "Enter" && !e.shiftKey && isLoading) {
           e.preventDefault(); 
         }
@@ -789,7 +836,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           el.removeEventListener("keydown", lKeyDown as EventListener); 
         }
       } 
-    }, [input, isLoading, stop, attachedFiles.length, onSubmit]);
+    }, [input, isLoading, stop, attachedFiles.length, handleSubmitWithCanvasContext]); // Use wrapper here too
 
     useEffect(() => {
         // This effect handles focusing the input when conditions are met.
@@ -848,7 +895,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
                 {messages.length === 0 && !isPageReady && !uiError && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {messages.length === 0 && isPageReady && !uiError &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-80">What is alive today?</p> </div> )}
-                {messages.length > 0 && ( <div> {messages.map((message: Message) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && handleMessageInteraction(message.id)} > {isUser && hasAttachments && (                   <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={`rounded-2xl p-3 message-bubble ${ isUser ? `bg-input-gray text-[hsl(var(--foreground))] user-bubble ${hasAttachments ? "with-attachment" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent text-[hsl(var(--foreground))] ai-bubble pl-0" }`}> <span dangerouslySetInnerHTML={{ __html: message.content.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </motion.div> ); })} </div> )}
+                {messages.length > 0 && ( <div> {messages.map((message: Message) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && handleMessageInteraction(message.id)} > {isUser && hasAttachments && (                   <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray text-[hsl(var(--foreground))] user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent text-[hsl(var(--foreground))] ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} <span dangerouslySetInnerHTML={{ __html: displayContent.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </motion.div> ); })} </div> )}
                 {isLoading && messages[messages.length - 1]?.role === 'user' && ( <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1"> <span className="thinking-dot"></span> </motion.div> )}
                 <div ref={messagesEndRef} />
             </div>
