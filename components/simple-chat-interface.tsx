@@ -113,7 +113,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       isLoading, stop, setMessages, append: originalAppend, // Capture append
     } = useChat({ 
       api: "/api/proxy-chat",
-      // Body will be augmented in the custom handleSubmit wrapper
+      // Body will be augmented in the custom handleSubmit wrapper.
+      // Initial body can be minimal or include stable fields like agentName, eventId if they are stable at hook init.
+      // For now, we'll primarily pass dynamic data via the options in the wrapped handleSubmit.
+      body: { agent: agentName, event: eventId || '0000' }, // Pass initial agent/event
       sendExtraMessageFields: true,
       onError: (error) => { 
         console.error("[ChatInterface] useChat onError:", error);
@@ -232,6 +235,74 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [clientRecordingTime]);
 
     useEffect(() => { if (onAttachmentsUpdate) onAttachmentsUpdate(allAttachments); }, [allAttachments, onAttachmentsUpdate]);
+
+    // Define handleSubmitWithCanvasContext with all its dependencies
+    const handleSubmitWithCanvasContext = useCallback((
+      e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement> | Event, // Allow generic Event for imperative call
+      chatRequestOptions?: {
+        data?: Record<string, string> & {
+            current_canvas_time_window_label?: string;
+            active_canvas_insights?: string;
+            pinned_canvas_insights?: string;
+        }
+      }
+    ) => {
+        if (e && typeof (e as React.SyntheticEvent).preventDefault === 'function') {
+            (e as React.SyntheticEvent).preventDefault();
+        }
+        
+        if (!isPageReady) {
+            setUiError("Error: Agent/Event not set.");
+            return;
+        }
+        if (isLoading) {
+            stop();
+        } else if (input.trim() || attachedFiles.length > 0 || (chatRequestOptions?.data && Object.keys(chatRequestOptions.data).length > 0) ) { // Check if called with canvas data even if input is empty
+            if (attachedFiles.length > 0) {
+                filesForNextMessageRef.current = [...attachedFiles];
+                setAttachedFiles([]);
+            } else {
+                filesForNextMessageRef.current = [];
+            }
+            userHasScrolledRef.current = false;
+            setShowScrollToBottom(false);
+            
+            let canvasContextData = chatRequestOptions?.data || {};
+            if (!chatRequestOptions?.data && getCanvasContext) { 
+                const currentCanvasCtx = getCanvasContext();
+                // Ensure these are strings, specifically for JSON stringified data
+                canvasContextData = {
+                    current_canvas_time_window_label: currentCanvasCtx.current_canvas_time_window_label || "",
+                    active_canvas_insights: currentCanvasCtx.active_canvas_insights || JSON.stringify({}),
+                    pinned_canvas_insights: currentCanvasCtx.pinned_canvas_insights || JSON.stringify([])
+                };
+            }
+
+            const augmentedBody = {
+                agent: agentName,
+                event: eventId || '0000',
+                ...canvasContextData 
+            };
+            
+            debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
+            // Ensure 'e' is correctly typed for originalHandleSubmit if it's a synthetic event from a real form submission
+            // or a generic Event if called imperatively. The useChat hook might be specific.
+            // For simplicity, we cast to any if it's a generic Event.
+            originalHandleSubmit(e as React.FormEvent<HTMLFormElement>, { data: augmentedBody });
+        }
+    }, [
+        input, 
+        isLoading, 
+        isPageReady, 
+        stop, 
+        originalHandleSubmit, 
+        attachedFiles, 
+        agentName, 
+        eventId, 
+        setUiError, 
+        getCanvasContext, 
+        setAttachedFiles // Added missing dependency
+    ]);
 
     const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop', payload?: any): Promise<any> => {
         debugLog(`[HTTP API Call] Action: ${action}, Payload:`, payload);
@@ -703,23 +774,27 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          },
          submitMessageWithCanvasContext: (messageContent, canvasContext) => {
             // Temporarily set the input value to the message from canvas
-            const originalInputValue = input;
+            // const originalInputValue = input; // Not needed if useChat clears input
             handleInputChange({ target: { value: messageContent } } as React.ChangeEvent<HTMLInputElement>);
             
             // Call the augmented submit function
-            // We need to create a synthetic event or find a way to call originalHandleSubmit correctly
-            // For now, this will use the input Ref which should be set by handleInputChange
             debugLog("[submitMessageWithCanvasContext] Submitting with canvas context:", canvasContext);
             handleSubmitWithCanvasContext(
-              new Event('submit', { cancelable: true }) as unknown as React.FormEvent<HTMLFormElement>, 
+              // Create a new synthetic event for the submission
+              { preventDefault: () => {}, stopPropagation: () => {} } as unknown as React.FormEvent<HTMLFormElement>,
               { data: canvasContext }
             );
-            
-            // Restore original input if needed, or clear it
-            // handleInputChange({ target: { value: originalInputValue } } as React.ChangeEvent<HTMLInputElement>); // Or clear: handleInputChange({ target: { value: "" } } as React.ChangeEvent<HTMLInputElement>);
-            // Typically, useChat clears input after submit, so this might not be necessary.
          }
-     }), [isBrowserRecording, sessionId, setMessages, messages.length, handleStopRecording, handleInputChange, input, handleSubmitWithCanvasContext]);
+     }), [
+        isBrowserRecording, 
+        sessionId, 
+        setMessages, 
+        messages.length, 
+        handleStopRecording, 
+        handleInputChange, 
+        input, 
+        handleSubmitWithCanvasContext // Ensure this is the stable useCallback version
+    ]);
 
 
     const checkScroll = useCallback(() => { const c = messagesContainerRef.current; if (!c) return; const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c; const isScrollable = sh > ch; const isBottom = sh - st - ch < 2; if (st < prevScrollTopRef.current && !isBottom && !userHasScrolledRef.current) userHasScrolledRef.current = true; else if (userHasScrolledRef.current && isBottom) userHasScrolledRef.current = false; prevScrollTopRef.current = st; setShowScrollToBottom(isScrollable && !isBottom); }, []);
@@ -796,26 +871,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         console.info("[Read Aloud] Triggered."); // Kept as info for now
     }, []);
 
-    // This is the old onSubmit, now wrapped by handleSubmitWithCanvasContext
-    // const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement>) => { 
-    //   e.preventDefault(); 
-    //   if (!isPageReady) { 
-    //     setUiError("Error: Agent/Event not set."); return; 
-    //   } 
-    //   if (isLoading) {
-    //     stop(); 
-    //   } else if (input.trim() || attachedFiles.length > 0) { 
-    //     if (attachedFiles.length > 0) { 
-    //       filesForNextMessageRef.current = [...attachedFiles]; 
-    //       setAttachedFiles([]); 
-    //     } else {
-    //       filesForNextMessageRef.current = []; 
-    //     }
-    //     userHasScrolledRef.current = false; 
-    //     setShowScrollToBottom(false); 
-    //     originalHandleSubmit(e as React.FormEvent<HTMLFormElement>); 
-    //   } 
-    // }, [input, isLoading, isPageReady, stop, originalHandleSubmit, attachedFiles, setAttachedFiles]);
     const onSubmit = handleSubmitWithCanvasContext; // Use the wrapper
     
     useEffect(() => { 
