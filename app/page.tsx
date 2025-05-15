@@ -53,7 +53,7 @@ function HomeContent() {
 
   // State for Canvas View
   const [currentView, setCurrentView] = useState<"chat" | "canvas">("chat");
-  const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(true); // Default to enabled
+  const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(false); // Default to disabled
   
   // Lifted state for CanvasView
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
