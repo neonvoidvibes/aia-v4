@@ -35,7 +35,17 @@ interface CanvasViewProps {
   onUnpinInsight: (insightIdOrHighlight: string) => void // Use ID or highlight string as identifier
   className?: string
   isEnabled: boolean
-  onCanvasDataUpdate: (data: CanvasData | null) => void // Callback to update parent with current canvas data
+  // Add props for lifted state and setters
+  initialCanvasData: CanvasData | null; // Renamed from canvasData to reflect usage
+  setCanvasData: (data: CanvasData | null) => void;
+  isCanvasLoading: boolean;
+  setIsCanvasLoading: (loading: boolean) => void;
+  canvasError: string | null;
+  setCanvasError: (error: string | null) => void;
+  selectedFilter: "mirror" | "lens" | "portal";
+  setSelectedFilter: (filter: "mirror" | "lens" | "portal") => void;
+  selectedTimeWindow: string; // Assuming string type for label
+  setSelectedTimeWindow: (timeWindow: string) => void;
 }
 
 const TIME_WINDOW_LABELS = [
@@ -61,25 +71,42 @@ export default function CanvasView({
   onUnpinInsight,
   className,
   isEnabled,
-  onCanvasDataUpdate,
+  // Lifted state and setters from props
+  initialCanvasData,
+  setCanvasData,
+  isCanvasLoading,
+  setIsCanvasLoading,
+  canvasError,
+  setCanvasError,
+  selectedFilter,
+  setSelectedFilter,
+  selectedTimeWindow,
+  setSelectedTimeWindow,
 }: CanvasViewProps) {
-  const [canvasData, setCanvasData] = useState<CanvasData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedFilter, setSelectedFilter] = useState<"mirror" | "lens" | "portal">("mirror")
-  const [selectedTimeWindow, setSelectedTimeWindow] = useState<TimeWindowLabel>(TIME_WINDOW_LABELS[TIME_WINDOW_LABELS.length -1]) // Default to "Whole Meeting"
+  // Use initialCanvasData for the first render if available
+  // This effect is mainly for when the component mounts or initialCanvasData prop changes identity.
+  useEffect(() => {
+    // If initialCanvasData is provided (e.g., from parent's state recovery),
+    // and the local canvasData state hasn't been set yet or needs to reflect this initial state.
+    // This helps ensure that if page.tsx already has data (e.g. from a previous session or persistence layer not yet implemented),
+    // CanvasView starts with it.
+    if (initialCanvasData && !isCanvasLoading) { // Check !isCanvasLoading to avoid overriding during a fetch
+        setCanvasData(initialCanvasData);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCanvasData]); // Dependency on initialCanvasData (if it can change identity)
+
 
   const [activeBubble, setActiveBubble] = useState<{ insight: CanvasInsightItem; position: any } | null>(null)
   const insightRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
 
   const fetchData = useCallback(async () => {
     if (!agentName || !isEnabled) {
-      setCanvasData(null) 
-      onCanvasDataUpdate(null); // Notify parent that data is cleared
+      setCanvasData(null)
       return
     }
-    setIsLoading(true)
-    setError(null)
+    setIsCanvasLoading(true) 
+    setCanvasError(null)    
     try {
       const params = new URLSearchParams({
         agent: agentName,
@@ -103,54 +130,46 @@ export default function CanvasView({
         lens: addCategoryAndId(data.lens, "lens"),
         portal: addCategoryAndId(data.portal, "portal"),
       };
-      setCanvasData(processedData);
-      onCanvasDataUpdate(processedData); // Notify parent of new data
+      setCanvasData(processedData); 
     } catch (err: any) {
-      setError(err.message)
-      setCanvasData(null)
-      onCanvasDataUpdate(null); // Notify parent of error/no data
+      setCanvasError(err.message) 
+      setCanvasData(null)         
       console.error("CanvasView fetch error:", err)
     } finally {
-      setIsLoading(false)
+      setIsCanvasLoading(false) 
     }
-  }, [agentName, eventId, selectedTimeWindow, isEnabled, onCanvasDataUpdate])
+  }, [agentName, eventId, selectedTimeWindow, isEnabled, setCanvasData, setIsCanvasLoading, setCanvasError]) 
 
   useEffect(() => {
     if (!isEnabled) {
       setCanvasData(null) 
-      onCanvasDataUpdate(null);
       return
     }
     fetchData() 
     const intervalId = setInterval(fetchData, 30000) 
     return () => clearInterval(intervalId)
-  }, [fetchData, isEnabled, onCanvasDataUpdate])
+  }, [fetchData, isEnabled, setCanvasData]) 
 
 
   const handleHighlightClick = (insight: CanvasInsightItem, e: React.MouseEvent<HTMLDivElement>) => {
     const targetElement = e.currentTarget;
     const rect = targetElement.getBoundingClientRect();
     
-    // Calculate position relative to the viewport
-    // Try to position bubble below the clicked element
     let top = rect.bottom + window.scrollY + 5;
     let left = rect.left + window.scrollX;
 
-    // Adjust if it goes off-screen (simple adjustment)
-    // A more robust solution would use a library or more complex logic
-    const bubbleHeight = 200; // Approximate bubble height
-    const bubbleWidth = 288; // Approximate bubble width (w-72)
+    const bubbleHeight = 200; 
+    const bubbleWidth = 288; 
 
     if (top + bubbleHeight > window.innerHeight + window.scrollY) {
-      top = rect.top + window.scrollY - bubbleHeight - 5; // Position above
+      top = rect.top + window.scrollY - bubbleHeight - 5; 
     }
     if (left + bubbleWidth > window.innerWidth + window.scrollX) {
-      left = window.innerWidth + window.scrollX - bubbleWidth - 10; // Align to right edge
+      left = window.innerWidth + window.scrollX - bubbleWidth - 10; 
     }
     if (left < window.scrollX) {
-        left = window.scrollX + 10; // Align to left edge
+        left = window.scrollX + 10; 
     }
-
 
     setActiveBubble({
       insight,
@@ -159,7 +178,6 @@ export default function CanvasView({
   };
 
   const isPinned = (insight: CanvasInsightItem) => {
-    // Use ID if available, otherwise fallback to highlight and explanation for simple equality check
     if (insight.id) {
       return pinnedInsights.some(pi => pi.id === insight.id);
     }
@@ -170,14 +188,14 @@ export default function CanvasView({
     if (isPinned(insight)) {
       onUnpinInsight(insight.id || insight.highlight); 
     } else {
-      // Ensure the insight has an ID before pinning
       const insightToPin = insight.id ? insight : { ...insight, id: `${insight.category}-${Math.random().toString(16).slice(2)}` };
       onPinInsight(insightToPin);
     }
   };
 
-
-  const currentInsights = canvasData ? canvasData[selectedFilter] : []
+  // Use initialCanvasData for rendering, as it's the state managed by the parent
+  const currentDisplayData = initialCanvasData;
+  const currentInsights = currentDisplayData ? currentDisplayData[selectedFilter] : []
 
   if (!isEnabled) {
     return null; 
@@ -194,22 +212,22 @@ export default function CanvasView({
       {/* Time Window Slider and Filter Toggles */}
       <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex-1 min-w-[150px]">
-          <label htmlFor="time-window-slider" className="text-xs text-muted-foreground block mb-1">Analysis Window: {selectedTimeWindow}</label>
+          <label htmlFor="time-window-slider" className="text-xs text-muted-foreground block mb-1">Analysis Window: {selectedTimeWindow /* Use prop */}</label>
           <Slider
             id="time-window-slider"
             min={0}
             max={TIME_WINDOW_LABELS.length - 1}
             step={1}
-            value={[TIME_WINDOW_LABELS.indexOf(selectedTimeWindow)]}
-            onValueChange={(value) => setSelectedTimeWindow(TIME_WINDOW_LABELS[value[0]])}
+            value={[TIME_WINDOW_LABELS.indexOf(selectedTimeWindow as TimeWindowLabel)]} // Use prop
+            onValueChange={(value) => setSelectedTimeWindow(TIME_WINDOW_LABELS[value[0]])} // Use prop setter
             className="w-full"
           />
         </div>
         <ToggleGroup
           type="single"
-          value={selectedFilter}
+          value={selectedFilter /* Use prop */}
           onValueChange={(value) => {
-            if (value) setSelectedFilter(value as "mirror" | "lens" | "portal")
+            if (value) setSelectedFilter(value as "mirror" | "lens" | "portal") // Use prop setter
           }}
           className="rounded-md bg-muted p-0.5 h-9 sm:h-10"
         >
@@ -249,14 +267,14 @@ export default function CanvasView({
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto">
-        {isLoading && <p className="text-center text-muted-foreground animate-pulse">Loading insights...</p>}
-        {error && <p className="text-center text-destructive">Error: {error}</p>}
-        {!isLoading && !error && canvasData && currentInsights.length === 0 && (
+        {isCanvasLoading && <p className="text-center text-muted-foreground animate-pulse">Loading insights...</p>}
+        {canvasError && <p className="text-center text-destructive">Error: {canvasError}</p>}
+        {!isCanvasLoading && !canvasError && currentDisplayData && currentInsights.length === 0 && (
           <p className="text-center text-muted-foreground">No {selectedFilter} insights for the selected time window.</p>
         )}
         
         <AnimatePresence>
-          {canvasData && currentInsights.map((insight, index) => {
+          {currentDisplayData && currentInsights.map((insight, index) => { // Use currentDisplayData
              const uniqueKey = insight.id || `${selectedFilter}-${index}-${insight.highlight.slice(0,10)}`;
              return (
             <motion.div

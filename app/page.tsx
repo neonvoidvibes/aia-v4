@@ -54,9 +54,17 @@ function HomeContent() {
   // State for Canvas View
   const [currentView, setCurrentView] = useState<"chat" | "canvas">("chat");
   const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(true); // Default to enabled
-  const [canvasTimeWindow, setCanvasTimeWindow] = useState<string>("Whole Meeting"); // Default, matches CanvasView state
+  
+  // Lifted state for CanvasView
+  const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
+  const [isCanvasLoading, setIsCanvasLoading] = useState(false);
+  const [canvasError, setCanvasError] = useState<string | null>(null);
+  const [selectedCanvasFilter, setSelectedCanvasFilter] = useState<"mirror" | "lens" | "portal">("mirror");
+  const [selectedCanvasTimeWindow, setSelectedCanvasTimeWindow] = useState<string>("Whole Meeting"); // Default, matches CanvasView state / TIME_WINDOW_LABELS
+  
   const [pinnedCanvasInsights, setPinnedCanvasInsights] = useState<CanvasInsightItem[]>([]);
-  const [activeCanvasInsightsForChat, setActiveCanvasInsightsForChat] = useState<CanvasData | null>(null);
+  // activeCanvasInsightsForChat will be derived from canvasData directly when needed for chat context
+  // No need for a separate state if canvasData holds the full fetched data.
 
 
   // State for S3 file viewer
@@ -453,13 +461,13 @@ function HomeContent() {
       const prefixedMessage = `🎨 From Canvas: ${message}`;
       
       const chatDataForSubmit = {
-        current_canvas_time_window_label: canvasTimeWindow, // Use state from page.tsx
-        active_canvas_insights: activeCanvasInsightsForChat ? JSON.stringify(activeCanvasInsightsForChat) : JSON.stringify({mirror:[], lens:[], portal:[]}),
+        current_canvas_time_window_label: selectedCanvasTimeWindow, // Use lifted state
+        active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}), // Use lifted state
         pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
       };
       
       chatInterfaceRef.current.submitMessageWithCanvasContext(prefixedMessage, chatDataForSubmit);
-      setCurrentView("chat"); // Switch back to chat view
+      setCurrentView("chat"); // Switch back to chat view after submission is initiated
     }
   };
 
@@ -507,8 +515,8 @@ function HomeContent() {
             ref={chatInterfaceRef} 
             onAttachmentsUpdate={updateChatAttachments} 
             getCanvasContext={() => ({
-                current_canvas_time_window_label: canvasTimeWindow,
-                active_canvas_insights: activeCanvasInsightsForChat ? JSON.stringify(activeCanvasInsightsForChat) : JSON.stringify({mirror:[], lens:[], portal:[]}), 
+                current_canvas_time_window_label: selectedCanvasTimeWindow, // Use lifted state
+                active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}), // Use lifted state
                 pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
             })}
           />
@@ -521,7 +529,17 @@ function HomeContent() {
             onPinInsight={handlePinInsight}
             onUnpinInsight={handleUnpinInsight}
             isEnabled={isCanvasViewEnabled}
-            onCanvasDataUpdate={(data) => setActiveCanvasInsightsForChat(data)} // Update page state
+            // Pass lifted state and setters to CanvasView
+            initialCanvasData={canvasData}
+            setCanvasData={setCanvasData}
+            isCanvasLoading={isCanvasLoading}
+            setIsCanvasLoading={setIsCanvasLoading}
+            canvasError={canvasError}
+            setCanvasError={setCanvasError}
+            selectedFilter={selectedCanvasFilter}
+            setSelectedFilter={setSelectedCanvasFilter}
+            selectedTimeWindow={selectedCanvasTimeWindow}
+            setSelectedTimeWindow={setSelectedCanvasTimeWindow}
           />
         )}
       </main>
