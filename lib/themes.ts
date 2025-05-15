@@ -36,11 +36,6 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: false,
   },
   {
-    name: "Solar Flare",
-    className: "theme-solar-flare",
-    isDark: false,
-  },
-  {
     name: "Desert Mirage",
     className: "theme-desert-mirage",
     isDark: false,

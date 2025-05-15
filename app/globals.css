@@ -122,138 +122,6 @@
 
 /* --- Custom Themes --- */
 
-/* Neon Sunset Theme */
-.theme-neon-sunset {
-  --background: 260 60% 5%; /* Deep indigo */
-  --foreground: 270 100% 90%; /* Pale orange text */
-  --input-gray: 260 50% 15%; /* Darker indigo for inputs/bubbles */
-  --status-bar: 260 35% 30%;
-  --placeholder-text: 260 35% 35%;
-  --text-primary: 270 100% 90%;
-  --text-secondary: 270 80% 80%;
-  --text-muted: 30 70% 70%;
-
-  /* Shadcn variables */
-  --card: 260 50% 10%;
-  --popover: 260 50% 10%;
-  --primary: 330 100% 70%; /* Hot pink */
-  --primary-foreground: 0 0% 100%; /* White */
-  --secondary: 260 40% 25%;
-  --secondary-foreground: 30 100% 90%;
-  --muted: 260 50% 20%; /* For TabList background */
-  --accent: 260 40% 25%;
-  --accent-foreground: 330 100% 80%;
-  --destructive: 0 100% 60%; /* Bright red */
-  --destructive-foreground: 0 0% 100%;
-  --border: 260 50% 30%;
-  --input: 260 50% 30%;
-  --ring: 330 100% 70%;
-
-  /* Custom Semantic Variables */
-  --button-submit-bg-active: 330 100% 60%; /* Hot pink BG */
-  --button-submit-fg-active: 0 0% 100%;   /* White FG */
-  --button-submit-bg-inactive: 260 50% 25%; /* Darker indigo BG */
-  --button-submit-fg-inactive: 270 80% 70%;   /* Muted orange FG */
-  
-  --icon-primary: 30 100% 85%;
-  --icon-secondary: 270 80% 75%;
-  --icon-active: 60 100% 60%; /* Bright yellow for recording active */
-  --icon-inactive: 30 70% 60%;
-  --icon-destructive: 0 100% 60%;
-
-  /* Overrides for specific components if needed for this theme */
-  --button-active: 30 100% 90%; /* For plus menu icons, etc. */
-  --button-inactive: 30 70% 70%;
-}
-
-/* Oceanic Calm Theme */
-.theme-oceanic-calm {
-  --background: 200 50% 95%; /* Very light cyan */
-  --foreground: 210 20% 45%; /* Dark desaturated blue text */
-  --input-gray: 200 40% 88%; /* Light cyan-gray for inputs/bubbles */
-  --status-bar: 200 30% 70%;
-  --placeholder-text: 200 30% 68%;
-  --text-primary: 210 30% 20%;
-  --text-secondary: 210 30% 40%;
-  --text-muted: 210 30% 60%;
-
-  /* Shadcn variables */
-  --card: 200 0% 100%; /* White */
-  --popover: 200 0% 100%;
-  --primary: 190 70% 45%; /* Teal */
-  --primary-foreground: 0 0% 100%; /* White */
-  --secondary: 200 30% 92%;
-  --secondary-foreground: 210 30% 20%;
-  --muted: 200 40% 90%; /* For TabList background */
-  --accent: 200 30% 92%;
-  --accent-foreground: 190 70% 35%;
-  --destructive: 0 70% 50%; /* Coral red */
-  --destructive-foreground: 0 0% 100%;
-  --border: 200 30% 85%;
-  --input: 200 30% 85%;
-  --ring: 190 70% 45%;
-
-  /* Custom Semantic Variables */
-  --button-submit-bg-active: 190 70% 40%; /* Teal BG */
-  --button-submit-fg-active: 0 0% 100%;   /* White FG */
-  --button-submit-bg-inactive: 200 30% 80%; /* Light cyan-gray BG */
-  --button-submit-fg-inactive: 210 30% 50%;   /* Muted blue FG */
-
-  --icon-primary: 210 30% 30%;
-  --icon-secondary: 210 30% 50%;
-  --icon-active: 180 100% 35%; /* Sea green for recording active */
-  --icon-inactive: 210 30% 70%;
-  --icon-destructive: 0 70% 50%;
-
-  /* Overrides for specific components if needed for this theme */
-  --button-active: 210 30% 25%;
-  --button-inactive: 210 30% 65%;
-}
-
-/* Forest Deep Theme */
-.theme-forest-deep {
-  --background: 120 25% 10%; /* Very dark, desaturated green */
-  --foreground: 90 20% 68%; /* Pale moss green / off-white */
-  --input-gray: 120 20% 18%; /* Slightly lighter dark green for inputs/bubbles */
-  --status-bar: 120 20% 28%;
-  --placeholder-text: 120 20% 35%;
-  --text-primary: 90 30% 92%;
-  --text-secondary: 90 25% 80%;
-  --text-muted: 90 20% 65%;
-
-  /* Shadcn variables */
-  --card: 120 20% 15%; /* Dark green card */
-  --popover: 120 20% 15%;
-  --primary: 90 60% 45%; /* Natural, vibrant green */
-  --primary-foreground: 120 25% 8%; /* Darkest green for contrast on primary */
-  --secondary: 120 15% 22%; /* Darker, muted green */
-  --secondary-foreground: 90 30% 88%;
-  --muted: 120 20% 18%; /* For TabList background, same as input-gray */
-  --accent: 120 15% 22%;
-  --accent-foreground: 90 50% 70%; /* Brighter moss green for accent text */
-  --destructive: 30 60% 45%; /* Muted, earthy orange/red for destructive */
-  --destructive-foreground: 40 20% 95%; /* Light beige for destructive text */
-  --border: 120 15% 25%; /* Dark green border */
-  --input: 120 15% 25%;
-  --ring: 90 60% 45%; /* Ring color matches primary */
-
-  /* Custom Semantic Variables */
-  --button-submit-bg-active: 90 60% 40%; /* Natural green BG */
-  --button-submit-fg-active: 120 25% 8%;   /* Darkest green FG */
-  --button-submit-bg-inactive: 120 18% 20%; /* Darker forest green BG */
-  --button-submit-fg-inactive: 90 25% 60%;   /* Muted moss green FG */
-  
-  --icon-primary: 90 30% 88%;
-  --icon-secondary: 90 25% 70%;
-  --icon-active: 70 80% 55%; /* Goldenrod/Amber for recording active */
-  --icon-inactive: 90 20% 55%;
-  --icon-destructive: 30 60% 45%;
-
-  /* Overrides for specific components if needed for this theme */
-  --button-active: 90 30% 90%;
-  --button-inactive: 90 20% 60%;
-}
-
 /* Midnight Mono Theme */
 .theme-midnight-mono {
   --background: 240 6% 7%; /* Very dark desaturated blue/grey */
@@ -298,56 +166,56 @@
   --button-inactive: 240 5% 65%;
 }
 
-/* Solar Flare Theme */
-.theme-solar-flare {
-  --background: 45 100% 96%; /* Very light warm yellow/off-white */
-  --foreground: 30 50% 20%; /* Dark warm brown */
-  --input-gray: 40 60% 90%; /* Light sandy yellow for inputs/bubbles */
-  --status-bar: 35 40% 65%;
-  --placeholder-text: 35 40% 60%;
-  --text-primary: 30 60% 15%;
-  --text-secondary: 30 40% 30%;
-  --text-muted: 30 30% 50%;
+/* Neon Sunset Theme */
+.theme-neon-sunset {
+  --background: 260 60% 5%; /* Deep indigo */
+  --foreground: 270 100% 96%;
+  --input-gray: 260 50% 15%; /* Darker indigo for inputs/bubbles */
+  --status-bar: 260 25% 50%;
+  --placeholder-text: 260 35% 35%;
+  --text-primary: 270 100% 90%;
+  --text-secondary: 270 80% 80%;
+  --text-muted: 30 70% 70%;
 
   /* Shadcn variables */
-  --card: 40 80% 98%; /* Very light sand */
-  --popover: 40 80% 98%;
-  --primary: 15 100% 55%; /* Bright Orange-Red */
+  --card: 260 50% 10%;
+  --popover: 260 50% 10%;
+  --primary: 330 100% 70%; /* Hot pink */
   --primary-foreground: 0 0% 100%; /* White */
-  --secondary: 40 50% 92%;
-  --secondary-foreground: 25 50% 25%;
-  --muted: 40 60% 92%; /* For TabList background */
-  --accent: 40 50% 90%;
-  --accent-foreground: 15 90% 45%;
-  --destructive: 0 80% 60%; /* Strong Red */
+  --secondary: 260 40% 25%;
+  --secondary-foreground: 30 100% 90%;
+  --muted: 260 50% 20%; /* For TabList background */
+  --accent: 260 40% 25%;
+  --accent-foreground: 330 100% 80%;
+  --destructive: 0 100% 60%; /* Bright red */
   --destructive-foreground: 0 0% 100%;
-  --border: 35 40% 80%;
-  --input: 35 40% 80%;
-  --ring: 15 100% 55%;
+  --border: 260 50% 30%;
+  --input: 260 50% 30%;
+  --ring: 330 100% 70%;
 
   /* Custom Semantic Variables */
-  --button-submit-bg-active: 15 100% 50%; /* Bright Orange-Red BG */
-  --button-submit-fg-active: 0 0% 100%; /* White FG */
-  --button-submit-bg-inactive: 40 50% 85%; /* Light sand BG */
-  --button-submit-fg-inactive: 30 40% 55%; /* Muted brown FG */
-
-  --icon-primary: 25 50% 25%;
-  --icon-secondary: 30 40% 45%;
-  --icon-active: 50 100% 50%; /* Bright Yellow for recording active */
-  --icon-inactive: 35 30% 60%;
-  --icon-destructive: 0 80% 60%;
+  --button-submit-bg-active: 330 100% 60%; /* Hot pink BG */
+  --button-submit-fg-active: 0 0% 100%;   /* White FG */
+  --button-submit-bg-inactive: 260 50% 25%; /* Darker indigo BG */
+  --button-submit-fg-inactive: 270 80% 70%;   /* Muted orange FG */
+  
+  --icon-primary: 30 100% 85%;
+  --icon-secondary: 270 80% 75%;
+  --icon-active: 60 100% 60%; /* Bright yellow for recording active */
+  --icon-inactive: 30 70% 60%;
+  --icon-destructive: 0 100% 60%;
 
   /* Overrides for specific components if needed for this theme */
-  --button-active: 25 60% 20%;
-  --button-inactive: 30 30% 55%;
+  --button-active: 30 100% 90%; /* For plus menu icons, etc. */
+  --button-inactive: 30 70% 70%;
 }
 
 /* Aurora Borealis Theme */
 .theme-aurora-borealis {
   --background: 260 70% 8%; /* Deep night sky blue/purple */
-  --foreground: 180 30% 65%; /* Pale icy green/blue text */
+  --foreground: 180 90% 90%; /* Pale icy green/blue text */
   --input-gray: 250 60% 12%; /* Darker indigo/purple for inputs/bubbles */
-  --status-bar: 250 40% 35%;
+  --status-bar: 180 15% 50%;
   --placeholder-text: 250 40% 40%;
   --text-primary: 170 60% 92%;
   --text-secondary: 180 40% 80%;
@@ -386,9 +254,97 @@
   --button-inactive: 180 30% 65%;
 }
 
+/* Forest Deep Theme */
+.theme-forest-deep {
+  --background: 120 25% 10%; /* Very dark, desaturated green */
+  --foreground: 90 70% 94%; /* Pale moss green / off-white */
+  --input-gray: 120 20% 18%; /* Slightly lighter dark green for inputs/bubbles */
+  --status-bar: 120 20% 40%;
+  --placeholder-text: 120 20% 35%;
+  --text-primary: 90 30% 92%;
+  --text-secondary: 90 25% 80%;
+  --text-muted: 90 20% 65%;
+
+  /* Shadcn variables */
+  --card: 120 20% 15%; /* Dark green card */
+  --popover: 120 20% 15%;
+  --primary: 90 60% 45%; /* Natural, vibrant green */
+  --primary-foreground: 120 25% 8%; /* Darkest green for contrast on primary */
+  --secondary: 120 15% 22%; /* Darker, muted green */
+  --secondary-foreground: 90 30% 88%;
+  --muted: 120 20% 18%; /* For TabList background, same as input-gray */
+  --accent: 120 15% 22%;
+  --accent-foreground: 90 50% 70%; /* Brighter moss green for accent text */
+  --destructive: 30 60% 45%; /* Muted, earthy orange/red for destructive */
+  --destructive-foreground: 40 20% 95%; /* Light beige for destructive text */
+  --border: 120 15% 25%; /* Dark green border */
+  --input: 120 15% 25%;
+  --ring: 90 60% 45%; /* Ring color matches primary */
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 90 60% 40%; /* Natural green BG */
+  --button-submit-fg-active: 120 25% 8%;   /* Darkest green FG */
+  --button-submit-bg-inactive: 120 18% 20%; /* Darker forest green BG */
+  --button-submit-fg-inactive: 90 25% 60%;   /* Muted moss green FG */
+  
+  --icon-primary: 90 30% 88%;
+  --icon-secondary: 90 25% 70%;
+  --icon-active: 70 80% 55%; /* Goldenrod/Amber for recording active */
+  --icon-inactive: 90 20% 55%;
+  --icon-destructive: 30 60% 45%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 90 30% 90%;
+  --button-inactive: 90 20% 60%;
+}
+
+/* Oceanic Calm Theme */
+.theme-oceanic-calm {
+  --background: 200 70% 97%; /* Very light cyan */
+  --foreground: 210 50% 25%; /* Dark desaturated blue text */
+  --input-gray: 200 40% 87%; /* Light cyan-gray for inputs/bubbles */
+  --status-bar: 200 20% 68%;
+  --placeholder-text: 200 30% 68%;
+  --text-primary: 210 30% 20%;
+  --text-secondary: 210 30% 40%;
+  --text-muted: 210 30% 60%;
+
+  /* Shadcn variables */
+  --card: 200 0% 100%; /* White */
+  --popover: 200 0% 100%;
+  --primary: 190 70% 45%; /* Teal */
+  --primary-foreground: 0 0% 100%; /* White */
+  --secondary: 200 30% 92%;
+  --secondary-foreground: 210 30% 20%;
+  --muted: 200 40% 90%; /* For TabList background */
+  --accent: 200 30% 92%;
+  --accent-foreground: 190 70% 35%;
+  --destructive: 0 70% 50%; /* Coral red */
+  --destructive-foreground: 0 0% 100%;
+  --border: 200 30% 85%;
+  --input: 200 30% 85%;
+  --ring: 190 70% 45%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 190 70% 40%; /* Teal BG */
+  --button-submit-fg-active: 0 0% 100%;   /* White FG */
+  --button-submit-bg-inactive: 200 30% 80%; /* Light cyan-gray BG */
+  --button-submit-fg-inactive: 210 30% 50%;   /* Muted blue FG */
+
+  --icon-primary: 210 30% 30%;
+  --icon-secondary: 210 30% 50%;
+  --icon-active: 180 100% 35%; /* Sea green for recording active */
+  --icon-inactive: 210 30% 70%;
+  --icon-destructive: 0 70% 50%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 210 30% 25%;
+  --button-inactive: 210 30% 65%;
+}
+
 /* Desert Mirage Theme */
 .theme-desert-mirage {
-  --background: 40 40% 92%; /* Sandy beige */
+  --background: 40 50% 95%; /* Sandy beige */
   --foreground: 25 50% 30%; /* Dark terracotta/brown */
   --input-gray: 35 35% 85%; /* Lighter beige for inputs/bubbles */
   --status-bar: 30 30% 60%;
@@ -441,7 +397,7 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
   overflow: hidden; /* Prevent body scrolling */
   font-size: 17px; /* Base font size for desktop (+2px) */
-  font-weight: 300; /* Light font weight */
+  font-weight: 200; /* Light font weight */
   line-height: 1.6; /* Adjusted line height */
 }
 
