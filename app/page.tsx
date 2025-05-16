@@ -697,6 +697,7 @@ function HomeContent() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {/* Hiding toggle until feature is finished to implement
                     <div className="flex items-center justify-between pt-2">
                         <Label htmlFor="canvas-view-toggle" className="memory-section-title">Enable Canvas View</Label>
                         <Switch
@@ -705,6 +706,7 @@ function HomeContent() {
                             onCheckedChange={setIsCanvasViewEnabled}
                         />
                     </div>
+                    */}
                   </div>
                 </TabsContent>
               </div>
