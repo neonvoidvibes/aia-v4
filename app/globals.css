@@ -430,6 +430,61 @@
   --button-inactive: 30 25% 55%;
 }
 
+/* Folkhemmet Theme */
+.theme-folkhemmet {
+  /* Base colors */
+  --background: 204 100% 98%;
+  --foreground: 204 100% 34%; /* Very dark, slightly desaturated blue for main text */
+
+  /* UI elements */
+  --radius: 1.5rem;
+  --message-radius: 2rem;
+  --input-gray: 204 100% 34%; /* User message bubbles: very light, airy blue */
+  --status-bar: 204 30% 45%; /* Clearer blue-gray for status bar text */
+  --placeholder-text: 204 80% 64%; /* Noticeable placeholder text */
+
+  /* Text colors */
+  --text-primary: hsl(var(--foreground));
+  --text-secondary: 51 95% 51%;
+  --text-muted: 204 20% 50%; /* Lighter, distinct blue-gray for muted text */
+  --user-input-text: 51 95% 51%;
+
+  /* Shadcn Component Variables */
+  --card: 0 0% 100%; /* White cards */
+  --popover: 0 0% 100%; /* White popovers */
+  --primary: 204 100% 34%; /* IKEA Blue */
+  --primary-foreground: 0 0% 100%; /* White */
+  --secondary: 204 70% 93%; /* Very light, clean blue */
+  --secondary-foreground: 204 100% 34%; /* IKEA Blue text/icons on light blue secondary */
+  --muted: 204 50% 95%; /* Very light, almost neutral blue-gray for inactive tabs */
+  --accent: 51 95% 51%; /* IKEA Yellow */
+  --accent-foreground: 45 100% 20%; /* Dark, warm brown/black for text on yellow */
+  --destructive: 0 75% 55%; /* Vibrant red */
+  --destructive-foreground: 0 0% 100%; /* White */
+  --border: 204 60% 88%; /* Lighter, noticeable blue-gray border */
+  --input: 0 0% 100%; /* White input fields */
+  --ring: hsl(var(--accent)); /* IKEA Yellow for focus rings */
+
+  /* Custom Button State Variables */
+  --button-active: 51 95% 51%;
+  --button-active-bg: transparent;
+  --button-inactive: 204 100% 54%; /* Clearer mid-blue-gray for inactive plus menu icons */
+
+  /* New Semantic CSS Variables for UI elements */
+  --status-bar-text-color: hsl(var(--status-bar));
+  --placeholder-text-color: hsl(var(--placeholder-text));
+  --button-submit-bg-active: 51 95% 51;
+  --button-submit-fg-active: hsl(var(--primary-foreground)); /* White */
+  --button-submit-bg-inactive: 204 80% 44%; /* Light, neutral blue-gray */
+  --button-submit-fg-inactive: 204 80% 37%; /* Readable gray */
+  
+  --icon-primary: 51 95% 71%;
+  --icon-secondary: 51 95% 51%;
+  --icon-active: hsl(var(--accent)); /* IKEA Yellow */
+  --icon-inactive: 204 25% 70%; /* Light, visible blue-gray */
+  /* --icon-destructive uses the default destructive color from above */
+}
+
 /* Styles for Canvas-originated user messages */
 .user-bubble.from-canvas {
   background-color: hsl(var(--accent) / 0.2) !important; /* Use !important to ensure override if needed */
@@ -558,6 +613,14 @@ body {
   flex: 1;
   padding: 0 8px; /* Adjust padding as needed */
   font-size: inherit; /* Ensure input inherits body font size */
+}
+
+.theme-folkhemmet .input-container input[data-testid="chat-input-field"] {
+  color: hsl(var(--user-input-text)) !important; /* IKEA Yellow for typed text */
+}
+
+.theme-folkhemmet .input-container input::placeholder {
+  color: hsl(var(--placeholder-text-color)); /* Keep placeholder as defined by theme */
 }
 
 /* --- Message Bubbles --- */
@@ -1114,12 +1177,18 @@ button {
 
 /* Ensure consistent background colors for UI elements */
 .bg-input-gray { background-color: hsl(var(--input-gray)) !important; }
+
 /* User bubble uses --input-gray background */
 .user-bubble {
   background-color: hsl(var(--input-gray)) !important;
   color: hsl(var(--foreground)); /* Use foreground color by default */
 }
-.light .user-bubble { color: black !important; } /* Override for light mode */
+/* .light .user-bubble { color: black !important; } */ /* REMOVED/COMMENTED OUT - Folkhemmet will handle its own user bubble text */
+
+.theme-folkhemmet .user-bubble {
+  color: hsl(var(--user-input-text)) !important; /* IKEA Yellow for user bubble text */
+}
+
 .plus-menu-item { color: hsl(var(--text-secondary)); }
 .plus-menu-item:hover { color: hsl(var(--text-primary)); }
 .scroll-to-bottom-button { background-color: hsl(var(--input-gray)); color: hsl(var(--text-secondary)); }
