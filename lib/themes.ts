@@ -12,7 +12,7 @@ export interface ColorTheme {
 export const predefinedThemes: ColorTheme[] = [
   {
     name: "Midnight Mono",
-    className: "theme-midnight-mono",
+    className: "theme-midnight-monochrome",
     isDark: true,
   },
   {
