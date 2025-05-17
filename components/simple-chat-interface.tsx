@@ -113,18 +113,32 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       isLoading, stop, setMessages, append: originalAppend, // Capture append
     } = useChat({ 
       api: "/api/proxy-chat",
-      // Body will be augmented in the custom handleSubmit wrapper.
-      // Initial body can be minimal or include stable fields like agentName, eventId if they are stable at hook init.
-      // For now, we'll primarily pass dynamic data via the options in the wrapped handleSubmit.
-      body: { agent: agentName, event: eventId || '0000' }, // Pass initial agent/event
+      body: { agent: agentName, event: eventId || '0000' }, 
       sendExtraMessageFields: true,
       onError: (error) => { 
         console.error("[ChatInterface] useChat onError:", error);
-        const errorMessage = error.message || "Chat API error occurred.";
-        const finalMessage = errorMessage.includes("NetworkError") || errorMessage.includes("Failed to fetch") 
-          ? "Connection to chat backend failed. Please check server." 
-          : `Chat Error: ${errorMessage}`;
-        setUiError(finalMessage); 
+        const rawErrorMessage = error.message || "Chat API error occurred.";
+        let displayMessage = rawErrorMessage;
+
+        // Check for specific low credit/quota errors
+        const lowerCaseError = rawErrorMessage.toLowerCase();
+        const isAnthropicLowCredit = lowerCaseError.includes("credit balance is too low");
+        const isOpenAiLowQuota = lowerCaseError.includes("insufficient_quota") || lowerCaseError.includes("exceeded your current quota");
+
+        if (isAnthropicLowCredit || isOpenAiLowQuota) {
+          displayMessage = "There was an issue processing your request at this time. Please try again later.";
+          if (isAnthropicLowCredit) {
+            console.warn("[ChatInterface] Anthropic low credit balance detected.");
+          }
+          if (isOpenAiLowQuota) {
+            console.warn("[ChatInterface] OpenAI insufficient quota detected.");
+          }
+        } else if (rawErrorMessage.includes("NetworkError") || rawErrorMessage.includes("Failed to fetch")) {
+          displayMessage = "Connection to chat backend failed. Please check server.";
+        } else {
+           displayMessage = `Chat Error: ${rawErrorMessage}`; // Default detailed error for other cases
+        }
+        setUiError(displayMessage); 
       },
     });
 
@@ -939,12 +953,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     return (
         <div className="flex flex-col h-full">
-            {/* UI Error Display */}
-            {uiError && (
-                <div className="p-2 bg-red-100 border border-red-400 text-red-700 rounded-md m-2 text-sm text-center">
-                    {uiError}
-                </div>
-            )}
+            {/* UI Error Display is now handled by appending system message to chat */}
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>

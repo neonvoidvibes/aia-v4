@@ -615,7 +615,7 @@ body {
   font-size: inherit; /* Ensure input inherits body font size */
 }
 
-.theme-folkhemmet .input-container input[data-testid="chat-input-field"] {
+.theme-folkhemmet .input-container input {
   color: hsl(var(--user-input-text)) !important; /* IKEA Yellow for typed text */
 }
 
