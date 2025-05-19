@@ -88,24 +88,25 @@ export default function CollapsibleSection({ title, children, defaultOpen = true
         </h3>
       )}
       {/* Content wrapper also has px-0. Its children will align with .tab-content-inner padding. */}
+      {/* Animated container for expand/collapse. It uses overflow:hidden for the animation effect. */}
       <div
         ref={contentRef}
         className={cn(
-          "section-content overflow-hidden transition-[max-height] duration-300 ease-in-out px-0",
-          // On desktop, if defaultOpen is true, content is visible without animation initially
-          // For mobile, or if animated on desktop, max-height handles visibility.
-          { 'open': isOpen } 
+          "overflow-hidden transition-[max-height] duration-300 ease-in-out"
+          // The px-0 is removed as padding should be handled by parent (.tab-content-inner) or child content.
         )}
         style={{
-           maxHeight: isOpen || (!isMobile && defaultOpen) ? (contentRef.current?.scrollHeight + "px") : "0px",
+           // scrollHeight here will be the offsetHeight of its direct child (the .settings-section-scrollable div),
+           // which is capped by its own CSS max-height if its content overflows. This ensures the animation
+           // expands to show the scrollable area correctly, up to its defined max-height.
+           maxHeight: isOpen ? (contentRef.current?.scrollHeight + "px") : "0px",
         }}
       >
-        {/* This inner div ensures content respects the CollapsibleSection's state,
-            and its children (like DocumentUpload) will align with the header.
-            The actual content (children) should not have horizontal padding if it needs to align.
-            Added w-full to ensure it takes the full width constrained by its parent.
-        */}
-        <div className="pt-1 pb-3 w-full">{children}</div> {/* Added small top/bottom padding for content block and w-full */}
+        {/* Scrollable container for the actual content. This div gets max-height and overflow-y from CSS. */}
+        <div className="settings-section-scrollable">
+          {/* This inner div was already there, contains the actual children. It should fill width. */}
+          <div className="pt-1 pb-3 w-full">{children}</div>
+        </div>
       </div>
     </div>
   )

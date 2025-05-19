@@ -1280,23 +1280,34 @@ input, textarea, select {
       */
       max-height: 60vh !important;
   }
+  /* Styles for .section-content.open on mobile.
+     The critical !important overrides for max-height and overflow-y that prevented section-level scroll
+     were removed in the previous step. This padding-bottom is likely fine.
+  */
+  .section-content.open {
+    padding-bottom: 8px !important;
+  }
   .space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: calc(0.25rem * var(--tw-space-y-reverse)); }
 }
 
-.memory-section-title { font-weight: 600; font-size: 1.25rem; /* Changed from 1rem to 1.25rem (text-xl) */ margin-bottom: 0.25rem; /* Reduced space below title to 0.25rem (mb-1) */ }
-.tab-content-inner { 
-  width: 100%; /* Ensure it takes full width of its scrollable parent */
-  padding-top: 0.75rem !important; 
-  padding-bottom: 0.75rem !important;
-  padding-left: 0.5rem !important; /* mobile: 0.5rem (px-2) */
-  padding-right: 0.5rem !important; /* mobile: 0.5rem (px-2) */
-  margin: 0 !important; 
+/* Styles for scrollable sections within settings tabs */
+.settings-section-scrollable {
+  max-height: 300px; /* Adjust as needed, e.g., 40vh */
+  overflow-y: auto; /* Ensure vertical scrolling is enabled when content exceeds max-height */
+  /* Scrollbar styling consistent with .tab-content-scrollable */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
 }
-@media (min-width: 768px) { /* md breakpoint */
-  .tab-content-inner {
-    padding-left: 1rem !important; /* desktop: 1rem (px-4) */
-    padding-right: 1rem !important; /* desktop: 1rem (px-4) */
-  }
+.settings-section-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+.settings-section-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+.settings-section-scrollable::-webkit-scrollbar-thumb {
+  background-color: rgba(155, 155, 155, 0.5);
+  border-radius: 20px;
+  border: transparent;
 }
 
 /* Forceful overrides for mobile section header alignment */
@@ -1346,17 +1357,14 @@ input, textarea, select {
   }
 
   /* Ensure content within collapsible section also aligns directly with parent padding on mobile */
-  .memory-section .section-content { /* This is the div that wraps children */
+  /* This now targets the .settings-section-scrollable div or its inner content wrapper if structure changed */
+  .memory-section .settings-section-scrollable > .pt-1.pb-3.w-full {
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
-  
-  /* Specifically for DocumentUpload inside a .section-content on mobile, ensure its CardHeader/CardContent have no extra H padding */
-  .memory-section .section-content .document-upload-card .upload-header {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
-   .memory-section .section-content .document-upload-card .upload-container { /* This is CardContent */
+  /* If DocumentUpload is directly inside settings-section-scrollable, or if its cards need specific overrides */
+  .settings-section-scrollable .document-upload-card .upload-header,
+  .settings-section-scrollable .document-upload-card .upload-container {
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
@@ -1368,6 +1376,41 @@ input, textarea, select {
   }
 }
 
+/* Memory Section Overflow Fixes */
+/* These define internal scroll for file lists within DocumentUpload, which is OK */
+.memory-section .document-upload-container { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; width: 100% !important; max-height: 300px !important; overflow-y: auto !important; }
+/* .section-content class might be gone from the animated div. The .settings-section-scrollable handles its own overflow. */
+/* The following might be too generic or conflict if .section-content is reused elsewhere. */
+/* .section-content { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; width: 100% !important; } */
+.memory-section .document-files-container { max-width: 100% !important; overflow-x: hidden !important; box-sizing: border-box !important; max-height: 200px !important; overflow-y: auto !important; }
+.memory-section .document-files-container > div { max-width: 100% !important; box-sizing: border-box !important; }
+.memory-section .document-files-container .flex { max-width: 100% !important; box-sizing: border-box !important; }
+.memory-section .document-files-container .truncate { max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+
+/* Dialog Overflow Fixes */
+.fixed-dialog > div[role="dialog"] { max-height: 70vh !important; overflow-y: auto !important; }
+/* Final Modal Z-index Fix */
+.modal-overlay { z-index: 9999 !important; } /* This is for ConfirmationModal */
+
+/* Styles for scrollable sections within settings tabs */
+.settings-section-scrollable {
+  max-height: 300px; /* Adjust as needed, e.g., 40vh */
+  /* overflow-y: auto; is set in collapsible-section.tsx via cn() */
+  /* Scrollbar styling consistent with .tab-content-scrollable */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+}
+.settings-section-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+.settings-section-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+.settings-section-scrollable::-webkit-scrollbar-thumb {
+  background-color: rgba(155, 155, 155, 0.5);
+  border-radius: 20px;
+  border: transparent;
+}
 
 /* Memory Section Overflow Fixes */
 /* These define internal scroll for file lists within DocumentUpload, which is OK */
