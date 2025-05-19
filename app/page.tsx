@@ -47,7 +47,7 @@ function HomeContent() {
   const [baseSystemPromptS3Files, setBaseSystemPromptS3Files] = useState<FetchedFile[]>([]);
   const [agentSystemPromptS3Files, setAgentSystemPromptS3Files] = useState<FetchedFile[]>([]);
   const [baseFrameworkS3Files, setBaseFrameworkS3Files] = useState<FetchedFile[]>([]);
-  const [orgContextS3Files, setOrgContextS3Files] = useState<FetchedFile[]>([]);
+  const [agentPrimaryContextS3Files, setAgentPrimaryContextS3Files] = useState<FetchedFile[]>([]); // Renamed orgContextS3Files
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
@@ -77,7 +77,7 @@ function HomeContent() {
     baseSystemPrompts: false,
     agentSystemPrompts: false,
     baseFrameworks: false,
-    orgContext: false,
+    agentPrimaryContext: false, // Renamed orgContext
     pineconeMemory: false,
   });
 
@@ -100,7 +100,7 @@ function HomeContent() {
           baseSystemPrompts: false,
           agentSystemPrompts: false,
           baseFrameworks: false,
-          orgContext: false,
+          agentPrimaryContext: false, // Renamed orgContext
           pineconeMemory: false,
         });
       }
@@ -385,16 +385,17 @@ function HomeContent() {
           "Agent System Prompts"
         );
       }
-      
-      if (!fetchedDataFlags.orgContext) {
+
+      if (!fetchedDataFlags.agentPrimaryContext && pageAgentName) { // Ensure pageAgentName is available
         await fetchS3Data(
-          `organizations/river/_config/`,
-          (orgConfigDocs: FetchedFile[]) => {
-            const orgContextRegex = new RegExp(`^context_oID-river(\\.[^.]+)?$`);
-            setOrgContextS3Files(orgConfigDocs.filter(f => orgContextRegex.test(f.name)))
-            newFetchedDataFlags.orgContext = true;
+          `organizations/river/agents/${pageAgentName}/_config/`, // New S3 prefix
+          (agentConfigDocs: FetchedFile[]) => {
+            // New regex for agent-specific context file
+            const agentContextRegex = new RegExp(`^context_aID-${pageAgentName}(\\.[^.]+)?$`);
+            setAgentPrimaryContextS3Files(agentConfigDocs.filter(f => agentContextRegex.test(f.name))) // Use new state setter
+            newFetchedDataFlags.agentPrimaryContext = true; // Use new flag
           },
-          "Organization Context"
+          "Agent Primary Context" // Updated description
         );
       }
 
@@ -626,18 +627,18 @@ function HomeContent() {
                   </div>
                 </TabsContent>
                 <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
-                  <div className="tab-content-inner tab-content-scrollable">
+                <div className="tab-content-inner tab-content-scrollable">
                     <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
                       <CollapsibleSection title="Context" defaultOpen={true} onToggle={handleSectionToggle}>
                         <div className="document-upload-container">
-                          <DocumentUpload description="Locally added/edited context files. Organization context from S3 is listed below." type="context" allowRemove={true} persistKey={`context-files-${pageAgentName}-${pageEventId}`} onFilesAdded={handleContextUpdate} existingFiles={contextFiles} transparentBackground={true} hideDropZone={true} />
+                          <DocumentUpload description="Locally added/edited context files. Agent-specific context from S3 is listed below." type="context" allowRemove={true} persistKey={`context-files-${pageAgentName}-${pageEventId}`} onFilesAdded={handleContextUpdate} existingFiles={contextFiles} transparentBackground={true} hideDropZone={true} />
                         </div>
                         <div className="mt-4 space-y-2 w-full overflow-hidden">
-                          {orgContextS3Files.length > 0 ? (
-                            orgContextS3Files.map(file => (
+                          {agentPrimaryContextS3Files.length > 0 ? (
+                            agentPrimaryContextS3Files.map(file => (
                               <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
                             ))
-                          ) : (<p className="text-sm text-muted-foreground">No organization context files found in S3 for '{pageAgentName}'.</p>)}
+                          ) : (<p className="text-sm text-muted-foreground">No agent-specific context files found in S3 for '{pageAgentName}'.</p>)}
                         </div>
                       </CollapsibleSection>
                       <CollapsibleSection title="Memory" defaultOpen={true} onToggle={handleSectionToggle}>
