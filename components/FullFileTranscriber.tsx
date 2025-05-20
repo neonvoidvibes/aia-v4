@@ -67,22 +67,27 @@ const FullFileTranscriber: React.FC = () => {
             setPersistedFileInfo({ name: savedState.fileName, size: savedState.fileSize, type: savedState.fileType });
         }
 
-        if (savedState.transcriptText && savedState.segments) {
+        if (savedState.transcriptText !== null && savedState.segments !== null) { // Allow empty string/array
           setRawTranscriptText(savedState.transcriptText);
           setTranscriptSegments(savedState.segments);
-          setStatusMessage(savedState.statusMessage || "Previous transcription loaded.");
+          // Only restore "final" status messages from a completed/loaded state
+          if (savedState.statusMessage && (savedState.statusMessage.includes("complete") || savedState.statusMessage.includes("loaded"))) {
+             setStatusMessage(savedState.statusMessage);
+          } else {
+            // If we have results but no "final" status message, imply it was loaded.
+             setStatusMessage(savedState.fileName ? `Previously transcribed file '${savedState.fileName}' loaded.` : "Previous transcription loaded.");
+          }
         } else if (savedState.wasTranscribing && savedState.fileName) {
           // Transcription was in progress but didn't complete
-          setStatusMessage(`Processing for ${savedState.fileName} was interrupted. Please try again.`);
+          setStatusMessage(`Processing for ${savedState.fileName} was interrupted. Please select the file again to restart transcription.`);
           setErrorMessage(null); // Clear any old error message in this specific case
+        } else if (savedState.statusMessage && (savedState.statusMessage.includes("complete") || savedState.statusMessage.includes("loaded"))) {
+            // This case might happen if only status was saved but not results - less likely now
+            setStatusMessage(savedState.statusMessage);
         } else {
-            // Only restore "final" status messages if not an interrupted transcription
-             if (savedState.statusMessage && (savedState.statusMessage.includes("complete") || savedState.statusMessage.includes("loaded"))) {
-                setStatusMessage(savedState.statusMessage);
-            } else {
-                setStatusMessage(null); // Clear transient messages
-            }
+            setStatusMessage(null); // Clear transient messages if no results and not interrupted
         }
+
 
         if (savedState.errorMessage) {
           setErrorMessage(savedState.errorMessage);
@@ -98,13 +103,13 @@ const FullFileTranscriber: React.FC = () => {
   useEffect(() => {
     const stateToSave: PersistentTranscriberState = {
       fileName: selectedFile?.name || persistedFileInfo?.name || null,
-      fileSize: selectedFile?.size || persistedFileInfo?.size || null,
+      fileSize: selectedFile?.size ?? persistedFileInfo?.size ?? null,
       fileType: selectedFile?.type || persistedFileInfo?.type || null,
       transcriptText: rawTranscriptText,
       segments: transcriptSegments,
-      statusMessage: (statusMessage && (statusMessage.includes("complete") || statusMessage.includes("loaded") || statusMessage.startsWith("Processing"))) ? statusMessage : null, // Persist "Processing..."
+      statusMessage: statusMessage, 
       errorMessage: errorMessage,
-      wasTranscribing: isTranscribing, // Persist current transcription status
+      wasTranscribing: isTranscribing, 
     };
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
   }, [selectedFile, persistedFileInfo, rawTranscriptText, transcriptSegments, statusMessage, errorMessage, isTranscribing]);
@@ -131,17 +136,24 @@ const FullFileTranscriber: React.FC = () => {
       if (!file.type.startsWith('audio/')) {
         setErrorMessage('Invalid file type. Please select an audio file.');
         setSelectedFile(null);
-        setPersistedFileInfo(null);
-        // Don't clear persisted results of a *previous* successful transcription for a *different* file here.
-        // Let clearSelection handle clearing everything if needed, or allow user to re-transcribe.
+        // If a previous valid file's info was displayed, keep it, but clear results.
+        if (persistedFileInfo) {
+            setRawTranscriptText(null); 
+            setTranscriptSegments(null);
+            // statusMessage might indicate previous success, let it stay or clear based on UX preference.
+            // For now, clearing it for the invalid attempt.
+            setStatusMessage(null); 
+        } else {
+            setPersistedFileInfo(null); // No previous valid file info to keep.
+            setStatusMessage(null);
+        }
         return;
       }
-      // If a new file is selected, we reset everything related to any *previous* file's transcription.
+      // New valid file selected, reset results from any *previous* file
       setRawTranscriptText(null);
       setTranscriptSegments(null);
       setStatusMessage(null);
       setErrorMessage(null);
-      // No need to call clearPersistedState here, as useEffect will update it based on new file.
 
       setSelectedFile(file);
       setPersistedFileInfo({name: file.name, size: file.size, type: file.type}); 
@@ -156,7 +168,14 @@ const FullFileTranscriber: React.FC = () => {
        if (!file.type.startsWith('audio/')) {
         setErrorMessage('Invalid file type. Please drop an audio file.');
         setSelectedFile(null);
-        setPersistedFileInfo(null);
+        if (persistedFileInfo) { // Similar logic to handleFileChange
+            setRawTranscriptText(null); 
+            setTranscriptSegments(null);
+            setStatusMessage(null);
+        } else {
+            setPersistedFileInfo(null);
+            setStatusMessage(null);
+        }
         return;
       }
       setRawTranscriptText(null);
@@ -167,7 +186,7 @@ const FullFileTranscriber: React.FC = () => {
       setSelectedFile(file);
       setPersistedFileInfo({name: file.name, size: file.size, type: file.type}); 
     }
-  }, []);
+  }, [persistedFileInfo]); // Removed rawTranscriptText, transcriptSegments to avoid loop with useEffect
 
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -175,38 +194,40 @@ const FullFileTranscriber: React.FC = () => {
   }, []);
 
   const handleStartTranscription = async () => {
-    if (!selectedFile) {
-      // If persistedFileInfo exists but selectedFile is null (e.g., after reload with a previously selected file name)
-      // prompt the user to re-select the file.
+    const currentFileToTranscribe = selectedFile;
+    const currentFileNameForDisplay = selectedFile?.name || persistedFileInfo?.name; // Use selectedFile name first
+
+    if (!currentFileToTranscribe) { 
       if (persistedFileInfo) {
-        setErrorMessage('Please re-select the audio file to transcribe.');
+        setErrorMessage(`Please re-select the audio file '${persistedFileInfo.name}' to transcribe.`);
       } else {
         setErrorMessage('Please select an audio file first.');
       }
       return;
     }
 
+
     setIsTranscribing(true);
-    setStatusMessage(`Processing: ${selectedFile.name}... This may take a few moments.`);
+    const processingMsg = `Processing: ${currentFileNameForDisplay}... This may take a few moments.`;
+    setStatusMessage(processingMsg);
     setErrorMessage(null);
     setRawTranscriptText(null);
     setTranscriptSegments(null);
     
     const processingStateToSave: PersistentTranscriberState = {
-      fileName: selectedFile.name,
-      fileSize: selectedFile.size,
-      fileType: selectedFile.type,
+      fileName: currentFileNameForDisplay || null, // Ensure null if undefined
+      fileSize: currentFileToTranscribe.size,
+      fileType: currentFileToTranscribe.type,
       transcriptText: null,
       segments: null,
-      statusMessage: `Processing: ${selectedFile.name}... This may take a few moments.`,
+      statusMessage: processingMsg, 
       errorMessage: null,
       wasTranscribing: true,
     };
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(processingStateToSave));
 
-
     const formData = new FormData();
-    formData.append('audio_file', selectedFile);
+    formData.append('audio_file', currentFileToTranscribe);
 
     try {
       const response = await fetch('/api/transcribe-audio', {
@@ -222,25 +243,26 @@ const FullFileTranscriber: React.FC = () => {
         throw new Error(data.error || data.message || data.details || `Transcription failed with status ${response.status}`);
       }
 
-      if (data.transcript !== undefined && data.segments !== undefined) { // Check for presence, even if null/empty
+      if (typeof data.transcript === 'string' && Array.isArray(data.segments)) { 
         setRawTranscriptText(data.transcript);
         setTranscriptSegments(data.segments);
-        setStatusMessage('Transcription complete!');
+        const completeMsg = 'Transcription complete!';
+        setStatusMessage(completeMsg);
         const successStateToSave: PersistentTranscriberState = {
-            fileName: selectedFile.name,
-            fileSize: selectedFile.size,
-            fileType: selectedFile.type,
+            fileName: currentFileNameForDisplay || null, // Ensure null if undefined
+            fileSize: currentFileToTranscribe.size,
+            fileType: currentFileToTranscribe.type,
             transcriptText: data.transcript,
             segments: data.segments,
-            statusMessage: 'Transcription complete!',
+            statusMessage: completeMsg,
             errorMessage: null,
             wasTranscribing: false,
         };
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(successStateToSave));
 
       } else {
-        console.error("Incomplete data received:", data);
-        throw new Error("Received incomplete transcription data from backend. Missing 'transcript' or 'segments'.");
+        console.error("Incomplete data received from backend:", data);
+        throw new Error("Received incomplete transcription data from backend. Missing 'transcript' (string) or 'segments' (array).");
       }
 
     } catch (err: any) {
@@ -249,41 +271,42 @@ const FullFileTranscriber: React.FC = () => {
       setErrorMessage(finalErrorMessage);
       setStatusMessage(null); 
       const errorStateToSave: PersistentTranscriberState = {
-        fileName: selectedFile?.name || persistedFileInfo?.name || null,
-        fileSize: selectedFile?.size || persistedFileInfo?.size || null,
-        fileType: selectedFile?.type || persistedFileInfo?.type || null,
+        fileName: currentFileNameForDisplay || null, // Ensure null if undefined
+        fileSize: currentFileToTranscribe.size,
+        fileType: currentFileToTranscribe.type,
         transcriptText: null,
         segments: null,
         statusMessage: null,
         errorMessage: finalErrorMessage,
-        wasTranscribing: false, // Error means it's no longer transcribing
+        wasTranscribing: false,
       };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(errorStateToSave));
     } finally {
       setIsTranscribing(false);
-      // Update wasTranscribing to false in localStorage one last time if it wasn't set by success/error paths
-      const finalLsState = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (finalLsState) {
+      const finalLsStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (finalLsStateString) {
         try {
-          const parsed = JSON.parse(finalLsState) as PersistentTranscriberState;
-          if (parsed.wasTranscribing) { // only update if it was true
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({...parsed, wasTranscribing: false, statusMessage: statusMessage || parsed.statusMessage}));
+          const parsed = JSON.parse(finalLsStateString) as PersistentTranscriberState;
+          if (parsed.wasTranscribing === true) { 
+             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({...parsed, wasTranscribing: false, statusMessage: statusMessage || parsed.statusMessage || null }));
           }
         } catch (e) { console.error("Error finalising wasTranscribing state in LS", e); }
       }
     }
   };
-    if (!rawTranscriptText || !(selectedFile || persistedFileInfo) ) return;
+
+  const handleDownloadTranscript = () => {
+    const fileNameForDownload = selectedFile?.name || persistedFileInfo?.name;
+    if (!rawTranscriptText || !fileNameForDownload ) return;
 
     let content = "";
     if (transcriptSegments && transcriptSegments.length > 0) {
       content = transcriptSegments.map(segment => 
         `[${formatTimestamp(segment.start)} - ${formatTimestamp(segment.end)}] ${segment.text.trim()}`
-      ).join('\n\n'); // Added double newline for better readability between segments
+      ).join('\n\n'); 
     } else {
-      // Fallback if segments are not available for some reason, use raw text
       content = rawTranscriptText;
-      console.warn("Downloading raw transcript text as segments were not available.");
+      console.warn("Downloading raw transcript text as segments were not available or empty.");
     }
     
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -291,8 +314,7 @@ const FullFileTranscriber: React.FC = () => {
     const link = document.createElement('a');
     link.href = url;
     
-    const currentFileName = selectedFile?.name || persistedFileInfo?.name || "transcript";
-    const baseName = currentFileName.substring(0, currentFileName.lastIndexOf('.')) || currentFileName;
+    const baseName = fileNameForDownload.substring(0, fileNameForDownload.lastIndexOf('.')) || fileNameForDownload;
     link.download = `${baseName}_transcript.txt`;
     
     document.body.appendChild(link);
@@ -309,17 +331,20 @@ const FullFileTranscriber: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Determine what file info to display: from live selection or persisted state
   const displayFileInfo = selectedFile 
     ? { name: selectedFile.name, size: selectedFile.size, type: selectedFile.type }
     : persistedFileInfo;
+
+  const canTranscribe = !!displayFileInfo && !isTranscribing; 
+  const canDownload = (rawTranscriptText !== null || (transcriptSegments && transcriptSegments.length > 0)) && !!displayFileInfo && !isTranscribing;
+
 
   return (
     <div className="space-y-6 p-1 sm:p-0">
       <div 
         className={cn(
           "flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors",
-          (selectedFile || persistedFileInfo) ? "border-primary/50 bg-muted/20" : "border-border hover:bg-muted/20"
+          displayFileInfo ? "border-primary/50 bg-muted/20" : "border-border hover:bg-muted/20"
         )}
         onClick={() => fileInputRef.current?.click()}
         onDrop={handleDrop}
@@ -367,8 +392,8 @@ const FullFileTranscriber: React.FC = () => {
       )}
       
       {statusMessage && !errorMessage && (
-        <Alert variant={(rawTranscriptText || transcriptSegments) ? "default" : "default"} className={cn((rawTranscriptText || transcriptSegments) ? "border-green-500 dark:border-green-600" : "border-blue-500 dark:border-blue-600")}>
-           <AlertTitle>{(rawTranscriptText || transcriptSegments) ? (statusMessage.includes("complete") || statusMessage.includes("loaded") ? "Success!" : "Status") : "Status"}</AlertTitle>
+        <Alert variant={(rawTranscriptText !== null || (transcriptSegments && transcriptSegments.length > 0)) ? "default" : "default"} className={cn((rawTranscriptText !== null || (transcriptSegments && transcriptSegments.length > 0)) && statusMessage.includes("complete") ? "border-green-500 dark:border-green-600" : "border-blue-500 dark:border-blue-600")}>
+           <AlertTitle>{(rawTranscriptText !== null || (transcriptSegments && transcriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded")) ? "Success!" : "Status"}</AlertTitle>
           <AlertDescription>{statusMessage}</AlertDescription>
         </Alert>
       )}
@@ -376,7 +401,7 @@ const FullFileTranscriber: React.FC = () => {
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <Button
           onClick={handleStartTranscription}
-          disabled={(!selectedFile && !persistedFileInfo) || isTranscribing} // Disable if no file at all, or transcribing
+          disabled={!canTranscribe}
           className="w-full sm:flex-1"
         >
           {isTranscribing ? (
@@ -389,7 +414,7 @@ const FullFileTranscriber: React.FC = () => {
           )}
         </Button>
 
-        {(rawTranscriptText || transcriptSegments) && (displayFileInfo) && ( // Ensure file info is also available for download naming
+        {canDownload && (
           <Button
             onClick={handleDownloadTranscript}
             variant="outline"
