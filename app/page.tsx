@@ -2,14 +2,15 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PenSquare, ChevronDown, AlertTriangle, Eye } from "lucide-react"
-import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
+import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid } from "lucide-react" // Added LayoutGrid
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { createClient } from '@/utils/supabase/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
 import DocumentUpload from "@/components/document-upload"
 import SimpleChatInterface, { type ChatInterfaceHandle } from "@/components/simple-chat-interface"
+import FullFileTranscriber from "@/components/FullFileTranscriber"; // Added for new Transcribe tab
 import { EnvWarning } from "@/components/env-warning"
 import ConfirmationModal from "@/components/confirmation-modal"
 import CollapsibleSection from "@/components/collapsible-section"
@@ -28,21 +29,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
-import ViewSwitcher from "@/components/ui/view-switcher"; // New: Canvas View Switcher
-import FullFileTranscriber from "@/components/FullFileTranscriber"; // Added for new Transcribe tab
-import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; // New: Canvas View
-import { Switch } from "@/components/ui/switch"; // For canvas toggle
-import { Label } from "@/components/ui/label"; // For canvas toggle label
+import ViewSwitcher from "@/components/ui/view-switcher"; 
+import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; 
+import { Switch } from "@/components/ui/switch"; 
+import { Label } from "@/components/ui/label"; 
 
 // Main content component that uses useSearchParams
 function HomeContent() {
   const searchParams = useSearchParams();
-  const { theme, setTheme } = useTheme(); // Get theme and setTheme from next-themes
+  const { theme, setTheme } = useTheme(); 
 
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState("documents");
-  const [previousActiveTab, setPreviousActiveTab] = useState("documents"); // To restore tab
+  const [activeTab, setActiveTab] = useState("documents"); // Default settings tab
+  const [previousActiveTab, setPreviousActiveTab] = useState("documents"); 
   const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
   const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]);
   const [agentMemoryFiles, setAgentMemoryFiles] = useState<AttachmentFile[]>([]);
@@ -55,25 +55,23 @@ function HomeContent() {
   const [baseSystemPromptS3Files, setBaseSystemPromptS3Files] = useState<FetchedFile[]>([]);
   const [agentSystemPromptS3Files, setAgentSystemPromptS3Files] = useState<FetchedFile[]>([]);
   const [baseFrameworkS3Files, setBaseFrameworkS3Files] = useState<FetchedFile[]>([]);
-  const [agentPrimaryContextS3Files, setAgentPrimaryContextS3Files] = useState<FetchedFile[]>([]); // Renamed orgContextS3Files
+  const [agentPrimaryContextS3Files, setAgentPrimaryContextS3Files] = useState<FetchedFile[]>([]); 
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
-  // State for Canvas View
-  const [currentView, setCurrentView] = useState<"chat" | "canvas">("chat");
-  const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(false); // Default to disabled
+  // State for Canvas View enablement and general view state
+  // Initialize currentView to "chat". Can be changed to "transcribe" if that's the preferred default.
+  const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe">("chat");
+  const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(false); 
   
   // Lifted state for CanvasView
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
   const [isCanvasLoading, setIsCanvasLoading] = useState(false);
   const [canvasError, setCanvasError] = useState<string | null>(null);
   const [selectedCanvasFilter, setSelectedCanvasFilter] = useState<"mirror" | "lens" | "portal">("mirror");
-  const [selectedCanvasTimeWindow, setSelectedCanvasTimeWindow] = useState<string>("Whole Meeting"); // Default, matches CanvasView state / TIME_WINDOW_LABELS
+  const [selectedCanvasTimeWindow, setSelectedCanvasTimeWindow] = useState<string>("Whole Meeting"); 
   
   const [pinnedCanvasInsights, setPinnedCanvasInsights] = useState<CanvasInsightItem[]>([]);
-  // activeCanvasInsightsForChat will be derived from canvasData directly when needed for chat context
-  // No need for a separate state if canvasData holds the full fetched data.
-
 
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
@@ -85,7 +83,7 @@ function HomeContent() {
     baseSystemPrompts: false,
     agentSystemPrompts: false,
     baseFrameworks: false,
-    agentPrimaryContext: false, // Renamed orgContext
+    agentPrimaryContext: false, 
     pineconeMemory: false,
   });
 
@@ -102,13 +100,12 @@ function HomeContent() {
       const eventParam = searchParams.get('event');
 
       if (pageAgentName !== agentParam || pageEventId !== eventParam) {
-        // Reset fetched flags if agent or event changes
         setFetchedDataFlags({
           transcriptions: false,
           baseSystemPrompts: false,
           agentSystemPrompts: false,
           baseFrameworks: false,
-          agentPrimaryContext: false, // Renamed orgContext
+          agentPrimaryContext: false, 
           pineconeMemory: false,
         });
       }
@@ -119,36 +116,32 @@ function HomeContent() {
       if (!agentParam) {
           console.error("Authorization Check: Agent parameter missing from URL.");
           setAuthError("Agent parameter is missing in the URL.");
-          setIsAuthorized(false); // Cannot authorize without an agent ID
+          setIsAuthorized(false); 
           return;
       }
 
       const fetchPermissions = async () => {
-          setIsAuthorized(null); // Set to checking state
+          setIsAuthorized(null); 
           setAuthError(null);
 
           try {
-              // Fetch session to get token for the API call
               const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
               if (sessionError || !session) {
                   console.error("Authorization Check: No active session found.", sessionError);
-                  // Middleware should ideally handle this, but double-check
                   setAuthError("Not authenticated.");
-                  router.push('/login'); // Redirect if middleware failed
+                  router.push('/login'); 
                   return;
               }
 
               const response = await fetch('/api/user/permissions', {
-                  headers: {
-                      'Authorization': `Bearer ${session.access_token}`,
-                  },
+                  headers: { 'Authorization': `Bearer ${session.access_token}` },
               });
 
               if (response.status === 401) {
                    console.error("Authorization Check: Unauthorized fetching permissions.");
                    setAuthError("Session expired or invalid. Please log in again.");
-                   await supabase.auth.signOut(); // Sign out if token is invalid
+                   await supabase.auth.signOut(); 
                    router.push('/login');
                    return;
                }
@@ -159,11 +152,9 @@ function HomeContent() {
               }
 
               const data = await response.json();
-              // Use the correct key from the API response
               const fetchedAllowedAgents: string[] = data.allowedAgentNames || [];
               setAllowedAgents(fetchedAllowedAgents);
 
-              // Perform authorization check
               if (fetchedAllowedAgents.includes(agentParam)) {
                   console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
                   setIsAuthorized(true);
@@ -197,7 +188,7 @@ function HomeContent() {
       id: s3FileToView.s3Key,
       name: s3FileToView.name,
       type: s3FileToView.type,
-      size: 0, // Default size, not critical for viewer
+      size: 0, 
       url: undefined,
       messageId: undefined,
       content: undefined,
@@ -225,7 +216,7 @@ function HomeContent() {
     console.log("Context files updated (frontend state):", files);
   }, []);
 
-  const handleTabChange = (value: string) => {
+  const handleSettingsTabChange = (value: string) => { // Renamed to avoid confusion with main view
     setActiveTab(value);
     setPreviousActiveTab(value); 
   };
@@ -263,7 +254,6 @@ function HomeContent() {
     }
   }, [hasOpenSection]);
   
-  // Effect to load and apply agent-specific theme
   useEffect(() => {
     if (pageAgentName) {
       const agentThemeKey = `agent-theme-${pageAgentName}`;
@@ -271,19 +261,15 @@ function HomeContent() {
       if (savedAgentTheme) {
         setTheme(savedAgentTheme);
         setCurrentAgentTheme(savedAgentTheme);
-        // If it's a custom theme, also store it as the "last custom" for this agent for ThemeToggle logic
         if (predefinedThemes.some(t => t.className === savedAgentTheme)) {
             localStorage.setItem(`agent-custom-theme-${pageAgentName}`, savedAgentTheme);
         }
       } else {
-        // If no theme is stored for this agent, apply the global theme (from next-themes default or ThemeToggle)
-        // and update currentAgentTheme state to reflect that.
         setCurrentAgentTheme(theme);
       }
     }
-  }, [pageAgentName, setTheme, theme]); // Rerun if global theme changes while agent is active
+  }, [pageAgentName, setTheme, theme]); 
 
-  // Load/save canvas enabled state from localStorage
   useEffect(() => {
     const savedCanvasEnabled = localStorage.getItem("canvasViewEnabled");
     if (savedCanvasEnabled !== null) {
@@ -294,7 +280,7 @@ function HomeContent() {
   useEffect(() => {
     localStorage.setItem("canvasViewEnabled", JSON.stringify(isCanvasViewEnabled));
     if (!isCanvasViewEnabled && currentView === "canvas") {
-      setCurrentView("chat"); // Switch to chat if canvas is disabled while active
+      setCurrentView("chat"); 
     }
   }, [isCanvasViewEnabled, currentView]);
 
@@ -394,16 +380,15 @@ function HomeContent() {
         );
       }
 
-      if (!fetchedDataFlags.agentPrimaryContext && pageAgentName) { // Ensure pageAgentName is available
+      if (!fetchedDataFlags.agentPrimaryContext && pageAgentName) { 
         await fetchS3Data(
-          `organizations/river/agents/${pageAgentName}/_config/`, // New S3 prefix
+          `organizations/river/agents/${pageAgentName}/_config/`, 
           (agentConfigDocs: FetchedFile[]) => {
-            // New regex for agent-specific context file
             const agentContextRegex = new RegExp(`^context_aID-${pageAgentName}(\\.[^.]+)?$`);
-            setAgentPrimaryContextS3Files(agentConfigDocs.filter(f => agentContextRegex.test(f.name))) // Use new state setter
-            newFetchedDataFlags.agentPrimaryContext = true; // Use new flag
+            setAgentPrimaryContextS3Files(agentConfigDocs.filter(f => agentContextRegex.test(f.name))) 
+            newFetchedDataFlags.agentPrimaryContext = true; 
           },
-          "Agent Primary Context" // Updated description
+          "Agent Primary Context" 
         );
       }
 
@@ -454,8 +439,8 @@ function HomeContent() {
 
   const handlePinInsight = (insight: CanvasInsightItem) => {
     setPinnedCanvasInsights((prev) => {
-      if (!prev.find(p => p.highlight === insight.highlight && p.explanation === insight.explanation)) { // Avoid duplicates
-        return [...prev, { ...insight, id: insight.id || `${insight.category}-${Date.now()}` }]; // Ensure ID for pinning
+      if (!prev.find(p => p.highlight === insight.highlight && p.explanation === insight.explanation)) { 
+        return [...prev, { ...insight, id: insight.id || `${insight.category}-${Date.now()}` }]; 
       }
       return prev;
     });
@@ -470,13 +455,13 @@ function HomeContent() {
       const prefixedMessage = `🎨 From Canvas: ${message}`;
       
       const chatDataForSubmit = {
-        current_canvas_time_window_label: selectedCanvasTimeWindow, // Use lifted state
-        active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}), // Use lifted state
+        current_canvas_time_window_label: selectedCanvasTimeWindow, 
+        active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}), 
         pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
       };
       
       chatInterfaceRef.current.submitMessageWithCanvasContext(prefixedMessage, chatDataForSubmit);
-      setCurrentView("chat"); // Switch back to chat view after submission is initiated
+      setCurrentView("chat"); 
     }
   };
 
@@ -495,41 +480,46 @@ function HomeContent() {
 
   return (
     <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
-      <header className="py-2 px-4 text-center relative flex-shrink-0"> {/* Adjusted padding */}
-        <div className="flex items-center justify-between h-12"> {/* Fixed height for header content */}
-          <button className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105" onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} aria-label="New chat"><PenSquare size={20} /></button>
+      <header className="py-2 px-4 text-center relative flex-shrink-0">
+        <div className="flex items-center justify-between h-12">
+          <button className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105" onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} aria-label="New chat">
+            <PenSquare size={20} />
+          </button>
           
-          {isCanvasViewEnabled ? (
-            <ViewSwitcher 
-              currentView={currentView} 
-              onViewChange={(newView) => {
-                setCurrentView(newView);
-                // Optional: if switching away from canvas, clear activeBubble from CanvasView if it were managed here
-              }} 
-              agentName={pageAgentName}
-              className="flex-grow justify-center max-w-xs sm:max-w-sm" // Added class for sizing
-            />
-          ) : (
-            <h1 className="text-lg font-extralight flex-grow text-center">{pageAgentName ? `${pageAgentName} AI` : "River AI"}</h1>
-          )}
+          <ViewSwitcher 
+            currentView={currentView} 
+            onViewChange={(newView) => setCurrentView(newView)}
+            agentName={pageAgentName} 
+            isCanvasEnabled={isCanvasViewEnabled} 
+            className="flex-grow justify-center max-w-xs sm:max-w-sm" 
+          />
 
           <button className="text-foreground/70 hover:text-foreground transition-colors" onClick={(e) => { e.stopPropagation(); setShowSettings(!showS3FileViewer ? !showSettings : true ); }} aria-label="Toggle settings">
-            <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings && !showS3FileViewer ? "rotate(180deg)" : "rotate(0deg)" }}><ChevronDown size={24} strokeWidth={2.5} /></div>
+            <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings && !showS3FileViewer ? "rotate(180deg)" : "rotate(0deg)" }}>
+              <ChevronDown size={24} strokeWidth={2.5} />
+            </div>
           </button>
         </div>
       </header>
+      
       <main className="flex-1 flex flex-col overflow-hidden">
-        {currentView === "chat" || !isCanvasViewEnabled ? (
+        {currentView === "chat" && (
           <SimpleChatInterface 
             ref={chatInterfaceRef} 
             onAttachmentsUpdate={updateChatAttachments} 
             getCanvasContext={() => ({
-                current_canvas_time_window_label: selectedCanvasTimeWindow, // Use lifted state
-                active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}), // Use lifted state
+                current_canvas_time_window_label: selectedCanvasTimeWindow,
+                active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
                 pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
             })}
           />
-        ) : (
+        )}
+        {currentView === "transcribe" && (
+          <div className="p-3 sm:p-4 h-full overflow-y-auto"> 
+            <FullFileTranscriber />
+          </div>
+        )}
+        {currentView === "canvas" && isCanvasViewEnabled && (
           <CanvasView 
             agentName={pageAgentName} 
             eventId={pageEventId} 
@@ -538,7 +528,6 @@ function HomeContent() {
             onPinInsight={handlePinInsight}
             onUnpinInsight={handleUnpinInsight}
             isEnabled={isCanvasViewEnabled}
-            // Pass lifted state and setters to CanvasView
             initialCanvasData={canvasData}
             setCanvasData={setCanvasData}
             isCanvasLoading={isCanvasLoading}
@@ -550,6 +539,13 @@ function HomeContent() {
             selectedTimeWindow={selectedCanvasTimeWindow}
             setSelectedTimeWindow={setSelectedCanvasTimeWindow}
           />
+        )}
+         {currentView === "canvas" && !isCanvasViewEnabled && (
+            <div className="p-4 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                <LayoutGrid className="w-12 h-12 mb-2 text-muted-foreground/50" />
+                <p>Canvas view is currently disabled.</p>
+                <p className="text-sm">You can enable it in the settings menu.</p>
+            </div>
         )}
       </main>
 
@@ -575,10 +571,9 @@ function HomeContent() {
             <DialogTitle><VisuallyHidden>Settings</VisuallyHidden></DialogTitle>
             <DialogDescription><VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden></DialogDescription>
             <EnvWarning />
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full overflow-hidden">
-              <TabsList className="grid w-full grid-cols-5 mb-4"> {/* Changed from grid-cols-4 to grid-cols-5 */}
+            <Tabs value={activeTab} onValueChange={handleSettingsTabChange} className="w-full overflow-hidden">
+              <TabsList className="grid w-full grid-cols-4 mb-4"> 
                 <TabsTrigger value="documents">{isMobile ? "Docs" : "Documents"}</TabsTrigger>
-                <TabsTrigger value="transcribe">{isMobile ? "Audio" : "Transcribe"}</TabsTrigger> {/* New Transcribe Tab */}
                 <TabsTrigger value="system">System</TabsTrigger>
                 <TabsTrigger value="memory">Memory</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -635,13 +630,6 @@ function HomeContent() {
                     </CollapsibleSection>
                   </div>
                 </TabsContent>
-                {/* New Transcribe Tab Content */}
-                <TabsContent value="transcribe" className="mt-0 tab-content-scrollable">
-                  <div className="tab-content-inner px-2 md:px-4 py-3"> {/* Ensured consistent padding wrapper */}
-                    <FullFileTranscriber />
-                  </div>
-                </TabsContent>
-                {/* End New Transcribe Tab Content */}
                 <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
                 <div className="tab-content-inner tab-content-scrollable px-2 md:px-4 py-3">
                     <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
