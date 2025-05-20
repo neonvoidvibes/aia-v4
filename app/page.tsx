@@ -29,6 +29,7 @@ import {
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
 import ViewSwitcher from "@/components/ui/view-switcher"; // New: Canvas View Switcher
+import FullFileTranscriber from "@/components/FullFileTranscriber"; // Added for new Transcribe tab
 import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; // New: Canvas View
 import { Switch } from "@/components/ui/switch"; // For canvas toggle
 import { Label } from "@/components/ui/label"; // For canvas toggle label
@@ -575,8 +576,9 @@ function HomeContent() {
             <DialogDescription><VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden></DialogDescription>
             <EnvWarning />
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full overflow-hidden">
-              <TabsList className="grid w-full grid-cols-4 mb-4">
+              <TabsList className="grid w-full grid-cols-5 mb-4"> {/* Changed from grid-cols-4 to grid-cols-5 */}
                 <TabsTrigger value="documents">{isMobile ? "Docs" : "Documents"}</TabsTrigger>
+                <TabsTrigger value="transcribe">{isMobile ? "Audio" : "Transcribe"}</TabsTrigger> {/* New Transcribe Tab */}
                 <TabsTrigger value="system">System</TabsTrigger>
                 <TabsTrigger value="memory">Memory</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -633,6 +635,13 @@ function HomeContent() {
                     </CollapsibleSection>
                   </div>
                 </TabsContent>
+                {/* New Transcribe Tab Content */}
+                <TabsContent value="transcribe" className="mt-0 tab-content-scrollable">
+                  <div className="tab-content-inner px-2 md:px-4 py-3"> {/* Ensured consistent padding wrapper */}
+                    <FullFileTranscriber />
+                  </div>
+                </TabsContent>
+                {/* End New Transcribe Tab Content */}
                 <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
                 <div className="tab-content-inner tab-content-scrollable px-2 md:px-4 py-3">
                     <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
