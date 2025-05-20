@@ -18,7 +18,14 @@ import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileL
 import FileEditor from "@/components/file-editor";
 import { useMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+// Removed Select imports, added DropdownMenu imports
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem
+} from "@/components/ui/dropdown-menu";
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
 import ViewSwitcher from "@/components/ui/view-switcher"; // New: Canvas View Switcher
@@ -664,39 +671,53 @@ function HomeContent() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="memory-section-title">Agent Theme</span>
-                      <Select
-                        value={currentAgentTheme || theme} // Fallback to global theme if agent theme not set
-                        onValueChange={(newThemeValue) => {
-                          if (pageAgentName) {
-                            const agentThemeKey = `agent-theme-${pageAgentName}`;
-                            localStorage.setItem(agentThemeKey, newThemeValue);
-                            // If the selected theme is one of the custom ones, also store it as the "last custom"
-                            if (predefinedThemes.some(t => t.className === newThemeValue)) {
-                                localStorage.setItem(`agent-custom-theme-${pageAgentName}`, newThemeValue);
-                            } else {
-                                // If a standard theme (light/dark/system) is chosen for the agent,
-                                // clear the specific "last custom" preference for this agent.
-                                localStorage.removeItem(`agent-custom-theme-${pageAgentName}`);
-                            }
-                            setTheme(newThemeValue);
-                            setCurrentAgentTheme(newThemeValue);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue placeholder="Select theme" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="light">Light</SelectItem>
-                          <SelectItem value="dark">Dark</SelectItem>
-                          <SelectItem value="system">System</SelectItem>
-                          {predefinedThemes.map((customTheme) => (
-                            <SelectItem key={customTheme.className} value={customTheme.className}>
-                              {customTheme.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-[180px] justify-between">
+                            <span>
+                              {
+                                (currentAgentTheme === "light" && "Light") ||
+                                (currentAgentTheme === "dark" && "Dark") ||
+                                (currentAgentTheme === "system" && "System") ||
+                                (predefinedThemes.find(t => t.className === currentAgentTheme)?.name) ||
+                                (theme === "light" && "Light") ||
+                                (theme === "dark" && "Dark") ||
+                                (theme === "system" && "System") ||
+                                (predefinedThemes.find(t => t.className === theme)?.name) ||
+                                "Select Theme"
+                              }
+                            </span>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-[180px]" align="end">
+                          <DropdownMenuRadioGroup
+                            value={currentAgentTheme || theme}
+                            onValueChange={(newThemeValue) => {
+                              if (pageAgentName) {
+                                const agentThemeKey = `agent-theme-${pageAgentName}`;
+                                localStorage.setItem(agentThemeKey, newThemeValue);
+                                if (predefinedThemes.some(t => t.className === newThemeValue)) {
+                                    localStorage.setItem(`agent-custom-theme-${pageAgentName}`, newThemeValue);
+                                } else {
+                                    localStorage.removeItem(`agent-custom-theme-${pageAgentName}`);
+                                }
+                                setTheme(newThemeValue);
+                                setCurrentAgentTheme(newThemeValue);
+                              }
+                            }}
+                          >
+                            <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+                            {predefinedThemes.map((customTheme) => (
+                              <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className}>
+                                {customTheme.name}
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     {/* Hiding toggle until feature is finished to implement
                     <div className="flex items-center justify-between pt-2">
