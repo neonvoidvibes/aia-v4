@@ -55,24 +55,39 @@ export async function POST(req: NextRequest) {
       body: backendFormData,
     });
 
-    const responseData = await backendResponse.json().catch((err) => {
-        console.error("[API /api/transcribe-audio] Error parsing JSON from backend:", err);
-        return { error: "Backend returned non-JSON response or an error occurred parsing it." };
-    });
+    console.log(`[API /api/transcribe-audio] Backend response status: ${backendResponse.status}`);
+
+    const responseText = await backendResponse.text(); // Get text first for robust error handling
+    let responseData: any;
+
+    try {
+        responseData = JSON.parse(responseText);
+        console.log("[API /api/transcribe-audio] Parsed responseData from Python:", JSON.stringify(responseData, null, 2));
+    } catch (err) {
+        console.error("[API /api/transcribe-audio] Error parsing JSON from backend. Raw text:", responseText.substring(0, 500));
+        // If parsing fails, but response was ok, it might be an unexpected success format or an error string.
+        // If not ok, it's definitely an error.
+        if (!backendResponse.ok) {
+            return formatErrorResponse(`Backend error (${backendResponse.status}): ${responseText.substring(0, 200) || 'Unparseable error response'}`, backendResponse.status);
+        }
+        // If it was OK status but not JSON, that's an issue.
+        return formatErrorResponse("Backend returned non-JSON success response.", 502); // Bad Gateway
+    }
 
 
     if (!backendResponse.ok) {
-      const errorMsg = responseData?.error || responseData?.message || `Backend error (${backendResponse.status})`;
-      console.error(`[API /api/transcribe-audio] Python backend error: ${backendResponse.status}`, errorMsg);
+      const errorMsg = responseData?.error || responseData?.message || responseData?.details || `Backend error (${backendResponse.status})`;
+      console.error(`[API /api/transcribe-audio] Python backend error: ${backendResponse.status}`, errorMsg, "Full responseData:", responseData);
       return formatErrorResponse(errorMsg, backendResponse.status);
     }
     
-    if (responseData && responseData.transcript !== undefined) {
-      console.log(`[API /api/transcribe-audio] Transcription successful. Transcript length: ${responseData.transcript.length}`);
-      return NextResponse.json({ transcript: responseData.transcript });
+    // Check for presence of transcript and segments; segments can be an empty array
+    if (responseData && responseData.transcript !== undefined && responseData.segments !== undefined) {
+      console.log(`[API /api/transcribe-audio] Transcription successful. Transcript length: ${responseData.transcript?.length || 0}, Segments count: ${responseData.segments?.length || 0}`);
+      return NextResponse.json({ transcript: responseData.transcript, segments: responseData.segments });
     } else {
-      const errorDetail = responseData?.error || "Transcript data missing in backend response.";
-      console.error("[API /api/transcribe-audio] Backend responded OK but transcript missing/invalid in response:", responseData);
+      const errorDetail = responseData?.error || "Transcript and/or segments data missing in backend response.";
+      console.error("[API /api/transcribe-audio] Backend responded OK but transcript/segments missing/invalid in response:", responseData);
       return formatErrorResponse(errorDetail, 500);
     }
 

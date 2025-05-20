@@ -27,6 +27,7 @@ interface PersistentTranscriberState {
   segments: WhisperSegment[] | null; // For timestamped download
   statusMessage: string | null;
   errorMessage: string | null;
+  wasTranscribing?: boolean; // New: to indicate if a transcription was in progress
 }
 
 const LOCAL_STORAGE_KEY = 'fullFileTranscriberState';
@@ -61,22 +62,28 @@ const FullFileTranscriber: React.FC = () => {
     if (savedStateString) {
       try {
         const savedState = JSON.parse(savedStateString) as PersistentTranscriberState;
+        
+        if (savedState.fileName && savedState.fileSize !== null && savedState.fileType) {
+            setPersistedFileInfo({ name: savedState.fileName, size: savedState.fileSize, type: savedState.fileType });
+        }
+
         if (savedState.transcriptText && savedState.segments) {
           setRawTranscriptText(savedState.transcriptText);
           setTranscriptSegments(savedState.segments);
-          if (savedState.fileName && savedState.fileSize !== null && savedState.fileType) {
-            setPersistedFileInfo({ name: savedState.fileName, size: savedState.fileSize, type: savedState.fileType });
-          }
-          // Only restore "final" status messages
-          if (savedState.statusMessage && (savedState.statusMessage.includes("complete") || savedState.statusMessage.includes("loaded"))) {
-            setStatusMessage(savedState.statusMessage);
-          } else {
-            setStatusMessage(null); // Clear transient messages like "Processing..."
-          }
-        } else if (savedState.fileName && savedState.fileSize !== null && savedState.fileType) {
-          setPersistedFileInfo({ name: savedState.fileName, size: savedState.fileSize, type: savedState.fileType });
-          setStatusMessage(null); // Don't restore "Processing..." from just file info
+          setStatusMessage(savedState.statusMessage || "Previous transcription loaded.");
+        } else if (savedState.wasTranscribing && savedState.fileName) {
+          // Transcription was in progress but didn't complete
+          setStatusMessage(`Processing for ${savedState.fileName} was interrupted. Please try again.`);
+          setErrorMessage(null); // Clear any old error message in this specific case
+        } else {
+            // Only restore "final" status messages if not an interrupted transcription
+             if (savedState.statusMessage && (savedState.statusMessage.includes("complete") || savedState.statusMessage.includes("loaded"))) {
+                setStatusMessage(savedState.statusMessage);
+            } else {
+                setStatusMessage(null); // Clear transient messages
+            }
         }
+
         if (savedState.errorMessage) {
           setErrorMessage(savedState.errorMessage);
         }
@@ -95,12 +102,12 @@ const FullFileTranscriber: React.FC = () => {
       fileType: selectedFile?.type || persistedFileInfo?.type || null,
       transcriptText: rawTranscriptText,
       segments: transcriptSegments,
-      // Only persist "final" status messages or errors. "Processing" is transient.
-      statusMessage: (statusMessage && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? statusMessage : null,
+      statusMessage: (statusMessage && (statusMessage.includes("complete") || statusMessage.includes("loaded") || statusMessage.startsWith("Processing"))) ? statusMessage : null, // Persist "Processing..."
       errorMessage: errorMessage,
+      wasTranscribing: isTranscribing, // Persist current transcription status
     };
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [selectedFile, persistedFileInfo, rawTranscriptText, transcriptSegments, statusMessage, errorMessage]);
+  }, [selectedFile, persistedFileInfo, rawTranscriptText, transcriptSegments, statusMessage, errorMessage, isTranscribing]);
 
 
   const clearPersistedState = () => {
@@ -185,16 +192,17 @@ const FullFileTranscriber: React.FC = () => {
     setRawTranscriptText(null);
     setTranscriptSegments(null);
     
-    const stateToSave: PersistentTranscriberState = {
+    const processingStateToSave: PersistentTranscriberState = {
       fileName: selectedFile.name,
       fileSize: selectedFile.size,
       fileType: selectedFile.type,
       transcriptText: null,
       segments: null,
-      statusMessage: `Processing: ${selectedFile.name}...`, // Persist "Processing..." status
+      statusMessage: `Processing: ${selectedFile.name}... This may take a few moments.`,
       errorMessage: null,
+      wasTranscribing: true,
     };
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(processingStateToSave));
 
 
     const formData = new FormData();
@@ -207,12 +215,14 @@ const FullFileTranscriber: React.FC = () => {
       });
 
       const data = await response.json();
+      console.log("[FullFileTranscriber] Received data from /api/transcribe-audio:", JSON.stringify(data, null, 2));
+
 
       if (!response.ok) {
         throw new Error(data.error || data.message || data.details || `Transcription failed with status ${response.status}`);
       }
 
-      if (data.transcript && data.segments) {
+      if (data.transcript !== undefined && data.segments !== undefined) { // Check for presence, even if null/empty
         setRawTranscriptText(data.transcript);
         setTranscriptSegments(data.segments);
         setStatusMessage('Transcription complete!');
@@ -224,11 +234,13 @@ const FullFileTranscriber: React.FC = () => {
             segments: data.segments,
             statusMessage: 'Transcription complete!',
             errorMessage: null,
+            wasTranscribing: false,
         };
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(successStateToSave));
 
       } else {
-        throw new Error("Received incomplete transcription data from backend.");
+        console.error("Incomplete data received:", data);
+        throw new Error("Received incomplete transcription data from backend. Missing 'transcript' or 'segments'.");
       }
 
     } catch (err: any) {
@@ -237,21 +249,30 @@ const FullFileTranscriber: React.FC = () => {
       setErrorMessage(finalErrorMessage);
       setStatusMessage(null); 
       const errorStateToSave: PersistentTranscriberState = {
-        fileName: selectedFile?.name || persistedFileInfo?.name || null, // Use selectedFile if available
+        fileName: selectedFile?.name || persistedFileInfo?.name || null,
         fileSize: selectedFile?.size || persistedFileInfo?.size || null,
         fileType: selectedFile?.type || persistedFileInfo?.type || null,
         transcriptText: null,
         segments: null,
         statusMessage: null,
         errorMessage: finalErrorMessage,
+        wasTranscribing: false, // Error means it's no longer transcribing
       };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(errorStateToSave));
     } finally {
       setIsTranscribing(false);
+      // Update wasTranscribing to false in localStorage one last time if it wasn't set by success/error paths
+      const finalLsState = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (finalLsState) {
+        try {
+          const parsed = JSON.parse(finalLsState) as PersistentTranscriberState;
+          if (parsed.wasTranscribing) { // only update if it was true
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({...parsed, wasTranscribing: false, statusMessage: statusMessage || parsed.statusMessage}));
+          }
+        } catch (e) { console.error("Error finalising wasTranscribing state in LS", e); }
+      }
     }
   };
-
-  const handleDownloadTranscript = () => {
     if (!rawTranscriptText || !(selectedFile || persistedFileInfo) ) return;
 
     let content = "";
