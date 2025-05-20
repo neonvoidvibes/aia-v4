@@ -63,17 +63,11 @@
   --icon-inactive: 0 0% 50%; /* Inactive/disabled icon color for dark mode */
   --icon-destructive: 0 84.2% 60.2%; /* Destructive icon color */
 
-  /* Ensure existing button variables are also present, might be redundant if already defined above */
-  --button-active: 0 0% 95%; /* Dark mode active (e.g., plus menu icons) */
-  --button-active-bg: transparent;
-  --button-inactive: 0 0% 60%;
-
-  /* NEW: Text color variables for chat interface elements */
+  /* NEW: Text color variables for chat interface elements - Folkhemmet Theme */
   --input-field-text-color: hsl(var(--foreground));
   --user-message-text-color: hsl(var(--foreground));
   --assistant-message-text-color: hsl(var(--foreground));
 }
-
 
 /* --- Light Theme Overrides --- */
 .light {
@@ -530,9 +524,67 @@
   /* --icon-destructive uses the default destructive color from above */
 
   /* NEW: Text color variables for chat interface elements - Folkhemmet Theme */
-  --input-field-text-color: hsl(var(--user-input-text)); /* IKEA Yellow */
-  --user-message-text-color: hsl(var(--user-input-text)); /* IKEA Yellow */
-  --assistant-message-text-color: hsl(var(--foreground)); /* IKEA Blue */
+  --input-field-text-color: hsl(var(--user-input-text));
+  --user-message-text-color: hsl(var(--user-input-text));
+  --assistant-message-text-color: hsl(var(--foreground));
+}
+
+.theme-cfl {
+  /* Base colors */
+  --background: 0 0% 12%; /* Dark background */
+  --foreground: 0 0% 100%; /* White foreground */
+
+  /* UI elements */
+  --radius: 1.5rem;
+  --message-radius: 2rem;
+  --input-gray: 0 0% 32%;
+  --status-bar: 0 0% 40%;
+  --placeholder-text: 0 0% 55%;
+
+  /* Text colors */
+  --text-primary: 0 0% 100%;
+  --text-secondary: 0 0% 80%;
+  --text-muted: 0 0% 60%;
+
+  /* Shadcn Component Variables (Dark Defaults) */
+  --card: 220 13% 40%;
+  --popover: 220 13% 40%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 9%;
+  --secondary: 0 0% 14.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 14.9%;
+  --accent: 0 0% 14.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 25%;
+  --input: 0 0% 25%;
+  --ring: 0 0% 83.1%;
+
+  /* Custom Button State Variables */
+  --button-active: 0 0% 95%;
+  --button-active-bg: transparent;
+  --button-inactive: 0 0% 60%;
+
+  /* New Semantic CSS Variables for UI elements */
+  --status-bar-text-color: hsl(var(--status-bar)); /* Color for status bar text */
+  --placeholder-text-color: hsl(var(--placeholder-text));
+  --button-submit-bg-active: 345 63% 47%;
+  --button-submit-fg-active: 0 0% 98%;
+  --button-submit-bg-inactive: 0 0% 25%;
+  --button-submit-fg-inactive: 0 0% 60%;
+  
+  --icon-primary: 0 0% 90%;
+  --icon-secondary: 0 0% 70%;
+  --icon-active: 0 0% 100%;
+  --icon-inactive: 0 0% 50%;
+  --icon-destructive: 0 84.2% 60.2%;
+
+  /* NEW: Text color variables for chat interface elements - Folkhemmet Theme */
+  --input-field-text-color: hsl(var(--text-secondary));
+  --user-message-text-color: hsl(var(--text-secondary));
+  --assistant-message-text-color: hsl(var(--foreground));
 }
 
 /* Styles for Canvas-originated user messages */
@@ -656,7 +708,7 @@ body {
 
 /* Input field inherits text color */
 .input-container input {
-  color: hsl(var(--input-field-text-color)); /* UPDATED to use new variable */
+  color: var(--input-field-text-color); /* UPDATED to use new variable directly */
   background-color: transparent; /* Ensure transparent background */
   border: none;
   outline: none;
@@ -701,7 +753,7 @@ body {
   display: inline-block; /* Makes the bubble wrap its content snugly */
   text-align: left; /* Ensure text inside aligns left */
   width: max-content; /* Further ensures bubble shrinks to content, constrained by max-width */
-  color: hsl(var(--user-message-text-color)); /* UPDATED to use new variable */
+  color: var(--user-message-text-color); /* UPDATED to use new variable as full HSL string */
 }
 
 .user-bubble.with-attachment {
@@ -1249,11 +1301,6 @@ button {
 .plus-menu-item:hover { color: hsl(var(--text-primary)); }
 .scroll-to-bottom-button { background-color: hsl(var(--input-gray)); color: hsl(var(--text-secondary)); }
 .scroll-to-bottom-button:hover { background-color: hsl(var(--input-gray)); filter: brightness(0.95); }
-
-/* Inputs inherit color now */
-input, textarea, select {
-  /* Ensure no conflicting color rule exists here, color is set by --input-field-text-color for chat input */
-}
 
 /* Memory Tab Mobile Adjustments */
 @media (max-width: 768px) {

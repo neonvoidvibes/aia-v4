@@ -45,5 +45,10 @@ export const predefinedThemes: ColorTheme[] = [
     className: "theme-folkhemmet",
     isDark: false,
   },
+  {
+    name: "CFL",
+    className: "theme-cfl",
+    isDark: true,
+  },
   // Add more predefined themes here
 ];
