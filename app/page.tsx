@@ -576,7 +576,7 @@ function HomeContent() {
               </TabsList>
               <div className="tab-content-wrapper" ref={tabContentRef}>
                 <TabsContent value="documents" className="mt-0 tab-content-scrollable">
-                  <div className="space-y-4 tab-content-inner">
+                  <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <CollapsibleSection title="Chat Attachments" defaultOpen={true}>
                       <div className="document-upload-container">
                         <DocumentUpload description="Documents attached to the current chat session (Read-only)" type="chat" existingFiles={allChatAttachments} readOnly={true} allowRemove={false} transparentBackground={true} />
@@ -594,7 +594,7 @@ function HomeContent() {
                   </div>
                 </TabsContent>
                 <TabsContent value="system" className="mt-0 tab-content-scrollable">
-                  <div className="space-y-4 tab-content-inner">
+                  <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <CollapsibleSection title="System Prompt" defaultOpen={true}>
                       <div className="document-upload-container">
                         <DocumentUpload description="Locally added/edited system prompt files. Files from S3 are listed below." type="system" allowRemove={true} persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} onFilesAdded={handleSystemPromptUpdate} existingFiles={systemPromptFiles} transparentBackground={true} hideDropZone={true} />
@@ -627,7 +627,7 @@ function HomeContent() {
                   </div>
                 </TabsContent>
                 <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
-                <div className="tab-content-inner tab-content-scrollable">
+                <div className="tab-content-inner tab-content-scrollable px-2 md:px-4 py-3">
                     <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
                       <CollapsibleSection title="Context" defaultOpen={true} onToggle={handleSectionToggle}>
                         <div className="document-upload-container">
@@ -657,7 +657,7 @@ function HomeContent() {
                   </div>
                 </TabsContent>
                 <TabsContent value="settings" className="mt-0 tab-content-scrollable">
-                  <div className="space-y-4 tab-content-inner">
+                  <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <div className="flex items-center justify-between"> 
                       <span className="memory-section-title">Global Theme</span>
                       <ThemeToggle />
