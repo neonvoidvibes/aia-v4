@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { UploadCloud, FileText, Loader2, Download, XCircle, AudioLines } from 'lucide-react';
+import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
@@ -19,144 +19,202 @@ interface WhisperSegment {
   no_speech_prob: number;
 }
 
-interface PersistentTranscriberState {
+interface FinishedTranscriptItem {
+  id: string;
+  fileName: string;
+  transcriptText: string; // Raw full text
+  segments: WhisperSegment[];
+  timestamp: number; // For sorting
+}
+
+interface CurrentProcessingFileState {
   fileName: string | null;
   fileSize: number | null;
   fileType: string | null;
-  transcriptText: string | null; // Full raw text
-  segments: WhisperSegment[] | null; // For timestamped download
-  statusMessage: string | null;
-  errorMessage: string | null;
-  wasTranscribing?: boolean; // New: to indicate if a transcription was in progress
 }
 
-const LOCAL_STORAGE_KEY = 'fullFileTranscriberState';
+interface PersistentTranscriberState {
+  currentProcessingFile: CurrentProcessingFileState | null;
+  currentTranscriptText: string | null; 
+  currentSegments: WhisperSegment[] | null; 
+  currentStatusMessage: string | null;
+  currentErrorMessage: string | null;
+  wasTranscribing?: boolean; 
+}
 
-const formatTimestamp = (totalSeconds: number): string => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
+const CURRENT_STATE_LOCAL_STORAGE_KEY = 'fullFileTranscriberCurrentState';
+const FINISHED_TRANSCRIPTS_LOCAL_STORAGE_KEY = 'fullFileTranscriberFinishedList';
+
+
+const formatTimestampForDownload = (totalSeconds: number): string => {
+  const minutes = Math.floor(totalSeconds / 60);
   const seconds = Math.floor(totalSeconds % 60);
-  const milliseconds = Math.floor((totalSeconds * 1000) % 1000);
-
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
+
+const clusterSegmentsForDownload = (
+    segments: WhisperSegment[], 
+    maxClusterDuration: number = 20, 
+    maxSentencesPerCluster: number = 3 
+  ): string => {
+  if (!segments || segments.length === 0) return "";
+
+  const clusteredLines: string[] = [];
+  let currentCluster = {
+    startTime: segments[0].start,
+    endTime: segments[0].end,
+    texts: [segments[0].text.trim()],
+    sentenceCount: 1, 
+  };
+
+  for (let i = 1; i < segments.length; i++) {
+    const segment = segments[i];
+    const segmentText = segment.text.trim();
+    if (!segmentText) continue;
+
+    const potentialEndTime = segment.end;
+    const clusterDuration = potentialEndTime - currentCluster.startTime;
+
+    if (clusterDuration < maxClusterDuration && currentCluster.sentenceCount < maxSentencesPerCluster) {
+      currentCluster.texts.push(segmentText);
+      currentCluster.endTime = potentialEndTime;
+      currentCluster.sentenceCount++; 
+    } else {
+      const startTimeStr = formatTimestampForDownload(currentCluster.startTime);
+      const endTimeStr = formatTimestampForDownload(currentCluster.endTime);
+      clusteredLines.push(`[${startTimeStr} - ${endTimeStr}] ${currentCluster.texts.join(' ')}`);
+      
+      currentCluster = {
+        startTime: segment.start,
+        endTime: segment.end,
+        texts: [segmentText],
+        sentenceCount: 1,
+      };
+    }
+  }
+
+  if (currentCluster.texts.length > 0) {
+    const startTimeStr = formatTimestampForDownload(currentCluster.startTime);
+    const endTimeStr = formatTimestampForDownload(currentCluster.endTime);
+    clusteredLines.push(`[${startTimeStr} - ${endTimeStr}] ${currentCluster.texts.join(' ')}`);
+  }
+
+  return clusteredLines.join('\n'); 
+};
+
 
 const FullFileTranscriber: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  // Store raw transcript text and segments separately
-  const [rawTranscriptText, setRawTranscriptText] = useState<string | null>(null);
-  const [transcriptSegments, setTranscriptSegments] = useState<WhisperSegment[] | null>(null);
+  
+  const [currentRawTranscriptText, setCurrentRawTranscriptText] = useState<string | null>(null);
+  const [currentTranscriptSegments, setCurrentTranscriptSegments] = useState<WhisperSegment[] | null>(null);
+  const [currentPersistedFileInfo, setCurrentPersistedFileInfo] = useState<CurrentProcessingFileState | null>(null);
   
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
-  // For displaying persisted file info even if File object is not available
-  const [persistedFileInfo, setPersistedFileInfo] = useState<{name: string; size: number; type: string} | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null); 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);   
+
+  const [finishedTranscripts, setFinishedTranscripts] = useState<FinishedTranscriptItem[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load state from localStorage on mount
   useEffect(() => {
-    const savedStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (savedStateString) {
+    const savedCurrentStateString = localStorage.getItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
+    if (savedCurrentStateString) {
       try {
-        const savedState = JSON.parse(savedStateString) as PersistentTranscriberState;
-        
-        if (savedState.fileName && savedState.fileSize !== null && savedState.fileType) {
-            setPersistedFileInfo({ name: savedState.fileName, size: savedState.fileSize, type: savedState.fileType });
+        const savedCurrent = JSON.parse(savedCurrentStateString) as PersistentTranscriberState;
+        if (savedCurrent.currentProcessingFile) {
+          setCurrentPersistedFileInfo(savedCurrent.currentProcessingFile);
         }
 
-        if (savedState.transcriptText !== null && savedState.segments !== null) { // Allow empty string/array
-          setRawTranscriptText(savedState.transcriptText);
-          setTranscriptSegments(savedState.segments);
-          // Only restore "final" status messages from a completed/loaded state
-          if (savedState.statusMessage && (savedState.statusMessage.includes("complete") || savedState.statusMessage.includes("loaded"))) {
-             setStatusMessage(savedState.statusMessage);
-          } else {
-            // If we have results but no "final" status message, imply it was loaded.
-             setStatusMessage(savedState.fileName ? `Previously transcribed file '${savedState.fileName}' loaded.` : "Previous transcription loaded.");
+        if (savedCurrent.currentTranscriptText !== null && savedCurrent.currentSegments !== null) {
+          setCurrentRawTranscriptText(savedCurrent.currentTranscriptText);
+          setCurrentTranscriptSegments(savedCurrent.currentSegments);
+          if (savedCurrent.currentStatusMessage && (savedCurrent.currentStatusMessage.includes("complete") || savedCurrent.currentStatusMessage.includes("loaded"))) {
+            setStatusMessage(savedCurrent.currentStatusMessage);
+          } else if (savedCurrent.currentProcessingFile?.fileName){
+             setStatusMessage(`Previously transcribed file '${savedCurrent.currentProcessingFile.fileName}' loaded.`);
           }
-        } else if (savedState.wasTranscribing && savedState.fileName) {
-          // Transcription was in progress but didn't complete
-          setStatusMessage(`Processing for ${savedState.fileName} was interrupted. Please select the file again to restart transcription.`);
-          setErrorMessage(null); // Clear any old error message in this specific case
-        } else if (savedState.statusMessage && (savedState.statusMessage.includes("complete") || savedState.statusMessage.includes("loaded"))) {
-            // This case might happen if only status was saved but not results - less likely now
-            setStatusMessage(savedState.statusMessage);
-        } else {
-            setStatusMessage(null); // Clear transient messages if no results and not interrupted
+        } else if (savedCurrent.wasTranscribing && savedCurrent.currentProcessingFile?.fileName) {
+          setStatusMessage(`Processing for ${savedCurrent.currentProcessingFile.fileName} was interrupted. Please select the file again to restart transcription.`);
+        } else if (savedCurrent.currentStatusMessage) { 
+            setStatusMessage(savedCurrent.currentStatusMessage);
         }
-
-
-        if (savedState.errorMessage) {
-          setErrorMessage(savedState.errorMessage);
+        
+        if (savedCurrent.currentErrorMessage) {
+          setErrorMessage(savedCurrent.currentErrorMessage);
         }
       } catch (e) {
-        console.error("Failed to parse persisted transcriber state:", e);
-        localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted state
+        console.error("Failed to parse current transcriber state:", e);
+        localStorage.removeItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
+      }
+    }
+
+    const savedFinishedListString = localStorage.getItem(FINISHED_TRANSCRIPTS_LOCAL_STORAGE_KEY);
+    if (savedFinishedListString) {
+      try {
+        const savedList = JSON.parse(savedFinishedListString) as FinishedTranscriptItem[];
+        setFinishedTranscripts(savedList);
+      } catch (e) {
+        console.error("Failed to parse finished transcripts list:", e);
+        localStorage.removeItem(FINISHED_TRANSCRIPTS_LOCAL_STORAGE_KEY);
       }
     }
   }, []);
 
-  // Save state to localStorage when relevant pieces change
   useEffect(() => {
     const stateToSave: PersistentTranscriberState = {
-      fileName: selectedFile?.name || persistedFileInfo?.name || null,
-      fileSize: selectedFile?.size ?? persistedFileInfo?.size ?? null,
-      fileType: selectedFile?.type || persistedFileInfo?.type || null,
-      transcriptText: rawTranscriptText,
-      segments: transcriptSegments,
-      statusMessage: statusMessage, 
-      errorMessage: errorMessage,
-      wasTranscribing: isTranscribing, 
+      currentProcessingFile: selectedFile 
+        ? { fileName: selectedFile.name, fileSize: selectedFile.size, fileType: selectedFile.type } 
+        : currentPersistedFileInfo,
+      currentTranscriptText: currentRawTranscriptText,
+      currentSegments: currentTranscriptSegments,
+      currentStatusMessage: statusMessage,
+      currentErrorMessage: errorMessage,
+      wasTranscribing: isTranscribing,
     };
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [selectedFile, persistedFileInfo, rawTranscriptText, transcriptSegments, statusMessage, errorMessage, isTranscribing]);
+    localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
+  }, [selectedFile, currentPersistedFileInfo, currentRawTranscriptText, currentTranscriptSegments, statusMessage, errorMessage, isTranscribing]);
 
+  useEffect(() => {
+    if (finishedTranscripts.length > 0) {
+      localStorage.setItem(FINISHED_TRANSCRIPTS_LOCAL_STORAGE_KEY, JSON.stringify(finishedTranscripts));
+    } else {
+      localStorage.removeItem(FINISHED_TRANSCRIPTS_LOCAL_STORAGE_KEY);
+    }
+  }, [finishedTranscripts]);
 
-  const clearPersistedState = () => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-  }
   
-  const clearSelection = () => {
+  const clearCurrentProcessingStateUI = () => {
     setSelectedFile(null);
-    setRawTranscriptText(null);
-    setTranscriptSegments(null);
+    setCurrentRawTranscriptText(null);
+    setCurrentTranscriptSegments(null);
     setStatusMessage(null);
     setErrorMessage(null);
-    setPersistedFileInfo(null); 
-    clearPersistedState(); 
+    setCurrentPersistedFileInfo(null);
+    setIsTranscribing(false); 
     if(fileInputRef.current) fileInputRef.current.value = "";
+    localStorage.removeItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
   };
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('audio/')) {
         setErrorMessage('Invalid file type. Please select an audio file.');
-        setSelectedFile(null);
-        // If a previous valid file's info was displayed, keep it, but clear results.
-        if (persistedFileInfo) {
-            setRawTranscriptText(null); 
-            setTranscriptSegments(null);
-            // statusMessage might indicate previous success, let it stay or clear based on UX preference.
-            // For now, clearing it for the invalid attempt.
-            setStatusMessage(null); 
-        } else {
-            setPersistedFileInfo(null); // No previous valid file info to keep.
-            setStatusMessage(null);
-        }
+        setSelectedFile(null); 
+        if(fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
-      // New valid file selected, reset results from any *previous* file
-      setRawTranscriptText(null);
-      setTranscriptSegments(null);
+      setCurrentRawTranscriptText(null);
+      setCurrentTranscriptSegments(null);
       setStatusMessage(null);
       setErrorMessage(null);
+      setIsTranscribing(false);
 
       setSelectedFile(file);
-      setPersistedFileInfo({name: file.name, size: file.size, type: file.type}); 
+      setCurrentPersistedFileInfo({fileName: file.name, fileSize: file.size, fileType: file.type}); 
     }
   };
 
@@ -167,26 +225,19 @@ const FullFileTranscriber: React.FC = () => {
     if (file) {
        if (!file.type.startsWith('audio/')) {
         setErrorMessage('Invalid file type. Please drop an audio file.');
-        setSelectedFile(null);
-        if (persistedFileInfo) { // Similar logic to handleFileChange
-            setRawTranscriptText(null); 
-            setTranscriptSegments(null);
-            setStatusMessage(null);
-        } else {
-            setPersistedFileInfo(null);
-            setStatusMessage(null);
-        }
+        setSelectedFile(null); 
         return;
       }
-      setRawTranscriptText(null);
-      setTranscriptSegments(null);
+      setCurrentRawTranscriptText(null);
+      setCurrentTranscriptSegments(null);
       setStatusMessage(null);
       setErrorMessage(null);
+      setIsTranscribing(false);
 
       setSelectedFile(file);
-      setPersistedFileInfo({name: file.name, size: file.size, type: file.type}); 
+      setCurrentPersistedFileInfo({fileName: file.name, fileSize: file.size, fileType: file.type}); 
     }
-  }, [persistedFileInfo]); // Removed rawTranscriptText, transcriptSegments to avoid loop with useEffect
+  }, []); 
 
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -194,40 +245,39 @@ const FullFileTranscriber: React.FC = () => {
   }, []);
 
   const handleStartTranscription = async () => {
-    const currentFileToTranscribe = selectedFile;
-    const currentFileNameForDisplay = selectedFile?.name || persistedFileInfo?.name; // Use selectedFile name first
+    const fileToTranscribe = selectedFile; 
+    const fileInfoForProcessing = selectedFile 
+      ? { fileName: selectedFile.name, fileSize: selectedFile.size, fileType: selectedFile.type }
+      : currentPersistedFileInfo;
 
-    if (!currentFileToTranscribe) { 
-      if (persistedFileInfo) {
-        setErrorMessage(`Please re-select the audio file '${persistedFileInfo.name}' to transcribe.`);
+    if (!fileToTranscribe) { 
+      if (fileInfoForProcessing) {
+         setErrorMessage(`Please re-select the audio file '${fileInfoForProcessing.fileName}' to start transcription.`);
       } else {
-        setErrorMessage('Please select an audio file first.');
+         setErrorMessage('Please select an audio file first.');
       }
       return;
     }
 
-
     setIsTranscribing(true);
-    const processingMsg = `Processing: ${currentFileNameForDisplay}... This may take a few moments.`;
+    const processingMsg = `Processing: ${fileInfoForProcessing?.fileName || 'audio file'}... This may take a few moments.`;
     setStatusMessage(processingMsg);
     setErrorMessage(null);
-    setRawTranscriptText(null);
-    setTranscriptSegments(null);
+    setCurrentRawTranscriptText(null); 
+    setCurrentTranscriptSegments(null);
     
     const processingStateToSave: PersistentTranscriberState = {
-      fileName: currentFileNameForDisplay || null, // Ensure null if undefined
-      fileSize: currentFileToTranscribe.size,
-      fileType: currentFileToTranscribe.type,
-      transcriptText: null,
-      segments: null,
-      statusMessage: processingMsg, 
-      errorMessage: null,
+      currentProcessingFile: fileInfoForProcessing,
+      currentTranscriptText: null,
+      currentSegments: null,
+      currentStatusMessage: processingMsg, 
+      currentErrorMessage: null,
       wasTranscribing: true,
     };
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(processingStateToSave));
+    localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(processingStateToSave));
 
     const formData = new FormData();
-    formData.append('audio_file', currentFileToTranscribe);
+    formData.append('audio_file', fileToTranscribe);
 
     try {
       const response = await fetch('/api/transcribe-audio', {
@@ -238,27 +288,34 @@ const FullFileTranscriber: React.FC = () => {
       const data = await response.json();
       console.log("[FullFileTranscriber] Received data from /api/transcribe-audio:", JSON.stringify(data, null, 2));
 
-
       if (!response.ok) {
         throw new Error(data.error || data.message || data.details || `Transcription failed with status ${response.status}`);
       }
 
       if (typeof data.transcript === 'string' && Array.isArray(data.segments)) { 
-        setRawTranscriptText(data.transcript);
-        setTranscriptSegments(data.segments);
+        setCurrentRawTranscriptText(data.transcript);
+        setCurrentTranscriptSegments(data.segments);
         const completeMsg = 'Transcription complete!';
         setStatusMessage(completeMsg);
+
+        const newFinishedItem: FinishedTranscriptItem = {
+          id: Date.now().toString(), 
+          fileName: fileInfoForProcessing?.fileName || "Unknown File",
+          transcriptText: data.transcript,
+          segments: data.segments,
+          timestamp: Date.now()
+        };
+        setFinishedTranscripts(prev => [newFinishedItem, ...prev.slice(0, 9)]); 
+
         const successStateToSave: PersistentTranscriberState = {
-            fileName: currentFileNameForDisplay || null, // Ensure null if undefined
-            fileSize: currentFileToTranscribe.size,
-            fileType: currentFileToTranscribe.type,
-            transcriptText: data.transcript,
-            segments: data.segments,
-            statusMessage: completeMsg,
-            errorMessage: null,
+            currentProcessingFile: fileInfoForProcessing,
+            currentTranscriptText: data.transcript,
+            currentSegments: data.segments,
+            currentStatusMessage: completeMsg,
+            currentErrorMessage: null,
             wasTranscribing: false,
         };
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(successStateToSave));
+        localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(successStateToSave));
 
       } else {
         console.error("Incomplete data received from backend:", data);
@@ -271,56 +328,65 @@ const FullFileTranscriber: React.FC = () => {
       setErrorMessage(finalErrorMessage);
       setStatusMessage(null); 
       const errorStateToSave: PersistentTranscriberState = {
-        fileName: currentFileNameForDisplay || null, // Ensure null if undefined
-        fileSize: currentFileToTranscribe.size,
-        fileType: currentFileToTranscribe.type,
-        transcriptText: null,
-        segments: null,
-        statusMessage: null,
-        errorMessage: finalErrorMessage,
+        currentProcessingFile: fileInfoForProcessing,
+        currentTranscriptText: null,
+        currentSegments: null,
+        currentStatusMessage: null,
+        currentErrorMessage: finalErrorMessage,
         wasTranscribing: false,
       };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(errorStateToSave));
+      localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(errorStateToSave));
     } finally {
       setIsTranscribing(false);
-      const finalLsStateString = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const finalLsStateString = localStorage.getItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
       if (finalLsStateString) {
         try {
           const parsed = JSON.parse(finalLsStateString) as PersistentTranscriberState;
           if (parsed.wasTranscribing === true) { 
-             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({...parsed, wasTranscribing: false, statusMessage: statusMessage || parsed.statusMessage || null }));
+             localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify({...parsed, wasTranscribing: false}));
           }
         } catch (e) { console.error("Error finalising wasTranscribing state in LS", e); }
       }
     }
   };
 
-  const handleDownloadTranscript = () => {
-    const fileNameForDownload = selectedFile?.name || persistedFileInfo?.name;
-    if (!rawTranscriptText || !fileNameForDownload ) return;
-
-    let content = "";
-    if (transcriptSegments && transcriptSegments.length > 0) {
-      content = transcriptSegments.map(segment => 
-        `[${formatTimestamp(segment.start)} - ${formatTimestamp(segment.end)}] ${segment.text.trim()}`
-      ).join('\n\n'); 
-    } else {
-      content = rawTranscriptText;
-      console.warn("Downloading raw transcript text as segments were not available or empty.");
-    }
-    
+  const downloadSpecificTranscript = (item: FinishedTranscriptItem) => {
+    const content = clusterSegmentsForDownload(item.segments);
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    
-    const baseName = fileNameForDownload.substring(0, fileNameForDownload.lastIndexOf('.')) || fileNameForDownload;
+    const baseName = item.fileName.substring(0, item.fileName.lastIndexOf('.')) || item.fileName;
     link.download = `${baseName}_transcript.txt`;
-    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+  
+  const handleDownloadCurrentTranscript = () => {
+    const fileInfo = currentPersistedFileInfo; // Use the persisted info for naming
+    if (!currentRawTranscriptText || !currentTranscriptSegments || !fileInfo) return;
+    
+    const content = clusterSegmentsForDownload(currentTranscriptSegments);
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const baseName = fileInfo.fileName ? (fileInfo.fileName.substring(0, fileInfo.fileName.lastIndexOf('.')) || fileInfo.fileName) : "transcript";
+    link.download = `${baseName}_transcript.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const removeFinishedTranscript = (idToRemove: string) => {
+    setFinishedTranscripts(prev => prev.filter(item => item.id !== idToRemove));
+  };
+
+  const clearAllFinishedTranscripts = () => {
+    setFinishedTranscripts([]);
   };
 
   const formatFileSize = (bytes: number | null | undefined) => {
@@ -331,20 +397,19 @@ const FullFileTranscriber: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const displayFileInfo = selectedFile 
-    ? { name: selectedFile.name, size: selectedFile.size, type: selectedFile.type }
-    : persistedFileInfo;
+  const displayFileInfoForCurrent = currentPersistedFileInfo;
 
-  const canTranscribe = !!displayFileInfo && !isTranscribing; 
-  const canDownload = (rawTranscriptText !== null || (transcriptSegments && transcriptSegments.length > 0)) && !!displayFileInfo && !isTranscribing;
+  const canTranscribe = !!displayFileInfoForCurrent && !isTranscribing; 
+  const canDownloadCurrent = (currentRawTranscriptText !== null && currentTranscriptSegments !== null) && !!displayFileInfoForCurrent && !isTranscribing;
 
 
   return (
     <div className="space-y-6 p-1 sm:p-0">
+      {/* File Upload Section */}
       <div 
         className={cn(
           "flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors",
-          displayFileInfo ? "border-primary/50 bg-muted/20" : "border-border hover:bg-muted/20"
+          displayFileInfoForCurrent ? "border-primary/50 bg-muted/20" : "border-border hover:bg-muted/20"
         )}
         onClick={() => fileInputRef.current?.click()}
         onDrop={handleDrop}
@@ -367,23 +432,25 @@ const FullFileTranscriber: React.FC = () => {
         <p className="text-xs text-muted-foreground">MP3, WAV, M4A, WEBM, etc.</p>
       </div>
 
-      {displayFileInfo && (
+      {/* Current/Selected File Info */}
+      {displayFileInfoForCurrent && (
         <div className="p-3 border rounded-md bg-muted/30">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <FileText className="w-5 h-5 text-primary flex-shrink-0" />
               <div className="truncate">
-                <p className="text-sm font-medium text-foreground truncate" title={displayFileInfo.name}>{displayFileInfo.name}</p>
-                <p className="text-xs text-muted-foreground">{formatFileSize(displayFileInfo.size)}</p>
+                <p className="text-sm font-medium text-foreground truncate" title={displayFileInfoForCurrent.fileName || undefined}>{displayFileInfoForCurrent.fileName}</p>
+                <p className="text-xs text-muted-foreground">{formatFileSize(displayFileInfoForCurrent.fileSize)}</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={clearSelection} className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Clear selected file">
+            <Button variant="ghost" size="icon" onClick={clearCurrentProcessingStateUI} className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Clear selected file and current process">
               <XCircle className="h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
 
+      {/* Status/Error Messages for Current Operation */}
       {errorMessage && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
@@ -392,12 +459,16 @@ const FullFileTranscriber: React.FC = () => {
       )}
       
       {statusMessage && !errorMessage && (
-        <Alert variant={(rawTranscriptText !== null || (transcriptSegments && transcriptSegments.length > 0)) ? "default" : "default"} className={cn((rawTranscriptText !== null || (transcriptSegments && transcriptSegments.length > 0)) && statusMessage.includes("complete") ? "border-green-500 dark:border-green-600" : "border-blue-500 dark:border-blue-600")}>
-           <AlertTitle>{(rawTranscriptText !== null || (transcriptSegments && transcriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded")) ? "Success!" : "Status"}</AlertTitle>
+        <Alert 
+            variant={(currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded")) ? "default" : "default"} 
+            className={cn(((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? "border-green-500 dark:border-green-600" : statusMessage.startsWith("Processing") ? "border-blue-500 dark:border-blue-600" : "border-border")}
+        >
+           <AlertTitle>{((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? "Success!" : "Status"}</AlertTitle>
           <AlertDescription>{statusMessage}</AlertDescription>
         </Alert>
       )}
 
+      {/* Action Buttons for Current Operation */}
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <Button
           onClick={handleStartTranscription}
@@ -414,9 +485,9 @@ const FullFileTranscriber: React.FC = () => {
           )}
         </Button>
 
-        {canDownload && (
+        {canDownloadCurrent && (
           <Button
-            onClick={handleDownloadTranscript}
+            onClick={handleDownloadCurrentTranscript}
             variant="outline"
             className="w-full sm:flex-1"
           >
@@ -425,6 +496,41 @@ const FullFileTranscriber: React.FC = () => {
           </Button>
         )}
       </div>
+
+      {/* Finished Transcripts List */}
+      {finishedTranscripts.length > 0 && (
+        <div className="mt-8 pt-6 border-t">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-medium text-foreground">Completed Transcripts</h3>
+            <Button variant="outline" size="sm" onClick={clearAllFinishedTranscripts}>
+              <Trash2 className="mr-2 h-4 w-4" /> Clear List
+            </Button>
+          </div>
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-2"> 
+            {finishedTranscripts.map((item) => (
+              <div key={item.id} className="p-3 border rounded-md bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ListCollapse className="w-5 h-5 text-primary flex-shrink-0" /> 
+                    <div className="truncate">
+                      <p className="text-sm font-medium text-foreground truncate" title={item.fileName}>{item.fileName}</p>
+                      <p className="text-xs text-muted-foreground">Transcribed: {new Date(item.timestamp).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => downloadSpecificTranscript(item)} className="h-7 w-7 text-muted-foreground hover:text-primary" aria-label={`Download ${item.fileName}`}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => removeFinishedTranscript(item.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label={`Remove ${item.fileName} from list`}>
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
