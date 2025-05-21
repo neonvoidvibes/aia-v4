@@ -226,10 +226,10 @@
 
 /* Forest Deep Theme */
 .theme-forest-deep {
-  --background: 120 25% 10%; /* Very dark, desaturated green */
-  --foreground: 90 20% 68%; /* Pale moss green / off-white */
+  --background: 120 25% 35%; /* Very dark, desaturated green */
+  --foreground: 90 20% 88%; /* Pale moss green / off-white */
   --input-gray: 120 20% 18%; /* Slightly lighter dark green for inputs/bubbles */
-  --status-bar: 120 20% 28%;
+  --status-bar: 120 20% 15%;
   --placeholder-text: 120 20% 35%;
   --text-primary: 90 30% 92%;
   --text-secondary: 90 25% 80%;
