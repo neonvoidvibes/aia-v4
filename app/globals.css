@@ -18,7 +18,7 @@
 
   /* UI elements */
   --radius: 1.5rem;
-  --message-radius: 2rem;
+  --message-radius: 1.8rem;
   --input-gray: 0 0% 32%; /* Changed to a darker gray for dark mode input/bubbles */
   --status-bar: 0 0% 40%;
   --placeholder-text: 0 0% 55%;
@@ -477,7 +477,7 @@
 
   /* UI elements */
   --radius: 1.5rem;
-  --message-radius: 2rem;
+  --message-radius: 1.8rem;
   --input-gray: 204 100% 34%; /* User message bubbles: very light, airy blue */
   --status-bar: 204 30% 45%; /* Clearer blue-gray for status bar text */
   --placeholder-text: 204 80% 64%; /* Noticeable placeholder text */
@@ -536,7 +536,7 @@
 
   /* UI elements */
   --radius: 1.5rem;
-  --message-radius: 2rem;
+  --message-radius: 1.8rem;
   --input-gray: 0 0% 32%;
   --status-bar: 0 0% 40%;
   --placeholder-text: 0 0% 55%;
