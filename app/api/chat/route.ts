@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
   // Enable streaming with proper configuration
   const result = streamText({
-    model: anthropic("claude-4-sonnet"),
+    model: anthropic("claude-sonnet-4-20250514"),
     messages,
     providerOptions: {
       anthropic: {
