@@ -731,12 +731,11 @@ body {
   border-radius: var(--message-radius);
   max-width: 80%;
   padding: 12px 16px;
-  white-space: pre-wrap; /* Ensure newlines are respected */
+  /* white-space: pre-wrap; /* Ensure newlines are respected */
   overflow-wrap: break-word; /* Ensure long words wrap */
   animation: fadeIn 0.3s ease-out;
   margin-bottom: 8px; /* Add some base margin */
   overflow-wrap: break-word; /* Ensure long words wrap */
-  white-space: pre-wrap; /* Ensure newlines are respected */
   /* Base text style - should inherit body unless overridden */
   font-style: normal;
   font-size: inherit;
