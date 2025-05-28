@@ -89,6 +89,7 @@ function HomeContent() {
 
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
   const [pageEventId, setPageEventId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null); // Added state for user name
   const [allowedAgents, setAllowedAgents] = useState<string[]>([]);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -154,6 +155,11 @@ function HomeContent() {
               const data = await response.json();
               const fetchedAllowedAgents: string[] = data.allowedAgentNames || [];
               setAllowedAgents(fetchedAllowedAgents);
+              
+              // Set user name
+              const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
+              setUserName(name);
+              console.log(`User name set to: ${name}`);
 
               if (fetchedAllowedAgents.includes(agentParam)) {
                   console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
@@ -516,7 +522,7 @@ function HomeContent() {
         )}
         {currentView === "transcribe" && (
           <div className="p-3 sm:p-4 h-full overflow-y-auto"> 
-            <FullFileTranscriber />
+            <FullFileTranscriber agentName={pageAgentName} userName={userName} />
           </div>
         )}
         {currentView === "canvas" && isCanvasViewEnabled && (

@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const audioFile = formData.get('audio_file') as File | null;
+    const agentName = formData.get('agent_name') as string | null; // Extract agent_name
 
     if (!audioFile) {
       return formatErrorResponse("No audio file provided in the request.", 400);
@@ -38,6 +39,12 @@ export async function POST(req: NextRequest) {
     const backendFormData = new FormData();
     // Ensure the file name is passed correctly for Flask's secure_filename
     backendFormData.append('audio_file', audioFile, audioFile.name);
+    if (agentName) { // Add agent_name to the backend form data
+      backendFormData.append('agent_name', agentName);
+      console.log(`[API /api/transcribe-audio] Forwarding agent_name: ${agentName} to Python backend.`);
+    } else {
+      console.warn("[API /api/transcribe-audio] agent_name not received from client, not forwarding to Python backend.");
+    }
 
     const { data: { session } } = await supabase.auth.getSession();
     const backendHeaders: HeadersInit = {};

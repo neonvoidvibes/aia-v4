@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress"; // Added Progress import
 import { cn } from '@/lib/utils';
 
 interface WhisperSegment {
@@ -31,6 +32,11 @@ interface CurrentProcessingFileState {
   fileName: string | null;
   fileSize: number | null;
   fileType: string | null;
+}
+
+interface FullFileTranscriberProps {
+  agentName: string | null;
+  userName: string | null; // Added userName prop
 }
 
 interface PersistentTranscriberState {
@@ -103,7 +109,7 @@ const clusterSegmentsForDownload = (
 };
 
 
-const FullFileTranscriber: React.FC = () => {
+const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, userName }) => { // Added userName to props
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   const [currentRawTranscriptText, setCurrentRawTranscriptText] = useState<string | null>(null);
@@ -116,7 +122,31 @@ const FullFileTranscriber: React.FC = () => {
 
   const [finishedTranscripts, setFinishedTranscripts] = useState<FinishedTranscriptItem[]>([]);
 
+  // State for estimated progress bar
+  const [estimatedProgress, setEstimatedProgress] = useState<number>(0);
+  const [adjustedTotalDurationSeconds, setAdjustedTotalDurationSeconds] = useState<number | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const transcriptionStartTimeRef = useRef<number | null>(null);
+
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Data from CSV for bitrate estimation (kbps)
+  // These bitrates are relative guides; the main speed adjustment comes from TRANSCRIPTION_SPEED_ADJUSTMENT_FACTOR.
+  const bitrateData: { [key: string]: number } = {
+    mp3: 128,    // Reverted closer to original CSV
+    m4a: 192,    // M4A likely processes faster than its nominal bitrate, but less extreme than 768 before global adj.
+    wav: 1411,   // WAV is large, so its bitrate matters for relative estimation
+    mp4: 256,    // Assuming audio part of MP4 might be like a higher quality M4A or MP3
+    webm: 256,   // Similar to MP4
+    mpeg: 128,
+    mpga: 128,
+  };
+  const DEFAULT_BITRATE_KBPS = 192; // A general fallback
+
+  // Global factor to make estimated progress faster.
+  // Adjusted from 12 to 5 for a much slower initial ramp-up.
+  const TRANSCRIPTION_SPEED_ADJUSTMENT_FACTOR = 5;
 
   useEffect(() => {
     const savedCurrentStateString = localStorage.getItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
@@ -184,6 +214,86 @@ const FullFileTranscriber: React.FC = () => {
     }
   }, [finishedTranscripts]);
 
+  // Effect to manage progress bar updates
+  useEffect(() => {
+    if (isTranscribing && adjustedTotalDurationSeconds && adjustedTotalDurationSeconds > 0) {
+      transcriptionStartTimeRef.current = Date.now();
+      setEstimatedProgress(0); // Reset progress
+
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+
+      progressIntervalRef.current = setInterval(() => {
+        if (!transcriptionStartTimeRef.current || !adjustedTotalDurationSeconds) return;
+
+        const elapsedTimeMs = Date.now() - transcriptionStartTimeRef.current;
+        const elapsedTimeSec = elapsedTimeMs / 1000;
+        
+        let currentRawProgress = (elapsedTimeSec / adjustedTotalDurationSeconds) * 100;
+
+        setEstimatedProgress(prevProgress => {
+          const visualProgressCap = 99;
+          const startSlowdownAt = 80; // Percentage where slowdown begins
+          let newProgress = prevProgress;
+
+          if (currentRawProgress >= 100) {
+            // If estimated time is up, jump to near cap, actual completion will set to 100
+            newProgress = visualProgressCap;
+          } else if (prevProgress < startSlowdownAt) {
+            // Before slowdown phase, try to match currentRawProgress, but don't exceed startSlowdownAt yet
+            // And ensure it only increases or stays the same.
+            // Cap this phase at startSlowdownAt to transition to the next logic block smoothly.
+            newProgress = Math.max(prevProgress, Math.min(currentRawProgress, startSlowdownAt));
+          } else { // We are in the slowdown phase (prevProgress >= startSlowdownAt and < visualProgressCap)
+            const distanceToCap = visualProgressCap - prevProgress;
+            if (distanceToCap > 0) {
+              // Increment by a small fraction of the remaining distance.
+              // This factor determines how quickly it approaches the cap.
+              // e.g., 0.1 means it covers 10% of the remaining distance each step.
+              const slowdownIncrementFactor = 0.08; // Smaller factor = slower approach
+              const increment = distanceToCap * slowdownIncrementFactor;
+              
+              // New progress should not jump significantly if currentRawProgress is still far behind.
+              // However, the primary driver in this phase is the diminishing increment.
+              // We can still loosely ensure it doesn't visually run *too* far ahead of scaled time.
+              const timeBasedCapInSlowdown = Math.min(currentRawProgress, visualProgressCap);
+              
+              newProgress = Math.min(prevProgress + increment, timeBasedCapInSlowdown);
+              newProgress = Math.max(prevProgress, newProgress); // Ensure it doesn't go backwards
+            } else {
+              newProgress = prevProgress; // At or beyond visual cap
+            }
+          }
+          
+          // Clamp final value between 0 and the visual cap
+          return Math.min(Math.max(0, newProgress), visualProgressCap);
+        });
+
+      }, 250); // Update progress bar every 250ms
+
+    } else {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      if (!isTranscribing && currentRawTranscriptText !== null) { // If transcription finished successfully
+        setEstimatedProgress(100);
+      } else if (!isTranscribing && errorMessage) {
+         // Keep progress where it was or reset to 0 if desired on error
+         // For now, let's reset on error or if it was interrupted without success
+         if (estimatedProgress !== 100) setEstimatedProgress(0);
+      }
+      transcriptionStartTimeRef.current = null;
+    }
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, [isTranscribing, adjustedTotalDurationSeconds, currentRawTranscriptText, errorMessage]);
+
   
   const clearCurrentProcessingStateUI = () => {
     setSelectedFile(null);
@@ -193,6 +303,11 @@ const FullFileTranscriber: React.FC = () => {
     setErrorMessage(null);
     setCurrentPersistedFileInfo(null);
     setIsTranscribing(false); 
+    setEstimatedProgress(0); // Reset progress
+    setAdjustedTotalDurationSeconds(null); // Reset duration
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    progressIntervalRef.current = null;
+    transcriptionStartTimeRef.current = null;
     if(fileInputRef.current) fileInputRef.current.value = "";
     localStorage.removeItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
   };
@@ -265,6 +380,27 @@ const FullFileTranscriber: React.FC = () => {
     setErrorMessage(null);
     setCurrentRawTranscriptText(null); 
     setCurrentTranscriptSegments(null);
+    setEstimatedProgress(0); // Reset progress for new transcription
+
+    // Calculate estimated duration
+    const fileSizeInBytes = (fileInfoForProcessing?.fileSize || 0);
+    const fileExtension = (fileInfoForProcessing?.fileName?.split('.').pop() || "").toLowerCase();
+    const typicalBitrateKbps = bitrateData[fileExtension] || DEFAULT_BITRATE_KBPS;
+    const typicalBitrateBps = typicalBitrateKbps * 1000;
+
+    if (typicalBitrateBps > 0 && fileSizeInBytes > 0) {
+        let estimatedProcessingSeconds = (fileSizeInBytes * 8) / typicalBitrateBps;
+        
+        // Apply the global speed adjustment factor
+        estimatedProcessingSeconds = estimatedProcessingSeconds / TRANSCRIPTION_SPEED_ADJUSTMENT_FACTOR;
+
+        const adjustedDurationForProgressBar = estimatedProcessingSeconds * 1.20; // Add 20% UX buffer to the *adjusted* estimate
+        setAdjustedTotalDurationSeconds(adjustedDurationForProgressBar);
+        console.info(`Base estimated Whisper processing time (before adj factor): ${((fileSizeInBytes * 8) / typicalBitrateBps).toFixed(2)}s. Adjusted processing time (after ${TRANSCRIPTION_SPEED_ADJUSTMENT_FACTOR}x factor): ${estimatedProcessingSeconds.toFixed(2)}s. Final for progress bar (with UX buffer): ${adjustedDurationForProgressBar.toFixed(2)}s`);
+    } else {
+        setAdjustedTotalDurationSeconds(null); // Cannot estimate, hide progress bar
+        console.warn(`Could not estimate duration for progress bar (fileSizeInBytes: ${fileSizeInBytes}, typicalBitrateBps: ${typicalBitrateBps}).`);
+    }
     
     const processingStateToSave: PersistentTranscriberState = {
       currentProcessingFile: fileInfoForProcessing,
@@ -278,6 +414,11 @@ const FullFileTranscriber: React.FC = () => {
 
     const formData = new FormData();
     formData.append('audio_file', fileToTranscribe);
+    if (agentName) { // Add agentName to FormData
+      formData.append('agent_name', agentName);
+    } else {
+      console.warn("FullFileTranscriber: agentName is null, not sending to backend. Header might be incomplete.");
+    }
 
     try {
       const response = await fetch('/api/transcribe-audio', {
@@ -351,8 +492,19 @@ const FullFileTranscriber: React.FC = () => {
   };
 
   const downloadSpecificTranscript = (item: FinishedTranscriptItem) => {
-    const content = clusterSegmentsForDownload(item.segments);
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const clusteredContent = clusterSegmentsForDownload(item.segments);
+    const downloadTimestampUtc = new Date(item.timestamp).toISOString().split('.')[0].replace('T', ' '); // Format to YYYY-MM-DD HH:mm:ss
+    
+    const header =
+`# Transcript - Uploaded
+Agent: ${agentName || 'UnknownAgent'}
+User: ${userName || 'UnknownUser'}
+Transcript Uploaded (UTC): ${downloadTimestampUtc}
+
+`; // Two newlines after header
+
+    const contentWithHeader = header + clusteredContent;
+    const blob = new Blob([contentWithHeader], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -368,8 +520,19 @@ const FullFileTranscriber: React.FC = () => {
     const fileInfo = currentPersistedFileInfo; // Use the persisted info for naming
     if (!currentRawTranscriptText || !currentTranscriptSegments || !fileInfo) return;
     
-    const content = clusterSegmentsForDownload(currentTranscriptSegments);
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const clusteredContent = clusterSegmentsForDownload(currentTranscriptSegments);
+    const uploadTimestampUtc = new Date().toISOString().split('.')[0].replace('T', ' '); // Current time for new downloads, YYYY-MM-DD HH:mm:ss
+
+    const header =
+`# Transcript - Uploaded
+Agent: ${agentName || 'UnknownAgent'}
+User: ${userName || 'UnknownUser'}
+Transcript Uploaded (UTC): ${uploadTimestampUtc}
+
+`; // Two newlines after header
+
+    const contentWithHeader = header + clusteredContent;
+    const blob = new Blob([contentWithHeader], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -459,12 +622,38 @@ const FullFileTranscriber: React.FC = () => {
       
       {statusMessage && !errorMessage && (
         <Alert 
-            variant={(currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded")) ? "default" : "default"} 
-            className={cn(((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? "border-green-500 dark:border-green-600" : statusMessage.startsWith("Processing") ? "border-blue-500 dark:border-blue-600" : "border-border")}
+            variant={((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? "default" : "default"}
+            className={cn(
+              ((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded")))
+                ? "border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/30"
+                : statusMessage.startsWith("Processing")
+                  ? "border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                  : "border-border"
+            )}
         >
-           <AlertTitle>{((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? "Success!" : "Status"}</AlertTitle>
-          <AlertDescription>{statusMessage}</AlertDescription>
+           <AlertTitle className={cn(
+             ((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) && "text-green-800 dark:text-green-300",
+             statusMessage.startsWith("Processing") && "text-blue-800 dark:text-blue-300"
+           )}>
+             {((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? "Success!" : "Status"}
+           </AlertTitle>
+          <AlertDescription className={cn(
+             ((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) && "text-green-700 dark:text-green-400",
+             statusMessage.startsWith("Processing") && "text-blue-700 dark:text-blue-400"
+          )}>
+            {statusMessage}
+          </AlertDescription>
         </Alert>
+      )}
+
+      {/* Progress Bar */}
+      {isTranscribing && adjustedTotalDurationSeconds && adjustedTotalDurationSeconds > 0 && (
+        <div className="mt-3 mb-1">
+          <Progress value={estimatedProgress} className="w-full h-2" />
+          <p className="text-xs text-muted-foreground text-center mt-1">
+            Estimated progress: {Math.floor(estimatedProgress)}%
+          </p>
+        </div>
       )}
 
       {/* Action Buttons for Current Operation */}
