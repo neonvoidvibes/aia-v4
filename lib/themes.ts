@@ -65,7 +65,7 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: false,
     welcomeMessage: {
       text: "Hej!",
-      fontSize: "3rem",
+      fontSize: "5rem",
       fontWeight: "600",
       // fontSize and fontWeight will fallback to G_DEFAULT_WELCOME_MESSAGE
       // values if not specified here, thanks to the logic in simple-chat-interface.tsx
