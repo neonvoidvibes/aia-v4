@@ -63,10 +63,10 @@
   --icon-inactive: 0 0% 50%; /* Inactive/disabled icon color for dark mode */
   --icon-destructive: 0 84.2% 60.2%; /* Destructive icon color */
 
-  /* NEW: Text color variables for chat interface elements - Folkhemmet Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  /* NEW: Text color variables for chat interface elements - Default Theme */
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* --- Light Theme Overrides --- */
@@ -119,9 +119,9 @@
   /* --icon-destructive uses the default destructive color */
 
   /* NEW: Text color variables for chat interface elements - Light Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* --- Custom Themes --- */
@@ -170,9 +170,9 @@
   --button-inactive: 30 70% 70%;
 
   /* NEW: Text color variables for chat interface elements - Neon Sunset Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* Oceanic Calm Theme */
@@ -219,9 +219,9 @@
   --button-inactive: 210 30% 65%;
 
   /* NEW: Text color variables for chat interface elements - Oceanic Calm Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* Forest Deep Theme */
@@ -268,9 +268,9 @@
   --button-inactive: 90 20% 60%;
 
   /* NEW: Text color variables for chat interface elements - Forest Deep Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* Midnight Monochrome Theme */
@@ -317,9 +317,9 @@
   --button-inactive: 240 5% 65%;
 
   /* NEW: Text color variables for chat interface elements - Midnight Monochrome Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* Solar Flare Theme */
@@ -366,9 +366,9 @@
   --button-inactive: 30 30% 55%;
 
   /* NEW: Text color variables for chat interface elements - Solar Flare Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* Aurora Borealis Theme */
@@ -415,9 +415,9 @@
   --button-inactive: 180 30% 65%;
 
   /* NEW: Text color variables for chat interface elements - Aurora Borealis Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* Desert Mirage Theme */
@@ -464,9 +464,9 @@
   --button-inactive: 30 25% 55%;
 
   /* NEW: Text color variables for chat interface elements - Desert Mirage Theme */
-  --input-field-text-color: hsl(var(--foreground));
-  --user-message-text-color: hsl(var(--foreground));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* Folkhemmet Theme */
@@ -524,9 +524,9 @@
   /* --icon-destructive uses the default destructive color from above */
 
   /* NEW: Text color variables for chat interface elements - Folkhemmet Theme */
-  --input-field-text-color: hsl(var(--user-input-text));
-  --user-message-text-color: hsl(var(--user-input-text));
-  --assistant-message-text-color: hsl(var(--foreground));
+  --input-field-text-color: var(--user-input-text);
+  --user-message-text-color: var(--user-input-text);
+  --assistant-message-text-color: var(--foreground);
 }
 
 .theme-cfl {
@@ -581,10 +581,10 @@
   --icon-inactive: 0 0% 50%;
   --icon-destructive: 0 84.2% 60.2%;
 
-  /* NEW: Text color variables for chat interface elements - Folkhemmet Theme */
-  --input-field-text-color: hsl(var(--text-secondary));
-  --user-message-text-color: hsl(var(--text-secondary));
-  --assistant-message-text-color: hsl(var(--foreground));
+  /* NEW: Text color variables for chat interface elements - CFL Theme */
+  --input-field-text-color: var(--text-secondary);
+  --user-message-text-color: var(--text-secondary);
+  --assistant-message-text-color: var(--foreground);
 }
 
 /* Styles for Canvas-originated user messages */
@@ -708,7 +708,7 @@ body {
 
 /* Input field inherits text color */
 .input-container input {
-  color: var(--input-field-text-color); /* UPDATED to use new variable directly */
+  color: hsl(var(--input-field-text-color)); /* Use hsl() wrapper for consistency */
   background-color: transparent; /* Ensure transparent background */
   border: none;
   outline: none;
@@ -716,6 +716,8 @@ body {
   padding: 0 8px; /* Adjust padding as needed */
   font-size: inherit; /* Ensure input inherits body font size */
 }
+
+
 
 /* REMOVED Folkhemmet specific !important rule for input text color */
 /* .theme-folkhemmet .input-container input {
@@ -752,7 +754,7 @@ body {
   display: inline-block; /* Makes the bubble wrap its content snugly */
   text-align: left; /* Ensure text inside aligns left */
   width: max-content; /* Further ensures bubble shrinks to content, constrained by max-width */
-  color: var(--user-message-text-color); /* UPDATED to use new variable as full HSL string */
+  color: hsl(var(--user-message-text-color)); /* UPDATED to use hsl() wrapper for consistency */
 }
 
 .user-bubble.with-attachment {
