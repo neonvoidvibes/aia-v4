@@ -426,10 +426,9 @@ const FullFileTranscriber: React.FC = () => {
           aria-label="Audio file uploader"
         />
         <UploadCloud className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mb-2 sm:mb-3" />
-        <p id="audio-upload-label" className="text-sm text-muted-foreground">
-          <span className="font-semibold text-primary">Click to upload</span> or drag and drop
+        <p id="audio-upload-label" className="text-sm text-center text-muted-foreground"> {/* Added text-center */}
+          <span className="font-semibold text-primary">Click to upload</span> or drag and drop <br className="sm:hidden"/>MP3, MP4, WAV, M4A, WEBM, etc. {/* Combined lines and added MP4 */}
         </p>
-        <p className="text-xs text-muted-foreground">MP3, WAV, M4A, WEBM, etc.</p>
       </div>
 
       {/* Current/Selected File Info */}
