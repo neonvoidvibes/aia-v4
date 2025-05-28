@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from "react"
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo } from "react"
 import { useChat, type Message } from "@ai-sdk/react"
 import {
   Plus,
@@ -25,6 +24,7 @@ import { useMobile } from "@/hooks/use-mobile"
 import { useTheme } from "next-themes"
 import { motion } from "framer-motion"
 import { useSearchParams } from 'next/navigation';
+import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE, type WelcomeMessageConfig } from "@/lib/themes";
 import { createClient } from '@/utils/supabase/client' 
 import { cn } from "@/lib/utils"
 
@@ -213,6 +213,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const { theme } = useTheme();
     const [pendingAction, setPendingAction] = useState<string | null>(null);
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
+
+    const currentWelcomeMessageConfig = useMemo(() => {
+      const activeThemeObject = predefinedThemes.find(t => t.className === theme);
+      if (activeThemeObject?.welcomeMessage) {
+        return {
+          text: activeThemeObject.welcomeMessage.text || G_DEFAULT_WELCOME_MESSAGE.text,
+          fontSize: activeThemeObject.welcomeMessage.fontSize || G_DEFAULT_WELCOME_MESSAGE.fontSize,
+          fontWeight: activeThemeObject.welcomeMessage.fontWeight || G_DEFAULT_WELCOME_MESSAGE.fontWeight,
+        };
+      }
+      return G_DEFAULT_WELCOME_MESSAGE;
+    }, [theme]);
 
     const hideRecordUI = useCallback(() => {
          if (pendingActionRef.current) return; 
@@ -958,7 +970,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
                 {messages.length === 0 && !isPageReady && !uiError && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
-                {messages.length === 0 && isPageReady && !uiError &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-80">What is alive today?</p> </div> )}
+                {messages.length === 0 && isPageReady && !uiError &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight }}>{currentWelcomeMessageConfig.text}</p> </div> )}
                 {messages.length > 0 && ( <div> {messages.map((message: Message) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && handleMessageInteraction(message.id)} > {isUser && hasAttachments && (                   <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} <span dangerouslySetInnerHTML={{ __html: displayContent.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </motion.div> ); })} </div> )}
                 {isLoading && messages[messages.length - 1]?.role === 'user' && ( <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1"> <span className="thinking-dot"></span> </motion.div> )}
                 <div ref={messagesEndRef} />
