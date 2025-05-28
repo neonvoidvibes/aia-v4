@@ -27,6 +27,9 @@ export async function POST(req: NextRequest) {
         return formatErrorResponse("Invalid action parameter. Must be 'save' or 'archive'.", 400);
     }
 
+    // Log the S3 key being processed
+    console.log(`[S3 Proxy ManageFile] Managing file with S3 Key: ${s3Key}`);
+
     const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
     if (!activeBackendUrl) {
       return formatErrorResponse("Could not connect to backend for S3 file management.", 503);

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { FileText, Eye, DownloadCloud, BrainCircuit } from "lucide-react" // Added BrainCircuit for Pinecone
+import { FileText, Eye, DownloadCloud, BrainCircuit, Archive, Save } from "lucide-react" // Added Archive, Save
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -18,16 +18,24 @@ type FetchedFileListItemProps = {
   file: FetchedFile
   onView?: (fileInfo: { s3Key: string; name: string; type: string }) => void
   onDownload?: (fileInfo: { s3Key: string; name: string }) => void
+  onArchive?: (fileInfo: { s3Key: string; name: string }) => void // New prop
+  onSaveAsMemory?: (fileInfo: { s3Key: string; name: string }) => void // New prop
   showViewIcon?: boolean
   showDownloadIcon?: boolean
+  showArchiveIcon?: boolean // New prop
+  showSaveAsMemoryIcon?: boolean // New prop
 }
 
 export default function FetchedFileListItem({
   file,
   onView,
   onDownload,
+  onArchive,
+  onSaveAsMemory,
   showViewIcon = false,
   showDownloadIcon = false,
+  showArchiveIcon = false, // Default to false
+  showSaveAsMemoryIcon = false, // Default to false
 }: FetchedFileListItemProps) {
   const formatFileSize = (bytes?: number) => {
     if (bytes === undefined || bytes === null) return ""
@@ -54,6 +62,20 @@ export default function FetchedFileListItem({
     e.stopPropagation()
     if (onDownload && file.s3Key) {
       onDownload({ s3Key: file.s3Key, name: file.name })
+    }
+  }
+
+  const handleArchiveClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onArchive && file.s3Key) {
+      onArchive({ s3Key: file.s3Key, name: file.name })
+    }
+  }
+
+  const handleSaveAsMemoryClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onSaveAsMemory && file.s3Key) {
+      onSaveAsMemory({ s3Key: file.s3Key, name: file.name })
     }
   }
 
@@ -97,6 +119,29 @@ export default function FetchedFileListItem({
             title={`Download ${file.name}`}
           >
             <DownloadCloud className="h-4 w-4" />
+          </Button>
+        )}
+        {showArchiveIcon && onArchive && file.s3Key && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleArchiveClick}
+            className="h-8 w-8"
+            title={`Archive ${file.name}`}
+          >
+            <Archive className="h-4 w-4" />
+          </Button>
+        )}
+        {showSaveAsMemoryIcon && onSaveAsMemory && file.s3Key && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSaveAsMemoryClick}
+            className="h-8 w-8"
+            title={`Save ${file.name} as Memory (Summarize)`}
+            disabled // Disabled for now
+          >
+            <Save className="h-4 w-4" />
           </Button>
         )}
       </div>

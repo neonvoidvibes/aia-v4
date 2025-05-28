@@ -77,6 +77,10 @@ function HomeContent() {
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
   const [showS3FileViewer, setShowS3FileViewer] = useState(false);
 
+  // State for archive confirmation modal
+  const [showArchiveConfirmModal, setShowArchiveConfirmModal] = useState(false);
+  const [fileToArchive, setFileToArchive] = useState<{ s3Key: string; name: string } | null>(null);
+
   // Flags to track if data has been fetched for the current agent/event
   const [fetchedDataFlags, setFetchedDataFlags] = useState({
     transcriptions: false,
@@ -443,6 +447,69 @@ function HomeContent() {
     window.open(downloadProxyUrl, '_blank');
   };
 
+  const handleArchiveS3File = (file: { s3Key: string; name: string }) => {
+    setFileToArchive(file);
+    setShowArchiveConfirmModal(true);
+  };
+
+  const confirmArchiveFile = async () => {
+    if (!fileToArchive || !pageAgentName || !pageEventId) return;
+
+    const { s3Key, name } = fileToArchive;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error("Archive Error: No active session.");
+      // Optionally show an error toast to the user
+      setShowArchiveConfirmModal(false);
+      setFileToArchive(null);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/s3-proxy/manage-file', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          s3Key,
+          action: 'archive',
+          agentName: pageAgentName,
+          eventId: pageEventId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to archive file: ${response.statusText}`);
+      }
+
+      // On success, remove the file from the local state to update UI
+      setTranscriptionS3Files((prevFiles) => prevFiles.filter((f) => f.s3Key !== s3Key));
+      console.log(`File ${name} archived successfully.`);
+      // Optionally show a success toast
+
+    } catch (error) {
+      console.error("Error archiving file:", error);
+      // Optionally show an error toast
+    } finally {
+      setShowArchiveConfirmModal(false);
+      setFileToArchive(null);
+    }
+  };
+
+  const cancelArchiveFile = () => {
+    setShowArchiveConfirmModal(false);
+    setFileToArchive(null);
+  };
+
+  // Placeholder for Save as Memory
+  const handleSaveAsMemoryS3File = (file: { s3Key: string; name: string }) => {
+    console.log("Save as Memory clicked for:", file.name);
+    // Implementation will go here in a future step
+  };
+
   const handlePinInsight = (insight: CanvasInsightItem) => {
     setPinnedCanvasInsights((prev) => {
       if (!prev.find(p => p.highlight === insight.highlight && p.explanation === insight.explanation)) { 
@@ -596,7 +663,18 @@ function HomeContent() {
                       <div className="pb-3 space-y-2 w-full overflow-hidden">
                         {transcriptionS3Files.length > 0 ? (
                           transcriptionS3Files.map(file => (
-                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} onDownload={() => handleDownloadS3File({ s3Key: file.s3Key!, name: file.name })} showViewIcon={true} showDownloadIcon={true} />
+                            <FetchedFileListItem
+                              key={file.s3Key || file.name}
+                              file={file}
+                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
+                              onDownload={() => handleDownloadS3File({ s3Key: file.s3Key!, name: file.name })}
+                              onArchive={() => handleArchiveS3File({ s3Key: file.s3Key!, name: file.name })}
+                              onSaveAsMemory={() => handleSaveAsMemoryS3File({ s3Key: file.s3Key!, name: file.name })}
+                              showViewIcon={true}
+                              showDownloadIcon={true}
+                              showArchiveIcon={true}
+                              showSaveAsMemoryIcon={true}
+                            />
                           ))
                         ) : (<p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>)}
                       </div>
@@ -747,6 +825,16 @@ function HomeContent() {
         title="Start New Chat"
         message="Are you sure you want to start a new chat? This will clear the current conversation and stop any active recording."
         confirmText="Start New"
+        cancelText="Cancel"
+      />
+
+      <ConfirmationModal
+        isOpen={showArchiveConfirmModal}
+        onClose={cancelArchiveFile}
+        onConfirm={confirmArchiveFile}
+        title="Archive Transcript"
+        message={`Are you sure you want to archive "${fileToArchive?.name}"? This will move the file to an archive location and it will no longer be actively used for real-time context unless restored.`}
+        confirmText="Archive"
         cancelText="Cancel"
       />
 
