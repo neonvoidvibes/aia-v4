@@ -483,7 +483,7 @@
   --placeholder-text: 204 80% 64%; /* Noticeable placeholder text */
 
   /* Text colors */
-  --text-primary: hsl(var(--foreground));
+  --text-primary: var(--foreground);
   --text-secondary: 51 95% 51%;
   --text-muted: 204 20% 50%; /* Lighter, distinct blue-gray for muted text */
   --user-input-text: 51 95% 51%; /* IKEA Yellow */
@@ -724,8 +724,25 @@ body {
   color: hsl(var(--user-input-text)) !important;
 } */
 
-.theme-folkhemmet .input-container input::placeholder {
-  color: hsl(var(--placeholder-text-color)); /* Keep placeholder as defined by theme */
+/* Force input text color for Folkhemmet theme with highest specificity */
+.theme-folkhemmet .input-container input,
+.theme-folkhemmet .input-container input[type="text"],
+.theme-folkhemmet input[data-testid="chat-input-field"] {
+  color: hsl(51 95% 51%) !important; /* Force IKEA Yellow */
+  -webkit-text-fill-color: hsl(51 95% 51%) !important; /* Override webkit autofill */
+}
+
+/* Ensure Folkhemmet placeholder text uses correct color despite high-specificity input text rules */
+.theme-folkhemmet .input-container input::placeholder,
+.theme-folkhemmet .input-container input[type="text"]::placeholder,
+.theme-folkhemmet input[data-testid="chat-input-field"]::placeholder {
+  color: hsl(204 80% 64%) !important; /* Force Folkhemmet blue-tinted placeholder */
+  -webkit-text-fill-color: hsl(204 80% 64%) !important; /* Override webkit */
+}
+
+/* Ensure placeholder colors work correctly for all themes */
+.input-container input::placeholder {
+  color: hsl(var(--placeholder-text-color)) !important; /* Use theme-defined placeholder color */
 }
 
 /* --- Message Bubbles --- */
