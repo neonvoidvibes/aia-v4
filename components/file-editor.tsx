@@ -5,6 +5,8 @@ import { createPortal } from "react-dom" // Import createPortal
 import { X, DownloadCloud, FileText, Code, FileJson } from "lucide-react"
 import { motion } from "framer-motion"
 import type { AttachmentFile } from "./file-attachment-minimal"
+import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
 
 type FileEditorProps = {
   file: AttachmentFile
@@ -160,7 +162,7 @@ export default function FileEditor({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center file-editor-root-modal" onClick={onClose} style={{ zIndex: 10000 }}> {/* Explicit high z-index for portal container */}
       <motion.div
         // Removed z-[10001] from content, relative to overlay.
-        className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl mx-4 overflow-hidden shadow-xl" 
+        className="bg-background rounded-lg w-full max-w-3xl mx-4 overflow-hidden shadow-xl"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -168,15 +170,15 @@ export default function FileEditor({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
             {getFileIcon()}
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            <h2 className="text-lg font-medium text-foreground">
               {s3KeyToLoad ? fileNameToDisplay || "S3 File" : file.name}
             </h2>
           </div>
           <button
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
             onClick={onClose}
           >
             <X className="h-5 w-5" />
@@ -187,14 +189,14 @@ export default function FileEditor({
         <div className="p-4">
           {isLoading ? (
             <div className="h-64 flex items-center justify-center">
-              <div className="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>
+              <div className="animate-pulse text-muted-foreground">Loading...</div>
             </div>
           ) : (
             <textarea
               ref={editorRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full h-64 p-3 border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700"
+              className="w-full h-64 p-3 bg-background text-foreground font-mono text-sm resize-none focus-visible:outline-none"
               spellCheck={false}
               readOnly={!!s3KeyToLoad} // Make readOnly if viewing S3 file
             />
@@ -202,10 +204,10 @@ export default function FileEditor({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t">
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-border">
           {s3KeyToLoad ? (
             <button
-              className="px-4 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
+              className={cn(buttonVariants({ variant: "default" }), "px-4 py-2")}
               onClick={onClose}
             >
               Close
@@ -213,19 +215,19 @@ export default function FileEditor({
           ) : (
             <>
               <button
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                className={cn(buttonVariants({ variant: "outline" }), "px-4 py-2")}
                 onClick={onClose}
               >
                 Cancel
               </button>
               <button
-                className="px-4 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={cn(buttonVariants({ variant: "default" }), "px-4 py-2 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed")}
                 onClick={handleSave}
                 disabled={isLoading || isSaving}
               >
                 {isSaving ? (
                   <>
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
                     Saving...
                   </>
                 ) : (
