@@ -85,6 +85,11 @@ function HomeContent() {
   const [showSaveAsMemoryConfirmModal, setShowSaveAsMemoryConfirmModal] = useState(false);
   const [fileToSaveAsMemory, setFileToSaveAsMemory] = useState<FetchedFile | null>(null);
 
+  // State to track S3 keys of files currently being processed (saved to memory or archived)
+  const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
+  const [fileActionTypes, setFileActionTypes] = useState<Record<string, 'saving_to_memory' | 'archiving'>>({});
+
+
   // Flags to track if data has been fetched for the current agent/event
   const [fetchedDataFlags, setFetchedDataFlags] = useState({
     transcriptions: false,
@@ -460,11 +465,12 @@ function HomeContent() {
     if (!fileToArchive || !fileToArchive.s3Key || !pageAgentName || !pageEventId) return; // Added s3Key check
 
     const { s3Key, name } = fileToArchive;
-    // Update status to 'archiving'
+    
+    setProcessingFileKeys(prev => new Set(prev).add(s3Key!));
+    setFileActionTypes(prev => ({ ...prev, [s3Key!]: 'archiving' }));
+    // Immediate UI update for the specific item can still be beneficial
     setTranscriptionS3Files(prevFiles =>
-      prevFiles.map(f =>
-        f.s3Key === s3Key ? { ...f, status: 'archiving' } : f
-      )
+      prevFiles.map(f => (f.s3Key === s3Key ? { ...f, status: 'archiving' } : f))
     );
     setShowArchiveConfirmModal(false); // Close modal immediately
 
@@ -512,7 +518,16 @@ function HomeContent() {
       );
       // Optionally show an error toast
     } finally {
-      // Modal is already closed, fileToArchive reset is good
+      setProcessingFileKeys(prev => {
+        const next = new Set(prev);
+        next.delete(s3Key!);
+        return next;
+      });
+      setFileActionTypes(prev => {
+        const next = { ...prev };
+        delete next[s3Key!];
+        return next;
+      });
       setFileToArchive(null);
     }
   };
@@ -532,11 +547,11 @@ function HomeContent() {
 
     const { s3Key, name } = fileToSaveAsMemory;
     
-    // Update UI to show spinner for this file
+    setProcessingFileKeys(prev => new Set(prev).add(s3Key!));
+    setFileActionTypes(prev => ({ ...prev, [s3Key!]: 'saving_to_memory' }));
+    // Immediate UI update for the specific item
     setTranscriptionS3Files(prevFiles =>
-      prevFiles.map(f =>
-        f.s3Key === s3Key ? { ...f, status: 'saving_to_memory' } : f
-      )
+      prevFiles.map(f => (f.s3Key === s3Key ? { ...f, status: 'saving_to_memory' } : f))
     );
     setShowSaveAsMemoryConfirmModal(false);
 
@@ -597,6 +612,16 @@ function HomeContent() {
       );
       // Optionally show an error toast: toast({ title: "Error", description: `Failed to save memory for "${name}". ${(error as Error).message}` });
     } finally {
+      setProcessingFileKeys(prev => {
+        const next = new Set(prev);
+        next.delete(s3Key!);
+        return next;
+      });
+      setFileActionTypes(prev => {
+        const next = { ...prev };
+        delete next[s3Key!];
+        return next;
+      });
       setFileToSaveAsMemory(null);
     }
   };
@@ -758,21 +783,31 @@ function HomeContent() {
                     <CollapsibleSection title="Transcription" defaultOpen={true}>
                       <div className="pb-3 space-y-2 w-full overflow-hidden">
                         {transcriptionS3Files.length > 0 ? (
-                          transcriptionS3Files.map(file => (
-                            <FetchedFileListItem
-                              key={file.s3Key || file.name}
-                              file={file} // Pass the whole file object which now includes status
-                              onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
-                              onDownload={() => handleDownloadS3File({ s3Key: file.s3Key!, name: file.name })}
-                              onArchive={() => handleArchiveS3FileRequest(file)}
-                              onSaveAsMemory={() => handleSaveAsMemoryS3FileRequest(file)}
-                              showViewIcon={true}
-                              showDownloadIcon={true}
-                              showArchiveIcon={true}
-                              showSaveAsMemoryIcon={true}
-                            />
-                          ))
-                        ) : (<p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>)}
+                          transcriptionS3Files.map(originalFile => {
+                            const isProcessing = processingFileKeys.has(originalFile.s3Key!);
+                            const actionType = fileActionTypes[originalFile.s3Key!];
+                            const fileWithPersistentStatus: FetchedFile = {
+                              ...originalFile,
+                              status: isProcessing ? actionType : originalFile.status,
+                            };
+                            return (
+                              <FetchedFileListItem
+                                key={fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name}
+                                file={fileWithPersistentStatus} 
+                                onView={() => handleViewS3File({ s3Key: fileWithPersistentStatus.s3Key!, name: fileWithPersistentStatus.name, type: fileWithPersistentStatus.type || 'text/plain' })}
+                                onDownload={() => handleDownloadS3File({ s3Key: fileWithPersistentStatus.s3Key!, name: fileWithPersistentStatus.name })}
+                                onArchive={() => handleArchiveS3FileRequest(fileWithPersistentStatus)}
+                                onSaveAsMemory={() => handleSaveAsMemoryS3FileRequest(fileWithPersistentStatus)}
+                                showViewIcon={true}
+                                showDownloadIcon={true}
+                                showArchiveIcon={true}
+                                showSaveAsMemoryIcon={true}
+                              />
+                            );
+                          })
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>
+                        )}
                       </div>
                     </CollapsibleSection>
                   </div>
