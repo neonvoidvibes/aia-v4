@@ -540,21 +540,58 @@ function HomeContent() {
     );
     setShowSaveAsMemoryConfirmModal(false);
 
-    console.log(`Simulating 'Save to Memory' for: ${name} (S3 Key: ${s3Key})`);
+    console.log(`Starting 'Save to Memory' for: ${name} (S3 Key: ${s3Key})`);
 
-    // Simulate backend processing
-    setTimeout(() => {
-      console.log(`'Save to Memory' for ${name} (S3 Key: ${s3Key}) - simulated completion.`);
-      // Update UI: remove from transcriptions list (or mark as 'saved')
-      setTranscriptionS3Files(prevFiles => prevFiles.filter(f => f.s3Key !== s3Key));
-      // TODO: In future, refresh relevant memory lists or update file status to 'saved'
-      // For now, we just remove it from the current list.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error("Save As Memory Error: No active session.");
+      setTranscriptionS3Files(prevFiles =>
+        prevFiles.map(f => (f.s3Key === s3Key ? { ...f, status: 'idle' } : f))
+      );
+      // Optionally show an error toast
+      setFileToSaveAsMemory(null);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/s3-proxy/summarize-transcript', { // Changed endpoint name to match s3-proxy structure
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          s3Key: s3Key,
+          agentName: pageAgentName,
+          eventId: pageEventId,
+          originalFilename: name,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to process summarization request."}));
+        throw new Error(errorData.error || `Summarization request failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log("Summarization successful:", result);
       
-      // Placeholder for showing success toast
-      // toast({ title: "Memory Saved", description: `"${name}" has been summarized and saved to memory.` });
-    }, 5000); // Simulate 5 seconds of processing
-    
-    setFileToSaveAsMemory(null);
+      // Update UI: remove from transcriptions list (or mark as 'saved')
+      // For now, we just remove it as the next step will be to move it
+      setTranscriptionS3Files(prevFiles => prevFiles.filter(f => f.s3Key !== s3Key));
+      
+      // TODO: In a future step, we would add the new summary to a "Memories" list if displayed in UI.
+      // toast({ title: "Memory Saved", description: `"${name}" has been summarized and saved to memory as "${result.summary_filename}".` });
+
+    } catch (error) {
+      console.error("Error saving to memory:", error);
+      setTranscriptionS3Files(prevFiles =>
+        prevFiles.map(f => (f.s3Key === s3Key ? { ...f, status: 'idle' } : f))
+      );
+      // Optionally show an error toast: toast({ title: "Error", description: `Failed to save memory for "${name}". ${(error as Error).message}` });
+    } finally {
+      setFileToSaveAsMemory(null);
+    }
   };
 
   const cancelSaveAsMemoryFile = () => {

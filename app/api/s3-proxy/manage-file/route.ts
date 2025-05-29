@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
     if (!s3Key || !action || !agentName || !eventId) {
       return formatErrorResponse("Missing required parameters in request body (s3Key, action, agentName, eventId)", 400);
     }
-    if (action !== "save" && action !== "archive") {
-        return formatErrorResponse("Invalid action parameter. Must be 'save' or 'archive'.", 400);
+    if (action !== "archive") { // Removed "save" as it's handled by summarize-transcript now
+        return formatErrorResponse("Invalid action parameter. Must be 'archive'.", 400);
     }
 
     // Log the S3 key being processed
