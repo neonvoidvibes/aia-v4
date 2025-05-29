@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { FileText, Eye, DownloadCloud, BrainCircuit, Archive, Save } from "lucide-react" // Added Archive, Save
+import { FileText, Eye, DownloadCloud, BrainCircuit, Archive, ArrowUpFromLine } from "lucide-react" // Changed Save to ArrowUpFromLine
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -121,17 +121,6 @@ export default function FetchedFileListItem({
             <DownloadCloud className="h-4 w-4" />
           </Button>
         )}
-        {showArchiveIcon && onArchive && file.s3Key && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleArchiveClick}
-            className="h-8 w-8"
-            title={`Archive ${file.name}`}
-          >
-            <Archive className="h-4 w-4" />
-          </Button>
-        )}
         {showSaveAsMemoryIcon && onSaveAsMemory && file.s3Key && (
           <Button
             variant="ghost"
@@ -141,7 +130,18 @@ export default function FetchedFileListItem({
             title={`Save ${file.name} as Memory (Summarize)`}
             disabled // Disabled for now
           >
-            <Save className="h-4 w-4" />
+            <ArrowUpFromLine className="h-4 w-4" />
+          </Button>
+        )}
+        {showArchiveIcon && onArchive && file.s3Key && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleArchiveClick}
+            className="h-8 w-8"
+            title={`Archive ${file.name}`}
+          >
+            <Archive className="h-4 w-4" />
           </Button>
         )}
       </div>
