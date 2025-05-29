@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2 } from "lucide-react" // Added LayoutGrid, Loader2
+import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { createClient } from '@/utils/supabase/client';
@@ -73,6 +73,10 @@ function HomeContent() {
   const [selectedCanvasTimeWindow, setSelectedCanvasTimeWindow] = useState<string>("Whole Meeting"); 
   
   const [pinnedCanvasInsights, setPinnedCanvasInsights] = useState<CanvasInsightItem[]>([]);
+
+  // State for new toggles in Documents tab
+  const [transcriptListenMode, setTranscriptListenMode] = useState<"latest" | "all">("latest");
+  const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
 
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
@@ -305,6 +309,32 @@ function HomeContent() {
       setCurrentView("chat"); 
     }
   }, [isCanvasViewEnabled, currentView]);
+
+  // Load and persist transcriptListenMode
+  useEffect(() => {
+    const savedMode = localStorage.getItem("userTranscriptListenSetting");
+    if (savedMode === "latest" || savedMode === "all") {
+      setTranscriptListenMode(savedMode as "latest" | "all");
+    }
+  }, []);
+
+  useEffect(() => {
+    // Avoid saving the initial default "latest" if it's still the default and hasn't been changed by user yet
+    // Or simply save it always - simpler logic, minor overhead if it's the same value. Let's go with simpler.
+    localStorage.setItem("userTranscriptListenSetting", transcriptListenMode);
+  }, [transcriptListenMode]);
+
+  // Load and persist savedTranscriptMemoryMode
+  useEffect(() => {
+    const savedMode = localStorage.getItem("userSavedMemorySetting");
+    if (savedMode === "disabled" || savedMode === "enabled") {
+      setSavedTranscriptMemoryMode(savedMode as "disabled" | "enabled");
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("userSavedMemorySetting", savedTranscriptMemoryMode);
+  }, [savedTranscriptMemoryMode]);
 
 
   useEffect(() => {
@@ -796,7 +826,26 @@ function HomeContent() {
                         <DocumentUpload description="Documents attached to the current chat session (Read-only)" type="chat" existingFiles={allChatAttachments} readOnly={true} allowRemove={false} transparentBackground={true} />
                       </div>
                     </CollapsibleSection>
-                    <CollapsibleSection title="Transcripts" defaultOpen={true}> {/* Renamed title */}
+                    <CollapsibleSection title="Transcripts" defaultOpen={true}>
+                      <div className="flex items-center justify-between py-3 border-b mb-3">
+                        <div className="flex items-center gap-2">
+                          <History className="h-5 w-5 text-muted-foreground" />
+                          <Label htmlFor="transcript-listen-toggle" className="memory-section-title text-sm font-medium">Listen:</Label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-muted-foreground w-16 text-right">
+                            {transcriptListenMode === "latest" ? "Latest" : "All"}
+                          </span>
+                          <Switch
+                            id="transcript-listen-toggle"
+                            checked={transcriptListenMode === "all"}
+                            onCheckedChange={(checked) =>
+                              setTranscriptListenMode(checked ? "all" : "latest")
+                            }
+                            aria-label="Transcript listen mode"
+                          />
+                        </div>
+                      </div>
                       <div className="pb-3 space-y-2 w-full overflow-hidden">
                         {transcriptionS3Files.length > 0 ? (
                           transcriptionS3Files.map(originalFile => {
@@ -827,6 +876,25 @@ function HomeContent() {
                       </div>
                     </CollapsibleSection>
                     <CollapsibleSection title="Saved Transcripts" defaultOpen={false}>
+                      <div className="flex items-center justify-between py-3 border-b mb-3">
+                        <div className="flex items-center gap-2">
+                          <Brain className="h-5 w-5 text-muted-foreground" />
+                          <Label htmlFor="saved-transcript-memory-toggle" className="memory-section-title text-sm font-medium">Memory:</Label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-muted-foreground w-16 text-right">
+                            {savedTranscriptMemoryMode === "disabled" ? "Disabled" : "Enabled"}
+                          </span>
+                          <Switch
+                            id="saved-transcript-memory-toggle"
+                            checked={savedTranscriptMemoryMode === "enabled"}
+                            onCheckedChange={(checked) =>
+                              setSavedTranscriptMemoryMode(checked ? "enabled" : "disabled")
+                            }
+                            aria-label="Saved transcript memory mode"
+                          />
+                        </div>
+                      </div>
                       <div className="pb-3 space-y-2 w-full overflow-hidden">
                         {savedTranscriptSummaries.length > 0 ? (
                           savedTranscriptSummaries.map(summaryFile => (
