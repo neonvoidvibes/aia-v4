@@ -573,6 +573,13 @@ function HomeContent() {
         throw new Error(errorData.error || `Summarization request failed: ${response.statusText}`);
       }
 
+      // Check response.ok BEFORE trying to parse JSON for success case
+      if (!response.ok) {
+        // Attempt to parse error JSON from backend, or use statusText
+        const errorData = await response.json().catch(() => ({ error: `Request failed with status: ${response.status}` }));
+        throw new Error(errorData.error || errorData.message || `Summarization request failed: ${response.statusText}`);
+      }
+
       const result = await response.json();
       console.log("Summarization successful:", result);
       
