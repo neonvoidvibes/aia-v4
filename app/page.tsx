@@ -826,7 +826,7 @@ function HomeContent() {
                         )}
                       </div>
                     </CollapsibleSection>
-                    <CollapsibleSection title="Saved Transcripts (Summaries)" defaultOpen={false}>
+                    <CollapsibleSection title="Saved Transcripts" defaultOpen={false}>
                       <div className="pb-3 space-y-2 w-full overflow-hidden">
                         {savedTranscriptSummaries.length > 0 ? (
                           savedTranscriptSummaries.map(summaryFile => (
