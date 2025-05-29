@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     console.log("[Proxy] Parsed request body:", body); // Log parsed body
     // Filter out system messages added by the onError handler before proxying
     const userMessages = body.messages?.filter((msg: { role: string }) => msg.role === 'user' || msg.role === 'assistant') || [];
-    const { agent, event } = body;
+    const { agent, event, transcriptListenMode, savedTranscriptMemoryMode, ...restOfBody } = body; // Extract new settings
 
     // Basic validation for essential fields
     if (!userMessages || userMessages.length === 0) return new Response(JSON.stringify({ error: 'Missing user/assistant messages' }), { status: 400 });
@@ -70,8 +70,16 @@ export async function POST(req: NextRequest) {
     console.log(`[Proxy] Chat request for Agent: ${agent}, Event: ${event || '0000'}`);
     // Construct the specific API endpoint using the active base URL
     const backendChatUrl = `${activeBackendUrl}/api/chat`;
-    const requestBody = JSON.stringify({ messages: userMessages, agent: agent, event: event || '0000' });
-    console.log(`[Proxy] Fetching backend: ${backendChatUrl} with body:`, requestBody); // Log URL and body
+    const requestBodyPayload = {
+      messages: userMessages,
+      agent: agent,
+      event: event || '0000',
+      transcriptListenMode: transcriptListenMode || "latest", // Default if undefined
+      savedTranscriptMemoryMode: savedTranscriptMemoryMode || "disabled", // Default if undefined
+      ...restOfBody // Include any other properties like canvas context
+    };
+    const requestBody = JSON.stringify(requestBodyPayload);
+    console.log(`[Proxy] Fetching backend: ${backendChatUrl} with body:`, requestBodyPayload); // Log URL and parsed payload
 
     // --- Main fetch call to the selected backend ---
     // Get the access token from the server-side session we just validated
