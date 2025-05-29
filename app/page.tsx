@@ -57,6 +57,7 @@ function HomeContent() {
   const [baseFrameworkS3Files, setBaseFrameworkS3Files] = useState<FetchedFile[]>([]);
   const [agentPrimaryContextS3Files, setAgentPrimaryContextS3Files] = useState<FetchedFile[]>([]); 
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
+  const [savedTranscriptSummaries, setSavedTranscriptSummaries] = useState<FetchedFile[]>([]); // New state
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
   // State for Canvas View enablement and general view state
@@ -97,6 +98,7 @@ function HomeContent() {
     agentSystemPrompts: false,
     baseFrameworks: false,
     agentPrimaryContext: false, 
+    savedSummaries: false, // Added savedSummaries here
     pineconeMemory: false,
   });
 
@@ -119,7 +121,8 @@ function HomeContent() {
           baseSystemPrompts: false,
           agentSystemPrompts: false,
           baseFrameworks: false,
-          agentPrimaryContext: false, 
+          agentPrimaryContext: false,
+          savedSummaries: false, // Add flag for summaries
           pineconeMemory: false,
         });
       }
@@ -410,6 +413,19 @@ function HomeContent() {
           "Agent Primary Context" 
         );
       }
+
+      if (!fetchedDataFlags.savedSummaries && pageAgentName && pageEventId) {
+        await fetchS3Data(
+          `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/summarized/`,
+          (data: FetchedFile[]) => {
+            // Ensure we only keep .json files and map type correctly
+            setSavedTranscriptSummaries(data.filter(f => f.name.endsWith('.json')).map(f => ({...f, type: 'application/json'})));
+            newFetchedDataFlags.savedSummaries = true;
+          },
+          "Saved Transcript Summaries"
+        );
+      }
+
 
       if (!fetchedDataFlags.pineconeMemory) {
         try {
@@ -780,7 +796,7 @@ function HomeContent() {
                         <DocumentUpload description="Documents attached to the current chat session (Read-only)" type="chat" existingFiles={allChatAttachments} readOnly={true} allowRemove={false} transparentBackground={true} />
                       </div>
                     </CollapsibleSection>
-                    <CollapsibleSection title="Transcription" defaultOpen={true}>
+                    <CollapsibleSection title="Transcripts" defaultOpen={true}> {/* Renamed title */}
                       <div className="pb-3 space-y-2 w-full overflow-hidden">
                         {transcriptionS3Files.length > 0 ? (
                           transcriptionS3Files.map(originalFile => {
@@ -808,6 +824,24 @@ function HomeContent() {
                         ) : (
                           <p className="text-sm text-muted-foreground">No transcriptions found in S3.</p>
                         )}
+                      </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Saved Transcripts (Summaries)" defaultOpen={false}>
+                      <div className="pb-3 space-y-2 w-full overflow-hidden">
+                        {savedTranscriptSummaries.length > 0 ? (
+                          savedTranscriptSummaries.map(summaryFile => (
+                            <FetchedFileListItem
+                              key={summaryFile.s3Key || summaryFile.name}
+                              file={summaryFile} // Pass the whole file object
+                              onView={() => handleViewS3File({ s3Key: summaryFile.s3Key!, name: summaryFile.name, type: summaryFile.type || 'application/json' })}
+                              onDownload={() => handleDownloadS3File({ s3Key: summaryFile.s3Key!, name: summaryFile.name })}
+                              showViewIcon={true}
+                              showDownloadIcon={true}
+                              showArchiveIcon={false} // No archive for summaries
+                              showSaveAsMemoryIcon={false} // No save for already summarized
+                            />
+                          ))
+                        ) : (<p className="text-sm text-muted-foreground">No saved transcript summaries found.</p>)}
                       </div>
                     </CollapsibleSection>
                   </div>
