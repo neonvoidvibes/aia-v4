@@ -12,7 +12,7 @@ import DocumentUpload from "@/components/document-upload"
 import SimpleChatInterface, { type ChatInterfaceHandle } from "@/components/simple-chat-interface"
 import FullFileTranscriber from "@/components/FullFileTranscriber"; // Added for new Transcribe tab
 import { EnvWarning } from "@/components/env-warning"
-import ConfirmationModal from "@/components/confirmation-modal"
+import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm" // New import
 import CollapsibleSection from "@/components/collapsible-section"
 import type { AttachmentFile } from "@/components/file-attachment-minimal"
 import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileListItem"
@@ -818,7 +818,7 @@ function HomeContent() {
         </Dialog>
       )}
 
-      <ConfirmationModal
+      <AlertDialogConfirm
         isOpen={showNewChatConfirm}
         onClose={cancelNewChat}
         onConfirm={confirmAndStartNewChat}
@@ -826,9 +826,10 @@ function HomeContent() {
         message="Are you sure you want to start a new chat? This will clear the current conversation and stop any active recording."
         confirmText="Start New"
         cancelText="Cancel"
+        confirmVariant="default"
       />
 
-      <ConfirmationModal
+      <AlertDialogConfirm
         isOpen={showArchiveConfirmModal}
         onClose={cancelArchiveFile}
         onConfirm={confirmArchiveFile}
@@ -836,6 +837,7 @@ function HomeContent() {
         message={`Are you sure you want to archive "${fileToArchive?.name}"? This will move the file to an archive location and it will no longer be actively used for real-time context unless restored.`}
         confirmText="Archive"
         cancelText="Cancel"
+        confirmVariant="destructive"
       />
 
       {showS3FileViewer && s3FileToView && fileEditorFileProp && (

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { motion, AnimatePresence } from "framer-motion"
 import type { AttachmentFile } from "./file-attachment-minimal"
-import ConfirmationModal from "./confirmation-modal"
+import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm" // New import
 import FileEditor from "./file-editor"
 import { cn } from "@/lib/utils" // Import cn
 
@@ -361,7 +361,7 @@ export default function DocumentUpload({
       </Card>
 
       {/* Confirmation Modal - Completely outside the Card component */}
-      <ConfirmationModal
+      <AlertDialogConfirm
         isOpen={showConfirmModal}
         onClose={handleCancelRemove}
         onConfirm={handleConfirmRemove}
@@ -369,6 +369,7 @@ export default function DocumentUpload({
         message={getConfirmationText()}
         confirmText="Remove"
         cancelText="Cancel"
+        confirmVariant="destructive"
       />
 
       {/* File Editor Modal */}
