@@ -310,31 +310,45 @@ function HomeContent() {
     }
   }, [isCanvasViewEnabled, currentView]);
 
-  // Load and persist transcriptListenMode
+  // Load and persist transcriptListenMode (agent-specific)
   useEffect(() => {
-    const savedMode = localStorage.getItem("userTranscriptListenSetting");
-    if (savedMode === "latest" || savedMode === "all") {
-      setTranscriptListenMode(savedMode as "latest" | "all");
+    if (pageAgentName) {
+      const key = `transcriptListenModeSetting_${pageAgentName}`;
+      const savedMode = localStorage.getItem(key);
+      if (savedMode === "latest" || savedMode === "all") {
+        setTranscriptListenMode(savedMode as "latest" | "all");
+      } else {
+        setTranscriptListenMode("latest"); // Default if no agent-specific setting found
+      }
     }
-  }, []);
+  }, [pageAgentName]);
 
   useEffect(() => {
-    // Avoid saving the initial default "latest" if it's still the default and hasn't been changed by user yet
-    // Or simply save it always - simpler logic, minor overhead if it's the same value. Let's go with simpler.
-    localStorage.setItem("userTranscriptListenSetting", transcriptListenMode);
-  }, [transcriptListenMode]);
-
-  // Load and persist savedTranscriptMemoryMode
-  useEffect(() => {
-    const savedMode = localStorage.getItem("userSavedMemorySetting");
-    if (savedMode === "disabled" || savedMode === "enabled") {
-      setSavedTranscriptMemoryMode(savedMode as "disabled" | "enabled");
+    if (pageAgentName) {
+      const key = `transcriptListenModeSetting_${pageAgentName}`;
+      localStorage.setItem(key, transcriptListenMode);
     }
-  }, []);
+  }, [transcriptListenMode, pageAgentName]);
+
+  // Load and persist savedTranscriptMemoryMode (agent-specific)
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `savedTranscriptMemoryModeSetting_${pageAgentName}`;
+      const savedMode = localStorage.getItem(key);
+      if (savedMode === "disabled" || savedMode === "enabled") {
+        setSavedTranscriptMemoryMode(savedMode as "disabled" | "enabled");
+      } else {
+        setSavedTranscriptMemoryMode("disabled"); // Default if no agent-specific setting found
+      }
+    }
+  }, [pageAgentName]);
 
   useEffect(() => {
-    localStorage.setItem("userSavedMemorySetting", savedTranscriptMemoryMode);
-  }, [savedTranscriptMemoryMode]);
+    if (pageAgentName) {
+      const key = `savedTranscriptMemoryModeSetting_${pageAgentName}`;
+      localStorage.setItem(key, savedTranscriptMemoryMode);
+    }
+  }, [savedTranscriptMemoryMode, pageAgentName]);
 
 
   useEffect(() => {

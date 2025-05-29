@@ -307,7 +307,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             const augmentedBody = {
                 agent: agentName,
                 event: eventId || '0000',
-                ...canvasContextData 
+                ...canvasContextData,
+                // Add agent-specific settings from localStorage
+                transcriptListenMode: localStorage.getItem(`transcriptListenModeSetting_${agentName}`) || "latest",
+                savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
             };
             
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
