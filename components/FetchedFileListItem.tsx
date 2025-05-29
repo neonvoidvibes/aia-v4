@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { FileText, Eye, DownloadCloud, BrainCircuit, Archive, ArrowUpFromLine } from "lucide-react" // Changed Save to ArrowUpFromLine
+import { FileText, Eye, DownloadCloud, BrainCircuit, Archive, ArrowUpFromLine, Loader2 } from "lucide-react" // Added Loader2
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -12,6 +12,7 @@ export type FetchedFile = {
   s3Key?: string
   type?: string // e.g., 'text/plain', 'application/json', 'pinecone/document'
   id?: string // Optional, can be s3Key or generated
+  status?: 'idle' | 'saving_to_memory' | 'archiving' | 'saved' | 'archived'; // New status field
 }
 
 type FetchedFileListItemProps = {
@@ -128,9 +129,13 @@ export default function FetchedFileListItem({
             onClick={handleSaveAsMemoryClick}
             className="h-8 w-8"
             title={`Save ${file.name} as Memory (Summarize)`}
-            disabled // Disabled for now
+            disabled={file.status === 'saving_to_memory' || file.status === 'archiving' || file.status === 'saved' || file.status === 'archived'}
           >
-            <ArrowUpFromLine className="h-4 w-4" />
+            {file.status === 'saving_to_memory' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowUpFromLine className="h-4 w-4" />
+            )}
           </Button>
         )}
         {showArchiveIcon && onArchive && file.s3Key && (
@@ -140,6 +145,7 @@ export default function FetchedFileListItem({
             onClick={handleArchiveClick}
             className="h-8 w-8"
             title={`Archive ${file.name}`}
+            disabled={file.status === 'saving_to_memory' || file.status === 'archiving' || file.status === 'saved' || file.status === 'archived'}
           >
             <Archive className="h-4 w-4" />
           </Button>

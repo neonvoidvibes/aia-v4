@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid } from "lucide-react" // Added LayoutGrid
+import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2 } from "lucide-react" // Added LayoutGrid, Loader2
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { createClient } from '@/utils/supabase/client';
@@ -79,7 +79,11 @@ function HomeContent() {
 
   // State for archive confirmation modal
   const [showArchiveConfirmModal, setShowArchiveConfirmModal] = useState(false);
-  const [fileToArchive, setFileToArchive] = useState<{ s3Key: string; name: string } | null>(null);
+  const [fileToArchive, setFileToArchive] = useState<FetchedFile | null>(null); // Changed type to FetchedFile
+
+  // State for save as memory confirmation modal
+  const [showSaveAsMemoryConfirmModal, setShowSaveAsMemoryConfirmModal] = useState(false);
+  const [fileToSaveAsMemory, setFileToSaveAsMemory] = useState<FetchedFile | null>(null);
 
   // Flags to track if data has been fetched for the current agent/event
   const [fetchedDataFlags, setFetchedDataFlags] = useState({
@@ -447,15 +451,23 @@ function HomeContent() {
     window.open(downloadProxyUrl, '_blank');
   };
 
-  const handleArchiveS3File = (file: { s3Key: string; name: string }) => {
+  const handleArchiveS3FileRequest = (file: FetchedFile) => { // Changed param type to FetchedFile
     setFileToArchive(file);
     setShowArchiveConfirmModal(true);
   };
 
   const confirmArchiveFile = async () => {
-    if (!fileToArchive || !pageAgentName || !pageEventId) return;
+    if (!fileToArchive || !fileToArchive.s3Key || !pageAgentName || !pageEventId) return; // Added s3Key check
 
     const { s3Key, name } = fileToArchive;
+    // Update status to 'archiving'
+    setTranscriptionS3Files(prevFiles =>
+      prevFiles.map(f =>
+        f.s3Key === s3Key ? { ...f, status: 'archiving' } : f
+      )
+    );
+    setShowArchiveConfirmModal(false); // Close modal immediately
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       console.error("Archive Error: No active session.");
@@ -486,15 +498,21 @@ function HomeContent() {
       }
 
       // On success, remove the file from the local state to update UI
-      setTranscriptionS3Files((prevFiles) => prevFiles.filter((f) => f.s3Key !== s3Key));
+      setTranscriptionS3Files((prevFiles) => prevFiles.filter((f) => f.s3Key !== s3Key)); // Remove on success
       console.log(`File ${name} archived successfully.`);
       // Optionally show a success toast
 
     } catch (error) {
       console.error("Error archiving file:", error);
+      // Reset status to 'idle' on error
+      setTranscriptionS3Files(prevFiles =>
+        prevFiles.map(f =>
+          f.s3Key === s3Key ? { ...f, status: 'idle' } : f
+        )
+      );
       // Optionally show an error toast
     } finally {
-      setShowArchiveConfirmModal(false);
+      // Modal is already closed, fileToArchive reset is good
       setFileToArchive(null);
     }
   };
@@ -504,10 +522,44 @@ function HomeContent() {
     setFileToArchive(null);
   };
 
-  // Placeholder for Save as Memory
-  const handleSaveAsMemoryS3File = (file: { s3Key: string; name: string }) => {
-    console.log("Save as Memory clicked for:", file.name);
-    // Implementation will go here in a future step
+  const handleSaveAsMemoryS3FileRequest = (file: FetchedFile) => {
+    setFileToSaveAsMemory(file);
+    setShowSaveAsMemoryConfirmModal(true);
+  };
+
+  const confirmSaveAsMemoryFile = async () => {
+    if (!fileToSaveAsMemory || !fileToSaveAsMemory.s3Key) return;
+
+    const { s3Key, name } = fileToSaveAsMemory;
+    
+    // Update UI to show spinner for this file
+    setTranscriptionS3Files(prevFiles =>
+      prevFiles.map(f =>
+        f.s3Key === s3Key ? { ...f, status: 'saving_to_memory' } : f
+      )
+    );
+    setShowSaveAsMemoryConfirmModal(false);
+
+    console.log(`Simulating 'Save to Memory' for: ${name} (S3 Key: ${s3Key})`);
+
+    // Simulate backend processing
+    setTimeout(() => {
+      console.log(`'Save to Memory' for ${name} (S3 Key: ${s3Key}) - simulated completion.`);
+      // Update UI: remove from transcriptions list (or mark as 'saved')
+      setTranscriptionS3Files(prevFiles => prevFiles.filter(f => f.s3Key !== s3Key));
+      // TODO: In future, refresh relevant memory lists or update file status to 'saved'
+      // For now, we just remove it from the current list.
+      
+      // Placeholder for showing success toast
+      // toast({ title: "Memory Saved", description: `"${name}" has been summarized and saved to memory.` });
+    }, 5000); // Simulate 5 seconds of processing
+    
+    setFileToSaveAsMemory(null);
+  };
+
+  const cancelSaveAsMemoryFile = () => {
+    setShowSaveAsMemoryConfirmModal(false);
+    setFileToSaveAsMemory(null);
   };
 
   const handlePinInsight = (insight: CanvasInsightItem) => {
@@ -665,11 +717,11 @@ function HomeContent() {
                           transcriptionS3Files.map(file => (
                             <FetchedFileListItem
                               key={file.s3Key || file.name}
-                              file={file}
+                              file={file} // Pass the whole file object which now includes status
                               onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })}
                               onDownload={() => handleDownloadS3File({ s3Key: file.s3Key!, name: file.name })}
-                              onArchive={() => handleArchiveS3File({ s3Key: file.s3Key!, name: file.name })}
-                              onSaveAsMemory={() => handleSaveAsMemoryS3File({ s3Key: file.s3Key!, name: file.name })}
+                              onArchive={() => handleArchiveS3FileRequest(file)}
+                              onSaveAsMemory={() => handleSaveAsMemoryS3FileRequest(file)}
                               showViewIcon={true}
                               showDownloadIcon={true}
                               showArchiveIcon={true}
@@ -838,6 +890,17 @@ function HomeContent() {
         confirmText="Archive"
         cancelText="Cancel"
         confirmVariant="destructive"
+      />
+
+      <AlertDialogConfirm
+        isOpen={showSaveAsMemoryConfirmModal}
+        onClose={cancelSaveAsMemoryFile}
+        onConfirm={confirmSaveAsMemoryFile}
+        title="Save Transcript to Memory"
+        message={`This will summarize the transcript and save it as a new memory file. The original transcript will then be moved to a 'saved' archive. This process cannot be undone. Proceed with "${fileToSaveAsMemory?.name}"?`}
+        confirmText="Confirm & Save"
+        cancelText="Cancel"
+        confirmVariant="default"
       />
 
       {showS3FileViewer && s3FileToView && fileEditorFileProp && (
