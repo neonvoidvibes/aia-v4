@@ -181,7 +181,6 @@ function HomeContent() {
               // Set user name
               const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
               setUserName(name);
-              console.log(`User name set to: ${name}`);
 
               if (fetchedAllowedAgents.includes(agentParam)) {
                   console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
