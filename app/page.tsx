@@ -352,6 +352,35 @@ function HomeContent() {
     }
   }, [savedTranscriptMemoryMode, pageAgentName]);
 
+  // Load and persist transcriptionLanguage (agent-specific)
+  useEffect(() => {
+    if (pageAgentName) { // Ensure agentName is available
+      const key = `transcriptionLanguageSetting_${pageAgentName}`;
+      const savedLang = localStorage.getItem(key);
+      if (savedLang === "en" || savedLang === "sv" || savedLang === "any") {
+        setTranscriptionLanguage(savedLang as "en" | "sv" | "any");
+        console.log(`[LangSetting] Loaded '${savedLang}' for agent '${pageAgentName}' from localStorage.`);
+      } else {
+        // No valid setting found for this agent, apply default and potentially save it for next time
+        setTranscriptionLanguage("en");
+        localStorage.setItem(key, "en"); // Initialize localStorage for this agent with default
+        console.log(`[LangSetting] No setting found for agent '${pageAgentName}'. Defaulted to 'en' and saved.`);
+      }
+    } else {
+      // Optional: Handle case where pageAgentName is not yet set (e.g., on initial load)
+      // For now, we can let it default to "en" as per initial state and rely on pageAgentName update to trigger correct load.
+       setTranscriptionLanguage("en"); // Fallback if no agent context
+       console.log(`[LangSetting] No pageAgentName, defaulting language to 'en'.`);
+    }
+  }, [pageAgentName]); // Dependency: pageAgentName
+
+  useEffect(() => {
+    if (pageAgentName) { // Only save if there's an agent context
+      const key = `transcriptionLanguageSetting_${pageAgentName}`;
+      localStorage.setItem(key, transcriptionLanguage);
+      console.log(`[LangSetting] Saved '${transcriptionLanguage}' for agent '${pageAgentName}' to localStorage.`);
+    }
+  }, [transcriptionLanguage, pageAgentName]); // Dependencies: transcriptionLanguage, pageAgentName
 
   useEffect(() => {
     if (showSettings) {

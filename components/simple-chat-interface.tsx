@@ -85,6 +85,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isBrowserRecording, setIsBrowserRecording] = useState(false); 
     const [isBrowserPaused, setIsBrowserPaused] = useState(false);    
     const [clientRecordingTime, setClientRecordingTime] = useState(0); 
+    const [isReconnecting, setIsReconnecting] = useState(false);
+    const [reconnectAttempts, setReconnectAttempts] = useState(0);
+    const MAX_RECONNECT_ATTEMPTS = 3; // Max attempts before giving up
+    const RECONNECT_DELAY_BASE_MS = 2000; // Initial delay, will increase
 
     const wsRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -687,17 +691,47 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         newWs.onclose = (event) => {
             console.info(`[WebSocket] Connection closed for session ${currentSessionId} (URL: ${newWs.url}). Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}.`);
             if (wsRef.current === newWs) { 
-                setWsStatus('closed');
-                if (pendingActionRef.current === 'start') { 
-                    setPendingAction(null);
-                    setUiError("WebSocket connection closed before recording could fully start.");
+                // Check if the closure was intentional
+                const intentionalClose = pendingActionRef.current === 'stop' || !isBrowserRecording;
+                
+                if (!intentionalClose && isBrowserRecording) {
+                    // Unexpected closure during active recording - attempt reconnection
+                    setWsStatus('closed');
+                    if (wsRef.current === newWs) wsRef.current = null;
+                    setIsBrowserRecording(false);
+                    setIsBrowserPaused(false);
+                    
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        setIsReconnecting(true);
+                        const nextAttempt = reconnectAttempts + 1;
+                        setReconnectAttempts(nextAttempt);
+                        const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, reconnectAttempts); // Exponential backoff
+                        setUiError(`Recording connection lost. Attempting reconnect ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s...`);
+                        
+                        setTimeout(async () => {
+                            console.log("[Reconnect] Attempting to start new recording session...");
+                            // Ensure old resources are cleaned up as much as possible client-side.
+                            // `handleStartRecordingSession` already calls `resetRecordingStates`.
+                            await handleStartRecordingSession(); // This will try to start a *new* session.
+                            // `handleStartRecordingSession` should set `isReconnecting` back to `false` on success/failure.
+                        }, delay);
+                    } else {
+                        // Max attempts reached
+                        setUiError("Failed to reconnect recording. Please stop and start manually.");
+                        setIsReconnecting(false);
+                        resetRecordingStates(); // Full cleanup
+                    }
+                } else {
+                    // Intentional close or was not recording
+                    setWsStatus('closed');
+                    if (pendingActionRef.current === 'start') { 
+                        setPendingAction(null);
+                        setUiError("WebSocket connection closed before recording could fully start.");
+                    }
+                    setIsReconnecting(false);
+                    setReconnectAttempts(0);
+                    wsRef.current = null;
                 }
-                if (isBrowserRecording && !event.wasClean && !(pendingActionRef.current === 'stop')) { 
-                     console.warn(`[WebSocket] Closed unexpectedly during recording for session ${currentSessionId}.`);
-                     setUiError('Warning: Recording stream disconnected unexpectedly.');
-                     handleStopRecording(undefined, true);
-                }
-                wsRef.current = null; 
             } else {
                  console.warn(`[WebSocket] Stale onclose event for ${newWs.url}. Ignoring.`);
             }
@@ -711,6 +745,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.warn(`[Start Recording Session] Pre-condition not met. Aborting. Pending: ${pendingActionRef.current}, Rec: ${isBrowserRecording}, Ready: ${isPageReady}, Agent: ${agentName}`)
             return;
         }
+        
+        if (isReconnecting) {
+            console.log("[handleStartRecordingSession] Called as part of a reconnect attempt.");
+        } else {
+            // If this is a manual start, reset reconnect attempts.
+            setReconnectAttempts(0);
+        }
+        setUiError(null); // Clear any previous UI errors
         setPendingAction('start'); 
         
         resetRecordingStates(); 
@@ -752,6 +794,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.error("[Start Recording Session] Exception during HTTP start API call:", error);
             setUiError(`Error: Exception trying to start recording session.`);
             setPendingAction(null);
+        } finally {
+            // Regardless of success/failure of starting the session, set isReconnecting back to false
+            setIsReconnecting(false);
         }
     }, [isBrowserRecording, isPageReady, agentName, eventId, callHttpRecordingApi, connectWebSocket, resetRecordingStates, searchParams, setPendingAction, setUiError, setAgentName, setEventId, setSessionId, setSessionStartTimeUTC]);
 
@@ -994,7 +1039,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 <form onSubmit={onSubmit} className="relative">
                     <div className="bg-input-gray rounded-full p-2 flex items-center" ref={inputContainerRef}>
                         <div className="relative" ref={plusMenuRef}>
-                            <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady) && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady}> <Plus size={20} /> </button>
+                            <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting) && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting}> <Plus size={20} /> </button>
                             {showPlusMenu && ( <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu" > <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button> <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Save chat"><Download size={20} /></button> <button type="button" className={cn(micButtonClass, "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]", isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400")} onClick={showAndPrepareRecordingControls} title={isBrowserRecording ? (isBrowserPaused ? "Recording Paused" : "Recording Live") : "Start recording"} > <Mic size={20} /> </button> </motion.div> )}
                         </div>
                         <div className="relative" ref={recordUIRef}>
@@ -1059,11 +1104,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     <span>Agent: {agentName || '...'}</span> · <span>Event: {eventId || '...'}</span> ·{" "}
                     <span ref={statusRecordingRef} className="cursor-pointer hover:text-[hsl(var(--text-primary))]" onClick={showAndPrepareRecordingControls} title={isBrowserRecording ? "Recording Status" : "Start recording"} >
                          Listen:{" "}
-                        {isBrowserRecording ? (
+                        {isReconnecting ? (
+                            <>reconnecting ({reconnectAttempts}/{MAX_RECONNECT_ATTEMPTS}) <span className="inline-block ml-1 h-2 w-2 rounded-full bg-orange-500 animate-pulse"></span></>
+                        ) : isBrowserRecording ? (
                             isBrowserPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></> ) // Keep specific colors for status dots
                                      : ( <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500 animate-pulse"></span></> )
                         ) : ( "no" )}
-                        {isBrowserRecording && <span ref={timerDisplayRef} className="ml-1">{formatTime(clientRecordingTime)}</span>}
+                        {isBrowserRecording && !isReconnecting && <span ref={timerDisplayRef} className="ml-1">{formatTime(clientRecordingTime)}</span>}
                     </span>
                     {" "}· <span className={cn(wsStatus === 'open' && "text-green-500", wsStatus === 'error' && "text-red-500", wsStatus === 'closed' && "text-yellow-500")}>{wsStatus}</span>
                 </div>
