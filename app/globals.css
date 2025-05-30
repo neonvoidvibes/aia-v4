@@ -1098,7 +1098,7 @@ body {
   bottom: 115px; /* Increased value to move it up */
   left: 50%;
   transform: translateX(-50%);
-  background-color: hsl(var(--input-gray));
+  background-color: rgba(128, 128, 128, 0.3); /* Fallback transparent background */
   color: hsl(var(--text-secondary));
   border-radius: 50%;
   width: 40px;
@@ -1111,16 +1111,55 @@ body {
   z-index: 20;
   transition: all 0.2s ease;
   animation: fadeIn 0.3s ease;
+  backdrop-filter: blur(4px); /* Add blur for all themes */
+  -webkit-backdrop-filter: blur(4px); /* Safari support */
+}
+/* Light mode scroll button styling */
+.light .scroll-to-bottom-button {
+  background-color: rgba(224, 224, 224, 0.3); /* Light gray with transparency */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.light .scroll-to-bottom-button:hover {
+  background-color: rgba(208, 208, 208, 0.4); /* Slightly less transparent on hover */
 }
 /* Dark mode scroll button styling */
 .dark .scroll-to-bottom-button {
-  background-color: rgba(66, 71, 93, 0.5); /* Example: Darker semi-transparent background */
+  background-color: rgba(66, 71, 93, 0.3); /* Made more transparent */
   color: hsl(var(--text-secondary)); /* Keep text color */
   backdrop-filter: blur(4px); /* Optional: Add blur for effect */
   -webkit-backdrop-filter: blur(4px); /* Safari */
 }
 .dark .scroll-to-bottom-button:hover {
-    background-color: rgba(80, 85, 110, 0.6); /* Slightly lighten on hover */
+  background-color: rgba(80, 85, 110, 0.4); /* Made more transparent on hover */
+}
+/* Custom theme overrides for scroll button */
+.theme-neon-sunset .scroll-to-bottom-button {
+  background-color: rgba(59, 39, 77, 0.3); /* Dark indigo with transparency */
+}
+.theme-oceanic-calm .scroll-to-bottom-button {
+  background-color: rgba(188, 203, 218, 0.3); /* Light cyan-gray with transparency */
+}
+.theme-forest-deep .scroll-to-bottom-button {
+  background-color: rgba(36, 48, 36, 0.3); /* Dark green with transparency */
+}
+.theme-midnight-monochrome .scroll-to-bottom-button {
+  background-color: rgba(33, 35, 44, 0.3); /* Dark grey with transparency */
+}
+.theme-solar-flare .scroll-to-bottom-button {
+  background-color: rgba(219, 196, 166, 0.3); /* Light sandy with transparency */
+}
+.theme-aurora-borealis .scroll-to-bottom-button {
+  background-color: rgba(25, 20, 51, 0.3); /* Dark purple with transparency */
+}
+.theme-desert-mirage .scroll-to-bottom-button {
+  background-color: rgba(201, 188, 172, 0.3); /* Light beige with transparency */
+}
+.theme-folkhemmet .scroll-to-bottom-button {
+  background-color: rgba(185, 209, 229, 0.3); /* Light blue with transparency */
+}
+.theme-cfl .scroll-to-bottom-button {
+  background-color: rgba(82, 82, 82, 0.3); /* Dark gray with transparency */
 }
 
 .scroll-to-bottom-button:hover {
