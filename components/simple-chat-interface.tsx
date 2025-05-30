@@ -315,7 +315,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 // Add agent-specific settings from localStorage
                 transcriptListenMode: localStorage.getItem(`transcriptListenModeSetting_${agentName}`) || "latest",
                 savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
-                transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "en", // Added
+                transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any", // Changed default to "any"
             };
             
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
@@ -780,7 +780,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setEventId(currentEvent);   
         debugLog(`[Start Recording Session] Agent/Event set to: ${currentAgent}/${currentEvent}`);
         
-        const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "en";
+        const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any"; // Changed default to "any"
         debugLog(`[Start Recording Session] Transcription language for new session: ${currentTranscriptionLanguage}`);
 
         console.info("[Start Recording Session] Calling HTTP start API...");

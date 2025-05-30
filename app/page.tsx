@@ -78,7 +78,7 @@ function HomeContent() {
   // State for new toggles in Documents tab
   const [transcriptListenMode, setTranscriptListenMode] = useState<"latest" | "all">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
-  const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("en"); // Default "en"
+  const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
 
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
@@ -361,15 +361,15 @@ function HomeContent() {
         console.log(`[LangSetting] Loaded '${savedLang}' for agent '${pageAgentName}' from localStorage.`);
       } else {
         // No valid setting found for this agent, apply default and potentially save it for next time
-        setTranscriptionLanguage("en");
-        localStorage.setItem(key, "en"); // Initialize localStorage for this agent with default
-        console.log(`[LangSetting] No setting found for agent '${pageAgentName}'. Defaulted to 'en' and saved.`);
+        setTranscriptionLanguage("any"); // Initialize localStorage for this agent with default "any"
+        localStorage.setItem(key, "any");
+        console.log(`[LangSetting] No setting found for agent '${pageAgentName}'. Defaulted to 'any' and saved.`);
       }
     } else {
       // Optional: Handle case where pageAgentName is not yet set (e.g., on initial load)
-      // For now, we can let it default to "en" as per initial state and rely on pageAgentName update to trigger correct load.
-       setTranscriptionLanguage("en"); // Fallback if no agent context
-       console.log(`[LangSetting] No pageAgentName, defaulting language to 'en'.`);
+      // For now, we can let it default to "any" as per initial state and rely on pageAgentName update to trigger correct load.
+       setTranscriptionLanguage("any"); // Fallback if no agent context
+       console.log(`[LangSetting] No pageAgentName, defaulting language to 'any'.`);
     }
   }, [pageAgentName]); // Dependency: pageAgentName
 
@@ -1036,14 +1036,14 @@ function HomeContent() {
                         className="rounded-md bg-muted p-1"
                         aria-label="Transcription language"
                       >
+                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "Any" : "Any"}
+                        </ToggleGroupItem>
                         <ToggleGroupItem value="en" aria-label="English" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
                           {isMobile ? "EN" : "English"}
                         </ToggleGroupItem>
                         <ToggleGroupItem value="sv" aria-label="Swedish" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
                           {isMobile ? "SV" : "Swedish"}
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          {isMobile ? "Any" : "Any"}
                         </ToggleGroupItem>
                       </ToggleGroup>
                     </div>
