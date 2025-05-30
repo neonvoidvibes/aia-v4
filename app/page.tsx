@@ -33,6 +33,7 @@ import ViewSwitcher from "@/components/ui/view-switcher";
 import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; 
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; // Added import
 
 // Main content component that uses useSearchParams
 function HomeContent() {
@@ -77,6 +78,7 @@ function HomeContent() {
   // State for new toggles in Documents tab
   const [transcriptListenMode, setTranscriptListenMode] = useState<"latest" | "all">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
+  const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("en"); // Default "en"
 
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
@@ -745,7 +747,7 @@ function HomeContent() {
             onViewChange={(newView) => setCurrentView(newView)}
             agentName={pageAgentName} 
             isCanvasEnabled={isCanvasViewEnabled} 
-            className="flex-grow justify-center max-w-xs sm:max-w-sm" 
+            className="flex-grow justify-center max-w-[calc(100%-7rem)] sm:max-w-sm" // Adjusted: 7rem leaves 3.5rem each side
           />
 
           <button className="text-foreground/70 hover:text-foreground transition-colors" onClick={(e) => { e.stopPropagation(); setShowSettings(!showS3FileViewer ? !showSettings : true ); }} aria-label="Toggle settings">
@@ -1057,6 +1059,30 @@ function HomeContent() {
                         />
                     </div>
                     */}
+                    <div className="flex items-center justify-between pt-2">
+                      <Label htmlFor="transcription-language-toggle" className="memory-section-title text-sm font-medium">Transcription Language</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={transcriptionLanguage}
+                        onValueChange={(value) => {
+                          if (value === "en" || value === "sv" || value === "any") {
+                            setTranscriptionLanguage(value as "en" | "sv" | "any");
+                          }
+                        }}
+                        className="rounded-md bg-muted p-0.5"
+                        aria-label="Transcription language"
+                      >
+                        <ToggleGroupItem value="en" aria-label="English" size="sm" className="px-2.5 sm:px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          EN
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="sv" aria-label="Swedish" size="sm" className="px-2.5 sm:px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          SV
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-2.5 sm:px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          Any
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
                   </div>
                 </TabsContent>
               </div>

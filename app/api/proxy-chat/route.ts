@@ -67,10 +67,11 @@ export async function POST(req: NextRequest) {
     
     const transcriptListenModeSetting = body.data?.transcriptListenMode || body.transcriptListenMode || "latest";
     const savedTranscriptMemoryModeSetting = body.data?.savedTranscriptMemoryMode || body.savedTranscriptMemoryMode || "disabled";
+    const transcriptionLanguageSetting = body.data?.transcriptionLanguage || body.transcriptionLanguage || "en"; // Added
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
-    const { transcriptListenMode, savedTranscriptMemoryMode, ...dataWithoutSettings } = body.data || {};
-    const { agent:_a, event:_e, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, messages:_m, ...restOfBody } = body;
+    const { transcriptListenMode, savedTranscriptMemoryMode, transcriptionLanguage, ...dataWithoutSettings } = body.data || {}; // Added transcriptionLanguage
+    const { agent:_a, event:_e, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, transcriptionLanguage: _trl, messages:_m, ...restOfBody } = body; // Added _trl
 
 
     // Basic validation for essential fields
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
     if (!agent) return new Response(JSON.stringify({ error: 'Missing agent' }), { status: 400 });
 
     console.log(`[Proxy] Chat request for Agent: ${agent}, Event: ${event || '0000'}`);
-    console.log(`[Proxy] Effective settings for backend - Listen: ${transcriptListenModeSetting}, Memory: ${savedTranscriptMemoryModeSetting}`);
+    console.log(`[Proxy] Effective settings for backend - Listen: ${transcriptListenModeSetting}, Memory: ${savedTranscriptMemoryModeSetting}, Language: ${transcriptionLanguageSetting}`);
 
     // Construct the specific API endpoint using the active base URL
     const backendChatUrl = `${activeBackendUrl}/api/chat`;
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest) {
       event: event || '0000',
       transcriptListenMode: transcriptListenModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
+      transcriptionLanguage: transcriptionLanguageSetting, // Added
       data: dataWithoutSettings, // Pass through other data fields if they exist
       ...restOfBody // Include any other top-level properties from original body (excluding those already handled)
     };

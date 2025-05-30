@@ -311,6 +311,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 // Add agent-specific settings from localStorage
                 transcriptListenMode: localStorage.getItem(`transcriptListenModeSetting_${agentName}`) || "latest",
                 savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
+                transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "en", // Added
             };
             
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
@@ -725,10 +726,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setAgentName(currentAgent); 
         setEventId(currentEvent);   
         debugLog(`[Start Recording Session] Agent/Event set to: ${currentAgent}/${currentEvent}`);
+        
+        const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "en";
+        debugLog(`[Start Recording Session] Transcription language for new session: ${currentTranscriptionLanguage}`);
 
         console.info("[Start Recording Session] Calling HTTP start API...");
         try {
-            const result = await callHttpRecordingApi('start', { agent: currentAgent, event: currentEvent });
+            const result = await callHttpRecordingApi('start', {
+              agent: currentAgent,
+              event: currentEvent,
+              transcriptionLanguage: currentTranscriptionLanguage // Pass language setting
+            });
             if (result.success && result.data?.session_id) {
                 console.info("[Start Recording Session] HTTP start successful. New Session ID:", result.data.session_id);
                 setSessionId(result.data.session_id);

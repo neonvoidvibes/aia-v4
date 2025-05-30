@@ -420,6 +420,11 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       console.warn("FullFileTranscriber: agentName is null, not sending to backend. Header might be incomplete.");
     }
 
+    // Get transcription language setting
+    const transcriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "en";
+    formData.append('transcription_language', transcriptionLanguage);
+    logger.info(`FullFileTranscriber: Sending transcription_language: ${transcriptionLanguage}`);
+
     try {
       const response = await fetch('/api/transcribe-audio', {
         method: 'POST',
