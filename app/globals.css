@@ -56,6 +56,8 @@
   --button-submit-fg-active: 0 0% 10%; /* Dark fg for dark mode active submit button */
   --button-submit-bg-inactive: 0 0% 25%; /* Darker gray for dark mode inactive submit BG */
   --button-submit-fg-inactive: 0 0% 60%; /* Lighter gray fg for dark mode inactive submit */
+  --button-submit-bg-stop: 0 0% 35%; /* Themed gray for dark mode stop button BG */
+  --button-submit-fg-stop: 0 0% 90%; /* Light fg for dark mode stop button */
   
   --icon-primary: 0 0% 90%; /* Primary icon color for dark mode */
   --icon-secondary: 0 0% 70%; /* Secondary icon color for dark mode */
@@ -111,6 +113,8 @@
   --button-submit-fg-active: 0 0% 98%;   /* White fg for light mode active submit */
   --button-submit-bg-inactive: 0 0% 80%; /* Lighter gray BG for light mode inactive submit */
   --button-submit-fg-inactive: 0 0% 50%; /* Mid gray fg for light mode inactive submit */
+  --button-submit-bg-stop: 0 0% 35%;     /* Themed gray for light mode stop button BG */
+  --button-submit-fg-stop: 0 0% 95%;     /* White fg for light mode stop button */
 
   --icon-primary: 0 0% 20%;    /* Primary icon color for light mode */
   --icon-secondary: 0 0% 40%;  /* Secondary icon color for light mode */
@@ -158,6 +162,8 @@
   --button-submit-fg-active: 0 0% 100%;   /* White FG */
   --button-submit-bg-inactive: 260 50% 25%; /* Darker indigo BG */
   --button-submit-fg-inactive: 270 80% 70%;   /* Muted orange FG */
+  --button-submit-bg-stop: 260 40% 35%; /* Themed indigo for stop button */
+  --button-submit-fg-stop: 270 90% 85%; /* Light orange for stop button */
   
   --icon-primary: 30 100% 85%;
   --icon-secondary: 270 80% 75%;
@@ -207,6 +213,8 @@
   --button-submit-fg-active: 0 0% 100%;   /* White FG */
   --button-submit-bg-inactive: 200 30% 80%; /* Light cyan-gray BG */
   --button-submit-fg-inactive: 210 30% 50%;   /* Muted blue FG */
+  --button-submit-bg-stop: 200 30% 60%; /* Themed cyan-gray for stop button */
+  --button-submit-fg-stop: 0 0% 100%; /* White for stop button */
 
   --icon-primary: 210 30% 30%;
   --icon-secondary: 210 30% 50%;
@@ -256,6 +264,8 @@
   --button-submit-fg-active: 120 25% 8%;   /* Darkest green FG */
   --button-submit-bg-inactive: 120 18% 20%; /* Darker forest green BG */
   --button-submit-fg-inactive: 90 25% 60%;   /* Muted moss green FG */
+  --button-submit-bg-stop: 120 20% 28%; /* Themed dark green for stop button */
+  --button-submit-fg-stop: 90 30% 85%; /* Light moss for stop button */
   
   --icon-primary: 90 30% 88%;
   --icon-secondary: 90 25% 70%;
@@ -305,6 +315,8 @@
   --button-submit-fg-active: 240 5% 95%;   /* Light grey FG */
   --button-submit-bg-inactive: 240 6% 22%; /* Darker grey BG */
   --button-submit-fg-inactive: 240 5% 60%;   /* Mid grey FG */
+  --button-submit-bg-stop: 240 6% 30%; /* Themed grey for stop button */
+  --button-submit-fg-stop: 240 5% 90%; /* Light grey for stop button */
   
   --icon-primary: 240 5% 88%;
   --icon-secondary: 240 5% 70%;
@@ -354,6 +366,8 @@
   --button-submit-fg-active: 0 0% 100%;   /* White FG */
   --button-submit-bg-inactive: 40 50% 85%; /* Light sand BG */
   --button-submit-fg-inactive: 30 40% 55%;   /* Muted brown FG */
+  --button-submit-bg-stop: 35 50% 60%; /* Themed sandy for stop button */
+  --button-submit-fg-stop: 0 0% 100%; /* White for stop button */
   
   --icon-primary: 25 50% 25%;
   --icon-secondary: 30 40% 45%;
@@ -403,6 +417,8 @@
   --button-submit-fg-active: 260 70% 5%;   /* Darkest purple FG */
   --button-submit-bg-inactive: 250 55% 16%; /* Darker night sky BG */
   --button-submit-fg-inactive: 180 40% 70%;   /* Muted icy green FG */
+  --button-submit-bg-stop: 250 50% 25%; /* Themed dark purple for stop button */
+  --button-submit-fg-stop: 180 50% 85%; /* Light icy green for stop button */
   
   --icon-primary: 170 50% 88%;
   --icon-secondary: 180 40% 75%;
@@ -452,6 +468,8 @@
   --button-submit-fg-active: 40 30% 98%;   /* Off-white FG */
   --button-submit-bg-inactive: 35 30% 80%; /* Lighter beige BG */
   --button-submit-fg-inactive: 25 40% 50%;   /* Muted terracotta FG */
+  --button-submit-bg-stop: 30 40% 55%; /* Themed terracotta for stop button */
+  --button-submit-fg-stop: 40 30% 95%; /* Light beige for stop button */
   
   --icon-primary: 25 55% 30%;
   --icon-secondary: 25 35% 45%;
@@ -516,6 +534,8 @@
   --button-submit-fg-active: hsl(var(--primary-foreground)); /* White */
   --button-submit-bg-inactive: 204 80% 44%; /* Light, neutral blue-gray */
   --button-submit-fg-inactive: 204 80% 37%; /* Readable gray */
+  --button-submit-bg-stop: 204 70% 50%; /* Themed blue for stop button */
+  --button-submit-fg-stop: 0 0% 100%; /* White for stop button */
   
   --icon-primary: 51 95% 71%;
   --icon-secondary: 51 95% 51%;
@@ -574,6 +594,8 @@
   --button-submit-fg-active: 0 0% 98%;
   --button-submit-bg-inactive: 0 0% 25%;
   --button-submit-fg-inactive: 0 0% 60%;
+  --button-submit-bg-stop: 0 0% 35%; /* Themed gray for stop button */
+  --button-submit-fg-stop: 0 0% 90%; /* Light fg for stop button */
   
   --icon-primary: 0 0% 90%;
   --icon-secondary: 0 0% 70%;

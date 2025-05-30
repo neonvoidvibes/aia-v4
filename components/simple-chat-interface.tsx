@@ -1116,22 +1116,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         />
                         <button type="submit"
                             className={cn(
-                                "p-2 transition-all duration-200 rounded-full", // Added rounded-full for consistency
+                                "transition-all duration-200 rounded-full flex items-center justify-center", // Base flex properties
+                                "h-9 w-9 sm:h-10 sm:w-10", // Consistent sizing (adjust if needed, matches approx. p-2 + 24px icon)
                                 // Active state (input has text or files, not loading)
                                 isPageReady && (input.trim() || attachedFiles.length > 0) && !isLoading && 
                                   "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
                                 // Inactive state (no input, not loading)
                                 isPageReady && !(input.trim() || attachedFiles.length > 0) && !isLoading &&
                                   "bg-[hsl(var(--button-submit-bg-inactive))] text-[hsl(var(--button-submit-fg-inactive))] cursor-default",
-                                // Loading state (destructive/stop button)
-                                isLoading && 
-                                  "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-                                // Disabled state (not page ready or pending action)
+                                // Loading state (destructive/stop button) - classes removed as styles are now inline
                                 (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
                               )}
+                            style={isLoading ? {
+                                backgroundColor: 'hsl(var(--button-submit-bg-stop))',
+                                color: 'hsl(var(--button-submit-fg-stop))',
+                            } : {}}
                             disabled={!isPageReady || (!input.trim() && attachedFiles.length === 0 && !isLoading) || !!pendingActionRef.current}
                             aria-label={isLoading ? "Stop generating" : "Send message"} >
-                            {isLoading ? <Square size={20} className="fill-current h-5 w-5" /> : <ArrowUp size={24} /> }
+                            {isLoading ? <Square size={18} className="fill-current" /> : <ArrowUp size={24} /> }
                         </button>
                     </div>
                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple accept=".txt,.md,.json,.pdf,.docx" />
