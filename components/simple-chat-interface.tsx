@@ -893,7 +893,30 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     ]);
 
 
-    const checkScroll = useCallback(() => { const c = messagesContainerRef.current; if (!c) return; const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c; const isScrollable = sh > ch; const isBottom = sh - st - ch < 2; if (st < prevScrollTopRef.current && !isBottom && !userHasScrolledRef.current) userHasScrolledRef.current = true; else if (userHasScrolledRef.current && isBottom) userHasScrolledRef.current = false; prevScrollTopRef.current = st; setShowScrollToBottom(isScrollable && !isBottom); }, []);
+    const checkScroll = useCallback(() => {
+      const c = messagesContainerRef.current;
+      if (!c) return;
+      const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c;
+
+      const atBottomThresholdForLogic = 2; // For auto-scroll logic and userHasScrolledRef
+      const atBottomThresholdForButtonVisibility = 180; // For scroll-to-bottom button visibility
+
+      const isScrollable = sh > ch;
+      
+      // Logic for determining if user has scrolled up (affects auto-scroll)
+      const isAtBottomForLogic = (sh - st - ch) < atBottomThresholdForLogic;
+      if (st < prevScrollTopRef.current && !isAtBottomForLogic && !userHasScrolledRef.current) {
+        userHasScrolledRef.current = true;
+      } else if (userHasScrolledRef.current && isAtBottomForLogic) {
+        userHasScrolledRef.current = false;
+      }
+      prevScrollTopRef.current = st;
+
+      // Logic for showing/hiding the scroll-to-bottom button
+      const isAtBottomForButton = (sh - st - ch) < atBottomThresholdForButtonVisibility;
+      setShowScrollToBottom(isScrollable && !isAtBottomForButton);
+    }, []); // Dependencies are empty as thresholds are defined inside.
+
     const scrollToBottom = useCallback((b: ScrollBehavior = "smooth") => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: b }); userHasScrolledRef.current = false; setShowScrollToBottom(false); }, []);
     useEffect(() => { if (!userHasScrolledRef.current) { const id = requestAnimationFrame(() => { setTimeout(() => { scrollToBottom('smooth'); }, 50); }); return () => cancelAnimationFrame(id); } else if (!isLoading && userHasScrolledRef.current) checkScroll(); }, [messages, isLoading, scrollToBottom, checkScroll]);
     useEffect(() => { const c = messagesContainerRef.current; if (c) { c.addEventListener("scroll", checkScroll, { passive: true }); return () => c.removeEventListener("scroll", checkScroll); } }, [checkScroll]);
