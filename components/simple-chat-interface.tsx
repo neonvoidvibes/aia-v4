@@ -335,7 +335,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         eventId, 
         setUiError, 
         getCanvasContext, 
-        setAttachedFiles // Added missing dependency
+        setAttachedFiles 
     ]);
 
     const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop', payload?: any): Promise<any> => {
@@ -451,6 +451,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Set pendingAction at the beginning of the stop process
         debugLog("[Stop Recording] Setting pendingAction to 'stop'.");
         setPendingAction('stop'); 
+        setReconnectAttempts(MAX_RECONNECT_ATTEMPTS + 1); // Prevent auto-reconnect during explicit stop
+        setIsReconnecting(false);
 
         try {
             if (mediaRecorderRef.current) {
@@ -492,6 +494,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (wsRef.current) {
                 const wsToClose = wsRef.current;
                  wsToClose.onopen = null; wsToClose.onmessage = null; wsToClose.onerror = null;
+                (wsToClose as any).__intentionalClose = true; // Flag for onclose handler
                 
                 wsToClose.onclose = () => { 
                     console.info("[Stop Recording] Client WebSocket deliberately closed (onclose event fired).");
@@ -506,7 +509,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 
                 if (wsToClose.readyState !== WebSocket.CLOSED && wsToClose.readyState !== WebSocket.CLOSING) {
                      debugLog(`[Stop Recording] WebSocket: Closing client-side connection (current state: ${wsToClose.readyState}).`);
-                     try { wsToClose.close(1000, "Client initiated stop recording"); } catch(err){ console.warn("[Stop Recording] Error during ws.close():", err); if (wsStatus !== 'error') setWsStatus('idle'); wsRef.current = null;}
+                     try { wsToClose.close(1000, "Client user stopped recording"); } catch(err){ console.warn("[Stop Recording] Error during ws.close():", err); if (wsStatus !== 'error') setWsStatus('idle'); wsRef.current = null;}
                 } else { 
                      if (wsRef.current === wsToClose) wsRef.current = null; 
                      if (wsStatus !== 'error') setWsStatus('idle');
@@ -661,6 +664,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         console.info("[WebSocket] Attempting to connect to URL:", wsUrl.replace(/token=.*$/, 'token=REDACTED'));
         const newWs = new WebSocket(wsUrl);
         wsRef.current = newWs; 
+        (wsRef.current as any).__intentionalClose = false; // Initialize flag
 
         newWs.onopen = () => {
             if (wsRef.current === newWs) { 
@@ -683,76 +687,82 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                  setUiError('Error: Recording stream connection failed.');
                  setWsStatus('error'); 
                  if (pendingActionRef.current === 'start') setPendingAction(null);
-                 handleStopRecording(undefined, true);
+                 // Don't call handleStopRecording here, let onclose handle reconnect logic
             } else {
                  console.warn(`[WebSocket] Stale onerror event for ${newWs.url}. Ignoring.`);
             }
         };
         newWs.onclose = (event) => {
-            console.info(`[WebSocket] Connection closed for session ${currentSessionId} (URL: ${newWs.url}). Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}.`);
+            console.info(`[WebSocket] Connection closed for session ${currentSessionId} (URL: ${newWs.url}). Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}. Intentional: ${(wsRef.current as any)?.__intentionalClose}`);
+            
             if (wsRef.current === newWs) { 
-                // Check if the closure was intentional
-                const intentionalClose = pendingActionRef.current === 'stop' || !isBrowserRecording;
+                const intentionalClientClose = (wsRef.current as any)?.__intentionalClose || pendingActionRef.current === 'stop';
                 
-                if (!intentionalClose && isBrowserRecording) {
-                    // Unexpected closure during active recording - attempt reconnection
-                    setWsStatus('closed');
-                    if (wsRef.current === newWs) wsRef.current = null;
-                    setIsBrowserRecording(false);
+                setWsStatus('closed'); // Set status regardless of why it closed
+                if (wsRef.current === newWs) wsRef.current = null; // Nullify current ref
+
+                if (!intentionalClientClose && isBrowserRecording) { // Unexpected close during active recording
+                    console.warn(`[WebSocket] Unexpected close for session ${currentSessionId} while recording was active. Code: ${event.code}`);
+                    setIsBrowserRecording(false); // Update UI state
                     setIsBrowserPaused(false);
                     
                     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                         setIsReconnecting(true);
                         const nextAttempt = reconnectAttempts + 1;
                         setReconnectAttempts(nextAttempt);
-                        const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, reconnectAttempts); // Exponential backoff
-                        setUiError(`Recording connection lost. Attempting reconnect ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s...`);
+                        // Use Math.pow(2, nextAttempt -1) for 0-indexed attempts starting with base delay
+                        const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, nextAttempt -1 ); 
+                        setUiError(`Recording connection lost. Reconnecting ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s...`);
                         
                         setTimeout(async () => {
-                            console.log("[Reconnect] Attempting to start new recording session...");
-                            // Ensure old resources are cleaned up as much as possible client-side.
-                            // `handleStartRecordingSession` already calls `resetRecordingStates`.
-                            await handleStartRecordingSession(); // This will try to start a *new* session.
-                            // `handleStartRecordingSession` should set `isReconnecting` back to `false` on success/failure.
+                            console.log(`[Reconnect] Attempt ${nextAttempt}: Starting new recording session...`);
+                            await handleStartRecordingSession(); 
                         }, delay);
                     } else {
-                        // Max attempts reached
-                        setUiError("Failed to reconnect recording. Please stop and start manually.");
+                        setUiError("Failed to reconnect recording after multiple attempts. Please stop and start manually.");
                         setIsReconnecting(false);
-                        resetRecordingStates(); // Full cleanup
+                        resetRecordingStates(); 
                     }
-                } else {
-                    // Intentional close or was not recording
-                    setWsStatus('closed');
+                } else { // Intentional close or was not actively recording when closed
                     if (pendingActionRef.current === 'start') { 
-                        setPendingAction(null);
-                        setUiError("WebSocket connection closed before recording could fully start.");
+                        setPendingAction(null); // Clear pending start if WS closes before media starts
+                        if (!event.wasClean) setUiError("WebSocket connection closed before recording could fully start.");
                     }
-                    setIsReconnecting(false);
-                    setReconnectAttempts(0);
-                    wsRef.current = null;
+                    setIsReconnecting(false); // Ensure this is reset on intentional close
+                    setReconnectAttempts(0);  // Reset attempts on intentional close
+                    // If it was an intentional stop, resetRecordingStates would have been called by handleStopRecording
+                    // If it wasn't recording, no further action needed beyond state updates.
+                    if (!isBrowserRecording && !pendingActionRef.current) { // If it wasn't recording and not in a pending stop
+                        resetRecordingStates(); // Ensure cleanup if closed idly or after an error not leading to stop
+                    }
                 }
             } else {
-                 console.warn(`[WebSocket] Stale onclose event for ${newWs.url}. Ignoring.`);
+                 console.warn(`[WebSocket] Stale onclose event for ${newWs.url}. Current wsRef is different or null. Ignoring.`);
             }
         };
-    }, [supabase.auth, startBrowserMediaRecording, handleStopRecording, wsStatus, isBrowserRecording]);
+    }, [supabase.auth, startBrowserMediaRecording, handleStopRecording, wsStatus, isBrowserRecording, reconnectAttempts, resetRecordingStates]);
 
 
     const handleStartRecordingSession = useCallback(async () => {
-        console.info(`[Start Recording Session] Initiated. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecording}, PageReady: ${isPageReady}, Agent: ${agentName}`);
-        if (pendingActionRef.current || isBrowserRecording || !isPageReady || !agentName) {
-            console.warn(`[Start Recording Session] Pre-condition not met. Aborting. Pending: ${pendingActionRef.current}, Rec: ${isBrowserRecording}, Ready: ${isPageReady}, Agent: ${agentName}`)
-            return;
+        console.info(`[Start Recording Session] Initiated. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecording}, PageReady: ${isPageReady}, Agent: ${agentName}, Reconnecting: ${isReconnecting}`);
+        
+        if (!isReconnecting) { // Only block if it's a manual start and already pending/recording
+            if (pendingActionRef.current || isBrowserRecording) {
+                console.warn(`[Start Recording Session] Manual start: Pre-condition not met. Aborting. Pending: ${pendingActionRef.current}, Rec: ${isBrowserRecording}`);
+                return;
+            }
+        }
+        if (!isPageReady || !agentName) {
+             console.warn(`[Start Recording Session] Page/Agent not ready. Aborting. Ready: ${isPageReady}, Agent: ${agentName}`);
+             setUiError("Agent/Event information not ready. Cannot start recording.");
+             setIsReconnecting(false); // Ensure reconnecting state is cleared if this fails early
+             return;
         }
         
-        if (isReconnecting) {
-            console.log("[handleStartRecordingSession] Called as part of a reconnect attempt.");
-        } else {
-            // If this is a manual start, reset reconnect attempts.
-            setReconnectAttempts(0);
+        if (!isReconnecting) {
+            setReconnectAttempts(0); // Reset for manual start
         }
-        setUiError(null); // Clear any previous UI errors
+        setUiError(null);
         setPendingAction('start'); 
         
         resetRecordingStates(); 
@@ -760,9 +770,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         const currentAgent = searchParams.get('agent'); 
         const currentEvent = searchParams.get('event') || '0000';
-        if (!currentAgent) {
+        if (!currentAgent) { // Should be caught by isPageReady, but defensive check
             setUiError("Agent information is missing. Cannot start recording.");
             setPendingAction(null);
+            setIsReconnecting(false);
             return;
         }
         setAgentName(currentAgent); 
@@ -774,8 +785,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         console.info("[Start Recording Session] Calling HTTP start API...");
         try {
-            const result = await callHttpRecordingApi('start', {
-              agent: currentAgent,
+            const result = await callHttpRecordingApi('start', { 
+              agent: currentAgent, 
               event: currentEvent,
               transcriptionLanguage: currentTranscriptionLanguage // Pass language setting
             });
@@ -795,10 +806,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setUiError(`Error: Exception trying to start recording session.`);
             setPendingAction(null);
         } finally {
-            // Regardless of success/failure of starting the session, set isReconnecting back to false
+            // This finally block in handleStartRecordingSession will run after the async callHttp...
+            // If connectWebSocket is called, pendingAction='start' is cleared by connectWebSocket itself or its error paths.
+            // If callHttp... fails, pendingAction is cleared above.
+            // Setting isReconnecting to false should happen after the attempt.
             setIsReconnecting(false);
         }
-    }, [isBrowserRecording, isPageReady, agentName, eventId, callHttpRecordingApi, connectWebSocket, resetRecordingStates, searchParams, setPendingAction, setUiError, setAgentName, setEventId, setSessionId, setSessionStartTimeUTC]);
+    }, [isBrowserRecording, isPageReady, agentName, eventId, callHttpRecordingApi, connectWebSocket, resetRecordingStates, searchParams, setPendingAction, setUiError, setAgentName, setEventId, setSessionId, setSessionStartTimeUTC, isReconnecting]);
 
     const handleToggleBrowserPause = useCallback(() => {
         if (!mediaRecorderRef.current || !isBrowserRecording || pendingActionRef.current) return;
@@ -875,7 +889,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         handleStopRecording, 
         handleInputChange, 
         input, 
-        handleSubmitWithCanvasContext // Ensure this is the stable useCallback version
+        handleSubmitWithCanvasContext 
     ]);
 
 
@@ -1027,7 +1041,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
                 {messages.length === 0 && !isPageReady && !uiError && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {messages.length === 0 && isPageReady && !uiError &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight }}>{currentWelcomeMessageConfig.text}</p> </div> )}
-                {messages.length > 0 && ( <div> {messages.map((message: Message) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && handleMessageInteraction(message.id)} > {isUser && hasAttachments && (                   <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} <span dangerouslySetInnerHTML={{ __html: displayContent.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </motion.div> ); })} </div> )}
+                {messages.length > 0 && ( <div className="space-y-1 pt-8 pb-4"> {/* Changed py-4 to pt-8 pb-4 */} {messages.map((message: Message) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && handleMessageInteraction(message.id)} > {isUser && hasAttachments && (                   <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} <span dangerouslySetInnerHTML={{ __html: displayContent.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </motion.div> ); })} </div> )}
                 {isLoading && messages[messages.length - 1]?.role === 'user' && ( <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1"> <span className="thinking-dot"></span> </motion.div> )}
                 <div ref={messagesEndRef} />
             </div>
