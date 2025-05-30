@@ -996,11 +996,35 @@ function HomeContent() {
                 <TabsContent value="settings" className="mt-0 tab-content-scrollable">
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <div className="flex items-center justify-between"> 
-                      <span className="memory-section-title">Global Theme</span>
+                      <Label htmlFor="transcription-language-toggle">Transcription Language</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={transcriptionLanguage}
+                        onValueChange={(value) => {
+                          if (value === "en" || value === "sv" || value === "any") {
+                            setTranscriptionLanguage(value as "en" | "sv" | "any");
+                          }
+                        }}
+                        className="rounded-md bg-muted p-1"
+                        aria-label="Transcription language"
+                      >
+                        <ToggleGroupItem value="en" aria-label="English" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "EN" : "English"}
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="sv" aria-label="Swedish" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "SV" : "Swedish"}
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "Any" : "Any"}
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label>Global Theme</Label> {/* Removed memory-section-title, relying on default Label style */}
                       <ThemeToggle />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="memory-section-title">Agent Theme</span>
+                      <Label>Agent Theme</Label> {/* Removed memory-section-title */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="w-[180px] justify-between">
@@ -1051,7 +1075,7 @@ function HomeContent() {
                     </div>
                     {/* Hiding toggle until feature is finished to implement
                     <div className="flex items-center justify-between pt-2">
-                        <Label htmlFor="canvas-view-toggle" className="memory-section-title">Enable Canvas View</Label>
+                        <Label htmlFor="canvas-view-toggle">Enable Canvas View</Label> // Removed memory-section-title
                         <Switch
                             id="canvas-view-toggle"
                             checked={isCanvasViewEnabled}
@@ -1059,30 +1083,6 @@ function HomeContent() {
                         />
                     </div>
                     */}
-                    <div className="flex items-center justify-between pt-2">
-                      <Label htmlFor="transcription-language-toggle" className="memory-section-title text-sm font-medium">Transcription Language</Label>
-                      <ToggleGroup
-                        type="single"
-                        value={transcriptionLanguage}
-                        onValueChange={(value) => {
-                          if (value === "en" || value === "sv" || value === "any") {
-                            setTranscriptionLanguage(value as "en" | "sv" | "any");
-                          }
-                        }}
-                        className="rounded-md bg-muted p-0.5"
-                        aria-label="Transcription language"
-                      >
-                        <ToggleGroupItem value="en" aria-label="English" size="sm" className="px-2.5 sm:px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          EN
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="sv" aria-label="Swedish" size="sm" className="px-2.5 sm:px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          SV
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-2.5 sm:px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          Any
-                        </ToggleGroupItem>
-                      </ToggleGroup>
-                    </div>
                   </div>
                 </TabsContent>
               </div>
