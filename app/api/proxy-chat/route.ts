@@ -65,9 +65,12 @@ export async function POST(req: NextRequest) {
     const agent = body.agent || body.data?.agent;
     const event = body.event || body.data?.event;
     
-    const transcriptListenModeSetting = body.data?.transcriptListenMode || body.transcriptListenMode || "latest";
+    let transcriptListenModeSetting = body.data?.transcriptListenMode || body.transcriptListenMode || "latest";
+    if (!["none", "latest", "all"].includes(transcriptListenModeSetting)) {
+      transcriptListenModeSetting = "latest"; // Default to "latest" if invalid value
+    }
     const savedTranscriptMemoryModeSetting = body.data?.savedTranscriptMemoryMode || body.savedTranscriptMemoryMode || "disabled";
-    const transcriptionLanguageSetting = body.data?.transcriptionLanguage || body.transcriptionLanguage || "en"; // Added
+    const transcriptionLanguageSetting = body.data?.transcriptionLanguage || body.transcriptionLanguage || "any"; // Changed default to "any"
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
     const { transcriptListenMode, savedTranscriptMemoryMode, transcriptionLanguage, ...dataWithoutSettings } = body.data || {}; // Added transcriptionLanguage

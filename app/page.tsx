@@ -76,9 +76,10 @@ function HomeContent() {
   const [pinnedCanvasInsights, setPinnedCanvasInsights] = useState<CanvasInsightItem[]>([]);
 
   // State for new toggles in Documents tab
-  const [transcriptListenMode, setTranscriptListenMode] = useState<"latest" | "all">("latest");
+  const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "latest" | "all">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
+  const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
 
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
@@ -105,6 +106,7 @@ function HomeContent() {
     baseFrameworks: false,
     agentPrimaryContext: false, 
     savedSummaries: false, // Added savedSummaries here
+    rawSavedS3TranscriptsFetched: false, // New flag for raw saved transcripts
     pineconeMemory: false,
   });
 
@@ -129,6 +131,7 @@ function HomeContent() {
           baseFrameworks: false,
           agentPrimaryContext: false,
           savedSummaries: false, // Add flag for summaries
+          rawSavedS3TranscriptsFetched: false, // Ensure this new flag is included in the reset
           pineconeMemory: false,
         });
       }
@@ -316,10 +319,11 @@ function HomeContent() {
     if (pageAgentName) {
       const key = `transcriptListenModeSetting_${pageAgentName}`;
       const savedMode = localStorage.getItem(key);
-      if (savedMode === "latest" || savedMode === "all") {
-        setTranscriptListenMode(savedMode as "latest" | "all");
+      if (savedMode === "none" || savedMode === "latest" || savedMode === "all") {
+        setTranscriptListenMode(savedMode as "none" | "latest" | "all");
       } else {
-        setTranscriptListenMode("latest"); // Default if no agent-specific setting found
+        setTranscriptListenMode("latest"); // Default to "latest"
+        localStorage.setItem(key, "latest"); // Persist default if invalid or not found
       }
     }
   }, [pageAgentName]);
@@ -500,6 +504,16 @@ function HomeContent() {
         );
       }
 
+      if (!fetchedDataFlags.rawSavedS3TranscriptsFetched && pageAgentName && pageEventId) {
+        await fetchS3Data(
+          `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/saved/`,
+          (data: FetchedFile[]) => {
+            setRawSavedS3Transcripts(data.filter(f => !f.name.endsWith('/'))); // Filter out potential folder markers
+            newFetchedDataFlags.rawSavedS3TranscriptsFetched = true;
+          },
+          "Raw Saved Transcripts"
+        );
+      }
 
       if (!fetchedDataFlags.pineconeMemory) {
         try {
@@ -865,7 +879,7 @@ function HomeContent() {
               <div className="tab-content-wrapper" ref={tabContentRef}>
                 <TabsContent value="documents" className="mt-0 tab-content-scrollable">
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
-                    <CollapsibleSection title="Chat Attachments" defaultOpen={true}>
+                    <CollapsibleSection title="Chat Attachments" defaultOpen={allChatAttachments.length > 0}>
                       <div className="document-upload-container">
                         <DocumentUpload description="Documents attached to the current chat session (Read-only)" type="chat" existingFiles={allChatAttachments} readOnly={true} allowRemove={false} transparentBackground={true} />
                       </div>
@@ -874,21 +888,30 @@ function HomeContent() {
                       <div className="flex items-center justify-between py-3 border-b mb-3">
                         <div className="flex items-center gap-2">
                           <History className="h-5 w-5 text-muted-foreground" />
-                          <Label htmlFor="transcript-listen-toggle" className="memory-section-title text-sm font-medium">Listen:</Label>
+                          <Label htmlFor="transcript-listen-toggle-group" className="memory-section-title text-sm font-medium">Listen:</Label>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm text-muted-foreground w-16 text-right">
-                            {transcriptListenMode === "latest" ? "Latest" : "All"}
-                          </span>
-                          <Switch
-                            id="transcript-listen-toggle"
-                            checked={transcriptListenMode === "all"}
-                            onCheckedChange={(checked) =>
-                              setTranscriptListenMode(checked ? "all" : "latest")
+                        <ToggleGroup
+                          type="single"
+                          value={transcriptListenMode}
+                          onValueChange={(value) => {
+                            if (value === "none" || value === "latest" || value === "all") {
+                              setTranscriptListenMode(value as "none" | "latest" | "all");
                             }
-                            aria-label="Transcript listen mode"
-                          />
-                        </div>
+                          }}
+                          className="rounded-md bg-muted p-0.5"
+                          aria-label="Transcript listen mode"
+                          id="transcript-listen-toggle-group"
+                        >
+                          <ToggleGroupItem value="none" aria-label="None" className="h-6 px-2 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
+                            None
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-2 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
+                            Latest
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="all" aria-label="All" className="h-6 px-2 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
+                            All
+                          </ToggleGroupItem>
+                        </ToggleGroup>
                       </div>
                       <div className="pb-3 space-y-2 w-full overflow-hidden">
                         {transcriptionS3Files.length > 0 ? (
@@ -919,7 +942,7 @@ function HomeContent() {
                         )}
                       </div>
                     </CollapsibleSection>
-                    <CollapsibleSection title="Saved Transcripts" defaultOpen={false}>
+                    <CollapsibleSection title="Summarized Transcripts" defaultOpen={false}>
                       <div className="flex items-center justify-between py-3 border-b mb-3">
                         <div className="flex items-center gap-2">
                           <Brain className="h-5 w-5 text-muted-foreground" />
@@ -955,6 +978,32 @@ function HomeContent() {
                           ))
                         ) : (<p className="text-sm text-muted-foreground">No saved transcript summaries found.</p>)}
                       </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Saved Transcripts" defaultOpen={false}>
+                       <div className="flex items-center justify-between py-3 border-b mb-3">
+                         <div className="flex items-center gap-2">
+                           <FileClock className="h-5 w-5 text-muted-foreground" />
+                           <span className="memory-section-title text-sm font-medium">Raw Transcripts:</span>
+                         </div>
+                       </div>
+                       <div className="pb-3 space-y-2 w-full overflow-hidden settings-section-scrollable">
+                         {rawSavedS3Transcripts.length > 0 ? (
+                           rawSavedS3Transcripts.map(rawFile => (
+                             <FetchedFileListItem
+                               key={rawFile.s3Key || rawFile.name}
+                               file={rawFile}
+                               onView={() => handleViewS3File({ s3Key: rawFile.s3Key!, name: rawFile.name, type: rawFile.type || 'text/plain' })}
+                               onDownload={() => handleDownloadS3File({ s3Key: rawFile.s3Key!, name: rawFile.name })}
+                               showViewIcon={true}
+                               showDownloadIcon={true}
+                               showArchiveIcon={false}
+                               showSaveAsMemoryIcon={false}
+                             />
+                           ))
+                         ) : (
+                           <p className="text-sm text-muted-foreground">No raw saved transcripts found in S3.</p>
+                         )}
+                       </div>
                     </CollapsibleSection>
                   </div>
                 </TabsContent>
