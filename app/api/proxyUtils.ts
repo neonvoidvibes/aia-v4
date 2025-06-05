@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
 /**
- * Finds the first active backend URL from a list by checking its /api/health endpoint.
+ * Finds the first active backend URL from a list by checking its /api/health endpoint concurrently.
  * @param urls List of potential base URLs for the backend.
- * @returns The first active base URL found, or null if none respond successfully.
+ * @returns The first active base URL found (respecting the original list's priority), or null if none respond successfully.
  */
 export async function findActiveBackend(urls: string[]): Promise<string | null> {
     if (!urls || urls.length === 0) {
@@ -12,36 +12,44 @@ export async function findActiveBackend(urls: string[]): Promise<string | null> 
         console.error("[Proxy Util] CRITICAL: No backend URLs were provided to findActiveBackend. This usually means NEXT_PUBLIC_BACKEND_API_URLS is missing, empty, or contains only whitespace in the environment configuration. Cannot proceed to find an active backend.");
         return null; // Explicitly return null, no fallback to localhost.
     }
-    console.log("[Proxy Util] Checking potential backend URLs:", urls);
+    console.log("[Proxy Util] Checking potential backend URLs concurrently:", urls);
 
-    for (const baseUrl of urls) {
+    const healthCheckPromises = urls.map(baseUrl => {
         const healthUrl = `${baseUrl}/api/health`;
-        try {
-            console.log(`[Proxy Util] Pinging ${healthUrl}...`);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000); // Short timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, 1500); // Reduced timeout to 1.5s for faster failure detection
 
-            const response = await fetch(healthUrl, { method: 'GET', signal: controller.signal });
-            clearTimeout(timeoutId);
+        return fetch(healthUrl, { method: 'GET', signal: controller.signal })
+            .finally(() => clearTimeout(timeoutId));
+    });
 
-            if (response.ok) {
-                console.log(`[Proxy Util] Success: ${baseUrl} is active.`);
-                return baseUrl;
-            } else {
-                console.warn(`[Proxy Util] ${baseUrl} responded with status ${response.status}`);
+    const results = await Promise.allSettled(healthCheckPromises);
+
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const url = urls[i];
+
+        if (result.status === 'fulfilled' && result.value.ok) {
+            console.log(`[Proxy Util] Success: ${url} is active.`);
+            return url;
+        } else {
+            let reason = "Unknown error";
+            if (result.status === 'fulfilled') {
+                reason = `Status ${result.value.status}`;
+            } else if (result.reason) {
+                // @ts-ignore
+                reason = result.reason.name === 'AbortError' ? 'Timeout' : result.reason.message;
             }
-        } catch (error: any) {
-             if (error.name === 'AbortError') {
-                 console.warn(`[Proxy Util] Timeout connecting to ${healthUrl}`);
-             } else {
-                 console.warn(`[Proxy Util] Error connecting to ${healthUrl}: ${error.message}`);
-             }
+            console.warn(`[Proxy Util] Health check failed for ${url}: ${reason}`);
         }
     }
 
     console.error("[Proxy Util] No active backend found among:", urls);
     return null;
 }
+
 
 /**
  * Formats an error message into a standard JSON response for API routes.
