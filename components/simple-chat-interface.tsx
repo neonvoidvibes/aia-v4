@@ -18,6 +18,7 @@ import {
   Check,
   ChevronDown,
   Loader2,
+  AlertTriangle, // Added for error messages
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { useMobile } from "@/hooks/use-mobile"
@@ -75,7 +76,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [agentName, setAgentName] = useState<string | null>(null);
     const [eventId, setEventId] = useState<string | null>(null);
     const [isPageReady, setIsPageReady] = useState(false); 
-    const [uiError, setUiError] = useState<string | null>(null);
 
 
     // WebSocket and Recording State
@@ -108,65 +108,42 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } else {
             console.warn("[InitEffect] Chat Interface Waiting: Agent parameter missing from URL.");
             setIsPageReady(false);
-            setUiError("Agent parameter missing from URL.");
+            // Don't append error here, let page.tsx handle auth errors
         }
     }, [searchParams]);
 
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
-      isLoading, stop, setMessages, append: originalAppend, // Capture append
+      isLoading, stop, setMessages, append, // Capture append directly
     } = useChat({ 
       api: "/api/proxy-chat",
       body: { agent: agentName, event: eventId || '0000' }, 
       sendExtraMessageFields: true,
       onError: (error) => { 
-        console.error("[ChatInterface] useChat onError:", error);
-        const rawErrorMessage = error.message || "Chat API error occurred.";
-        let displayMessage = rawErrorMessage;
-
-        // Check for specific low credit/quota errors
-        const lowerCaseError = rawErrorMessage.toLowerCase();
-        const isAnthropicLowCredit = lowerCaseError.includes("credit balance is too low");
-        const isOpenAiLowQuota = lowerCaseError.includes("insufficient_quota") || lowerCaseError.includes("exceeded your current quota");
-
-        if (isAnthropicLowCredit || isOpenAiLowQuota) {
-          displayMessage = "There was an issue processing your request at this time. Please try again later.";
-          if (isAnthropicLowCredit) {
-            console.warn("[ChatInterface] Anthropic low credit balance detected.");
-          }
-          if (isOpenAiLowQuota) {
-            console.warn("[ChatInterface] OpenAI insufficient quota detected.");
-          }
-        } else if (rawErrorMessage.includes("NetworkError") || rawErrorMessage.includes("Failed to fetch")) {
-          displayMessage = "Connection to chat backend failed. Please check server.";
-        } else {
-           displayMessage = `Chat Error: ${rawErrorMessage}`; // Default detailed error for other cases
+        console.error("[ChatUI] useChat onError:", error);
+        const rawErrorMessage = error.message || "An error occurred.";
+        
+        // Simplify messages for the user
+        let displayMessage = "I'm having trouble connecting right now. Please try again in a moment.";
+        if (rawErrorMessage.includes("Assistant is temporarily unavailable")) {
+          displayMessage = "The assistant is currently overloaded. Please wait a minute before trying again.";
+        } else if (rawErrorMessage.includes("rate limit")) {
+          displayMessage = "We're experiencing high traffic right now. Please wait a moment and try again.";
+        } else if (rawErrorMessage.includes("Network error") || rawErrorMessage.includes("Failed to fetch")) {
+            displayMessage = "Connection to the chat service failed. Please check the backend server status and your network connection.";
+        } else if (rawErrorMessage.includes("Internal Server Error") || rawErrorMessage.includes("500")) {
+             displayMessage = "An internal server error occurred. Please try again later.";
         }
-        setUiError(displayMessage); 
+
+        // Use append to add the error message to the chat history
+        append({
+            id: `err-${Date.now()}`,
+            role: 'error',
+            content: displayMessage,
+            createdAt: new Date(),
+        });
       },
     });
-
-    // Custom append to handle potential metadata for canvas messages
-    const append = useCallback(async (message: Message, options?: { data?: Record<string, string>}) => {
-        // This custom append is mostly for if we needed to pass extra data with messages *added by the system*
-        // For user messages, handleSubmit is the primary point of interest for adding data
-        return originalAppend(message, options);
-    }, [originalAppend]);
-
-
-    const appendToChat = useCallback((message: Message) => { // This is likely for system messages like errors
-        append(message);
-    }, [append]);
-
-
-    useEffect(() => {
-        if (uiError) {
-            debugLog("UI Error Set:", uiError);
-            appendToChat({id: `err-${Date.now()}`, role: 'system', content: uiError, createdAt: new Date()});
-            const timer = setTimeout(() => setUiError(null), 7000); 
-            return () => clearTimeout(timer);
-        }
-    }, [uiError, appendToChat]); 
 
     useEffect(() => {
         if (agentName && isPageReady) {
@@ -282,7 +259,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
         
         if (!isPageReady) {
-            setUiError("Error: Agent/Event not set.");
+            append({ role: 'error', id: `err-no-agent-${Date.now()}`, content: 'Cannot send message: Agent/Event not set.' });
             return;
         }
         if (isLoading) {
@@ -333,28 +310,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         attachedFiles, 
         agentName, 
         eventId, 
-        setUiError, 
+        append,
         getCanvasContext, 
         setAttachedFiles 
     ]);
 
     const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop', payload?: any): Promise<any> => {
         debugLog(`[HTTP API Call] Action: ${action}, Payload:`, payload);
-        // pendingAction is now set by the caller (handleStart/StopRecordingSession)
         
         const apiUrl = `/api/recording-proxy/`; 
         if (!isPageReady || !agentName) {
             const errorMsg = "Agent/Event not set";
-            setUiError(`Error: Cannot ${action} recording. ${errorMsg}`);
-            // Caller will handle pendingAction reset in its finally block
+            append({ role: 'error', id: `err-rec-${action}-${Date.now()}`, content: `Error: Cannot ${action} recording. ${errorMsg}` });
             return { success: false, error: errorMsg };
         }
 
         const { data: { session: supabaseSession }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !supabaseSession) {
             const errorMsg = "Authentication required";
-            setUiError(`Error: Authentication required to ${action} recording.`);
-            // Caller will handle pendingAction reset
+            append({ role: 'error', id: `err-rec-auth-${Date.now()}`, content: `Error: Authentication required to ${action} recording.` });
             return { success: false, error: errorMsg };
         }
 
@@ -372,16 +346,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             debugLog(`[HTTP API Call] Response for ${action}:`, responseData);
             if (!response.ok) throw new Error(responseData.message || responseData.error || `Failed action '${action}'`);
             
-            // pendingAction is reset by the caller after this promise resolves/rejects
             console.info(`[HTTP API Call] '${action}' action successful.`);
             return { success: true, data: responseData };
         } catch (error: any) {
             console.error(`[HTTP API Call] Error (${action}):`, error);
-            setUiError(`Error: Failed to ${action} recording. ${error?.message}`);
-            // pendingAction is reset by the caller
+            append({ role: 'error', id: `err-rec-fail-${Date.now()}`, content: `Error: Failed to ${action} recording. ${error?.message}` });
             return { success: false, error: error?.message };
         }
-    }, [isPageReady, agentName, supabase.auth, setUiError]); 
+    }, [isPageReady, agentName, supabase.auth, append]);
 
     const resetRecordingStates = useCallback(() => {
         console.info("[Resetting Recording States]");
@@ -448,10 +420,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.warn("[Stop Recording] Stop operation already in progress. Ignoring.");
             return;
         }
-        // Set pendingAction at the beginning of the stop process
         debugLog("[Stop Recording] Setting pendingAction to 'stop'.");
         setPendingAction('stop'); 
-        setReconnectAttempts(MAX_RECONNECT_ATTEMPTS + 1); // Prevent auto-reconnect during explicit stop
+        setReconnectAttempts(MAX_RECONNECT_ATTEMPTS + 1);
         setIsReconnecting(false);
 
         try {
@@ -494,7 +465,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (wsRef.current) {
                 const wsToClose = wsRef.current;
                  wsToClose.onopen = null; wsToClose.onmessage = null; wsToClose.onerror = null;
-                (wsToClose as any).__intentionalClose = true; // Flag for onclose handler
+                (wsToClose as any).__intentionalClose = true;
                 
                 wsToClose.onclose = () => { 
                     console.info("[Stop Recording] Client WebSocket deliberately closed (onclose event fired).");
@@ -527,7 +498,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 } else {
                     console.error("[Stop Recording] Failed to stop recording session via HTTP:", result.error);
                     if (!dueToError) {
-                         setUiError(`Error: Could not properly stop recording session (HTTP). ${result.error || ''}`);
+                         append({ role: 'error', id: `err-rec-stop-fail-${Date.now()}`, content: `Error: Could not properly stop recording session (HTTP). ${result.error || ''}` });
                     }
                 }
             } else {
@@ -543,21 +514,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setSessionStartTimeUTC(null);
             
             console.info("[Stop Recording] Finished cleanup logic. DueToError:", dueToError);
-        // The useEffect hook dependent on isBrowserRecording and pendingAction will handle re-focusing the input.
         } finally {
-            // Ensure pendingAction is cleared after all operations, regardless of success/failure
             debugLog("[Stop Recording] In finally block, setting pendingAction to null.");
             setPendingAction(null);
         }
 
-    }, [sessionId, callHttpRecordingApi, wsStatus, appendToChat, setPendingAction, setUiError, setIsBrowserRecording, setIsBrowserPaused, setClientRecordingTime, setShowRecordUI, setRecordUIVisible, setSessionId, setSessionStartTimeUTC]);
+    }, [sessionId, callHttpRecordingApi, wsStatus, append, setPendingAction, setIsBrowserRecording, setIsBrowserPaused, setClientRecordingTime, setShowRecordUI, setRecordUIVisible, setSessionId, setSessionStartTimeUTC]);
 
 
     const startBrowserMediaRecording = useCallback(async () => {
         debugLog(`[Browser Recording] Attempting. WS state: ${wsRef.current?.readyState}, MediaRecorder state: ${mediaRecorderRef.current?.state}`);
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
             console.error("[Browser Recording] WebSocket not open. Cannot start recording.");
-            setUiError('Error: Could not start microphone. Stream not ready.');
+            append({ role: 'error', id: `err-mic-no-stream-${Date.now()}`, content: 'Error: Could not start microphone. Stream not ready.' });
             if (pendingActionRef.current === 'start') setPendingAction(null);
             return;
         }
@@ -603,7 +572,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             mediaRecorderRef.current.onerror = (event) => {
                 console.error("[MediaRecorder onerror] Error:", event);
-                setUiError(`Error: Microphone recording error.`);
+                append({ role: 'error', id: `err-mic-fail-${Date.now()}`, content: 'Error: Microphone recording error.' });
                 if (pendingActionRef.current === 'start') setPendingAction(null);
                 handleStopRecording(undefined, true);
             };
@@ -620,7 +589,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         } catch (err) {
             console.error("[Browser Recording] Error getting user media or starting recorder:", err);
-            setUiError('Error: Could not access microphone. Please check permissions.');
+            append({ role: 'error', id: `err-mic-perm-${Date.now()}`, content: 'Error: Could not access microphone. Please check permissions.' });
             if (audioStreamRef.current) {
                 audioStreamRef.current.getTracks().forEach(track => track.stop());
                 audioStreamRef.current = null;
@@ -630,7 +599,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (wsStatus === 'connecting' || wsStatus === 'open') setWsStatus('error');
             if (pendingActionRef.current === 'start') setPendingAction(null); 
         }
-    }, [startHideTimeout, handleStopRecording, wsStatus]); 
+    }, [startHideTimeout, handleStopRecording, wsStatus, append]);
 
     const connectWebSocket = useCallback(async (currentSessionId: string) => {
         debugLog(`[WebSocket] Attempting connect for session: ${currentSessionId}. WS State: ${wsRef.current?.readyState}, Status: ${wsStatus}`);
@@ -649,7 +618,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session?.access_token) {
             console.error("[WebSocket] Failed to get auth token for WebSocket.", sessionError);
-            setUiError('Error: WebSocket authentication failed.');
+            append({ role: 'error', id: `err-ws-auth-${Date.now()}`, content: 'Error: WebSocket authentication failed.' });
             setWsStatus('error');
             if (pendingActionRef.current === 'start') setPendingAction(null);
             return;
@@ -684,7 +653,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         newWs.onerror = (event) => { 
             console.error(`[WebSocket] Error for session ${currentSessionId} on WS instance for ${newWs.url}:`, event);
             if (wsRef.current === newWs) { 
-                 setUiError('Error: Recording stream connection failed.');
+                 append({ role: 'error', id: `err-ws-conn-${Date.now()}`, content: 'Error: Recording stream connection failed.' });
                  setWsStatus('error'); 
                  if (pendingActionRef.current === 'start') setPendingAction(null);
                  // Don't call handleStopRecording here, let onclose handle reconnect logic
@@ -698,55 +667,51 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (wsRef.current === newWs) { 
                 const intentionalClientClose = (wsRef.current as any)?.__intentionalClose || pendingActionRef.current === 'stop';
                 
-                setWsStatus('closed'); // Set status regardless of why it closed
-                if (wsRef.current === newWs) wsRef.current = null; // Nullify current ref
+                setWsStatus('closed');
+                if (wsRef.current === newWs) wsRef.current = null;
 
-                if (!intentionalClientClose && isBrowserRecording) { // Unexpected close during active recording
+                if (!intentionalClientClose && isBrowserRecording) {
                     console.warn(`[WebSocket] Unexpected close for session ${currentSessionId} while recording was active. Code: ${event.code}`);
-                    setIsBrowserRecording(false); // Update UI state
+                    setIsBrowserRecording(false);
                     setIsBrowserPaused(false);
                     
                     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                         setIsReconnecting(true);
                         const nextAttempt = reconnectAttempts + 1;
-                        setReconnectAttempts(nextAttempt);
-                        // Use Math.pow(2, nextAttempt -1) for 0-indexed attempts starting with base delay
                         const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, nextAttempt -1 ); 
-                        setUiError(`Recording connection lost. Reconnecting ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s...`);
+                        append({ role: 'error', id: `err-ws-reconn-${Date.now()}`, content: `Recording connection lost. Reconnecting ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s...` });
                         
                         setTimeout(async () => {
                             console.log(`[Reconnect] Attempt ${nextAttempt}: Starting new recording session...`);
                             await handleStartRecordingSession(); 
                         }, delay);
                     } else {
-                        setUiError("Failed to reconnect recording after multiple attempts. Please stop and start manually.");
+                        append({ role: 'error', id: `err-ws-reconn-fail-${Date.now()}`, content: 'Failed to reconnect recording after multiple attempts. Please stop and start manually.' });
                         setIsReconnecting(false);
                         resetRecordingStates(); 
                     }
-                } else { // Intentional close or was not actively recording when closed
+                } else {
                     if (pendingActionRef.current === 'start') { 
-                        setPendingAction(null); // Clear pending start if WS closes before media starts
-                        if (!event.wasClean) setUiError("WebSocket connection closed before recording could fully start.");
+                        setPendingAction(null);
+                        if (!event.wasClean) append({ role: 'error', id: `err-ws-premature-close-${Date.now()}`, content: 'WebSocket connection closed before recording could fully start.' });
                     }
-                    setIsReconnecting(false); // Ensure this is reset on intentional close
-                    setReconnectAttempts(0);  // Reset attempts on intentional close
-                    // If it was an intentional stop, resetRecordingStates would have been called by handleStopRecording
-                    // If it wasn't recording, no further action needed beyond state updates.
-                    if (!isBrowserRecording && !pendingActionRef.current) { // If it wasn't recording and not in a pending stop
-                        resetRecordingStates(); // Ensure cleanup if closed idly or after an error not leading to stop
+                    setIsReconnecting(false);
+                    setReconnectAttempts(0);
+                    if (!isBrowserRecording && !pendingActionRef.current) {
+                        resetRecordingStates();
                     }
                 }
             } else {
                  console.warn(`[WebSocket] Stale onclose event for ${newWs.url}. Current wsRef is different or null. Ignoring.`);
             }
         };
-    }, [supabase.auth, startBrowserMediaRecording, handleStopRecording, wsStatus, isBrowserRecording, reconnectAttempts, resetRecordingStates]);
+    }, [supabase.auth, startBrowserMediaRecording, handleStopRecording, wsStatus, isBrowserRecording, reconnectAttempts, resetRecordingStates, append]);
 
 
     const handleStartRecordingSession = useCallback(async () => {
         console.info(`[Start Recording Session] Initiated. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecording}, PageReady: ${isPageReady}, Agent: ${agentName}, Reconnecting: ${isReconnecting}`);
         
-        if (!isReconnecting) { // Only block if it's a manual start and already pending/recording
+        if (!isReconnecting) {
             if (pendingActionRef.current || isBrowserRecording) {
                 console.warn(`[Start Recording Session] Manual start: Pre-condition not met. Aborting. Pending: ${pendingActionRef.current}, Rec: ${isBrowserRecording}`);
                 return;
@@ -754,15 +719,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
         if (!isPageReady || !agentName) {
              console.warn(`[Start Recording Session] Page/Agent not ready. Aborting. Ready: ${isPageReady}, Agent: ${agentName}`);
-             setUiError("Agent/Event information not ready. Cannot start recording.");
-             setIsReconnecting(false); // Ensure reconnecting state is cleared if this fails early
+             append({ role: 'error', id: `err-rec-start-notready-${Date.now()}`, content: 'Agent/Event information not ready. Cannot start recording.' });
+             setIsReconnecting(false);
              return;
         }
         
         if (!isReconnecting) {
-            setReconnectAttempts(0); // Reset for manual start
+            setReconnectAttempts(0);
         }
-        setUiError(null);
         setPendingAction('start'); 
         
         resetRecordingStates(); 
@@ -770,8 +734,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         const currentAgent = searchParams.get('agent'); 
         const currentEvent = searchParams.get('event') || '0000';
-        if (!currentAgent) { // Should be caught by isPageReady, but defensive check
-            setUiError("Agent information is missing. Cannot start recording.");
+        if (!currentAgent) {
+            append({ role: 'error', id: `err-rec-start-noagent-${Date.now()}`, content: 'Agent information is missing. Cannot start recording.' });
             setPendingAction(null);
             setIsReconnecting(false);
             return;
@@ -780,7 +744,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setEventId(currentEvent);   
         debugLog(`[Start Recording Session] Agent/Event set to: ${currentAgent}/${currentEvent}`);
         
-        const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any"; // Changed default to "any"
+        const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any";
         debugLog(`[Start Recording Session] Transcription language for new session: ${currentTranscriptionLanguage}`);
 
         console.info("[Start Recording Session] Calling HTTP start API...");
@@ -788,31 +752,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             const result = await callHttpRecordingApi('start', { 
               agent: currentAgent, 
               event: currentEvent,
-              transcriptionLanguage: currentTranscriptionLanguage // Pass language setting
+              transcriptionLanguage: currentTranscriptionLanguage
             });
             if (result.success && result.data?.session_id) {
                 console.info("[Start Recording Session] HTTP start successful. New Session ID:", result.data.session_id);
                 setSessionId(result.data.session_id);
                 setSessionStartTimeUTC(result.data.session_start_time_utc);
-                // connectWebSocket will be called, which eventually clears pendingAction('start') or handles errors.
                 setTimeout(() => connectWebSocket(result.data.session_id), 100); 
             } else {
                 console.error("[Start Recording Session] Failed to start recording session (HTTP):", result.error);
-                setUiError(`Error: Could not start recording session. ${result.error || 'Unknown error'}`);
-                setPendingAction(null); // Clear pendingAction if HTTP start itself fails
+                setPendingAction(null);
             }
-        } catch (error) { // Catch errors from callHttpRecordingApi itself
+        } catch (error) {
             console.error("[Start Recording Session] Exception during HTTP start API call:", error);
-            setUiError(`Error: Exception trying to start recording session.`);
+            append({ role: 'error', id: `err-rec-start-http-exc-${Date.now()}`, content: 'Error: Exception trying to start recording session.' });
             setPendingAction(null);
         } finally {
-            // This finally block in handleStartRecordingSession will run after the async callHttp...
-            // If connectWebSocket is called, pendingAction='start' is cleared by connectWebSocket itself or its error paths.
-            // If callHttp... fails, pendingAction is cleared above.
-            // Setting isReconnecting to false should happen after the attempt.
             setIsReconnecting(false);
         }
-    }, [isBrowserRecording, isPageReady, agentName, eventId, callHttpRecordingApi, connectWebSocket, resetRecordingStates, searchParams, setPendingAction, setUiError, setAgentName, setEventId, setSessionId, setSessionStartTimeUTC, isReconnecting]);
+    }, [isBrowserRecording, isPageReady, agentName, eventId, callHttpRecordingApi, connectWebSocket, resetRecordingStates, searchParams, setPendingAction, append, setAgentName, setEventId, setSessionId, setSessionStartTimeUTC, isReconnecting]);
 
     const handleToggleBrowserPause = useCallback(() => {
         if (!mediaRecorderRef.current || !isBrowserRecording || pendingActionRef.current) return;
@@ -869,14 +827,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             handleInputChange({ target: { value: text } } as React.ChangeEvent<HTMLInputElement>);
          },
          submitMessageWithCanvasContext: (messageContent, canvasContext) => {
-            // Temporarily set the input value to the message from canvas
-            // const originalInputValue = input; // Not needed if useChat clears input
             handleInputChange({ target: { value: messageContent } } as React.ChangeEvent<HTMLInputElement>);
             
-            // Call the augmented submit function
             debugLog("[submitMessageWithCanvasContext] Submitting with canvas context:", canvasContext);
             handleSubmitWithCanvasContext(
-              // Create a new synthetic event for the submission
               { preventDefault: () => {}, stopPropagation: () => {} } as unknown as React.FormEvent<HTMLFormElement>,
               { data: canvasContext }
             );
@@ -888,7 +842,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         messages.length, 
         handleStopRecording, 
         handleInputChange, 
-        input, 
         handleSubmitWithCanvasContext 
     ]);
 
@@ -898,12 +851,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       if (!c) return;
       const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c;
 
-      const atBottomThresholdForLogic = 2; // For auto-scroll logic and userHasScrolledRef
-      const atBottomThresholdForButtonVisibility = 180; // For scroll-to-bottom button visibility
+      const atBottomThresholdForLogic = 2;
+      const atBottomThresholdForButtonVisibility = 180;
 
       const isScrollable = sh > ch;
       
-      // Logic for determining if user has scrolled up (affects auto-scroll)
       const isAtBottomForLogic = (sh - st - ch) < atBottomThresholdForLogic;
       if (st < prevScrollTopRef.current && !isAtBottomForLogic && !userHasScrolledRef.current) {
         userHasScrolledRef.current = true;
@@ -912,10 +864,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       }
       prevScrollTopRef.current = st;
 
-      // Logic for showing/hiding the scroll-to-bottom button
       const isAtBottomForButton = (sh - st - ch) < atBottomThresholdForButtonVisibility;
       setShowScrollToBottom(isScrollable && !isAtBottomForButton);
-    }, []); // Dependencies are empty as thresholds are defined inside.
+    }, []);
 
     const scrollToBottom = useCallback((b: ScrollBehavior = "smooth") => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: b }); userHasScrolledRef.current = false; setShowScrollToBottom(false); }, []);
     useEffect(() => { if (!userHasScrolledRef.current) { const id = requestAnimationFrame(() => { setTimeout(() => { scrollToBottom('smooth'); }, 50); }); return () => cancelAnimationFrame(id); } else if (!isLoading && userHasScrolledRef.current) checkScroll(); }, [messages, isLoading, scrollToBottom, checkScroll]);
@@ -984,19 +935,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       } 
     }, []);
     
-    const editMessage = useCallback((id: string) => console.info("[Edit Message] Triggered for ID:", id), []); // Kept as info for now
+    const editMessage = useCallback((id: string) => console.info("[Edit Message] Triggered for ID:", id), []);
     
     const readAloud = useCallback((text: string) => {
-        console.info("[Read Aloud] Triggered."); // Kept as info for now
+        console.info("[Read Aloud] Triggered.");
     }, []);
 
-    const onSubmit = handleSubmitWithCanvasContext; // Use the wrapper
+    const onSubmit = handleSubmitWithCanvasContext;
     
     useEffect(() => { 
       const lKeyDown = (e: KeyboardEvent) => { 
         if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { 
           e.preventDefault(); 
-          handleSubmitWithCanvasContext(e as any);  // Use the wrapper
+          handleSubmitWithCanvasContext(e as any);
         } else if (e.key === "Enter" && !e.shiftKey && isLoading) {
           e.preventDefault(); 
         }
@@ -1010,10 +961,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           el.removeEventListener("keydown", lKeyDown as EventListener); 
         }
       } 
-    }, [input, isLoading, stop, attachedFiles.length, handleSubmitWithCanvasContext]); // Use wrapper here too
+    }, [input, isLoading, stop, attachedFiles.length, handleSubmitWithCanvasContext]);
 
     useEffect(() => {
-        // This effect handles focusing the input when conditions are met.
         if (!isBrowserRecording && !pendingAction && isPageReady && inputRef.current) {
             debugLog(`[FocusEffect] Conditions met: !isBrowserRecording (${!isBrowserRecording}), !pendingAction (${!pendingAction}), isPageReady (${isPageReady}).`);
             const timerId = setTimeout(() => {
@@ -1021,8 +971,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     const inputElement = inputRef.current;
                     debugLog(`[FocusEffect - setTimeout] Attempting focus. input.disabled attribute value: ${inputElement.getAttribute('disabled')}, input.disabled prop value: ${inputElement.disabled}, document.activeElement:`, document.activeElement);
                     
-                    // The input's 'disabled' prop is now directly tied to 'pendingAction' state.
-                    // So, if !pendingAction is true, inputElement.disabled should be false.
                     if (!inputElement.disabled) {
                         inputElement.focus({ preventScroll: true });
                         debugLog(`[FocusEffect - setTimeout] Called inputRef.current.focus(). New activeElement:`, document.activeElement);
@@ -1037,17 +985,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 } else {
                     console.warn("[FocusEffect - setTimeout] inputRef.current is null, cannot focus.");
                 }
-            }, 100); // Delay to allow DOM to update after state changes and ensure all state updates are processed.
+            }, 100);
             return () => clearTimeout(timerId);
-        } else {
-            // Optional: More detailed logging for when conditions are not met.
-            // if (inputRef.current) {
-            //     debugLog(`[FocusEffect] Conditions NOT met: isBrowserRecording=${isBrowserRecording}, pendingAction=${pendingAction}, isPageReady=${isPageReady}, inputDisabled=${inputRef.current.disabled}`);
-            // } else {
-            //     debugLog(`[FocusEffect] Conditions NOT met (or inputRef not available): isBrowserRecording=${isBrowserRecording}, pendingAction=${pendingAction}, isPageReady=${isPageReady}`);
-            // }
         }
-    }, [isBrowserRecording, pendingAction, isPageReady]); // Ensure inputRef is not in deps, as it's stable.
+    }, [isBrowserRecording, pendingAction, isPageReady]);
 
 
     const micButtonClass = cn(
@@ -1058,13 +999,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     return (
         <div className="flex flex-col h-full">
-            {/* UI Error Display is now handled by appending system message to chat */}
-
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
-                {messages.length === 0 && !isPageReady && !uiError && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
-                {messages.length === 0 && isPageReady && !uiError &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight }}>{currentWelcomeMessageConfig.text}</p> </div> )}
-                {messages.length > 0 && ( <div className="space-y-1 pt-8 pb-4"> {/* Changed py-4 to pt-8 pb-4 */} {messages.map((message: Message) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && handleMessageInteraction(message.id)} > {isUser && hasAttachments && (                   <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} <span dangerouslySetInnerHTML={{ __html: displayContent.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </motion.div> ); })} </div> )}
+                {messages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
+                {messages.length === 0 && isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight }}>{currentWelcomeMessageConfig.text}</p> </div> )}
+                {messages.length > 0 && ( <div className="space-y-1 pt-8 pb-4"> {messages.map((message: Message) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const isError = message.role === "error"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : (isSystem || isError) ? "items-center" : "items-start", !isUser && !isSystem && !isError && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && !isError && handleMessageInteraction(message.id)} > {isError ? ( <div className="error-bubble"> <AlertTriangle className="h-5 w-5 flex-shrink-0" /> <span>{message.content}</span> </div> ) : ( <> {isUser && hasAttachments && ( <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} <span dangerouslySetInnerHTML={{ __html: displayContent.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </> )} </motion.div> ); })} </div> )}
                 {isLoading && messages[messages.length - 1]?.role === 'user' && ( <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1"> <span className="thinking-dot"></span> </motion.div> )}
                 <div ref={messagesEndRef} />
             </div>
@@ -1086,7 +1025,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream')
                                           ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))]" />
                                           : (isBrowserPaused
-                                              ? <Play size={20} className="text-yellow-500 dark:text-yellow-400" /> // Keep specific status colors
+                                              ? <Play size={20} className="text-yellow-500 dark:text-yellow-400" />
                                               : <Pause size={20} className="text-[hsl(var(--icon-destructive))]" />
                                             )
                                         }
@@ -1109,22 +1048,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           placeholder={!isPageReady ? "Waiting for Agent/Event..." : "Ask anything"}
                           className={cn(
                             "flex-1 px-3 py-1 bg-transparent border-none outline-none placeholder:text-[var(--placeholder-text-color)] dark:placeholder:text-zink-500"
-                            // Removed conditional Folkhemmet text color: theme === 'theme-folkhemmet' && "text-[hsl(var(--user-input-text))]"
                           )}
-                          disabled={!isPageReady || !!pendingAction /* Use pendingAction state directly */}
+                          disabled={!isPageReady || !!pendingAction}
                           aria-label="Chat input"
                         />
                         <button type="submit"
                             className={cn(
-                                "transition-all duration-200 rounded-full flex items-center justify-center", // Base flex properties
-                                "h-9 w-9 sm:h-10 sm:w-10", // Consistent sizing (adjust if needed, matches approx. p-2 + 24px icon)
-                                // Active state (input has text or files, not loading)
+                                "transition-all duration-200 rounded-full flex items-center justify-center",
+                                "h-9 w-9 sm:h-10 sm:w-10",
                                 isPageReady && (input.trim() || attachedFiles.length > 0) && !isLoading && 
                                   "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
-                                // Inactive state (no input, not loading)
                                 isPageReady && !(input.trim() || attachedFiles.length > 0) && !isLoading &&
                                   "bg-[hsl(var(--button-submit-bg-inactive))] text-[hsl(var(--button-submit-fg-inactive))] cursor-default",
-                                // Loading state (destructive/stop button) - classes removed as styles are now inline
                                 (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
                               )}
                             style={isLoading ? {
@@ -1146,7 +1081,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         {isReconnecting ? (
                             <>reconnecting ({reconnectAttempts}/{MAX_RECONNECT_ATTEMPTS}) <span className="inline-block ml-1 h-2 w-2 rounded-full bg-orange-500 animate-pulse"></span></>
                         ) : isBrowserRecording ? (
-                            isBrowserPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></> ) // Keep specific colors for status dots
+                            isBrowserPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></> )
                                      : ( <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500 animate-pulse"></span></> )
                         ) : ( "no" )}
                         {isBrowserRecording && !isReconnecting && <span ref={timerDisplayRef} className="ml-1">{formatTime(clientRecordingTime)}</span>}
