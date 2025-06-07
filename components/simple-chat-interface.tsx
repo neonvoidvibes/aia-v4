@@ -74,7 +74,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [agentName, setAgentName] = useState<string | null>(null);
     const [eventId, setEventId] = useState<string | null>(null);
     const [isPageReady, setIsPageReady] = useState(false); 
-    const [chatError, setChatError] = useState<string | null>(null); // New state for chat errors
+    const [chatError, setChatError] = useState<string | null>(null);
+    const lastAppendedErrorRef = useRef<string | null>(null);
 
 
     // WebSocket and Recording State
@@ -95,6 +96,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const localRecordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Ref to hold the latest version of handleStartRecordingSession to break dependency cycle
+    const handleStartRecordingSessionRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
     useEffect(() => {
         const agentParam = searchParams.get('agent');
@@ -135,14 +139,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             displayMessage = "An unexpected response was received from the server. Please try again.";
         }
         
-        setChatError(displayMessage);
+        if (displayMessage !== lastAppendedErrorRef.current) {
+            setChatError(displayMessage);
+            lastAppendedErrorRef.current = displayMessage;
+        }
       },
     });
 
-    // Effect to append chat errors to the message list safely
     useEffect(() => {
         const lastMessage = messages[messages.length - 1];
-        // Prevent appending duplicate errors
         if (chatError && (!lastMessage || lastMessage.role !== 'error' || lastMessage.content !== chatError)) {
             append({
                 id: `err-chat-${Date.now()}`,
@@ -150,9 +155,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 content: chatError,
                 createdAt: new Date(),
             });
-            // Clear the error after appending it to prevent re-adding on subsequent renders
-            setChatError(null);
         }
+        setChatError(null);
     }, [chatError, append, messages]);
 
     useEffect(() => {
@@ -282,6 +286,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
             userHasScrolledRef.current = false;
             setShowScrollToBottom(false);
+            lastAppendedErrorRef.current = null;
             
             let canvasContextData = chatRequestOptions?.data || {};
             if (!chatRequestOptions?.data && getCanvasContext) { 
@@ -632,56 +637,151 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [startHideTimeout, handleStopRecording, wsStatus, append]);
 
+    const connectWebSocket = useCallback((currentSessionId: string) => {
+        const handleStartSession = handleStartRecordingSessionRef.current;
+        debugLog(`[WebSocket] Attempting connect for session: ${currentSessionId}.`);
+        if (!currentSessionId) {
+            console.error("[WebSocket] No session ID to connect.");
+            setWsStatus('error'); if (pendingActionRef.current === 'start') setPendingAction(null); return;
+        }
+        if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+            console.warn(`[WebSocket] Already open or connecting. Aborting.`);
+            if (pendingActionRef.current === 'start') setPendingAction(null); return;
+        }
+
+        supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+            if (sessionError || !session?.access_token) {
+                console.error("[WebSocket] Failed to get auth token for WebSocket.", sessionError);
+                append({ role: 'error', id: `err-ws-auth-${Date.now()}`, content: 'Error: WebSocket authentication failed.' });
+                setWsStatus('error'); if (pendingActionRef.current === 'start') setPendingAction(null); return;
+            }
+            const token = session.access_token;
+            setWsStatus('connecting');
+            const backendHost = process.env.NEXT_PUBLIC_WEBSOCKET_URL || (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host.replace(/:\d+$/, '') + (process.env.NODE_ENV === 'development' ? ":5001" : "");
+            const wsUrl = `${backendHost}/ws/audio_stream/${currentSessionId}?token=${token}`;
+            
+            console.info("[WebSocket] Attempting to connect to URL:", wsUrl.replace(/token=.*$/, 'token=REDACTED'));
+            const newWs = new WebSocket(wsUrl);
+            wsRef.current = newWs;
+            (wsRef.current as any).__intentionalClose = false;
+    
+            newWs.onopen = () => {
+                if (wsRef.current !== newWs) {
+                     console.warn(`[WebSocket] Stale onopen event for ${newWs.url}. Ignoring.`);
+                     try { newWs.close(); } catch(e){ console.warn("[WebSocket] Error closing stale newWs onopen:", e);}
+                     return;
+                }
+                console.info(`[WebSocket] Connection opened for session ${currentSessionId}.`);
+                setWsStatus('open');
+                pongMissesRef.current = 0;
+                if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+                if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+                heartbeatIntervalRef.current = setInterval(() => {
+                    if (newWs.readyState === WebSocket.OPEN) {
+                        debugLog("[Heartbeat] Sending ping.");
+                        newWs.send(JSON.stringify({action: 'ping'}));
+                        pongTimeoutRef.current = setTimeout(() => {
+                            console.warn("[Heartbeat] Pong not received in time. Closing connection to trigger reconnect logic.");
+                            newWs.close(1000, "Heartbeat timeout");
+                        }, 5000);
+                    } else {
+                        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+                    }
+                }, 10000);
+                startBrowserMediaRecording();
+            };
+            newWs.onmessage = (event) => {
+                if (wsRef.current === newWs) {
+                    try {
+                        const messageData = JSON.parse(event.data);
+                        if (messageData.type === 'pong') {
+                            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+                            debugLog("[Heartbeat] Pong received.");
+                        } else {
+                            debugLog(`[WebSocket] Message from server:`, event.data);
+                        }
+                    } catch (e) {
+                         debugLog(`[WebSocket] Non-JSON message from server:`, event.data);
+                    }
+                }
+            };
+            newWs.onerror = (event) => {
+                console.error(`[WebSocket] Error for session ${currentSessionId}:`, event);
+                if (wsRef.current === newWs) {
+                     append({ role: 'error', id: `err-ws-conn-${Date.now()}`, content: 'Error: Recording stream connection failed.' });
+                     setWsStatus('error');
+                     if (pendingActionRef.current === 'start') setPendingAction(null);
+                }
+            };
+            newWs.onclose = (event) => {
+                console.info(`[WebSocket] Connection closed for session ${currentSessionId}. Code: ${event.code}, Clean: ${event.wasClean}. Intentional: ${(wsRef.current as any)?.__intentionalClose}`);
+                if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+                if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+                if (wsRef.current === newWs) {
+                    const intentionalClientClose = (wsRef.current as any)?.__intentionalClose || pendingActionRef.current === 'stop';
+                    setWsStatus('closed');
+                    if (wsRef.current === newWs) wsRef.current = null;
+                    if (!intentionalClientClose && isBrowserRecording) {
+                        console.warn(`[WebSocket] Unexpected close while recording was active.`);
+                        handleToggleBrowserPause(true);
+                        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                            setIsReconnecting(true);
+                            const nextAttempt = reconnectAttempts + 1;
+                            setReconnectAttempts(nextAttempt);
+                            const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, nextAttempt -1 );
+                            append({ role: 'error', id: `err-ws-reconn-${Date.now()}`, content: `Recording connection lost. Recording paused. Attempting to reconnect ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS}...` });
+                            setTimeout(() => {
+                                console.log(`[Reconnect] Attempt ${nextAttempt}: Starting new recording session...`);
+                                handleStartSession();
+                            }, delay);
+                        } else {
+                            append({ role: 'error', id: `err-ws-reconn-fail-${Date.now()}`, content: 'Failed to reconnect recording after multiple attempts. Please stop and start manually.' });
+                            setIsReconnecting(false);
+                            resetRecordingStates();
+                        }
+                    } else {
+                        if (pendingActionRef.current === 'start' && !event.wasClean) {
+                            append({ role: 'error', id: `err-ws-premature-close-${Date.now()}`, content: 'WebSocket connection closed before recording could fully start.' });
+                        }
+                        if (pendingActionRef.current === 'start') setPendingAction(null);
+                        setIsReconnecting(false);
+                        setReconnectAttempts(0);
+                        if (!isBrowserRecording && !pendingActionRef.current) {
+                            resetRecordingStates();
+                        }
+                    }
+                }
+            };
+        });
+    }, [supabase.auth, startBrowserMediaRecording, handleStopRecording, isBrowserRecording, reconnectAttempts, resetRecordingStates, append, handleToggleBrowserPause]);
+
     const handleStartRecordingSession = useCallback(async () => {
         console.info(`[Start Recording Session] Initiated. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecording}, PageReady: ${isPageReady}, Agent: ${agentName}, Reconnecting: ${isReconnecting}`);
-        
-        if (!isReconnecting) {
-            if (pendingActionRef.current || isBrowserRecording) {
-                console.warn(`[Start Recording Session] Manual start: Pre-condition not met. Aborting. Pending: ${pendingActionRef.current}, Rec: ${isBrowserRecording}`);
-                return;
-            }
+        if (!isReconnecting && (pendingActionRef.current || isBrowserRecording)) {
+             console.warn(`[Start Recording Session] Manual start: Pre-condition not met.`); return;
         }
         if (!isPageReady || !agentName) {
-             console.warn(`[Start Recording Session] Page/Agent not ready. Aborting. Ready: ${isPageReady}, Agent: ${agentName}`);
+             console.warn(`[Start Recording Session] Page/Agent not ready.`);
              append({ role: 'error', id: `err-rec-start-notready-${Date.now()}`, content: 'Agent/Event information not ready. Cannot start recording.' });
-             setIsReconnecting(false);
-             return;
+             setIsReconnecting(false); return;
         }
-        
-        if (!isReconnecting) {
-            setReconnectAttempts(0);
-        }
+        if (!isReconnecting) setReconnectAttempts(0);
         setPendingAction('start');
-        
         resetRecordingStates();
         debugLog("[Start Recording Session] Called resetRecordingStates.");
-
         const currentAgent = searchParams.get('agent');
         const currentEvent = searchParams.get('event') || '0000';
         if (!currentAgent) {
             append({ role: 'error', id: `err-rec-start-noagent-${Date.now()}`, content: 'Agent information is missing. Cannot start recording.' });
-            setPendingAction(null);
-            setIsReconnecting(false);
-            return;
+            setPendingAction(null); setIsReconnecting(false); return;
         }
-        setAgentName(currentAgent);
-        setEventId(currentEvent);
-        debugLog(`[Start Recording Session] Agent/Event set to: ${currentAgent}/${currentEvent}`);
-        
+        setAgentName(currentAgent); setEventId(currentEvent);
         const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any";
-        debugLog(`[Start Recording Session] Transcription language for new session: ${currentTranscriptionLanguage}`);
-
-        console.info("[Start Recording Session] Calling HTTP start API...");
         try {
-            const result = await callHttpRecordingApi('start', {
-              agent: currentAgent,
-              event: currentEvent,
-              transcriptionLanguage: currentTranscriptionLanguage
-            });
+            const result = await callHttpRecordingApi('start', { agent: currentAgent, event: currentEvent, transcriptionLanguage: currentTranscriptionLanguage });
             if (result.success && result.data?.session_id) {
                 console.info("[Start Recording Session] HTTP start successful. New Session ID:", result.data.session_id);
-                setSessionId(result.data.session_id);
-                setSessionStartTimeUTC(result.data.session_start_time_utc);
+                setSessionId(result.data.session_id); setSessionStartTimeUTC(result.data.session_start_time_utc);
                 setTimeout(() => connectWebSocket(result.data.session_id), 100);
             } else {
                 console.error("[Start Recording Session] Failed to start recording session (HTTP):", result.error);
@@ -694,150 +794,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } finally {
             setIsReconnecting(false);
         }
-    }, [isBrowserRecording, isPageReady, agentName, eventId, callHttpRecordingApi, resetRecordingStates, searchParams, setPendingAction, append, setAgentName, setEventId, setSessionId, setSessionStartTimeUTC, isReconnecting]);
-
-    const connectWebSocket = useCallback(async (currentSessionId: string) => {
-        debugLog(`[WebSocket] Attempting connect for session: ${currentSessionId}. WS State: ${wsRef.current?.readyState}, Status: ${wsStatus}`);
-        if (!currentSessionId) {
-            console.error("[WebSocket] No session ID to connect.");
-            setWsStatus('error');
-            if (pendingActionRef.current === 'start') setPendingAction(null);
-            return;
-        }
-        if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-            console.warn(`[WebSocket] Already open or connecting. Aborting.`);
-            if (pendingActionRef.current === 'start') setPendingAction(null);
-            return;
-        }
-
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session?.access_token) {
-            console.error("[WebSocket] Failed to get auth token for WebSocket.", sessionError);
-            append({ role: 'error', id: `err-ws-auth-${Date.now()}`, content: 'Error: WebSocket authentication failed.' });
-            setWsStatus('error');
-            if (pendingActionRef.current === 'start') setPendingAction(null);
-            return;
-        }
-        const token = session.access_token;
-
-        setWsStatus('connecting');
-        const backendHost = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 
-                             (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host.replace(/:\d+$/, '') + (process.env.NODE_ENV === 'development' ? ":5001" : "");
-        const wsUrl = `${backendHost}/ws/audio_stream/${currentSessionId}?token=${token}`;
-        
-        console.info("[WebSocket] Attempting to connect to URL:", wsUrl.replace(/token=.*$/, 'token=REDACTED'));
-        const newWs = new WebSocket(wsUrl);
-        wsRef.current = newWs; 
-        (wsRef.current as any).__intentionalClose = false;
-
-        newWs.onopen = () => {
-            if (wsRef.current === newWs) { 
-                console.info(`[WebSocket] Connection opened for session ${currentSessionId}.`);
-                setWsStatus('open');
-                
-                if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-                if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-                
-                heartbeatIntervalRef.current = setInterval(() => {
-                    if (newWs.readyState === WebSocket.OPEN) {
-                        debugLog("[Heartbeat] Sending ping.");
-                        newWs.send(JSON.stringify({action: 'ping'}));
-                        pongTimeoutRef.current = setTimeout(() => {
-                            console.warn("[Heartbeat] Pong not received in time. Assuming connection is lost.");
-                            handleToggleBrowserPause(true); // Auto-pause UI
-                            append({ role: 'error', id: `err-ws-timeout-${Date.now()}`, content: 'Recording connection lost. Recording paused. Attempting to reconnect...' });
-                            newWs.close(1001, "Heartbeat timeout");
-                        }, 5000);
-                    } else {
-                        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-                    }
-                }, 10000);
-
-                startBrowserMediaRecording(); 
-            } else {
-                 console.warn(`[WebSocket] Stale onopen event for ${newWs.url}. Current wsRef for ${wsRef.current?.url}. Ignoring.`);
-                 try { newWs.close(); } catch(e){ console.warn("[WebSocket] Error closing stale newWs onopen:", e);}
-            }
-        };
-        newWs.onmessage = (event) => { 
-            if (wsRef.current === newWs) {
-                try {
-                    const messageData = JSON.parse(event.data);
-                    if (messageData.type === 'pong') {
-                        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-                        debugLog("[Heartbeat] Pong received.");
-                    } else {
-                        debugLog(`[WebSocket] Message from server for session ${currentSessionId}:`, event.data);
-                    }
-                } catch (e) {
-                     debugLog(`[WebSocket] Non-JSON message from server:`, event.data);
-                }
-            }
-        };
-        newWs.onerror = (event) => { 
-            console.error(`[WebSocket] Error for session ${currentSessionId} on WS instance for ${newWs.url}:`, event);
-            if (wsRef.current === newWs) { 
-                 append({ role: 'error', id: `err-ws-conn-${Date.now()}`, content: 'Error: Recording stream connection failed.' });
-                 setWsStatus('error'); 
-                 if (pendingActionRef.current === 'start') setPendingAction(null);
-            } else {
-                 console.warn(`[WebSocket] Stale onerror event for ${newWs.url}. Ignoring.`);
-            }
-        };
-        newWs.onclose = (event) => {
-            console.info(`[WebSocket] Connection closed for session ${currentSessionId} (URL: ${newWs.url}). Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}. Intentional: ${(wsRef.current as any)?.__intentionalClose}`);
-            
-            if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-            
-            if (wsRef.current === newWs) { 
-                const intentionalClientClose = (wsRef.current as any)?.__intentionalClose || pendingActionRef.current === 'stop';
-                
-                setWsStatus('closed');
-                if (wsRef.current === newWs) wsRef.current = null;
-
-                if (!intentionalClientClose && isBrowserRecording) {
-                    console.warn(`[WebSocket] Unexpected close for session ${currentSessionId} while recording was active. Code: ${event.code}`);
-                    handleToggleBrowserPause(true);
-                    
-                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                        setIsReconnecting(true);
-                        const nextAttempt = reconnectAttempts + 1;
-                        setReconnectAttempts(nextAttempt);
-                        const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, nextAttempt -1 ); 
-                        append({ role: 'error', id: `err-ws-reconn-${Date.now()}`, content: `Recording connection lost. Recording paused. Attempting to reconnect ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS}...` });
-                        
-                        setTimeout(async () => {
-                            console.log(`[Reconnect] Attempt ${nextAttempt}: Starting new recording session...`);
-                            await handleStartRecordingSession(); 
-                        }, delay);
-                    } else {
-                        append({ role: 'error', id: `err-ws-reconn-fail-${Date.now()}`, content: 'Failed to reconnect recording after multiple attempts. Please stop and start manually.' });
-                        setIsReconnecting(false);
-                        resetRecordingStates(); 
-                    }
-                } else {
-                    if (pendingActionRef.current === 'start') { 
-                        setPendingAction(null);
-                        if (!event.wasClean) append({ role: 'error', id: `err-ws-premature-close-${Date.now()}`, content: 'WebSocket connection closed before recording could fully start.' });
-                    }
-                    setIsReconnecting(false);
-                    setReconnectAttempts(0);
-                    if (!isBrowserRecording && !pendingActionRef.current) {
-                        resetRecordingStates();
-                    }
-                }
-            } else {
-                 console.warn(`[WebSocket] Stale onclose event for ${newWs.url}. Current wsRef is different or null. Ignoring.`);
-            }
-        };
-    }, [supabase.auth, startBrowserMediaRecording, handleStopRecording, wsStatus, isBrowserRecording, reconnectAttempts, resetRecordingStates, append, handleToggleBrowserPause, handleStartRecordingSession]);
+    }, [isBrowserRecording, isPageReady, agentName, callHttpRecordingApi, resetRecordingStates, searchParams, append, connectWebSocket, isReconnecting]);
+    
+    useEffect(() => {
+        handleStartRecordingSessionRef.current = handleStartRecordingSession;
+    }, [handleStartRecordingSession]);
 
     const showAndPrepareRecordingControls = useCallback(() => {
         debugLog(`[Recording Controls UI] Show/Prepare. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecording}`);
         if (pendingActionRef.current) return;
         setShowPlusMenu(false); 
-
         if (isBrowserRecording) {
              setShowRecordUI(true);
              setRecordUIVisible(true);
@@ -869,42 +835,26 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
          },
          submitMessageWithCanvasContext: (messageContent, canvasContext) => {
             handleInputChange({ target: { value: messageContent } } as React.ChangeEvent<HTMLInputElement>);
-            
             debugLog("[submitMessageWithCanvasContext] Submitting with canvas context:", canvasContext);
             handleSubmitWithCanvasContext(
               { preventDefault: () => {}, stopPropagation: () => {} } as unknown as React.FormEvent<HTMLFormElement>,
               { data: canvasContext }
             );
          }
-     }), [
-        isBrowserRecording, 
-        sessionId, 
-        setMessages, 
-        messages.length, 
-        handleStopRecording, 
-        handleInputChange, 
-        handleSubmitWithCanvasContext 
-    ]);
+     }), [isBrowserRecording, sessionId, setMessages, messages.length, handleStopRecording, handleInputChange, handleSubmitWithCanvasContext]);
 
 
     const checkScroll = useCallback(() => {
       const c = messagesContainerRef.current;
       if (!c) return;
       const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c;
-
       const atBottomThresholdForLogic = 2;
       const atBottomThresholdForButtonVisibility = 180;
-
       const isScrollable = sh > ch;
-      
       const isAtBottomForLogic = (sh - st - ch) < atBottomThresholdForLogic;
-      if (st < prevScrollTopRef.current && !isAtBottomForLogic && !userHasScrolledRef.current) {
-        userHasScrolledRef.current = true;
-      } else if (userHasScrolledRef.current && isAtBottomForLogic) {
-        userHasScrolledRef.current = false;
-      }
+      if (st < prevScrollTopRef.current && !isAtBottomForLogic && !userHasScrolledRef.current) userHasScrolledRef.current = true;
+      else if (userHasScrolledRef.current && isAtBottomForLogic) userHasScrolledRef.current = false;
       prevScrollTopRef.current = st;
-
       const isAtBottomForButton = (sh - st - ch) < atBottomThresholdForButtonVisibility;
       setShowScrollToBottom(isScrollable && !isAtBottomForButton);
     }, []);
@@ -944,7 +894,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const handlePlayPauseMicClick = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (pendingActionRef.current) return;
-
         if (!isBrowserRecording) {
             await handleStartRecordingSession();
         } else {
