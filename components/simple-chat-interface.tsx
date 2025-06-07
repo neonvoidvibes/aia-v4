@@ -96,9 +96,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const localRecordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const pongMissesRef = useRef(0); // For heartbeat tolerance
+    const pongMissesRef = useRef(0);
 
-    const handleStartRecordingSessionRef = useRef<() => Promise<void>>(() => Promise.resolve()); // For breaking dependency cycle
+    // Ref to hold the latest version of handleStartRecordingSession to break dependency cycle
+    const handleStartRecordingSessionRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
     useEffect(() => {
         const agentParam = searchParams.get('agent');
@@ -139,7 +140,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             displayMessage = "An unexpected response was received from the server. Please try again.";
         }
         
-        // Use a ref to prevent setting state for the same error repeatedly
         if (displayMessage !== lastAppendedErrorRef.current) {
             setChatError(displayMessage);
             lastAppendedErrorRef.current = displayMessage;
@@ -376,6 +376,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
         if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+        pongMissesRef.current = 0;
         
         if (wsRef.current) {
             debugLog(`[Resetting Recording States] Cleaning up WebSocket (readyState: ${wsRef.current.readyState})`);
@@ -638,74 +639,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [startHideTimeout, handleStopRecording, wsStatus, append]);
 
-    const handleStartRecordingSession = useCallback(async () => {
-        console.info(`[Start Recording Session] Initiated. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecording}, PageReady: ${isPageReady}, Agent: ${agentName}, Reconnecting: ${isReconnecting}`);
-        
-        if (!isReconnecting) {
-            if (pendingActionRef.current || isBrowserRecording) {
-                console.warn(`[Start Recording Session] Manual start: Pre-condition not met. Aborting. Pending: ${pendingActionRef.current}, Rec: ${isBrowserRecording}`);
-                return;
-            }
-        }
-        if (!isPageReady || !agentName) {
-             console.warn(`[Start Recording Session] Page/Agent not ready. Aborting. Ready: ${isPageReady}, Agent: ${agentName}`);
-             append({ role: 'error', id: `err-rec-start-notready-${Date.now()}`, content: 'Agent/Event information not ready. Cannot start recording.' });
-             setIsReconnecting(false);
-             return;
-        }
-        
-        if (!isReconnecting) {
-            setReconnectAttempts(0);
-        }
-        setPendingAction('start');
-        
-        resetRecordingStates();
-        debugLog("[Start Recording Session] Called resetRecordingStates.");
-
-        const currentAgent = searchParams.get('agent');
-        const currentEvent = searchParams.get('event') || '0000';
-        if (!currentAgent) {
-            append({ role: 'error', id: `err-rec-start-noagent-${Date.now()}`, content: 'Agent information is missing. Cannot start recording.' });
-            setPendingAction(null);
-            setIsReconnecting(false);
-            return;
-        }
-        setAgentName(currentAgent);
-        setEventId(currentEvent);
-        debugLog(`[Start Recording Session] Agent/Event set to: ${currentAgent}/${currentEvent}`);
-        
-        const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any";
-        debugLog(`[Start Recording Session] Transcription language for new session: ${currentTranscriptionLanguage}`);
-
-        console.info("[Start Recording Session] Calling HTTP start API...");
-        try {
-            const result = await callHttpRecordingApi('start', {
-              agent: currentAgent,
-              event: currentEvent,
-              transcriptionLanguage: currentTranscriptionLanguage
-            });
-            if (result.success && result.data?.session_id) {
-                console.info("[Start Recording Session] HTTP start successful. New Session ID:", result.data.session_id);
-                setSessionId(result.data.session_id); setSessionStartTimeUTC(result.data.session_start_time_utc);
-                connectWebSocket(result.data.session_id);
-            } else {
-                console.error("[Start Recording Session] Failed to start recording session (HTTP):", result.error);
-                setPendingAction(null);
-            }
-        } catch (error) {
-            console.error("[Start Recording Session] Exception during HTTP start API call:", error);
-            append({ role: 'error', id: `err-rec-start-http-exc-${Date.now()}`, content: 'Error: Exception trying to start recording session.' });
-            setPendingAction(null);
-        } finally {
-            setIsReconnecting(false);
-        }
-    }, [isBrowserRecording, isPageReady, agentName, callHttpRecordingApi, resetRecordingStates, searchParams, append, isReconnecting]);
-    
-    // Update the ref whenever the function is redefined
-    useEffect(() => {
-        handleStartRecordingSessionRef.current = handleStartRecordingSession;
-    }, [handleStartRecordingSession]);
-
     const connectWebSocket = useCallback((currentSessionId: string) => {
         const handleStartSession = handleStartRecordingSessionRef.current;
         debugLog(`[WebSocket] Attempting connect for session: ${currentSessionId}.`);
@@ -823,6 +756,51 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             };
         });
     }, [supabase.auth, startBrowserMediaRecording, isBrowserRecording, reconnectAttempts, resetRecordingStates, append, handleToggleBrowserPause]);
+
+    const handleStartRecordingSession = useCallback(async () => {
+        console.info(`[Start Recording Session] Initiated. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecording}, PageReady: ${isPageReady}, Agent: ${agentName}, Reconnecting: ${isReconnecting}`);
+        if (!isReconnecting && (pendingActionRef.current || isBrowserRecording)) {
+             console.warn(`[Start Recording Session] Manual start: Pre-condition not met.`); return;
+        }
+        if (!isPageReady || !agentName) {
+             console.warn(`[Start Recording Session] Page/Agent not ready.`);
+             append({ role: 'error', id: `err-rec-start-notready-${Date.now()}`, content: 'Agent/Event information not ready. Cannot start recording.' });
+             setIsReconnecting(false); return;
+        }
+        if (!isReconnecting) setReconnectAttempts(0);
+        setPendingAction('start');
+        resetRecordingStates();
+        debugLog("[Start Recording Session] Called resetRecordingStates.");
+        const currentAgent = searchParams.get('agent');
+        const currentEvent = searchParams.get('event') || '0000';
+        if (!currentAgent) {
+            append({ role: 'error', id: `err-rec-start-noagent-${Date.now()}`, content: 'Agent information is missing. Cannot start recording.' });
+            setPendingAction(null); setIsReconnecting(false); return;
+        }
+        setAgentName(currentAgent); setEventId(currentEvent);
+        const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any";
+        try {
+            const result = await callHttpRecordingApi('start', { agent: currentAgent, event: currentEvent, transcriptionLanguage: currentTranscriptionLanguage });
+            if (result.success && result.data?.session_id) {
+                console.info("[Start Recording Session] HTTP start successful. New Session ID:", result.data.session_id);
+                setSessionId(result.data.session_id); setSessionStartTimeUTC(result.data.session_start_time_utc);
+                connectWebSocket(result.data.session_id);
+            } else {
+                console.error("[Start Recording Session] Failed to start recording session (HTTP):", result.error);
+                setPendingAction(null);
+            }
+        } catch (error) {
+            console.error("[Start Recording Session] Exception during HTTP start API call:", error);
+            append({ role: 'error', id: `err-rec-start-http-exc-${Date.now()}`, content: 'Error: Exception trying to start recording session.' });
+            setPendingAction(null);
+        } finally {
+            setIsReconnecting(false);
+        }
+    }, [isBrowserRecording, isPageReady, agentName, callHttpRecordingApi, resetRecordingStates, searchParams, append, connectWebSocket, isReconnecting]);
+    
+    useEffect(() => {
+        handleStartRecordingSessionRef.current = handleStartRecordingSession;
+    }, [handleStartRecordingSession]);
 
     const showAndPrepareRecordingControls = useCallback(() => {
         debugLog(`[Recording Controls UI] Show/Prepare. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecording}`);
