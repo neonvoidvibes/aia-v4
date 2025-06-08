@@ -859,7 +859,7 @@ function HomeContent() {
             }}
         >
           <DialogContent 
-            className="sm:max-w-[750px] pt-8 fixed-dialog"
+            className="sm:max-w-[750px] pt-8 fixed-dialog flex flex-col"
             onPointerDownOutside={(event) => {
               if ((event.target as HTMLElement)?.closest('.file-editor-root-modal')) {
                 event.preventDefault();
@@ -869,14 +869,14 @@ function HomeContent() {
             <DialogTitle><VisuallyHidden>Settings</VisuallyHidden></DialogTitle>
             <DialogDescription><VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden></DialogDescription>
             <EnvWarning />
-            <Tabs value={activeTab} onValueChange={handleSettingsTabChange} className="w-full overflow-hidden">
+            <Tabs value={activeTab} onValueChange={handleSettingsTabChange} className="w-full flex flex-col flex-1 min-h-0">
               <TabsList className="grid w-full grid-cols-4 mb-4"> 
                 <TabsTrigger value="documents">{isMobile ? "Docs" : "Documents"}</TabsTrigger>
                 <TabsTrigger value="system">System</TabsTrigger>
                 <TabsTrigger value="memory">Memory</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
-              <div className="tab-content-wrapper" ref={tabContentRef}>
+              <div className="tab-content-wrapper flex-1 overflow-y-auto" ref={tabContentRef}>
                 <TabsContent value="documents" className="mt-0 tab-content-scrollable">
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <CollapsibleSection title="Chat Attachments" defaultOpen={allChatAttachments.length > 0}>

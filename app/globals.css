@@ -1086,20 +1086,14 @@ body {
 }
 /* Tab Content Area */
 .tab-content-wrapper {
-  flex-grow: 1; /* Allow content to fill space */
-  overflow: hidden; /* Prevent wrapper overflow */
+  /* This container now handles master scrolling via classes in page.tsx */
+  /* scrollbar styles are applied there too */
 }
 .tab-content-scrollable {
-  max-height: 100%; /* Fill wrapper */
-  overflow-y: auto; /* Scroll content */
-  overflow-x: hidden; /* Prevent horizontal overflow and enable truncation */
+  /* This class is on TabsContent. It should no longer scroll. */
+  overflow-x: hidden; /* Still useful to prevent horizontal overflow */
   width: 100%; /* Ensure it takes full width of its parent */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
 }
-.tab-content-scrollable::-webkit-scrollbar { width: 6px; }
-.tab-content-scrollable::-webkit-scrollbar-track { background: transparent; }
-.tab-content-scrollable::-webkit-scrollbar-thumb { background-color: rgba(155, 155, 155, 0.5); border-radius: 20px; border: transparent; }
 
 /*
   CSS rules for .document-upload-card transparency in settings dialog
@@ -1438,6 +1432,7 @@ button {
 .settings-section-scrollable {
   max-height: 300px; /* Adjust as needed, e.g., 40vh */
   overflow-y: auto; /* Ensure vertical scrolling is enabled when content exceeds max-height */
+  overflow-x: hidden; /* Prevent horizontal overflow and enable truncation */
   /* Scrollbar styling consistent with .tab-content-scrollable */
   scrollbar-width: thin;
   scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
@@ -1532,7 +1527,7 @@ button {
 .memory-section .document-files-container .truncate { max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
 
 /* Dialog Overflow Fixes */
-.fixed-dialog > div[role="dialog"] { max-height: 70vh !important; overflow-y: auto !important; }
+.fixed-dialog > div[role="dialog"] { max-height: 70vh !important; /* Let inner containers handle scroll */ }
 /* Final Modal Z-index Fix */
 .modal-overlay { z-index: 9999 !important; } /* This is for ConfirmationModal */
 
