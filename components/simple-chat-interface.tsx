@@ -98,8 +98,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isBrowserPaused, setIsBrowserPaused] = useState(false);    
     const [clientRecordingTime, setClientRecordingTime] = useState(0); 
     const [isReconnecting, setIsReconnecting] = useState(false);
-    const [reconnectAttempts, setReconnectAttempts] = useState(0);
-    const MAX_RECONNECT_ATTEMPTS = 5;
+    const MAX_RECONNECT_ATTEMPTS = 3;
     const RECONNECT_DELAY_BASE_MS = 2000;
 
     const wsRef = useRef<WebSocket | null>(null);
@@ -118,6 +117,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     
     const sessionIdRef = useRef(sessionId);
     useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+    
+    const reconnectAttemptsRef = useRef(0);
 
     useEffect(() => {
         const agentParam = searchParams.get('agent');
@@ -346,7 +347,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         eventId, 
         append,
         getCanvasContext, 
-        setAttachedFiles 
+        setAttachedFiles,
+        addErrorMessage
     ]);
 
     const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop', payload?: any): Promise<any> => {
@@ -387,7 +389,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             addErrorMessage(`Error: Failed to ${action} recording. ${error?.message}`);
             return { success: false, error: error?.message };
         }
-    }, [isPageReady, agentName, supabase.auth, append]);
+    }, [isPageReady, agentName, supabase.auth, addErrorMessage]);
 
     const resetRecordingStates = useCallback(() => {
         console.info("[Resetting Recording States]");
@@ -484,7 +486,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
         debugLog("[Stop Recording] Setting pendingAction to 'stop'.");
         setPendingAction('stop'); 
-        setReconnectAttempts(MAX_RECONNECT_ATTEMPTS + 1);
+        reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS + 1; // Prevent reconnects during stop
         setIsReconnecting(false);
 
         try {
@@ -581,7 +583,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setPendingAction(null);
         }
 
-    }, [sessionId, callHttpRecordingApi, wsStatus, append, setPendingAction, setIsBrowserRecording, setIsBrowserPaused, setClientRecordingTime, setShowRecordUI, setRecordUIVisible, setSessionId, setSessionStartTimeUTC]);
+    }, [sessionId, callHttpRecordingApi, wsStatus, addErrorMessage, setPendingAction, setIsBrowserRecording, setIsBrowserPaused, setClientRecordingTime, setShowRecordUI, setRecordUIVisible, setSessionId, setSessionStartTimeUTC]);
 
 
     const startBrowserMediaRecording = useCallback(async () => {
@@ -661,7 +663,43 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (wsStatus === 'connecting' || wsStatus === 'open') setWsStatus('error');
             if (pendingActionRef.current === 'start') setPendingAction(null); 
         }
-    }, [startHideTimeout, handleStopRecording, wsStatus, append]);
+    }, [startHideTimeout, handleStopRecording, wsStatus, addErrorMessage]);
+
+    const tryReconnect = useCallback(() => {
+        if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+            addErrorMessage('Failed to reconnect recording after multiple attempts. Please stop and start manually.');
+            resetRecordingStates();
+            return;
+        }
+
+        reconnectAttemptsRef.current++;
+        const nextAttempt = reconnectAttemptsRef.current;
+        
+        addErrorMessage(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
+        
+        const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, nextAttempt - 1);
+
+        setTimeout(() => {
+            if (!navigator.onLine) {
+                console.log(`[Reconnect] Still offline. Waiting before next attempt.`);
+                tryReconnect(); // Schedule the next check
+                return;
+            }
+
+            const currentSessionToReconnect = sessionIdRef.current;
+            if (currentSessionToReconnect) {
+                console.log(`[Reconnect] Attempt ${nextAttempt}: Re-connecting to session ${currentSessionToReconnect}...`);
+                // This function will set up the new WebSocket with the correct onclose handler
+                // that will call tryReconnect() again if this attempt also fails.
+                connectWebSocket(currentSessionToReconnect);
+            } else {
+                console.error("[Reconnect] Cannot reconnect: session ID is null.");
+                addErrorMessage('Cannot reconnect: session information was lost. Please stop and start recording again.');
+                setIsReconnecting(false);
+                resetRecordingStates();
+            }
+        }, delay);
+    }, [addErrorMessage, resetRecordingStates]);
 
     const connectWebSocket = useCallback((currentSessionId: string) => {
         debugLog(`[WebSocket] Attempting connect for session: ${currentSessionId}.`);
@@ -698,7 +736,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 }
                 console.info(`[WebSocket] Connection opened for session ${currentSessionId}. Reconnecting: ${isReconnectingRef.current}`);
                 setWsStatus('open');
-                setReconnectAttempts(0); // Success, reset attempts
+                reconnectAttemptsRef.current = 0; // Success, reset attempts
                 
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
                 if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
@@ -767,37 +805,28 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     wsRef.current = null;
                     if (!intentionalClientClose && isBrowserRecordingRef.current) {
                         console.warn(`[WebSocket] Unexpected close while recording was active.`);
-                        handleToggleBrowserPause(true);
-                        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        handleToggleBrowserPause(true); // Pause recorder
+                        
+                        // If we are not already in a reconnect loop, start one.
+                        if (!isReconnectingRef.current) {
                             setIsReconnecting(true);
-                            const nextAttempt = reconnectAttempts + 1;
-                            setReconnectAttempts(nextAttempt);
-                            const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, nextAttempt -1 );
-                            addErrorMessage(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
-                            setTimeout(() => {
-                                const currentSessionToReconnect = sessionIdRef.current;
-                                if (currentSessionToReconnect) {
-                                    console.log(`[Reconnect] Attempt ${nextAttempt}: Re-connecting to session ${currentSessionToReconnect}...`);
-                                    connectWebSocket(currentSessionToReconnect);
-                                } else {
-                                    console.error("[Reconnect] Cannot reconnect: session ID is null.");
-                                    addErrorMessage('Cannot reconnect: session information was lost. Please stop and start recording again.');
-                                    setIsReconnecting(false);
-                                    resetRecordingStates();
-                                }
-                            }, delay);
+                            isReconnectingRef.current = true;
+                            reconnectAttemptsRef.current = 0;
+                            tryReconnect();
                         } else {
-                            addErrorMessage('Failed to reconnect recording after multiple attempts. Please stop and start manually.');
-                            setIsReconnecting(false);
-                            resetRecordingStates();
+                            // We are already in a reconnect loop, and this was another failed attempt.
+                            // The `tryReconnect` function will handle the next step.
+                            console.log("Reconnect attempt failed, scheduling next one via tryReconnect.");
+                            tryReconnect();
                         }
                     } else {
+                        // Handle intentional closures or closures when not recording
                         if (pendingActionRef.current === 'start' && !event.wasClean) {
                             addErrorMessage('WebSocket connection closed before recording could fully start.');
                         }
                         if (pendingActionRef.current === 'start') setPendingAction(null);
                         setIsReconnecting(false);
-                        setReconnectAttempts(0);
+                        reconnectAttemptsRef.current = 0;
                         if (!isBrowserRecordingRef.current && !pendingActionRef.current) {
                             resetRecordingStates();
                         }
@@ -805,7 +834,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 }
             };
         });
-    }, [supabase.auth, startBrowserMediaRecording, reconnectAttempts, resetRecordingStates, addErrorMessage, handleToggleBrowserPause, handleStopRecording]);
+    }, [supabase.auth, startBrowserMediaRecording, resetRecordingStates, addErrorMessage, handleToggleBrowserPause, tryReconnect, handleStopRecording]);
 
     const handleStartRecordingSession = useCallback(async () => {
         console.info(`[Start Recording Session] Initiated. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecordingRef.current}, PageReady: ${isPageReady}, Agent: ${agentName}`);
@@ -1117,7 +1146,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     <span ref={statusRecordingRef} className="cursor-pointer hover:text-[hsl(var(--text-primary))]" onClick={showAndPrepareRecordingControls} title={isBrowserRecording ? "Recording Status" : "Start recording"} >
                          Listen:{" "}
                         {isReconnecting ? (
-                            <>reconnecting ({reconnectAttempts}/{MAX_RECONNECT_ATTEMPTS}) <span className="inline-block ml-1 h-2 w-2 rounded-full bg-orange-500 animate-pulse"></span></>
+                            <>reconnecting ({reconnectAttemptsRef.current}/{MAX_RECONNECT_ATTEMPTS}) <span className="inline-block ml-1 h-2 w-2 rounded-full bg-orange-500 animate-pulse"></span></>
                         ) : isBrowserRecording ? (
                             isBrowserPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></> )
                                      : ( <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500 animate-pulse"></span></> )
