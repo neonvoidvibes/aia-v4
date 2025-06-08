@@ -913,7 +913,7 @@ function HomeContent() {
                           </ToggleGroupItem>
                         </ToggleGroup>
                       </div>
-                      <div className="pb-3 space-y-2 w-full overflow-hidden">
+                      <div className="pb-3 space-y-2 w-full">
                         {transcriptionS3Files.length > 0 ? (
                           transcriptionS3Files.map(originalFile => {
                             const isProcessing = processingFileKeys.has(originalFile.s3Key!);
@@ -962,7 +962,7 @@ function HomeContent() {
                           />
                         </div>
                       </div>
-                      <div className="pb-3 space-y-2 w-full overflow-hidden">
+                      <div className="pb-3 space-y-2 w-full">
                         {savedTranscriptSummaries.length > 0 ? (
                           savedTranscriptSummaries.map(summaryFile => (
                             <FetchedFileListItem
@@ -986,7 +986,7 @@ function HomeContent() {
                            <span className="memory-section-title text-sm font-medium">Raw Transcripts:</span>
                          </div>
                        </div>
-                       <div className="pb-3 space-y-2 w-full overflow-hidden settings-section-scrollable">
+                       <div className="pb-3 space-y-2 w-full">
                          {rawSavedS3Transcripts.length > 0 ? (
                            rawSavedS3Transcripts.map(rawFile => (
                              <FetchedFileListItem
@@ -1014,14 +1014,14 @@ function HomeContent() {
                         <DocumentUpload description="Locally added/edited system prompt files. Files from S3 are listed below." type="system" allowRemove={true} persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} onFilesAdded={handleSystemPromptUpdate} existingFiles={systemPromptFiles} transparentBackground={true} hideDropZone={true} />
                       </div>
                       {baseSystemPromptS3Files.length > 0 && (
-                        <div className="mt-4 space-y-2 w-full overflow-hidden">
+                        <div className="mt-4 space-y-2 w-full">
                           {baseSystemPromptS3Files.map(file => (
                             <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!filesToHideViewIconFor.includes(file.name)} />
                           ))}
                         </div>
                       )}
                       {agentSystemPromptS3Files.length > 0 && (
-                        <div className="mt-2 space-y-2 w-full overflow-hidden">
+                        <div className="mt-2 space-y-2 w-full">
                           {agentSystemPromptS3Files.map(file => (
                             <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
                           ))}
@@ -1031,7 +1031,7 @@ function HomeContent() {
                     </CollapsibleSection>
                     <CollapsibleSection title="Frameworks" defaultOpen={true}>
                       {baseFrameworkS3Files.length > 0 ? (
-                        <div className="space-y-2 w-full overflow-hidden">
+                        <div className="space-y-2 w-full">
                           {baseFrameworkS3Files.map(file => (
                             <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!filesToHideViewIconFor.includes(file.name)} />
                           ))}
@@ -1047,7 +1047,7 @@ function HomeContent() {
                         <div className="document-upload-container">
                           <DocumentUpload description="Locally added/edited context files. Agent-specific context from S3 is listed below." type="context" allowRemove={true} persistKey={`context-files-${pageAgentName}-${pageEventId}`} onFilesAdded={handleContextUpdate} existingFiles={contextFiles} transparentBackground={true} hideDropZone={true} />
                         </div>
-                        <div className="mt-4 space-y-2 w-full overflow-hidden">
+                        <div className="mt-4 space-y-2 w-full">
                           {agentPrimaryContextS3Files.length > 0 ? (
                             agentPrimaryContextS3Files.map(file => (
                               <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
@@ -1059,7 +1059,7 @@ function HomeContent() {
                         <div className="document-upload-container">
                           <DocumentUpload description="Locally added/edited memory files. Documents from Pinecone are listed below." type="memory" allowRemove={true} persistKey={`agent-memory-${pageAgentName}-${pageEventId}`} onFilesAdded={handleAgentMemoryUpdate} existingFiles={agentMemoryFiles} transparentBackground={true} hideDropZone={true} />
                         </div>
-                        <div className="mt-4 space-y-2 w-full overflow-hidden">
+                        <div className="mt-4 space-y-2 w-full">
                           {pineconeMemoryDocs.length > 0 ? (
                             pineconeMemoryDocs.map(doc => (
                               <FetchedFileListItem key={doc.name} file={{ name: doc.name, type: 'pinecone/document' }} showViewIcon={false} />
