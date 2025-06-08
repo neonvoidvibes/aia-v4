@@ -942,7 +942,7 @@ function HomeContent() {
                         )}
                       </div>
                     </CollapsibleSection>
-                    <CollapsibleSection title="Summarized Transcripts" defaultOpen={false}>
+                    <CollapsibleSection title="Memorized Transcripts" defaultOpen={false}>
                       <div className="flex items-center justify-between py-3 border-b mb-3">
                         <div className="flex items-center gap-2">
                           <Brain className="h-5 w-5 text-muted-foreground" />
