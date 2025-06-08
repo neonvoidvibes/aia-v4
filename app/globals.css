@@ -845,8 +845,8 @@ body {
   margin-bottom: 8px;
   margin-left: 8px;
   text-align: left;
-  font-weight: 700; /* Bold */
-  font-size: inherit; /* Inherit from body */
+  /* font-weight: 700; */
+  font-size: 0.875rem; /* Inherit from body */
 }
 
 
