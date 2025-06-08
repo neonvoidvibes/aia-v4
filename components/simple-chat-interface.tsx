@@ -107,8 +107,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const localRecordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const pongMissesRef = useRef(0);
-
+    
     const isBrowserRecordingRef = useRef(isBrowserRecording);
     useEffect(() => { isBrowserRecordingRef.current = isBrowserRecording; }, [isBrowserRecording]);
     
@@ -402,7 +401,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
         if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-        pongMissesRef.current = 0;
         
         if (wsRef.current) {
             debugLog(`[Resetting Recording States] Cleaning up WebSocket (readyState: ${wsRef.current.readyState})`);
@@ -671,26 +669,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             resetRecordingStates();
             return;
         }
-
+    
         reconnectAttemptsRef.current++;
         const nextAttempt = reconnectAttemptsRef.current;
         
         addErrorMessage(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
         
         const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, nextAttempt - 1);
-
+    
         setTimeout(() => {
             if (!navigator.onLine) {
                 console.log(`[Reconnect] Still offline. Waiting before next attempt.`);
                 tryReconnect(); // Schedule the next check
                 return;
             }
-
+    
             const currentSessionToReconnect = sessionIdRef.current;
             if (currentSessionToReconnect) {
                 console.log(`[Reconnect] Attempt ${nextAttempt}: Re-connecting to session ${currentSessionToReconnect}...`);
-                // This function will set up the new WebSocket with the correct onclose handler
-                // that will call tryReconnect() again if this attempt also fails.
                 connectWebSocket(currentSessionToReconnect);
             } else {
                 console.error("[Reconnect] Cannot reconnect: session ID is null.");
@@ -740,7 +736,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
                 if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-                pongMissesRef.current = 0;
                 
                 heartbeatIntervalRef.current = setInterval(() => {
                     if (newWs.readyState === WebSocket.OPEN) {
@@ -814,8 +809,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             reconnectAttemptsRef.current = 0;
                             tryReconnect();
                         } else {
-                            // We are already in a reconnect loop, and this was another failed attempt.
-                            // The `tryReconnect` function will handle the next step.
+                            // Already reconnecting, this was another failed attempt. The loop will handle it.
                             console.log("Reconnect attempt failed, scheduling next one via tryReconnect.");
                             tryReconnect();
                         }
