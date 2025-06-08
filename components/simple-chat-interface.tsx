@@ -754,17 +754,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     
             newWs.onopen = () => {
                 if (wsRef.current !== newWs) {
-                     console.warn(`[WebSocket] Stale onopen event for ${newWs.url}. Ignoring.`);
-                     try { newWs.close(); } catch(e){ console.warn("[WebSocket] Error closing stale newWs onopen:", e);}
-                     return;
+                    console.warn(`[WebSocket] Stale onopen event for ${newWs.url}. Ignoring.`);
+                    try { newWs.close(); } catch(e){ console.warn("[WebSocket] Error closing stale newWs onopen:", e);}
+                    return;
                 }
                 console.info(`[WebSocket] Connection opened for session ${currentSessionId}. Reconnecting: ${isReconnectingRef.current}`);
                 setWsStatus('open');
-                reconnectAttemptsRef.current = 0; // Success, reset attempts
+                // DO NOT reset reconnectAttemptsRef or isReconnecting here.
+                // Reset happens only after a stable connection is confirmed by a pong.
                 
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
                 if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-                heartbeatMissesRef.current = 0; // Reset heartbeat miss counter
+                heartbeatMissesRef.current = 0; // Reset heartbeat miss counter on new connection
                 
                 heartbeatIntervalRef.current = setInterval(() => {
                     if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
@@ -807,17 +808,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 }, 15000); // Increased interval to 15 seconds to be less aggressive
 
                 if (isReconnectingRef.current) {
-                    setIsReconnecting(false); // We are now reconnected
+                    // Connection has re-opened, but we wait for a pong to confirm it's stable.
+                    // The 'isReconnecting' state remains true for now.
+                    console.info("[WebSocket onopen] Re-opened during reconnect. Resuming recorder and waiting for pong to finalize state.");
                     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "paused") {
                         mediaRecorderRef.current.resume();
                         setIsBrowserPaused(false);
-                        addErrorMessage(`Connection restored. Recording resumed.`);
-                        debugLog("[WebSocket onopen] Reconnected and resumed MediaRecorder.");
                     } else {
-                        console.error(`[WebSocket onopen] Reconnect logic error: MediaRecorder not paused as expected. State: ${mediaRecorderRef.current?.state}`);
+                        console.error(`[WebSocket onopen] Reconnect logic error: MediaRecorder not paused. State: ${mediaRecorderRef.current?.state}`);
                         handleStopRecording(undefined, true);
                     }
                 } else {
+                    // This is a fresh connection, not a reconnect.
                     startBrowserMediaRecording();
                 }
             };
@@ -828,7 +830,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         const messageData = JSON.parse(event.data);
                         if (messageData.type === 'pong') {
                             if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+                            heartbeatMissesRef.current = 0; // Reset misses on successful pong.
                             debugLog("[Heartbeat] Pong received.");
+
+                            // If we were in a reconnecting state, this first successful pong means we are stable.
+                            if (isReconnectingRef.current) {
+                                console.info("[WebSocket onmessage] First pong after reconnect received. Finalizing reconnect state.");
+                                setIsReconnecting(false); // Finalize the state
+                                reconnectAttemptsRef.current = 0; // Reset attempts
+                                addErrorMessage("Connection re-established and stable.");
+                            }
                         } else {
                             debugLog(`[WebSocket] Message from server:`, event.data);
                         }
