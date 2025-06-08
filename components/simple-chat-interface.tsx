@@ -100,6 +100,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isReconnecting, setIsReconnecting] = useState(false);
     const MAX_RECONNECT_ATTEMPTS = 3;
     const RECONNECT_DELAY_BASE_MS = 2000;
+    const MAX_HEARTBEAT_MISSES = 2; // Try ping/pong twice before pausing
 
     const wsRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -107,6 +108,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const localRecordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     
     const isBrowserRecordingRef = useRef(isBrowserRecording);
     useEffect(() => { isBrowserRecordingRef.current = isBrowserRecording; }, [isBrowserRecording]);
@@ -118,6 +120,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
     
     const reconnectAttemptsRef = useRef(0);
+    const heartbeatMissesRef = useRef(0);
+    const isStoppingRef = useRef(false);
 
     useEffect(() => {
         const agentParam = searchParams.get('agent');
@@ -392,15 +396,32 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const resetRecordingStates = useCallback(() => {
         console.info("[Resetting Recording States]");
+        isStoppingRef.current = true;
         setIsBrowserRecording(false);
         setIsBrowserPaused(false);
         setClientRecordingTime(0);
         setWsStatus('idle');
         setSessionId(null);
         setSessionStartTimeUTC(null);
+        setIsReconnecting(false);
         
-        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+        // Clear all timers and intervals
+        if (heartbeatIntervalRef.current) {
+            clearInterval(heartbeatIntervalRef.current);
+            heartbeatIntervalRef.current = null;
+        }
+        if (pongTimeoutRef.current) {
+            clearTimeout(pongTimeoutRef.current);
+            pongTimeoutRef.current = null;
+        }
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+        
+        // Reset counters
+        reconnectAttemptsRef.current = 0;
+        heartbeatMissesRef.current = 0;
         
         if (wsRef.current) {
             debugLog(`[Resetting Recording States] Cleaning up WebSocket (readyState: ${wsRef.current.readyState})`);
@@ -409,7 +430,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             wsRef.current.onerror = null;
             wsRef.current.onclose = null;
             if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
-                try { wsRef.current.close(1000, "Client resetting states"); } catch (e) { console.warn("[Resetting Recording States] Error closing wsRef in reset:", e); }
+                try { 
+                    (wsRef.current as any).__intentionalClose = true;
+                    wsRef.current.close(1000, "Client resetting states"); 
+                } catch (e) { 
+                    console.warn("[Resetting Recording States] Error closing wsRef in reset:", e); 
+                }
                 debugLog("[Resetting Recording States] WebSocket close() called.");
             }
             wsRef.current = null;
@@ -444,8 +470,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (pendingActionRef.current === 'start') {
             setPendingAction(null);
         }
+        
+        isStoppingRef.current = false;
         debugLog("[Resetting Recording States] Finished.");
-    }, []); 
+    }, []);
 
     const handleToggleBrowserPause = useCallback((isExternalPause = false) => {
         if (!mediaRecorderRef.current || !isBrowserRecordingRef.current || (pendingActionRef.current && !isExternalPause)) return;
@@ -736,19 +764,47 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
                 if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+                heartbeatMissesRef.current = 0; // Reset heartbeat miss counter
                 
                 heartbeatIntervalRef.current = setInterval(() => {
-                    if (newWs.readyState === WebSocket.OPEN) {
-                        debugLog("[Heartbeat] Sending ping.");
+                    if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
+                        debugLog(`[Heartbeat] Sending ping (miss count: ${heartbeatMissesRef.current})`);
                         newWs.send(JSON.stringify({action: 'ping'}));
                         pongTimeoutRef.current = setTimeout(() => {
-                            console.warn("[Heartbeat] Pong not received in time. Closing connection to trigger reconnect logic.");
-                            newWs.close(1000, "Heartbeat timeout"); // Use 1000 for normal closure
+                            heartbeatMissesRef.current++;
+                            console.warn(`[Heartbeat] Pong not received in time (miss ${heartbeatMissesRef.current}/${MAX_HEARTBEAT_MISSES})`);
+                            
+                            if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+                                console.warn("[Heartbeat] Max heartbeat misses reached. Pausing recording and triggering reconnect.");
+                                if (isBrowserRecordingRef.current && !isBrowserPaused) {
+                                    handleToggleBrowserPause(true); // Pause recording
+                                    addErrorMessage("Connection unstable. Recording paused. Attempting to reconnect...");
+                                }
+                                newWs.close(1000, "Heartbeat timeout after multiple attempts");
+                            } else {
+                                // Try again immediately for second attempt
+                                debugLog(`[Heartbeat] Trying ping again (attempt ${heartbeatMissesRef.current + 1}/${MAX_HEARTBEAT_MISSES})`);
+                                if (newWs.readyState === WebSocket.OPEN) {
+                                    newWs.send(JSON.stringify({action: 'ping'}));
+                                    pongTimeoutRef.current = setTimeout(() => {
+                                        heartbeatMissesRef.current++;
+                                        console.warn(`[Heartbeat] Second pong not received (miss ${heartbeatMissesRef.current}/${MAX_HEARTBEAT_MISSES})`);
+                                        if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+                                            console.warn("[Heartbeat] Max heartbeat misses reached after second attempt. Pausing and reconnecting.");
+                                            if (isBrowserRecordingRef.current && !isBrowserPaused) {
+                                                handleToggleBrowserPause(true);
+                                                addErrorMessage("Connection lost. Recording paused. Attempting to reconnect...");
+                                            }
+                                            newWs.close(1000, "Heartbeat timeout after multiple attempts");
+                                        }
+                                    }, 5000);
+                                }
+                            }
                         }, 5000);
-                    } else {
+                    } else if (newWs.readyState !== WebSocket.OPEN) {
                         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
                     }
-                }, 10000);
+                }, 15000); // Increased interval to 15 seconds to be less aggressive
 
                 if (isReconnectingRef.current) {
                     setIsReconnecting(false); // We are now reconnected
