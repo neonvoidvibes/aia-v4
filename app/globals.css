@@ -846,6 +846,7 @@ body {
   margin-left: 8px;
   text-align: left;
   /* font-weight: 700; */
+  font-style: italic;
   font-size: inherit; /* Inherit from body */
 }
 
