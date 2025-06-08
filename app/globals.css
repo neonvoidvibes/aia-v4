@@ -65,11 +65,6 @@
   --icon-inactive: 0 0% 50%; /* Inactive/disabled icon color for dark mode */
   --icon-destructive: 0 84.2% 60.2%; /* Destructive icon color */
 
-  /* NEW: Error bubble variables */
-  --error-bg: hsl(0 70% 25% / 0.4);
-  --error-fg: hsl(0 80% 85%);
-  --error-border: hsl(0 70% 40%);
-
   /* NEW: Text color variables for chat interface elements - Default Theme */
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
@@ -81,11 +76,6 @@
   /* Base colors */
   --background: 0 0% 75%; /* CHANGED FROM 95% - This will make it a darker gray */
   --foreground: 0 0% 10%; /* Dark foreground */
-
-  /* NEW: Error bubble variables */
-  --error-bg: hsl(0 80% 90%);
-  --error-fg: hsl(0 70% 40%);
-  --error-border: hsl(0 70% 60%);
 
   /* UI elements */
   --input-gray: 0 0% 88%; /* Brighter gray for input/bubbles in light mode */
@@ -189,11 +179,6 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
-  
-  /* NEW: Error bubble variables - Neon Sunset Theme */
-  --error-bg: hsl(350 70% 20% / 0.5);
-  --error-fg: hsl(350 100% 88%);
-  --error-border: hsl(350 80% 50%);
 }
 
 /* Oceanic Calm Theme */
@@ -245,11 +230,6 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
-  
-  /* NEW: Error bubble variables - Oceanic Calm Theme */
-  --error-bg: hsl(0 70% 92% / 0.8);
-  --error-fg: hsl(0 70% 50%);
-  --error-border: hsl(0 70% 75%);
 }
 
 /* Forest Deep Theme */
@@ -301,11 +281,6 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
-
-  /* NEW: Error bubble variables - Forest Deep Theme */
-  --error-bg: hsl(30 60% 25% / 0.5);
-  --error-fg: hsl(30 40% 85%);
-  --error-border: hsl(30 60% 45%);
 }
 
 /* Midnight Monochrome Theme */
@@ -357,11 +332,6 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
-
-  /* NEW: Error bubble variables - Midnight Monochrome Theme */
-  --error-bg: hsl(0 60% 22% / 0.6);
-  --error-fg: hsl(0 70% 85%);
-  --error-border: hsl(0 70% 50%);
 }
 
 /* Solar Flare Theme */
@@ -413,11 +383,6 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
-
-  /* NEW: Error bubble variables - Solar Flare Theme */
-  --error-bg: hsl(0 80% 90% / 0.9);
-  --error-fg: hsl(0 80% 55%);
-  --error-border: hsl(0 80% 78%);
 }
 
 /* Aurora Borealis Theme */
@@ -469,11 +434,6 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
-  
-  /* NEW: Error bubble variables - Aurora Borealis Theme */
-  --error-bg: hsl(0 80% 25% / 0.5);
-  --error-fg: hsl(0 90% 85%);
-  --error-border: hsl(0 90% 55%);
 }
 
 /* Desert Mirage Theme */
@@ -525,11 +485,6 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
-
-  /* NEW: Error bubble variables - Desert Mirage Theme */
-  --error-bg: hsl(30 60% 88% / 0.8);
-  --error-fg: hsl(0 60% 45%);
-  --error-border: hsl(0 60% 70%);
 }
 
 /* Folkhemmet Theme */
@@ -592,11 +547,6 @@
   --input-field-text-color: var(--user-input-text);
   --user-message-text-color: var(--user-input-text);
   --assistant-message-text-color: var(--foreground);
-
-  /* NEW: Error bubble variables - Folkhemmet Theme */
-  --error-bg: hsl(0 80% 90%);
-  --error-fg: hsl(0 75% 55%);
-  --error-border: hsl(0 75% 75%);
 }
 
 .theme-cfl {
@@ -657,11 +607,6 @@
   --input-field-text-color: var(--text-secondary);
   --user-message-text-color: var(--text-secondary);
   --assistant-message-text-color: var(--foreground);
-
-  /* NEW: Error bubble variables - CFL Theme */
-  --error-bg: hsl(0 50% 20% / 0.6);
-  --error-fg: hsl(0 70% 80%);
-  --error-border: hsl(0 60% 45%);
 }
 
 /* Styles for Canvas-originated user messages */
@@ -889,26 +834,19 @@ body {
 
 /* NEW: Error message styling */
 .error-bubble {
-  background-color: var(--error-bg, hsl(var(--destructive) / 0.2));
-  color: var(--error-fg, hsl(var(--destructive-foreground)));
-  border: 1px solid var(--error-border, hsl(var(--destructive) / 0.5));
-  align-self: center;
+  background-color: transparent;
+  color: hsl(var(--assistant-message-text-color));
+  border: none;
+  /* align-self is handled by parent container */
   max-width: 90%;
-  border-radius: var(--message-radius);
-  padding: 12px 18px;
+  border-radius: 0;
+  padding: 0; /* No padding */
   animation: fadeIn 0.3s ease-out;
   margin-bottom: 8px;
-  display: flex; /* To align icon and text */
-  align-items: center;
-  gap: 12px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-.error-bubble svg {
-  flex-shrink: 0;
-  width: 1.25rem; /* h-5 */
-  height: 1.25rem; /* w-5 */
-  color: var(--error-fg, hsl(var(--destructive-foreground)));
+  margin-left: 8px;
+  text-align: left;
+  font-weight: 700; /* Bold */
+  font-size: inherit; /* Inherit from body */
 }
 
 
