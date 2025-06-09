@@ -1596,3 +1596,20 @@ button {
     opacity: 1.0; /* Solid */
   }
 }
+
+/* Fullscreen Mode Styles */
+.fullscreen-header {
+  /* In fullscreen mode, the header should be minimal */
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.fullscreen-header .chevron-rotate {
+  /* Ensure the settings chevron is still visible and properly positioned in fullscreen */
+  transition: transform 0.3s ease;
+}
+
+/* Additional spacing for fullscreen input area */
+.fullscreen-mode .input-area-container {
+  padding-bottom: 1rem; /* Add some spacing below input area in fullscreen */
+}

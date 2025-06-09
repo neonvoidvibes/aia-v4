@@ -81,6 +81,9 @@ function HomeContent() {
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
 
+  // Fullscreen mode state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
   const [showS3FileViewer, setShowS3FileViewer] = useState(false);
@@ -384,6 +387,24 @@ function HomeContent() {
       console.log(`[LangSetting] Saved '${transcriptionLanguage}' for agent '${pageAgentName}' to localStorage.`);
     }
   }, [transcriptionLanguage, pageAgentName]); // Dependencies: transcriptionLanguage, pageAgentName
+
+  // Load and persist fullscreen mode (user + agent specific)
+  useEffect(() => {
+    if (pageAgentName && userName) {
+      const key = `fullscreenMode_${userName}_${pageAgentName}`;
+      const savedMode = localStorage.getItem(key);
+      if (savedMode !== null) {
+        setIsFullscreen(JSON.parse(savedMode));
+      }
+    }
+  }, [pageAgentName, userName]);
+
+  useEffect(() => {
+    if (pageAgentName && userName) {
+      const key = `fullscreenMode_${userName}_${pageAgentName}`;
+      localStorage.setItem(key, JSON.stringify(isFullscreen));
+    }
+  }, [isFullscreen, pageAgentName, userName]);
 
   useEffect(() => {
     if (showSettings) {
@@ -778,21 +799,25 @@ function HomeContent() {
 
   return (
     <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
-      <header className="py-2 px-4 text-center relative flex-shrink-0">
+      <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`}>
         <div className="flex items-center justify-between h-12">
-          <button className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105" onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} aria-label="New chat">
-            <PenSquare size={20} />
-          </button>
+          {!isFullscreen && (
+            <button className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105" onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} aria-label="New chat">
+              <PenSquare size={20} />
+            </button>
+          )}
           
-          <ViewSwitcher 
-            currentView={currentView} 
-            onViewChange={(newView) => setCurrentView(newView)}
-            agentName={pageAgentName} 
-            isCanvasEnabled={isCanvasViewEnabled} 
-            className="flex-grow justify-center max-w-[calc(100%-7rem)] sm:max-w-sm" // Adjusted: 7rem leaves 3.5rem each side
-          />
+          {!isFullscreen && (
+            <ViewSwitcher 
+              currentView={currentView} 
+              onViewChange={(newView) => setCurrentView(newView)}
+              agentName={pageAgentName} 
+              isCanvasEnabled={isCanvasViewEnabled} 
+              className="flex-grow justify-center max-w-[calc(100%-7rem)] sm:max-w-sm" // Adjusted: 7rem leaves 3.5rem each side
+            />
+          )}
 
-          <button className="text-foreground/70 hover:text-foreground transition-colors" onClick={(e) => { e.stopPropagation(); setShowSettings(!showS3FileViewer ? !showSettings : true ); }} aria-label="Toggle settings">
+          <button className={`text-foreground/70 hover:text-foreground transition-colors ${isFullscreen ? 'ml-auto' : ''}`} onClick={(e) => { e.stopPropagation(); setShowSettings(!showS3FileViewer ? !showSettings : true ); }} aria-label="Toggle settings">
             <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings && !showS3FileViewer ? "rotate(180deg)" : "rotate(0deg)" }}>
               <ChevronDown size={24} strokeWidth={2.5} />
             </div>
@@ -805,6 +830,7 @@ function HomeContent() {
           <SimpleChatInterface 
             ref={chatInterfaceRef} 
             onAttachmentsUpdate={updateChatAttachments} 
+            isFullscreen={isFullscreen}
             getCanvasContext={() => ({
                 current_canvas_time_window_label: selectedCanvasTimeWindow,
                 active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
@@ -1149,6 +1175,15 @@ function HomeContent() {
                           </DropdownMenuRadioGroup>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="fullscreen-toggle">Fullscreen Mode</Label>
+                      <Switch
+                        id="fullscreen-toggle"
+                        checked={isFullscreen}
+                        onCheckedChange={setIsFullscreen}
+                        aria-label="Toggle fullscreen mode"
+                      />
                     </div>
                     {/* Hiding toggle until feature is finished to implement
                     <div className="flex items-center justify-between pt-2">
