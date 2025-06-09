@@ -45,7 +45,11 @@ export const predefinedThemes: ColorTheme[] = [
     name: "Forest Deep",
     className: "theme-forest-deep",
     isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
+    welcomeMessage: {
+      text: "Rötterna lyssnar.",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
   },
   {
     name: "Oceanic Calm",
