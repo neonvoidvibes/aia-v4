@@ -84,6 +84,14 @@ function HomeContent() {
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Recording state lifted from SimpleChatInterface for fullscreen indicator
+  const [recordingState, setRecordingState] = useState({
+    isBrowserRecording: false,
+    isBrowserPaused: false,
+    clientRecordingTime: 0,
+    isReconnecting: false
+  });
+
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
   const [showS3FileViewer, setShowS3FileViewer] = useState(false);
@@ -817,6 +825,21 @@ function HomeContent() {
             />
           )}
 
+          {/* Fullscreen recording indicator */}
+          {isFullscreen && recordingState.isBrowserRecording && (
+            <div className="flex items-center gap-2 text-xs text-foreground/70 mr-4 pl-1">
+              <span className={`inline-block w-2 h-2 rounded-full ${
+                recordingState.isReconnecting ? 'bg-orange-500 animate-pulse' :
+                recordingState.isBrowserPaused ? 'bg-yellow-500' : 
+                'bg-red-500 animate-pulse'
+              }`}></span>
+              <span className="font-mono">
+                {Math.floor(recordingState.clientRecordingTime / 60).toString().padStart(2, '0')}:
+                {(recordingState.clientRecordingTime % 60).toString().padStart(2, '0')}
+              </span>
+            </div>
+          )}
+
           <button className={`text-foreground/70 hover:text-foreground transition-colors ${isFullscreen ? 'ml-auto' : ''}`} onClick={(e) => { e.stopPropagation(); setShowSettings(!showS3FileViewer ? !showSettings : true ); }} aria-label="Toggle settings">
             <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings && !showS3FileViewer ? "rotate(180deg)" : "rotate(0deg)" }}>
               <ChevronDown size={24} strokeWidth={2.5} />
@@ -831,6 +854,7 @@ function HomeContent() {
             ref={chatInterfaceRef} 
             onAttachmentsUpdate={updateChatAttachments} 
             isFullscreen={isFullscreen}
+            onRecordingStateChange={setRecordingState}
             getCanvasContext={() => ({
                 current_canvas_time_window_label: selectedCanvasTimeWindow,
                 active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),

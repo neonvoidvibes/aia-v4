@@ -50,6 +50,12 @@ const debugLog = (...args: any[]) => {
 interface SimpleChatInterfaceProps {
   onAttachmentsUpdate?: (attachments: AttachmentFile[]) => void;
   isFullscreen?: boolean;
+  onRecordingStateChange?: (state: {
+    isBrowserRecording: boolean;
+    isBrowserPaused: boolean;
+    clientRecordingTime: number;
+    isReconnecting: boolean;
+  }) => void;
   getCanvasContext?: () => { // New prop to fetch dynamic canvas context
     current_canvas_time_window_label?: string;
     active_canvas_insights?: string; // JSON string
@@ -80,7 +86,7 @@ const formatTime = (seconds: number): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, getCanvasContext }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, onRecordingStateChange, getCanvasContext }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -286,6 +292,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [clientRecordingTime]);
 
     useEffect(() => { if (onAttachmentsUpdate) onAttachmentsUpdate(allAttachments); }, [allAttachments, onAttachmentsUpdate]);
+
+    // Notify parent component of recording state changes for fullscreen indicator
+    useEffect(() => {
+        if (onRecordingStateChange) {
+            onRecordingStateChange({
+                isBrowserRecording,
+                isBrowserPaused,
+                clientRecordingTime,
+                isReconnecting
+            });
+        }
+    }, [onRecordingStateChange, isBrowserRecording, isBrowserPaused, clientRecordingTime, isReconnecting]);
 
     const handleSubmitWithCanvasContext = useCallback((
       e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLInputElement> | Event,
