@@ -952,13 +952,13 @@ function HomeContent() {
                           aria-label="Transcript listen mode"
                           id="transcript-listen-toggle-group"
                         >
-                          <ToggleGroupItem value="none" aria-label="None" className="h-6 px-2 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
-                            None
-                          </ToggleGroupItem>
-                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-2 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
+                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
                             Latest
                           </ToggleGroupItem>
-                          <ToggleGroupItem value="all" aria-label="All" className="h-6 px-2 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
+                          <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
+                            None
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
                             All
                           </ToggleGroupItem>
                         </ToggleGroup>
