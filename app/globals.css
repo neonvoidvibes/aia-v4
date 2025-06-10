@@ -609,6 +609,57 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* Mobius Theme */
+.theme-mobius {
+  --background: 200 54% 19%; /* Very Dark Blue/Teal */
+  --foreground: 240 5% 91%; /* Very Light Gray/Off-white */
+  --input-gray: 220 1% 37%; /* Dark Gray */
+  --status-bar: 304 16% 41%; /* Desaturated Magenta/Purple */
+  --placeholder-text: 240 5% 55%;
+  --text-primary: 240 5% 91%;
+  --text-secondary: 240 5% 80%;
+  --text-muted: 240 5% 60%;
+
+  /* Shadcn variables */
+  --card: 220 1% 30%;
+  --popover: 220 1% 30%;
+  --primary: 194 23% 49%; /* Desaturated Cyan/Blue */
+  --primary-foreground: 240 5% 91%;
+  --secondary: 200 54% 15%;
+  --secondary-foreground: 240 5% 91%;
+  --muted: 200 54% 12%;
+  --accent: 316 31% 27%; /* Dark Magenta/Purple */
+  --accent-foreground: 240 5% 91%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 1% 45%;
+  --input: 220 1% 37%;
+  --ring: 194 23% 49%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 194 23% 49%;
+  --button-submit-fg-active: 240 5% 91%;
+  --button-submit-bg-inactive: 220 1% 32%;
+  --button-submit-fg-inactive: 240 5% 60%;
+  --button-submit-bg-stop: 194 23% 40%;
+  --button-submit-fg-stop: 240 5% 91%;
+
+  --icon-primary: 240 5% 91%;
+  --icon-secondary: 240 5% 70%;
+  --icon-active: 194 23% 49%;
+  --icon-inactive: 240 5% 50%;
+  --icon-destructive: 0 63% 31%;
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 240 5% 91%;
+  --button-inactive: 240 5% 60%;
+
+  /* NEW: Text color variables for chat interface elements - Mobius Theme */
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
+}
+
 /* Styles for Canvas-originated user messages */
 .user-bubble.from-canvas {
   background-color: hsl(var(--accent) / 0.2) !important; /* Use !important to ensure override if needed */
@@ -1194,6 +1245,9 @@ body {
 }
 .theme-cfl .scroll-to-bottom-button {
   background-color: rgba(82, 82, 82, 0.3); /* Dark gray with transparency */
+}
+.theme-mobius .scroll-to-bottom-button {
+  background-color: rgba(22, 59, 74, 0.3); /* Dark Blue/Teal with transparency */
 }
 
 .scroll-to-bottom-button:hover {

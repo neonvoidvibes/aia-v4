@@ -81,5 +81,15 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: true,
     welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
+  {
+    name: "Mobius",
+    className: "theme-mobius",
+    isDark: true,
+    welcomeMessage: {
+      text: "What wants to transform?",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
+  },
   // Add more predefined themes here
 ];
