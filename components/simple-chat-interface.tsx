@@ -105,9 +105,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isBrowserPaused, setIsBrowserPaused] = useState(false);    
     const [clientRecordingTime, setClientRecordingTime] = useState(0); 
     const [isReconnecting, setIsReconnecting] = useState(false);
-    const MAX_RECONNECT_ATTEMPTS = 3;
-    const RECONNECT_DELAY_BASE_MS = 2000;
-    const MAX_HEARTBEAT_MISSES = 2; // Try ping/pong twice before pausing
+    // Industry-standard reconnection and heartbeat parameters
+    const MAX_RECONNECT_ATTEMPTS = 10;
+    const RECONNECT_DELAY_BASE_MS = 2500; // Start with a 2.5s base delay
+    const HEARTBEAT_INTERVAL_MS = 25000; // Ping every 25 seconds
+    const PONG_TIMEOUT_MS = 10000; // Wait 10 seconds for a pong response
+    const MAX_HEARTBEAT_MISSES = 2; // Try ping/pong twice before considering connection dead
 
     const wsRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -116,6 +119,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const tryReconnectRef = React.useRef<() => void>(() => {});
     
     const isBrowserRecordingRef = useRef(isBrowserRecording);
     useEffect(() => { isBrowserRecordingRef.current = isBrowserRecording; }, [isBrowserRecording]);
@@ -630,7 +634,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     }, [sessionId, callHttpRecordingApi, wsStatus, addErrorMessage, setPendingAction, setIsBrowserRecording, setIsBrowserPaused, setClientRecordingTime, setShowRecordUI, setRecordUIVisible, setSessionId, setSessionStartTimeUTC]);
 
-
     const startBrowserMediaRecording = useCallback(async () => {
         debugLog(`[Browser Recording] Attempting. WS state: ${wsRef.current?.readyState}, MediaRecorder state: ${mediaRecorderRef.current?.state}`);
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -710,40 +713,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [startHideTimeout, handleStopRecording, wsStatus, addErrorMessage]);
 
-    const tryReconnect = useCallback(() => {
-        if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-            addErrorMessage('Failed to reconnect recording after multiple attempts. Please stop and start manually.');
-            resetRecordingStates();
-            return;
-        }
-    
-        reconnectAttemptsRef.current++;
-        const nextAttempt = reconnectAttemptsRef.current;
-        
-        addErrorMessage(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
-        
-        const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, nextAttempt - 1);
-    
-        setTimeout(() => {
-            if (!navigator.onLine) {
-                console.log(`[Reconnect] Still offline. Waiting before next attempt.`);
-                tryReconnect(); // Schedule the next check
-                return;
-            }
-    
-            const currentSessionToReconnect = sessionIdRef.current;
-            if (currentSessionToReconnect) {
-                console.log(`[Reconnect] Attempt ${nextAttempt}: Re-connecting to session ${currentSessionToReconnect}...`);
-                connectWebSocket(currentSessionToReconnect);
-            } else {
-                console.error("[Reconnect] Cannot reconnect: session ID is null.");
-                addErrorMessage('Cannot reconnect: session information was lost. Please stop and start recording again.');
-                setIsReconnecting(false);
-                resetRecordingStates();
-            }
-        }, delay);
-    }, [addErrorMessage, resetRecordingStates]);
-
+    // Re-ordered connectWebSocket to be defined before tryReconnect
     const connectWebSocket = useCallback((currentSessionId: string) => {
         debugLog(`[WebSocket] Attempting connect for session: ${currentSessionId}.`);
         if (!currentSessionId) {
@@ -779,56 +749,42 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 }
                 console.info(`[WebSocket] Connection opened for session ${currentSessionId}. Reconnecting: ${isReconnectingRef.current}`);
                 setWsStatus('open');
-                // DO NOT reset reconnectAttemptsRef or isReconnecting here.
-                // Reset happens only after a stable connection is confirmed by a pong.
                 
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
                 if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-                heartbeatMissesRef.current = 0; // Reset heartbeat miss counter on new connection
+                heartbeatMissesRef.current = 0; 
                 
                 heartbeatIntervalRef.current = setInterval(() => {
                     if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
+                        if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+                            console.warn("[Heartbeat] Already at max misses, closing connection to trigger reconnect.");
+                            newWs.close(1000, "Heartbeat timeout after multiple attempts");
+                            return;
+                        }
+                        
                         debugLog(`[Heartbeat] Sending ping (miss count: ${heartbeatMissesRef.current})`);
                         newWs.send(JSON.stringify({action: 'ping'}));
+                        
+                        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
                         pongTimeoutRef.current = setTimeout(() => {
                             heartbeatMissesRef.current++;
                             console.warn(`[Heartbeat] Pong not received in time (miss ${heartbeatMissesRef.current}/${MAX_HEARTBEAT_MISSES})`);
                             
                             if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-                                console.warn("[Heartbeat] Max heartbeat misses reached. Pausing recording and triggering reconnect.");
+                                console.error("[Heartbeat] Max heartbeat misses reached. Closing connection to trigger reconnect.");
                                 if (isBrowserRecordingRef.current && !isBrowserPaused) {
-                                    handleToggleBrowserPause(true); // Pause recording
-                                    addErrorMessage("Connection unstable. Recording paused. Attempting to reconnect...");
+                                    handleToggleBrowserPause(true); 
                                 }
-                                newWs.close(1000, "Heartbeat timeout after multiple attempts");
-                            } else {
-                                // Try again immediately for second attempt
-                                debugLog(`[Heartbeat] Trying ping again (attempt ${heartbeatMissesRef.current + 1}/${MAX_HEARTBEAT_MISSES})`);
-                                if (newWs.readyState === WebSocket.OPEN) {
-                                    newWs.send(JSON.stringify({action: 'ping'}));
-                                    pongTimeoutRef.current = setTimeout(() => {
-                                        heartbeatMissesRef.current++;
-                                        console.warn(`[Heartbeat] Second pong not received (miss ${heartbeatMissesRef.current}/${MAX_HEARTBEAT_MISSES})`);
-                                        if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-                                            console.warn("[Heartbeat] Max heartbeat misses reached after second attempt. Pausing and reconnecting.");
-                                            if (isBrowserRecordingRef.current && !isBrowserPaused) {
-                                                handleToggleBrowserPause(true);
-                                                addErrorMessage("Connection lost. Recording paused. Attempting to reconnect...");
-                                            }
-                                            newWs.close(1000, "Heartbeat timeout after multiple attempts");
-                                        }
-                                    }, 5000);
-                                }
+                                newWs.close(1000, "Heartbeat timeout");
                             }
-                        }, 5000);
-                    } else if (newWs.readyState !== WebSocket.OPEN) {
-                        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-                    }
-                }, 15000); // Increased interval to 15 seconds to be less aggressive
+                        }, PONG_TIMEOUT_MS);
 
+                    } else if (newWs.readyState !== WebSocket.OPEN && heartbeatIntervalRef.current) {
+                        clearInterval(heartbeatIntervalRef.current);
+                    }
+                }, HEARTBEAT_INTERVAL_MS);
+                
                 if (isReconnectingRef.current) {
-                    // Connection has re-opened, but we wait for a pong to confirm it's stable.
-                    // The 'isReconnecting' state remains true for now.
                     console.info("[WebSocket onopen] Re-opened during reconnect. Resuming recorder and waiting for pong to finalize state.");
                     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "paused") {
                         mediaRecorderRef.current.resume();
@@ -838,7 +794,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         handleStopRecording(undefined, true);
                     }
                 } else {
-                    // This is a fresh connection, not a reconnect.
                     startBrowserMediaRecording();
                 }
             };
@@ -849,14 +804,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         const messageData = JSON.parse(event.data);
                         if (messageData.type === 'pong') {
                             if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-                            heartbeatMissesRef.current = 0; // Reset misses on successful pong.
+                            heartbeatMissesRef.current = 0; 
                             debugLog("[Heartbeat] Pong received.");
 
-                            // If we were in a reconnecting state, this first successful pong means we are stable.
                             if (isReconnectingRef.current) {
                                 console.info("[WebSocket onmessage] First pong after reconnect received. Finalizing reconnect state.");
-                                setIsReconnecting(false); // Finalize the state
-                                reconnectAttemptsRef.current = 0; // Reset attempts
+                                setIsReconnecting(false); 
+                                reconnectAttemptsRef.current = 0; 
                                 addErrorMessage("Connection re-established and stable.");
                             }
                         } else {
@@ -886,21 +840,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     wsRef.current = null;
                     if (!intentionalClientClose && isBrowserRecordingRef.current) {
                         console.warn(`[WebSocket] Unexpected close while recording was active.`);
-                        handleToggleBrowserPause(true); // Pause recorder
+                        handleToggleBrowserPause(true); 
                         
-                        // If we are not already in a reconnect loop, start one.
                         if (!isReconnectingRef.current) {
                             setIsReconnecting(true);
                             isReconnectingRef.current = true;
                             reconnectAttemptsRef.current = 0;
-                            tryReconnect();
+                            tryReconnectRef.current();
                         } else {
-                            // Already reconnecting, this was another failed attempt. The loop will handle it.
                             console.log("Reconnect attempt failed, scheduling next one via tryReconnect.");
-                            tryReconnect();
+                            tryReconnectRef.current();
                         }
                     } else {
-                        // Handle intentional closures or closures when not recording
                         if (pendingActionRef.current === 'start' && !event.wasClean) {
                             addErrorMessage('WebSocket connection closed before recording could fully start.');
                         }
@@ -914,7 +865,49 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 }
             };
         });
-    }, [supabase.auth, startBrowserMediaRecording, resetRecordingStates, addErrorMessage, handleToggleBrowserPause, tryReconnect, handleStopRecording]);
+    }, [supabase.auth, startBrowserMediaRecording, resetRecordingStates, addErrorMessage, handleToggleBrowserPause, handleStopRecording]);
+
+    const tryReconnect = useCallback(() => {
+        if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+            addErrorMessage('Failed to reconnect recording after multiple attempts. Please stop and start manually.');
+            resetRecordingStates();
+            return;
+        }
+    
+        reconnectAttemptsRef.current++;
+        const nextAttempt = reconnectAttemptsRef.current;
+        
+        addErrorMessage(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
+        
+        const backoff = Math.pow(2, nextAttempt - 1);
+        const jitter = Math.random() * 1000; // Add up to 1s of random delay
+        const delay = (RECONNECT_DELAY_BASE_MS * backoff) + jitter;
+        
+        console.log(`[Reconnect] Scheduling attempt ${nextAttempt} in ${delay.toFixed(0)}ms (base: ${RECONNECT_DELAY_BASE_MS}, backoff: ${backoff}x, jitter: ${jitter.toFixed(0)}ms)`);
+    
+        reconnectTimeoutRef.current = setTimeout(() => {
+            if (!navigator.onLine) {
+                console.log(`[Reconnect] Still offline. Waiting before next attempt.`);
+                tryReconnectRef.current(); // Use ref for recursive call
+                return;
+            }
+    
+            const currentSessionToReconnect = sessionIdRef.current;
+            if (currentSessionToReconnect) {
+                console.log(`[Reconnect] Attempt ${nextAttempt}: Re-connecting to session ${currentSessionToReconnect}...`);
+                connectWebSocket(currentSessionToReconnect);
+            } else {
+                console.error("[Reconnect] Cannot reconnect: session ID is null.");
+                addErrorMessage('Cannot reconnect: session information was lost. Please stop and start recording again.');
+                setIsReconnecting(false);
+                resetRecordingStates();
+            }
+        }, delay);
+    }, [addErrorMessage, resetRecordingStates, connectWebSocket]);
+
+    useEffect(() => {
+        tryReconnectRef.current = tryReconnect;
+    }, [tryReconnect]);
 
     const handleStartRecordingSession = useCallback(async () => {
         console.info(`[Start Recording Session] Initiated. Pending: ${pendingActionRef.current}, BrowserRec: ${isBrowserRecordingRef.current}, PageReady: ${isPageReady}, Agent: ${agentName}`);
