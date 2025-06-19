@@ -199,6 +199,28 @@ function HomeContent() {
               if (fetchedAllowedAgents.includes(agentParam)) {
                   console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
                   setIsAuthorized(true);
+
+                  // Fire-and-forget call to warm up the backend cache
+                  console.log(`[Cache Warmer] Triggering pre-caching for agent '${agentParam}'...`);
+                  fetch('/api/agent/warm-up', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify({ agent: agentParam, event: eventParam || '0000' })
+                  })
+                  .then(response => {
+                      if(response.ok) {
+                        console.log(`[Cache Warmer] Pre-caching for agent '${agentParam}' successfully initiated.`);
+                      } else {
+                        console.warn(`[Cache Warmer] Pre-caching request for agent '${agentParam}' failed with status: ${response.status}`);
+                      }
+                  })
+                  .catch(error => {
+                      console.error(`[Cache Warmer] Error triggering pre-caching for agent '${agentParam}':`, error);
+                  });
+
               } else {
                   console.warn(`Authorization Check: Access DENIED for agent '${agentParam}'. Allowed: [${fetchedAllowedAgents.join(', ')}]`);
                   setAuthError(`You do not have permission to access the agent specified in the URL ('${agentParam}').`);
