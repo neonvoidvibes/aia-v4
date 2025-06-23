@@ -19,7 +19,7 @@ import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileL
 import FileEditor from "@/components/file-editor";
 import { useMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button";
-// Removed Select imports, added DropdownMenu imports
+// Use both Dropdown and Sheet components
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -27,6 +27,14 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
 import ViewSwitcher from "@/components/ui/view-switcher"; 
@@ -317,6 +325,20 @@ function HomeContent() {
     }
   }, [hasOpenSection]);
   
+  const handleAgentThemeChange = useCallback((newThemeValue: string) => {
+      if (pageAgentName) {
+        const agentThemeKey = `agent-theme-${pageAgentName}`;
+        localStorage.setItem(agentThemeKey, newThemeValue);
+        if (predefinedThemes.some(t => t.className === newThemeValue)) {
+            localStorage.setItem(`agent-custom-theme-${pageAgentName}`, newThemeValue);
+        } else {
+            localStorage.removeItem(`agent-custom-theme-${pageAgentName}`);
+        }
+        setTheme(newThemeValue);
+        setCurrentAgentTheme(newThemeValue);
+      }
+  }, [pageAgentName, setTheme]);
+
   useEffect(() => {
     if (pageAgentName) {
       const agentThemeKey = `agent-theme-${pageAgentName}`;
@@ -1173,54 +1195,96 @@ function HomeContent() {
                       <ThemeToggle />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label>Agent Theme</Label> {/* Removed memory-section-title */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-[180px] justify-between">
-                            <span>
-                              {
-                                (currentAgentTheme === "light" && "Light") ||
-                                (currentAgentTheme === "dark" && "Dark") ||
-                                (currentAgentTheme === "system" && "System") ||
-                                (predefinedThemes.find(t => t.className === currentAgentTheme)?.name) ||
-                                (theme === "light" && "Light") ||
-                                (theme === "dark" && "Dark") ||
-                                (theme === "system" && "System") ||
-                                (predefinedThemes.find(t => t.className === theme)?.name) ||
-                                "Select Theme"
-                              }
-                            </span>
-                            <ChevronDown className="h-4 w-4 opacity-50" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-[180px]" align="end">
-                          <DropdownMenuRadioGroup
-                            value={currentAgentTheme || theme}
-                            onValueChange={(newThemeValue) => {
-                              if (pageAgentName) {
-                                const agentThemeKey = `agent-theme-${pageAgentName}`;
-                                localStorage.setItem(agentThemeKey, newThemeValue);
-                                if (predefinedThemes.some(t => t.className === newThemeValue)) {
-                                    localStorage.setItem(`agent-custom-theme-${pageAgentName}`, newThemeValue);
-                                } else {
-                                    localStorage.removeItem(`agent-custom-theme-${pageAgentName}`);
+                      <Label>Agent Theme</Label>
+                      {isMobile ? (
+                        <Sheet>
+                          <SheetTrigger asChild>
+                             <Button variant="outline" className="w-[180px] justify-between">
+                               <span>
+                                 {
+                                   (currentAgentTheme === "light" && "Light") ||
+                                   (currentAgentTheme === "dark" && "Dark") ||
+                                   (currentAgentTheme === "system" && "System") ||
+                                   (predefinedThemes.find(t => t.className === currentAgentTheme)?.name) ||
+                                   (theme === "light" && "Light") ||
+                                   (theme === "dark" && "Dark") ||
+                                   (theme === "system" && "System") ||
+                                   (predefinedThemes.find(t => t.className === theme)?.name) ||
+                                   "Select Theme"
+                                 }
+                               </span>
+                               <ChevronDown className="h-4 w-4 opacity-50" />
+                             </Button>
+                          </SheetTrigger>
+                          <SheetContent side="bottom" className="rounded-t-lg">
+                             <SheetHeader>
+                               <SheetTitle>Select Theme</SheetTitle>
+                             </SheetHeader>
+                             <div className="py-4">
+                               <RadioGroup
+                                 value={currentAgentTheme || theme}
+                                 onValueChange={handleAgentThemeChange}
+                                 className="flex flex-col gap-3"
+                               >
+                                  <div className="flex items-center space-x-2">
+                                     <RadioGroupItem value="light" id="theme-light-mobile" />
+                                     <Label htmlFor="theme-light-mobile">Light</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                     <RadioGroupItem value="dark" id="theme-dark-mobile" />
+                                     <Label htmlFor="theme-dark-mobile">Dark</Label>
+                                  </div>
+                                   <div className="flex items-center space-x-2">
+                                     <RadioGroupItem value="system" id="theme-system-mobile" />
+                                     <Label htmlFor="theme-system-mobile">System</Label>
+                                  </div>
+                                  {predefinedThemes.map((customTheme) => (
+                                    <div key={customTheme.className} className="flex items-center space-x-2">
+                                      <RadioGroupItem value={customTheme.className} id={`theme-${customTheme.className}-mobile`} />
+                                      <Label htmlFor={`theme-${customTheme.className}-mobile`}>{customTheme.name}</Label>
+                                    </div>
+                                  ))}
+                               </RadioGroup>
+                             </div>
+                          </SheetContent>
+                        </Sheet>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-[180px] justify-between">
+                              <span>
+                                {
+                                  (currentAgentTheme === "light" && "Light") ||
+                                  (currentAgentTheme === "dark" && "Dark") ||
+                                  (currentAgentTheme === "system" && "System") ||
+                                  (predefinedThemes.find(t => t.className === currentAgentTheme)?.name) ||
+                                  (theme === "light" && "Light") ||
+                                  (theme === "dark" && "Dark") ||
+                                  (theme === "system" && "System") ||
+                                  (predefinedThemes.find(t => t.className === theme)?.name) ||
+                                  "Select Theme"
                                 }
-                                setTheme(newThemeValue);
-                                setCurrentAgentTheme(newThemeValue);
-                              }
-                            }}
-                          >
-                            <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
-                            {predefinedThemes.map((customTheme) => (
-                              <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className}>
-                                {customTheme.name}
-                              </DropdownMenuRadioItem>
-                            ))}
-                          </DropdownMenuRadioGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                              </span>
+                              <ChevronDown className="h-4 w-4 opacity-50" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-[180px]" align="end">
+                            <DropdownMenuRadioGroup
+                              value={currentAgentTheme || theme}
+                              onValueChange={handleAgentThemeChange}
+                            >
+                              <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+                              {predefinedThemes.map((customTheme) => (
+                                <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className}>
+                                  {customTheme.name}
+                                </DropdownMenuRadioItem>
+                              ))}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                     <div className="flex items-center justify-between">
                       <Label htmlFor="fullscreen-toggle">Fullscreen Mode</Label>
