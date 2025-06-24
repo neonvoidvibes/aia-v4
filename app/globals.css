@@ -1328,9 +1328,10 @@ body {
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
   padding: 0.75em;
-  margin: 0.5em 0;
+  margin: 1em 0; /* Increased top and bottom margin */
   white-space: pre-wrap; /* Allow wrapping */
   word-wrap: break-word; /* Break long words */
+  font-size: 90%; /* Match single-line code block font size */
 }
 
 .ai-bubble pre code {

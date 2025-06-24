@@ -85,7 +85,11 @@ const formatAssistantMessage = (text: string): string => {
     // Inline elements (run after block elements)
     
     // First, find and replace multi-line code blocks (```)
-    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    html = html.replace(/```([\s\S]*?)```/g, (match, codeContent) => {
+        // Trim leading newline from the code content, but preserve indentation
+        const trimmedContent = codeContent.replace(/^\n/, '');
+        return `<pre><code>${trimmedContent}</code></pre>`;
+    });
 
     // Then, find and replace block-style single-line code to wrap it in a div
     html = html.replace(/^\s*`([^`\n]+?)`\s*$/gm, '<div class="code-block-wrapper"><code>$1</code></div>');
