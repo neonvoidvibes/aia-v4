@@ -41,7 +41,8 @@ import ViewSwitcher from "@/components/ui/view-switcher";
 import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; 
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; // Added import
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // New import
 
 // Main content component that uses useSearchParams
 function HomeContent() {
@@ -91,6 +92,7 @@ function HomeContent() {
 
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-20250514'); // Default model
 
   // Recording state lifted from SimpleChatInterface for fullscreen indicator
   const [recordingState, setRecordingState] = useState({
@@ -457,6 +459,28 @@ function HomeContent() {
       localStorage.setItem(key, JSON.stringify(isFullscreen));
     }
   }, [isFullscreen, pageAgentName, userName]);
+
+  // Load and persist selectedModel (agent-specific)
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `agent-model-${pageAgentName}`;
+      const savedModel = localStorage.getItem(key);
+      if (savedModel) {
+        setSelectedModel(savedModel);
+      } else {
+        // Default to claude if no setting is found for this agent
+        setSelectedModel('claude-sonnet-4-20250514');
+      }
+    }
+  }, [pageAgentName]);
+
+  const handleModelChange = (model: string) => {
+    setSelectedModel(model);
+    if (pageAgentName) {
+      const key = `agent-model-${pageAgentName}`;
+      localStorage.setItem(key, model);
+    }
+  };
 
   useEffect(() => {
     if (showSettings) {
@@ -898,6 +922,7 @@ function HomeContent() {
             ref={chatInterfaceRef} 
             onAttachmentsUpdate={updateChatAttachments} 
             isFullscreen={isFullscreen}
+            selectedModel={selectedModel}
             onRecordingStateChange={setRecordingState}
             getCanvasContext={() => ({
                 current_canvas_time_window_label: selectedCanvasTimeWindow,
@@ -1294,6 +1319,18 @@ function HomeContent() {
                         onCheckedChange={setIsFullscreen}
                         aria-label="Toggle fullscreen mode"
                       />
+                    </div>
+                     <div className="flex items-center justify-between">
+                      <Label htmlFor="model-selector">Chat Model</Label>
+                      <Select value={selectedModel} onValueChange={handleModelChange}>
+                        <SelectTrigger className="w-[220px]" id="model-selector">
+                          <SelectValue placeholder="Select a model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="claude-sonnet-4-20250514">Claude 3.5 Sonnet</SelectItem>
+                          <SelectItem value="gemini-1.5-flash-latest">Gemini 1.5 Flash</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     {/* Hiding toggle until feature is finished to implement
                     <div className="flex items-center justify-between pt-2">
