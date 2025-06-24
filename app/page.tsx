@@ -1033,14 +1033,14 @@ function HomeContent() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="claude-sonnet-4-20250514">Claude 3.5 Sonnet</SelectItem>
-                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
                           <SelectItem value="gpt-4.1">GPT-4.1</SelectItem>
+                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor="temperature-slider">Temperature</Label>
+                        <Label htmlFor="temperature-slider">Temperature (Model Creativity)</Label>
                         <span className="text-sm text-muted-foreground font-mono">{temperature.toFixed(2)}</span>
                       </div>
                       <Slider
