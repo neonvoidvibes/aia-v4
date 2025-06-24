@@ -83,16 +83,24 @@ const formatAssistantMessage = (text: string): string => {
 
 
     // Inline elements (run after block elements)
+    
+    // First, find and replace multi-line code blocks (```)
+    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+
+    // Then, find and replace block-style single-line code to wrap it in a div
+    html = html.replace(/^\s*`([^`\n]+?)`\s*$/gm, '<div class="code-block-wrapper"><code>$1</code></div>');
+
+    // Then, process truly inline code, bold, and italic
     html = html
         .replace(/`([^`]+?)`/g, '<code>$1</code>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/_([^_]+)_/g, '<em>$1</em>') // Underscore for italic
         .replace(/\*([^*]+)\*/g, '<em>$1</em>'); // Asterisk for italic
 
-    // Newlines to <br>, but be careful not to add them inside list structures
+    // Newlines to <br>, but be careful not to add them inside list structures or other blocks
     const finalHtml = html.replace(/\n/g, '<br />')
-        .replace(/(<br \/>\s*)*(<(h[1-3]|ul|ol|li)>)/g, '$2') // remove all <br>s before
-        .replace(/(<\/(h[1-3]|ul|ol|li)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after
+        .replace(/(<br \/>\s*)*(<(h[1-3]|ul|ol|li|div|pre)>)/g, '$2') // remove all <br>s before block elements
+        .replace(/(<\/(h[1-3]|ul|ol|li|div|pre)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
     
     debugLog(`[Markdown Format] Input: "${text.substring(0, 50)}..." | Output HTML: "${finalHtml.substring(0, 80)}..."`);
     return finalHtml;

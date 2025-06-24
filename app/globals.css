@@ -1298,13 +1298,47 @@ body {
 .ai-bubble code {
   background-color: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
-  padding: 0.2em 0.4em;
+  padding: 0.1em 0.4em;
   margin: 0 0.1em;
-  border-radius: 6px;
-  font-size: 90%;
+  border-radius: 4px;
+  font-size: 85%;
   font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-  white-space: pre-wrap; /* allow wrapping of long code */
+}
+
+/* Wrapper for block-style code to handle margins */
+.ai-bubble .code-block-wrapper {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+/* Style for block-style code, matching the image */
+.ai-bubble .code-block-wrapper code {
+  display: block;
+  width: fit-content; /* Shrink to content width */
+  max-width: 100%;
+  padding: 0.5em 0.75em;
+  border-radius: 8px;
   border: 1px solid hsl(var(--border));
+  font-size: 90%;
+}
+
+/* Style for multi-line code blocks (<pre><code>) */
+.ai-bubble pre {
+  background-color: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 0.75em;
+  margin: 0.5em 0;
+  white-space: pre-wrap; /* Allow wrapping */
+  word-wrap: break-word; /* Break long words */
+}
+
+.ai-bubble pre code {
+  background-color: transparent; /* Code inside pre should be transparent */
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: 100%; /* Inherit size from pre */
 }
 
 /* Animation Keyframes */
