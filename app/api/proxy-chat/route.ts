@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
     // Prioritize settings from body.data if they exist, as simple-chat-interface places them there.
     const agent = body.agent || body.data?.agent;
     const event = body.event || body.data?.event;
-    const model = body.model || body.data?.model; // Get the model from the body
+    const model = body.model || body.data?.model;
+    const temperature = body.temperature ?? body.data?.temperature ?? 0.5;
     
     let transcriptListenModeSetting = body.data?.transcriptListenMode || body.transcriptListenMode || "latest";
     if (!["none", "latest", "all"].includes(transcriptListenModeSetting)) {
@@ -74,8 +75,8 @@ export async function POST(req: NextRequest) {
     const transcriptionLanguageSetting = body.data?.transcriptionLanguage || body.transcriptionLanguage || "any"; // Changed default to "any"
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
-    const { transcriptListenMode, savedTranscriptMemoryMode, transcriptionLanguage, model: _model, ...dataWithoutSettings } = body.data || {}; // Added transcriptionLanguage and model
-    const { agent:_a, event:_e, model: _m_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, transcriptionLanguage: _trl, messages:_m, ...restOfBody } = body; // Added _trl and _m_from_body
+    const { transcriptListenMode, savedTranscriptMemoryMode, transcriptionLanguage, model: _model, temperature: _temp, ...dataWithoutSettings } = body.data || {};
+    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, transcriptionLanguage: _trl, messages:_m, ...restOfBody } = body;
 
 
     // Basic validation for essential fields
@@ -91,7 +92,8 @@ export async function POST(req: NextRequest) {
       messages: userMessages,
       agent: agent,
       event: event || '0000',
-      model: model, // Include the selected model
+      model: model,
+      temperature: temperature,
       transcriptListenMode: transcriptListenModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
       transcriptionLanguage: transcriptionLanguageSetting, // Added

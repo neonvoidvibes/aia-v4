@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2
+import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { createClient } from '@/utils/supabase/client';
@@ -41,8 +41,9 @@ import ViewSwitcher from "@/components/ui/view-switcher";
 import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; 
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // New import
+import { Slider } from "@/components/ui/slider";
 
 // Main content component that uses useSearchParams
 function HomeContent() {
@@ -51,8 +52,8 @@ function HomeContent() {
 
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState("documents"); // Default settings tab
-  const [previousActiveTab, setPreviousActiveTab] = useState("documents"); 
+  const [activeTab, setActiveTab] = useState("settings"); // Default settings tab
+  const [previousActiveTab, setPreviousActiveTab] = useState("settings"); 
   const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
   const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]);
   const [agentMemoryFiles, setAgentMemoryFiles] = useState<AttachmentFile[]>([]);
@@ -79,6 +80,8 @@ function HomeContent() {
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
   const [isCanvasLoading, setIsCanvasLoading] = useState(false);
   const [canvasError, setCanvasError] = useState<string | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<"mirror" | "lens" | "portal">("mirror");
+  const [selectedTimeWindow, setSelectedTimeWindow] = useState<string>("Whole Meeting");
   const [selectedCanvasFilter, setSelectedCanvasFilter] = useState<"mirror" | "lens" | "portal">("mirror");
   const [selectedCanvasTimeWindow, setSelectedCanvasTimeWindow] = useState<string>("Whole Meeting"); 
   
@@ -93,6 +96,7 @@ function HomeContent() {
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-20250514'); // Default model
+  const [temperature, setTemperature] = useState(0.5); // Default temperature
 
   // Recording state lifted from SimpleChatInterface for fullscreen indicator
   const [recordingState, setRecordingState] = useState({
@@ -479,6 +483,28 @@ function HomeContent() {
     if (pageAgentName) {
       const key = `agent-model-${pageAgentName}`;
       localStorage.setItem(key, model);
+    }
+  };
+  
+  // Load and persist temperature (agent-specific)
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `agent-temperature-${pageAgentName}`;
+      const savedTemp = localStorage.getItem(key);
+      if (savedTemp !== null && !isNaN(parseFloat(savedTemp))) {
+        setTemperature(parseFloat(savedTemp));
+      } else {
+        setTemperature(0.5); // Default if not set or invalid
+      }
+    }
+  }, [pageAgentName]);
+
+  const handleTemperatureChange = (value: number[]) => {
+    const newTemp = value[0];
+    setTemperature(newTemp);
+    if (pageAgentName) {
+      const key = `agent-temperature-${pageAgentName}`;
+      localStorage.setItem(key, newTemp.toString());
     }
   };
 
@@ -923,9 +949,10 @@ function HomeContent() {
             onAttachmentsUpdate={updateChatAttachments} 
             isFullscreen={isFullscreen}
             selectedModel={selectedModel}
+            temperature={temperature}
             onRecordingStateChange={setRecordingState}
             getCanvasContext={() => ({
-                current_canvas_time_window_label: selectedCanvasTimeWindow,
+                current_canvas_time_window_label: selectedTimeWindow,
                 active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
                 pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
             })}
@@ -951,10 +978,10 @@ function HomeContent() {
             setIsCanvasLoading={setIsCanvasLoading}
             canvasError={canvasError}
             setCanvasError={setCanvasError}
-            selectedFilter={selectedCanvasFilter}
-            setSelectedFilter={setSelectedCanvasFilter}
-            selectedTimeWindow={selectedCanvasTimeWindow}
-            setSelectedTimeWindow={setSelectedCanvasTimeWindow}
+            selectedFilter={selectedFilter}
+            setSelectedFilter={setSelectedFilter}
+            selectedTimeWindow={selectedTimeWindow}
+            setSelectedTimeWindow={setSelectedTimeWindow}
           />
         )}
          {currentView === "canvas" && !isCanvasViewEnabled && (
@@ -989,13 +1016,173 @@ function HomeContent() {
             <DialogDescription><VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden></DialogDescription>
             <EnvWarning />
             <Tabs value={activeTab} onValueChange={handleSettingsTabChange} className="w-full flex flex-col flex-1 min-h-0">
-              <TabsList className="grid w-full grid-cols-4 mb-4"> 
+              <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsTrigger value="settings">Settings</TabsTrigger>
                 <TabsTrigger value="documents">{isMobile ? "Docs" : "Documents"}</TabsTrigger>
                 <TabsTrigger value="memory">Memory</TabsTrigger>
                 <TabsTrigger value="system">System</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
               <div className="tab-content-wrapper flex-1 overflow-y-auto" ref={tabContentRef}>
+                <TabsContent value="settings" className="mt-0 tab-content-scrollable">
+                  <div className="space-y-6 tab-content-inner px-2 md:px-4 py-3">
+                     <div className="flex items-center justify-between">
+                      <Label htmlFor="model-selector">Chat Model</Label>
+                      <Select value={selectedModel} onValueChange={handleModelChange}>
+                        <SelectTrigger className="w-[220px]" id="model-selector">
+                          <SelectValue placeholder="Select a model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="claude-sonnet-4-20250514">Claude 3.5 Sonnet</SelectItem>
+                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                          <SelectItem value="gpt-4.1">GPT-4.1</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="temperature-slider">Temperature</Label>
+                        <span className="text-sm text-muted-foreground font-mono">{temperature.toFixed(2)}</span>
+                      </div>
+                      <Slider
+                        id="temperature-slider"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={[temperature]}
+                        onValueChange={handleTemperatureChange}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between"> 
+                      <Label htmlFor="transcription-language-toggle">Transcription Language</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={transcriptionLanguage}
+                        onValueChange={(value) => {
+                          if (value === "en" || value === "sv" || value === "any") {
+                            setTranscriptionLanguage(value as "en" | "sv" | "any");
+                          }
+                        }}
+                        className="rounded-md bg-muted p-1"
+                        aria-label="Transcription language"
+                      >
+                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "Any" : "Any"}
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="en" aria-label="English" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "EN" : "English"}
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="sv" aria-label="Swedish" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "SV" : "Swedish"}
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label>Global Theme</Label>
+                      <ThemeToggle />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label>Agent Theme</Label>
+                      {isMobile ? (
+                        <Sheet>
+                          <SheetTrigger asChild>
+                             <Button variant="outline" className="w-[180px] justify-between">
+                               <span>
+                                 {
+                                   (currentAgentTheme === "light" && "Light") ||
+                                   (currentAgentTheme === "dark" && "Dark") ||
+                                   (currentAgentTheme === "system" && "System") ||
+                                   (predefinedThemes.find(t => t.className === currentAgentTheme)?.name) ||
+                                   (theme === "light" && "Light") ||
+                                   (theme === "dark" && "Dark") ||
+                                   (theme === "system" && "System") ||
+                                   (predefinedThemes.find(t => t.className === theme)?.name) ||
+                                   "Select Theme"
+                                 }
+                               </span>
+                               <ChevronDown className="h-4 w-4 opacity-50" />
+                             </Button>
+                          </SheetTrigger>
+                          <SheetContent side="bottom" className="rounded-t-lg">
+                             <SheetHeader>
+                               <SheetTitle>Select Theme</SheetTitle>
+                             </SheetHeader>
+                             <div className="py-4">
+                               <RadioGroup
+                                 value={currentAgentTheme || theme}
+                                 onValueChange={handleAgentThemeChange}
+                                 className="flex flex-col gap-3"
+                               >
+                                  <div className="flex items-center space-x-2">
+                                     <RadioGroupItem value="light" id="theme-light-mobile" />
+                                     <Label htmlFor="theme-light-mobile">Light</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                     <RadioGroupItem value="dark" id="theme-dark-mobile" />
+                                     <Label htmlFor="theme-dark-mobile">Dark</Label>
+                                  </div>
+                                   <div className="flex items-center space-x-2">
+                                     <RadioGroupItem value="system" id="theme-system-mobile" />
+                                     <Label htmlFor="theme-system-mobile">System</Label>
+                                  </div>
+                                  {predefinedThemes.map((customTheme) => (
+                                    <div key={customTheme.className} className="flex items-center space-x-2">
+                                      <RadioGroupItem value={customTheme.className} id={`theme-${customTheme.className}-mobile`} />
+                                      <Label htmlFor={`theme-${customTheme.className}-mobile`}>{customTheme.name}</Label>
+                                    </div>
+                                  ))}
+                               </RadioGroup>
+                             </div>
+                          </SheetContent>
+                        </Sheet>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-[180px] justify-between">
+                              <span>
+                                {
+                                  (currentAgentTheme === "light" && "Light") ||
+                                  (currentAgentTheme === "dark" && "Dark") ||
+                                  (currentAgentTheme === "system" && "System") ||
+                                  (predefinedThemes.find(t => t.className === currentAgentTheme)?.name) ||
+                                  (theme === "light" && "Light") ||
+                                  (theme === "dark" && "Dark") ||
+                                  (theme === "system" && "System") ||
+                                  (predefinedThemes.find(t => t.className === theme)?.name) ||
+                                  "Select Theme"
+                                }
+                              </span>
+                              <ChevronDown className="h-4 w-4 opacity-50" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-[180px]" align="end">
+                            <DropdownMenuRadioGroup
+                              value={currentAgentTheme || theme}
+                              onValueChange={handleAgentThemeChange}
+                            >
+                              <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+                              {predefinedThemes.map((customTheme) => (
+                                <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className}>
+                                  {customTheme.name}
+                                </DropdownMenuRadioItem>
+                              ))}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="fullscreen-toggle">Fullscreen Mode</Label>
+                      <Switch
+                        id="fullscreen-toggle"
+                        checked={isFullscreen}
+                        onCheckedChange={setIsFullscreen}
+                        aria-label="Toggle fullscreen mode"
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
                 <TabsContent value="documents" className="mt-0 tab-content-scrollable">
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <CollapsibleSection title="Chat Attachments" defaultOpen={allChatAttachments.length > 0}>
@@ -1187,161 +1374,6 @@ function HomeContent() {
                         </div>
                       </CollapsibleSection>
                     </div>
-                  </div>
-                </TabsContent>
-                <TabsContent value="settings" className="mt-0 tab-content-scrollable">
-                  <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
-                    <div className="flex items-center justify-between"> 
-                      <Label htmlFor="transcription-language-toggle">Transcription Language</Label>
-                      <ToggleGroup
-                        type="single"
-                        value={transcriptionLanguage}
-                        onValueChange={(value) => {
-                          if (value === "en" || value === "sv" || value === "any") {
-                            setTranscriptionLanguage(value as "en" | "sv" | "any");
-                          }
-                        }}
-                        className="rounded-md bg-muted p-1"
-                        aria-label="Transcription language"
-                      >
-                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          {isMobile ? "Any" : "Any"}
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="en" aria-label="English" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          {isMobile ? "EN" : "English"}
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="sv" aria-label="Swedish" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          {isMobile ? "SV" : "Swedish"}
-                        </ToggleGroupItem>
-                      </ToggleGroup>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>Global Theme</Label> {/* Removed memory-section-title, relying on default Label style */}
-                      <ThemeToggle />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>Agent Theme</Label>
-                      {isMobile ? (
-                        <Sheet>
-                          <SheetTrigger asChild>
-                             <Button variant="outline" className="w-[180px] justify-between">
-                               <span>
-                                 {
-                                   (currentAgentTheme === "light" && "Light") ||
-                                   (currentAgentTheme === "dark" && "Dark") ||
-                                   (currentAgentTheme === "system" && "System") ||
-                                   (predefinedThemes.find(t => t.className === currentAgentTheme)?.name) ||
-                                   (theme === "light" && "Light") ||
-                                   (theme === "dark" && "Dark") ||
-                                   (theme === "system" && "System") ||
-                                   (predefinedThemes.find(t => t.className === theme)?.name) ||
-                                   "Select Theme"
-                                 }
-                               </span>
-                               <ChevronDown className="h-4 w-4 opacity-50" />
-                             </Button>
-                          </SheetTrigger>
-                          <SheetContent side="bottom" className="rounded-t-lg">
-                             <SheetHeader>
-                               <SheetTitle>Select Theme</SheetTitle>
-                             </SheetHeader>
-                             <div className="py-4">
-                               <RadioGroup
-                                 value={currentAgentTheme || theme}
-                                 onValueChange={handleAgentThemeChange}
-                                 className="flex flex-col gap-3"
-                               >
-                                  <div className="flex items-center space-x-2">
-                                     <RadioGroupItem value="light" id="theme-light-mobile" />
-                                     <Label htmlFor="theme-light-mobile">Light</Label>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                     <RadioGroupItem value="dark" id="theme-dark-mobile" />
-                                     <Label htmlFor="theme-dark-mobile">Dark</Label>
-                                  </div>
-                                   <div className="flex items-center space-x-2">
-                                     <RadioGroupItem value="system" id="theme-system-mobile" />
-                                     <Label htmlFor="theme-system-mobile">System</Label>
-                                  </div>
-                                  {predefinedThemes.map((customTheme) => (
-                                    <div key={customTheme.className} className="flex items-center space-x-2">
-                                      <RadioGroupItem value={customTheme.className} id={`theme-${customTheme.className}-mobile`} />
-                                      <Label htmlFor={`theme-${customTheme.className}-mobile`}>{customTheme.name}</Label>
-                                    </div>
-                                  ))}
-                               </RadioGroup>
-                             </div>
-                          </SheetContent>
-                        </Sheet>
-                      ) : (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-[180px] justify-between">
-                              <span>
-                                {
-                                  (currentAgentTheme === "light" && "Light") ||
-                                  (currentAgentTheme === "dark" && "Dark") ||
-                                  (currentAgentTheme === "system" && "System") ||
-                                  (predefinedThemes.find(t => t.className === currentAgentTheme)?.name) ||
-                                  (theme === "light" && "Light") ||
-                                  (theme === "dark" && "Dark") ||
-                                  (theme === "system" && "System") ||
-                                  (predefinedThemes.find(t => t.className === theme)?.name) ||
-                                  "Select Theme"
-                                }
-                              </span>
-                              <ChevronDown className="h-4 w-4 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-[180px]" align="end">
-                            <DropdownMenuRadioGroup
-                              value={currentAgentTheme || theme}
-                              onValueChange={handleAgentThemeChange}
-                            >
-                              <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
-                              {predefinedThemes.map((customTheme) => (
-                                <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className}>
-                                  {customTheme.name}
-                                </DropdownMenuRadioItem>
-                              ))}
-                            </DropdownMenuRadioGroup>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="fullscreen-toggle">Fullscreen Mode</Label>
-                      <Switch
-                        id="fullscreen-toggle"
-                        checked={isFullscreen}
-                        onCheckedChange={setIsFullscreen}
-                        aria-label="Toggle fullscreen mode"
-                      />
-                    </div>
-                     <div className="flex items-center justify-between">
-                      <Label htmlFor="model-selector">Chat Model</Label>
-                      <Select value={selectedModel} onValueChange={handleModelChange}>
-                        <SelectTrigger className="w-[220px]" id="model-selector">
-                          <SelectValue placeholder="Select a model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="claude-sonnet-4-20250514">Claude 3.5 Sonnet</SelectItem>
-                          <SelectItem value="gemini-1.5-flash-latest">Gemini 1.5 Flash</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Hiding toggle until feature is finished to implement
-                    <div className="flex items-center justify-between pt-2">
-                        <Label htmlFor="canvas-view-toggle">Enable Canvas View</Label> // Removed memory-section-title
-                        <Switch
-                            id="canvas-view-toggle"
-                            checked={isCanvasViewEnabled}
-                            onCheckedChange={setIsCanvasViewEnabled}
-                        />
-                    </div>
-                    */}
                   </div>
                 </TabsContent>
               </div>

@@ -51,6 +51,7 @@ interface SimpleChatInterfaceProps {
   onAttachmentsUpdate?: (attachments: AttachmentFile[]) => void;
   isFullscreen?: boolean;
   selectedModel: string;
+  temperature: number;
   onRecordingStateChange?: (state: {
     isBrowserRecording: boolean;
     isBrowserPaused: boolean;
@@ -87,7 +88,7 @@ const formatTime = (seconds: number): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, onRecordingStateChange, getCanvasContext }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, getCanvasContext }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -351,10 +352,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 };
             }
 
-            const augmentedBody = {
+                const augmentedBody = {
                 agent: agentName,
                 event: eventId || '0000',
-                model: selectedModel, // Pass the selected model
+                model: selectedModel,
+                temperature: temperature,
                 ...canvasContextData,
                 transcriptListenMode: localStorage.getItem(`transcriptListenModeSetting_${agentName}`) || "latest",
                 savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
@@ -376,6 +378,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         append,
         getCanvasContext, 
         selectedModel,
+        temperature,
         setAttachedFiles,
         addErrorMessage
     ]);
