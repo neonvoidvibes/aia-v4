@@ -91,8 +91,8 @@ const formatAssistantMessage = (text: string): string => {
 
     // Newlines to <br>, but be careful not to add them inside list structures
     const finalHtml = html.replace(/\n/g, '<br />')
-        .replace(/<br \/>(<(ul|ol|li|h[1-3]))/g, '$1') // Remove <br> before block tags
-        .replace(/(<\/(ul|ol|li|h[1-3])>)<br \/>/g, '$1'); // Remove <br> after block tags
+        .replace(/(<br \/>\s*)*(<(h[1-3]|ul|ol|li)>)/g, '$2') // remove all <br>s before
+        .replace(/(<\/(h[1-3]|ul|ol|li)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after
     
     debugLog(`[Markdown Format] Input: "${text.substring(0, 50)}..." | Output HTML: "${finalHtml.substring(0, 80)}..."`);
     return finalHtml;
