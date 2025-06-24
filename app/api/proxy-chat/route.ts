@@ -27,10 +27,13 @@ export async function POST(req: NextRequest) {
     // --- Authenticate User ---
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-        console.warn("[Proxy] Unauthorized chat request:", authError?.message);
-        // For pre-flight errors like auth, return a standard JSON response.
-        // The `useChat` hook will see the non-2xx status and trigger its `onError` callback.
-        return NextResponse.json({ error: "Unauthorized: Invalid session" }, { status: 401 });
+        console.warn("[Proxy] Chat request auth error:", authError?.message);
+        // Differentiate between a network error and a real auth error.
+        if (authError?.message.includes("fetch failed")) {
+            return NextResponse.json({ error: "Network error: Could not contact authentication server." }, { status: 503 });
+        }
+        // For other auth errors, treat as Unauthorized.
+        return NextResponse.json({ error: "Unauthorized: Invalid session." }, { status: 401 });
     }
     console.log(`[Proxy] Authenticated user: ${user.id}`);
     // --- End Authentication ---
