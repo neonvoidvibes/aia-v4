@@ -192,7 +192,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } else if (rawErrorMessage.includes("rate limit")) {
           displayMessage = "We're experiencing high traffic right now. Please wait a moment and try again.";
         } else if (rawErrorMessage.includes("Network error") || rawErrorMessage.includes("Failed to fetch") || rawErrorMessage.includes("Could not connect")) {
-            displayMessage = "Connection to the chat service failed. Please check your network connection and the backend server status.";
+            displayMessage = "Connection to the chat service failed. Please check your network connection.";
         } else if (rawErrorMessage.includes("Internal Server Error") || rawErrorMessage.includes("500")) {
              displayMessage = "An internal server error occurred. Please try again later.";
         } else if (rawErrorMessage.includes('"data" parts expect an array value')) {
