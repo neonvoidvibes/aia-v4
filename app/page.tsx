@@ -42,7 +42,7 @@ import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/component
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // New import
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 
 // Main content component that uses useSearchParams
@@ -870,6 +870,15 @@ function HomeContent() {
   const handleUnpinInsight = (insightIdOrHighlight: string) => {
     setPinnedCanvasInsights((prev) => prev.filter(p => (p.id || p.highlight) !== insightIdOrHighlight));
   };
+
+  const handleAgentChange = (newAgent: string) => {
+    if (newAgent && newAgent !== pageAgentName) {
+      const currentParams = new URLSearchParams(searchParams.toString());
+      currentParams.set('agent', newAgent);
+      // Preserve other params like 'event' when switching agents
+      router.push(`/?${currentParams.toString()}`);
+    }
+  };
   
   const handleSendCanvasHighlightToChat = (message: string, originalHighlight: CanvasInsightItem) => {
     if (chatInterfaceRef.current && pageAgentName) {
@@ -1025,6 +1034,19 @@ function HomeContent() {
               <div className="tab-content-wrapper flex-1 overflow-y-auto" ref={tabContentRef}>
                 <TabsContent value="settings" className="mt-0 tab-content-scrollable">
                   <div className="space-y-6 tab-content-inner px-2 md:px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="agent-selector">Agent</Label>
+                      <Select value={pageAgentName || ''} onValueChange={handleAgentChange} disabled={allowedAgents.length <= 1}>
+                        <SelectTrigger className="w-[220px]" id="agent-selector">
+                          <SelectValue placeholder="Select an agent" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allowedAgents.sort().map(agent => (
+                            <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                      <div className="flex items-center justify-between">
                       <Label htmlFor="model-selector">Chat Model</Label>
                       <Select value={selectedModel} onValueChange={handleModelChange}>
