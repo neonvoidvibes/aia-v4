@@ -1,4 +1,4 @@
-import { type NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { StreamingTextResponse } from 'ai';
 import { findActiveBackend, formatErrorChunk } from '../proxyUtils'; // Use shared util
 // Import our specific server client helper
@@ -28,12 +28,9 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
         console.warn("[Proxy] Unauthorized chat request:", authError?.message);
-        // Return error formatted for AI SDK stream
-        const errorStreamChunk = formatErrorChunk("Unauthorized: Invalid session");
-        const errorStream = new ReadableStream({
-          start(controller) { controller.enqueue(new TextEncoder().encode(errorStreamChunk)); controller.close(); }
-        });
-        return new StreamingTextResponse(errorStream, { status: 401 });
+        // For pre-flight errors like auth, return a standard JSON response.
+        // The `useChat` hook will see the non-2xx status and trigger its `onError` callback.
+        return NextResponse.json({ error: "Unauthorized: Invalid session" }, { status: 401 });
     }
     console.log(`[Proxy] Authenticated user: ${user.id}`);
     // --- End Authentication ---
@@ -44,16 +41,8 @@ export async function POST(req: NextRequest) {
     if (!activeBackendUrl) {
         const errorMsg = `Could not connect to any configured backend: ${POTENTIAL_BACKEND_URLS.join(', ')}. Please ensure the backend server is running and accessible.`;
         console.error(`[Proxy] Fatal Error: ${errorMsg}`);
-        // Return an error formatted for the AI SDK stream
-        const errorStreamChunk = formatErrorChunk(errorMsg);
-        const errorStream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode(errorStreamChunk));
-            controller.close();
-          }
-        });
-        // Use 503 Service Unavailable status code
-        return new StreamingTextResponse(errorStream, { status: 503 });
+        // Also return a standard JSON error response here.
+        return NextResponse.json({ error: errorMsg }, { status: 503 });
     }
     // --- Use activeBackendUrl from now on ---
 
@@ -131,38 +120,22 @@ export async function POST(req: NextRequest) {
 
     // Check if the backend responded successfully
     if (!backendResponse.ok) {
-       let errorBody = "[Could not read error body]";
+       let errorBody = { error: `Backend fetch failed with status ${backendResponse.status}` };
        try {
-           errorBody = await backendResponse.text();
+           errorBody = await backendResponse.json();
        } catch (readError) {
-           console.error("[Proxy] Failed to read error body from backend response:", readError);
+           console.error("[Proxy] Failed to read or parse JSON error body from backend response:", readError);
        }
        console.error(`[Proxy] Backend fetch failed: ${backendResponse.status} ${backendResponse.statusText}. Body:`, errorBody);
-       // Format error for Vercel AI SDK stream
-       const errorStreamChunk = formatErrorChunk(`Backend error (${backendResponse.status}): ${errorBody || backendResponse.statusText}`);
-       const errorStream = new ReadableStream({
-         start(controller) {
-           controller.enqueue(new TextEncoder().encode(errorStreamChunk));
-           controller.close();
-         }
-       });
-       // Use StreamingTextResponse for consistency, returning the backend's status
-       return new StreamingTextResponse(errorStream, { status: backendResponse.status });
+       // Return a standard JSON error response. The UI will handle this.
+       return NextResponse.json(errorBody, { status: backendResponse.status });
     }
 
     // Check if the backend response body exists
     if (!backendResponse.body) {
         console.error(`[Proxy] Backend response OK (${backendResponse.status}) but body is null.`);
-        // Format error for Vercel AI SDK stream
-        const errorStreamChunk = formatErrorChunk("Backend returned empty response");
-        const errorStream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode(errorStreamChunk));
-            controller.close();
-          }
-        });
-        // Use StreamingTextResponse with a 500 status
-        return new StreamingTextResponse(errorStream, { status: 500 });
+        // Return a standard JSON error response
+        return NextResponse.json({ error: "Backend returned an empty response." }, { status: 500 });
     }
     // --- End Main Fetch Handling ---
 
@@ -302,15 +275,7 @@ export async function POST(req: NextRequest) {
     }
     console.error("[Proxy] Error Details:", error.cause || error); // Log full cause or error object
 
-    // Format error for Vercel AI SDK stream
-    const errorStreamChunk = formatErrorChunk(errorMessage);
-    const errorStream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(new TextEncoder().encode(errorStreamChunk));
-        controller.close();
-      }
-    });
-    // Use StreamingTextResponse with a 500 status
-    return new StreamingTextResponse(errorStream, { status: 500 });
+    // Return a standard JSON error response, which `useChat`'s onError can handle
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

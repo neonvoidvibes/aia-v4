@@ -94,7 +94,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [agentName, setAgentName] = useState<string | null>(null);
     const [eventId, setEventId] = useState<string | null>(null);
     const [isPageReady, setIsPageReady] = useState(false); 
-    const [chatError, setChatError] = useState<string | null>(null);
     const lastAppendedErrorRef = useRef<string | null>(null);
     const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
 
@@ -151,6 +150,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [searchParams]);
 
+    // Helper function to add error messages
+    const addErrorMessage = useCallback((content: string) => {
+        const errorMessage: ErrorMessage = {
+            id: `err-${Date.now()}`,
+            role: 'error',
+            content,
+            createdAt: new Date(),
+        };
+        // Prevent duplicate consecutive errors
+        if (content !== lastAppendedErrorRef.current) {
+          setErrorMessages(prev => [...prev, errorMessage]);
+          lastAppendedErrorRef.current = content;
+        }
+    }, []);
+
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
       isLoading, stop, setMessages, append,
@@ -160,46 +174,36 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       sendExtraMessageFields: true,
       onError: (error) => { 
         console.error("[ChatUI] useChat onError:", error);
-        const rawErrorMessage = error.message || "An error occurred.";
+        let rawErrorMessage = error.message || "An error occurred.";
         
+        // Attempt to parse JSON error from the backend
+        try {
+            const parsedError = JSON.parse(rawErrorMessage);
+            rawErrorMessage = parsedError.error || parsedError.message || rawErrorMessage;
+        } catch (e) {
+            // Not a JSON error, use as is
+        }
+
         let displayMessage = "I'm having trouble connecting right now. Please try again in a moment.";
-        if (rawErrorMessage.includes("Assistant is temporarily unavailable")) {
+        if (rawErrorMessage.includes("Unauthorized")) {
+          displayMessage = "Your session may have expired. Please refresh the page.";
+        } else if (rawErrorMessage.includes("Assistant is temporarily unavailable")) {
           displayMessage = "The assistant is currently overloaded. Please wait a minute before trying again.";
         } else if (rawErrorMessage.includes("rate limit")) {
           displayMessage = "We're experiencing high traffic right now. Please wait a moment and try again.";
-        } else if (rawErrorMessage.includes("Network error") || rawErrorMessage.includes("Failed to fetch")) {
-            displayMessage = "Connection to the chat service failed. Please check the backend server status and your network connection.";
+        } else if (rawErrorMessage.includes("Network error") || rawErrorMessage.includes("Failed to fetch") || rawErrorMessage.includes("Could not connect")) {
+            displayMessage = "Connection to the chat service failed. Please check your network connection and the backend server status.";
         } else if (rawErrorMessage.includes("Internal Server Error") || rawErrorMessage.includes("500")) {
              displayMessage = "An internal server error occurred. Please try again later.";
         } else if (rawErrorMessage.includes('"data" parts expect an array value')) {
             displayMessage = "An unexpected response was received from the server. Please try again.";
+        } else if (rawErrorMessage.length < 200) { // Show short, specific errors from backend
+            displayMessage = rawErrorMessage;
         }
         
-        if (displayMessage !== lastAppendedErrorRef.current) {
-            setChatError(displayMessage);
-            lastAppendedErrorRef.current = displayMessage;
-        }
+        addErrorMessage(displayMessage);
       },
     });
-
-    // Helper function to add error messages
-    const addErrorMessage = useCallback((content: string) => {
-        const errorMessage: ErrorMessage = {
-            id: `err-${Date.now()}`,
-            role: 'error',
-            content,
-            createdAt: new Date(),
-        };
-        setErrorMessages(prev => [...prev, errorMessage]);
-    }, []);
-
-    useEffect(() => {
-        if (chatError && chatError !== lastAppendedErrorRef.current) {
-            addErrorMessage(chatError);
-            lastAppendedErrorRef.current = chatError;
-        }
-        setChatError(null);
-    }, [chatError, addErrorMessage]);
 
     useEffect(() => {
         if (agentName && isPageReady) {
@@ -1149,7 +1153,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
                 {combinedMessages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {combinedMessages.length === 0 && isPageReady &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10 px-8"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
-                {combinedMessages.length > 0 && ( <div className="space-y-1 pt-8 pb-4"> {combinedMessages.map((message: UIMessage) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const isError = message.role === "error"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && !isError && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && !isError && handleMessageInteraction(message.id)} > {isError ? ( <div className="error-bubble"> <span>{message.content}</span> </div> ) : ( <> {isUser && hasAttachments && ( <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} <span dangerouslySetInnerHTML={{ __html: displayContent.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </> )} </motion.div> ); })} </div> )}
+                {combinedMessages.length > 0 && ( <div className="space-y-1 pt-8 pb-4"> {combinedMessages.map((message: UIMessage) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const isError = message.role === "error"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && !isError && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && !isError && handleMessageInteraction(message.id)} > {isError ? ( <div className="error-bubble flex items-center gap-2"> <AlertTriangle className="h-5 w-5 flex-shrink-0" /> <span>{message.content}</span> </div> ) : ( <> {isUser && hasAttachments && ( <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} <span dangerouslySetInnerHTML={{ __html: displayContent.replace(/ |\u00A0/g, ' ').trim().replace(/\n/g, '<br />') }} /> </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </> )} </motion.div> ); })} </div> )}
                 {isLoading && messages[messages.length - 1]?.role === 'user' && ( <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1"> <span className="thinking-dot"></span> </motion.div> )}
                 <div ref={messagesEndRef} />
             </div>
