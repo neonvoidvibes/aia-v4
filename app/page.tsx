@@ -494,7 +494,7 @@ function HomeContent() {
       if (savedTemp !== null && !isNaN(parseFloat(savedTemp))) {
         setTemperature(parseFloat(savedTemp));
       } else {
-        setTemperature(0.5); // Default if not set or invalid
+        setTemperature(0.7); // Default if not set or invalid
       }
     }
   }, [pageAgentName]);
