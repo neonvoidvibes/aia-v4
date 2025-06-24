@@ -96,7 +96,7 @@ function HomeContent() {
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-20250514'); // Default model
-  const [temperature, setTemperature] = useState(0.5); // Default temperature
+  const [temperature, setTemperature] = useState(0.7); // Default temperature
 
   // Recording state lifted from SimpleChatInterface for fullscreen indicator
   const [recordingState, setRecordingState] = useState({
