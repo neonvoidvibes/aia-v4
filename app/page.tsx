@@ -18,6 +18,8 @@ import type { AttachmentFile } from "@/components/file-attachment-minimal"
 import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileListItem"
 import FileEditor from "@/components/file-editor";
 import { useMobile } from "@/hooks/use-mobile"
+import { Separator } from "@/components/ui/separator"; // Import Separator
+import { toast } from "sonner"; // Import toast for notifications
 import { Button } from "@/components/ui/button";
 // Use both Dropdown and Sheet components
 import {
@@ -116,6 +118,9 @@ function HomeContent() {
 
   // State for save as memory confirmation modal
   const [showSaveAsMemoryConfirmModal, setShowSaveAsMemoryConfirmModal] = useState(false);
+
+  // State for S3 cache clearing
+  const [isClearingCache, setIsClearingCache] = useState(false);
   const [fileToSaveAsMemory, setFileToSaveAsMemory] = useState<FetchedFile | null>(null);
 
   // State to track S3 keys of files currently being processed (saved to memory or archived)
@@ -858,6 +863,50 @@ function HomeContent() {
     setFileToSaveAsMemory(null);
   };
 
+  const handleClearS3Cache = async () => {
+    if (!pageAgentName) {
+      toast.error("Cannot clear cache: No agent selected.");
+      return;
+    }
+
+    setIsClearingCache(true);
+    toast.info(`Reloading S3 cache for agent: ${pageAgentName}...`);
+
+    try {
+      const response = await fetch('/api/admin/clear-cache-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: pageAgentName })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.message || "Failed to clear cache.");
+      }
+
+      toast.success(result.message || "Cache reloaded successfully.");
+
+      // Re-trigger the data fetch for the settings dialog
+      setFetchedDataFlags({
+        transcriptions: false,
+        baseSystemPrompts: false,
+        agentSystemPrompts: false,
+        baseFrameworks: false,
+        agentPrimaryContext: false,
+        savedSummaries: false,
+        rawSavedS3TranscriptsFetched: false,
+        pineconeMemory: false,
+      });
+
+    } catch (error: any) {
+      console.error("Error clearing S3 cache:", error);
+      toast.error(`Failed to reload cache: ${error.message}`);
+    } finally {
+      setIsClearingCache(false);
+    }
+  };
+
   const handlePinInsight = (insight: CanvasInsightItem) => {
     setPinnedCanvasInsights((prev) => {
       if (!prev.find(p => p.highlight === insight.highlight && p.explanation === insight.explanation)) { 
@@ -1366,6 +1415,26 @@ function HomeContent() {
                         </div>
                       ) : (<p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>)}
                     </CollapsibleSection>
+
+                    <Separator className="my-4" />
+                    
+                    <div className="flex items-center justify-center">
+                      <Button
+                        variant="outline"
+                        onClick={handleClearS3Cache}
+                        disabled={isClearingCache}
+                      >
+                        {isClearingCache ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Reloading...
+                          </>
+                        ) : (
+                          "Reload S3 Cache"
+                        )}
+                      </Button>
+                    </div>
+
                   </div>
                 </TabsContent>
                 <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
