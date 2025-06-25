@@ -1338,7 +1338,7 @@ body {
 .ai-bubble .code-language {
   color: hsl(var(--muted-foreground) / 0.7);
   font-size: 0.8em;
-  padding-bottom: 0.5em;
+  padding-bottom: 1.7em;
   user-select: none;
 }
 
