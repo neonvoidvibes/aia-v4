@@ -1334,6 +1334,41 @@ body {
   font-size: 90%; /* Match single-line code block font size */
 }
 
+/* Style for language identifier in code blocks */
+.ai-bubble .code-language {
+  color: hsl(var(--muted-foreground) / 0.7);
+  font-size: 0.8em;
+  padding-bottom: 0.5em;
+  user-select: none;
+}
+
+/* Style for blockquotes */
+.ai-bubble blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 1em;
+  margin: 1em 0;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Style for horizontal rules */
+.ai-bubble hr {
+  border: 0;
+  height: 1px;
+  background-color: hsl(var(--border));
+  margin: 1.5em 0;
+}
+
+/* Style for links */
+.ai-bubble a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ai-bubble a:hover {
+  opacity: 0.8;
+}
+
 .ai-bubble pre code {
   background-color: transparent; /* Code inside pre should be transparent */
   border: none;

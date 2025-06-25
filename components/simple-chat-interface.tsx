@@ -64,6 +64,13 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    
+    // Horizontal Rule
+    html = html.replace(/^\s*---*\s*$/gm, '<hr />');
+
+    // Blockquotes
+    html = html.replace(/^\s*>\s(.*)/gm, '<blockquote>$1</blockquote>');
+    html = html.replace(/(<\/blockquote>\n*<blockquote>)/g, '<br>'); // Join adjacent blockquotes
 
     // Lists (unordered and ordered) - A simple approach
     // Unordered
@@ -75,36 +82,42 @@ const formatAssistantMessage = (text: string): string => {
     // Wrap groups of <li> that haven't been wrapped by <ul>
     html = html.replace(/(?<!<ul>\s*)((<li>.*<\/li>\s*)+)(?!\s*<\/ul>)/g, '<ol>$1</ol>\n');
 
-    // Clean up adjacent list wrappers that might have been created
+    // Clean up adjacent list wrappers
     html = html.replace(/<\/ul>\n<ul>/g, '');
     html = html.replace(/<\/ol>\n<ol>/g, '');
     html = html.replace(/<\/ul>\n<ol>/g, '</ul><ol>');
     html = html.replace(/<\/ol>\n<ul>/g, '</ol><ul>');
 
+    // Code blocks with language identifier
+    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, codeContent) => {
+        const langHtml = lang ? `<div class="code-language">${lang}</div>` : '';
+        const trimmedContent = codeContent.replace(/^\n/, '').trimEnd();
+        return `<pre>${langHtml}<code>${trimmedContent}</code></pre>`;
+    });
 
-    // Inline elements (run after block elements)
-    
-    // First, find and replace multi-line code blocks (```)
+    // Fallback for code blocks without language
     html = html.replace(/```([\s\S]*?)```/g, (match, codeContent) => {
-        // Trim leading newline from the code content, but preserve indentation
-        const trimmedContent = codeContent.replace(/^\n/, '');
+        const trimmedContent = codeContent.replace(/^\n/, '').trimEnd();
         return `<pre><code>${trimmedContent}</code></pre>`;
     });
 
-    // Then, find and replace block-style single-line code to wrap it in a div
+    // Block-style single-line code
     html = html.replace(/^\s*`([^`\n]+?)`\s*$/gm, '<div class="code-block-wrapper"><code>$1</code></div>');
 
-    // Then, process truly inline code, bold, and italic
+    // Inline elements (run after block elements)
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    // Bold, Italic, Inline Code
     html = html
-        .replace(/`([^`]+?)`/g, '<code>$1</code>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/_([^_]+)_/g, '<em>$1</em>') // Underscore for italic
-        .replace(/\*([^*]+)\*/g, '<em>$1</em>'); // Asterisk for italic
+        .replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>') // Bold
+        .replace(/_([^_]+)_/g, '<em>$1</em>') // Italic (underscore) - More specific
+        .replace(/\*([^\*]+)\*/g, '<em>$1</em>') // Italic (asterisk) - More specific
+        .replace(/`([^`]+)`/g, '<code>$1</code>'); // Inline code
 
     // Newlines to <br>, but be careful not to add them inside list structures or other blocks
     const finalHtml = html.replace(/\n/g, '<br />')
-        .replace(/(<br \/>\s*)*(<(h[1-3]|ul|ol|li|div|pre)>)/g, '$2') // remove all <br>s before block elements
-        .replace(/(<\/(h[1-3]|ul|ol|li|div|pre)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
+        .replace(/(<br \/>\s*)*<((h[1-3]|ul|ol|li|div|pre|blockquote|hr))/g, '<$2') // remove all <br>s before block elements
+        .replace(/(<\/(h[1-3]|ul|ol|li|div|pre|blockquote|hr)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
     
     debugLog(`[Markdown Format] Input: "${text.substring(0, 50)}..." | Output HTML: "${finalHtml.substring(0, 80)}..."`);
     return finalHtml;
