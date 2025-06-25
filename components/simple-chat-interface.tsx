@@ -110,8 +110,7 @@ const formatAssistantMessage = (text: string): string => {
     // Bold, Italic, Inline Code
     html = html
         .replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>') // Bold
-        .replace(/_([^_]+)_/g, '<em>$1</em>') // Italic (underscore) - More specific
-        .replace(/\*([^\*]+)\*/g, '<em>$1</em>') // Italic (asterisk) - More specific
+        .replace(/\*([^\*]+)\*/g, '<em>$1</em>') // Italic (asterisk-only)
         .replace(/`([^`]+)`/g, '<code>$1</code>'); // Inline code
 
     // Newlines to <br>, but be careful not to add them inside list structures or other blocks
