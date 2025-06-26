@@ -1416,7 +1416,7 @@ function HomeContent() {
                       ) : (<p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>)}
                     </CollapsibleSection>
 
-                    <Separator className="my-4" />
+                    {/* <Separator className="my-4" /> */}
                     
                     <div className="flex items-center justify-center">
                       <Button
