@@ -62,6 +62,8 @@ function HomeContent() {
   const [systemPromptFiles, setSystemPromptFiles] = useState<AttachmentFile[]>([]);
   const [contextFiles, setContextFiles] = useState<AttachmentFile[]>([]);
   const [hasOpenSection, setHasOpenSection] = useState(false);
+  const [agentObjectiveFunction, setAgentObjectiveFunction] = useState<FetchedFile | null>(null);
+  const [baseObjectiveFunction, setBaseObjectiveFunction] = useState<FetchedFile | null>(null);
 
   // State for S3/Pinecone fetched files
   const [transcriptionS3Files, setTranscriptionS3Files] = useState<FetchedFile[]>([]);
@@ -138,6 +140,7 @@ function HomeContent() {
     savedSummaries: false, // Added savedSummaries here
     rawSavedS3TranscriptsFetched: false, // New flag for raw saved transcripts
     pineconeMemory: false,
+    objectiveFunctions: false,
   });
 
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
@@ -163,6 +166,7 @@ function HomeContent() {
           savedSummaries: false, // Add flag for summaries
           rawSavedS3TranscriptsFetched: false, // Ensure this new flag is included in the reset
           pineconeMemory: false,
+          objectiveFunctions: false,
         });
       }
 
@@ -667,6 +671,62 @@ function HomeContent() {
   }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth, fetchedDataFlags]);
 
 
+  useEffect(() => {
+    const fetchObjectiveFunctions = async () => {
+      if (!showSettings || !isAuthorized || fetchedDataFlags.objectiveFunctions) {
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const commonHeaders = { 'Authorization': `Bearer ${session.access_token}` };
+
+      const fetchS3Data = async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
+        const proxyApiUrl = `/api/s3-proxy/list?prefix=${encodeURIComponent(prefix)}`;
+        try {
+          const response = await fetch(proxyApiUrl, { headers: { 'Authorization': commonHeaders.Authorization }});
+          if (!response.ok) throw new Error(`Failed to fetch ${description}`);
+          const data: FetchedFile[] = await response.json();
+          onDataFetched(data);
+        } catch (error) {
+          console.error(`Error fetching ${description}:`, error);
+          onDataFetched([]);
+        }
+      };
+      
+      // Fetch agent-specific objective function
+      if (pageAgentName) {
+        await fetchS3Data(
+          `organizations/river/agents/${pageAgentName}/_config/`,
+          (agentConfigDocs: FetchedFile[]) => {
+            const agentObjFuncRegex = new RegExp(`^objective_function_aID-${pageAgentName}(\\.[^.]+)?$`);
+            const foundFile = agentConfigDocs.find(f => agentObjFuncRegex.test(f.name));
+            setAgentObjectiveFunction(foundFile || null);
+          },
+          "Agent Objective Function"
+        );
+      } else {
+        setAgentObjectiveFunction(null);
+      }
+  
+      // Fetch base objective function
+      await fetchS3Data(
+        `_config/`,
+        (allConfigDocs: FetchedFile[]) => {
+          const baseObjFuncRegex = new RegExp(`^objective_function(\\.[^.]+)?$`);
+          const foundFile = allConfigDocs.find(f => baseObjFuncRegex.test(f.name));
+          setBaseObjectiveFunction(foundFile || null);
+        },
+        "Base Objective Function"
+      );
+      
+      setFetchedDataFlags(prev => ({ ...prev, objectiveFunctions: true }));
+    };
+
+    fetchObjectiveFunctions();
+  }, [showSettings, pageAgentName, isAuthorized, supabase.auth, fetchedDataFlags.objectiveFunctions]);
+
+
   const handleViewS3File = (file: { s3Key: string; name: string; type: string }) => {
     setS3FileToView(file);
     setPreviousActiveTab(activeTab); 
@@ -897,6 +957,7 @@ function HomeContent() {
         savedSummaries: false,
         rawSavedS3TranscriptsFetched: false,
         pineconeMemory: false,
+        objectiveFunctions: false,
       });
 
     } catch (error: any) {
@@ -1387,6 +1448,20 @@ function HomeContent() {
                 </TabsContent>
                 <TabsContent value="system" className="mt-0 tab-content-scrollable">
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
+                    {(agentObjectiveFunction || baseObjectiveFunction) && (
+                      <>
+                        <CollapsibleSection title="Core Directive (Objective Function)" defaultOpen={true}>
+                          <div className="space-y-2 w-full">
+                            <FetchedFileListItem
+                              file={(agentObjectiveFunction || baseObjectiveFunction)!}
+                              onView={() => handleViewS3File({ s3Key: (agentObjectiveFunction || baseObjectiveFunction)!.s3Key!, name: (agentObjectiveFunction || baseObjectiveFunction)!.name, type: (agentObjectiveFunction || baseObjectiveFunction)!.type || 'text/plain' })}
+                              showViewIcon={true}
+                            />
+                          </div>
+                        </CollapsibleSection>
+                        <Separator className="my-4" />
+                      </>
+                    )}
                     <CollapsibleSection title="System Prompt" defaultOpen={true}>
                       <div className="document-upload-container">
                         <DocumentUpload description="Locally added/edited system prompt files. Files from S3 are listed below." type="system" allowRemove={true} persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} onFilesAdded={handleSystemPromptUpdate} existingFiles={systemPromptFiles} transparentBackground={true} hideDropZone={true} />
