@@ -38,6 +38,7 @@ import { motion } from "framer-motion"
 import { useSearchParams } from 'next/navigation';
 import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE, type WelcomeMessageConfig } from "@/lib/themes";
 import { createClient } from '@/utils/supabase/client' 
+import ThinkingIndicator from "@/components/ui/ThinkingIndicator"
 import { cn } from "@/lib/utils"
 
 // Utility for development-only logging
@@ -162,6 +163,15 @@ const formatTime = (seconds: number): string => {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 };
 
+const formatThoughtDuration = (totalSeconds: number): string => {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes > 0) {
+    return `${minutes} minute${minutes > 1 ? 's' : ''} and ${seconds.toFixed(1)} seconds`;
+  }
+  return `${seconds.toFixed(1)} seconds`;
+};
+
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
   function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, getCanvasContext }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
@@ -171,6 +181,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isPageReady, setIsPageReady] = useState(false); 
     const lastAppendedErrorRef = useRef<string | null>(null);
     const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
+    
+    // State for reasoning models
+    const [isThinking, setIsThinking] = useState(false);
+    const [thinkingTime, setThinkingTime] = useState(0);
+    const [thoughtDuration, setThoughtDuration] = useState<number | null>(null);
+    const thinkingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 
     // WebSocket and Recording State
@@ -285,6 +301,39 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.info(`[ChatInterface] Ready for agent: ${agentName}, event: ${eventId || 'N/A'}`);
         }
     }, [agentName, eventId, isPageReady]);
+
+    useEffect(() => {
+        // When loading starts for a reasoning model
+        if (isLoading && selectedModel === 'gemini-2.5-pro' && !isThinking) {
+            setIsThinking(true);
+            setThoughtDuration(null); // Clear previous duration
+            setThinkingTime(0);
+            const startTime = Date.now();
+            thinkingTimerRef.current = setInterval(() => {
+                setThinkingTime((Date.now() - startTime) / 1000);
+            }, 100);
+        }
+
+        // When loading finishes
+        if (!isLoading && isThinking) {
+            if (thinkingTimerRef.current) {
+                clearInterval(thinkingTimerRef.current);
+                thinkingTimerRef.current = null;
+            }
+            // Add a small delay to show the final time before it disappears
+            setTimeout(() => {
+                setThoughtDuration(thinkingTime);
+                setIsThinking(false);
+            }, 150);
+        }
+        
+        // Cleanup timer on unmount
+        return () => {
+            if (thinkingTimerRef.current) {
+                clearInterval(thinkingTimerRef.current);
+            }
+        };
+    }, [isLoading, selectedModel, isThinking, thinkingTime]);
 
 
     const supabase = createClient();
@@ -411,6 +460,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (isLoading) {
             stop();
         } else if (input.trim() || attachedFiles.length > 0 || (chatRequestOptions?.data && Object.keys(chatRequestOptions.data).length > 0) ) {
+            setThoughtDuration(null); // Clear previous thought duration on new submission
             if (attachedFiles.length > 0) {
                 filesForNextMessageRef.current = [...attachedFiles];
                 setAttachedFiles([]);
@@ -1241,7 +1291,29 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     }}
                   />
                 )} </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </> )} </motion.div> ); })} </div> )}
-                {isLoading && messages[messages.length - 1]?.role === 'user' && ( <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1"> <span className="thinking-dot"></span> </motion.div> )}
+                {thoughtDuration !== null && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex self-start mb-1 mt-1 ml-3"
+                  >
+                    <p className="text-xs italic text-muted-foreground">
+                      Thought for {formatThoughtDuration(thoughtDuration)}.
+                    </p>
+                  </motion.div>
+                )}
+                {isLoading && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
+                  <>
+                    {isThinking ? (
+                      <ThinkingIndicator elapsedTime={thinkingTime} />
+                    ) : (
+                      <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1">
+                        <span className="thinking-dot"></span>
+                      </motion.div>
+                    )}
+                  </>
+                )}
                 <div ref={messagesEndRef} />
             </div>
 

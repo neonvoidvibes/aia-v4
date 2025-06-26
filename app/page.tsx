@@ -1106,6 +1106,7 @@ function HomeContent() {
                           <SelectItem value="claude-sonnet-4-20250514">Claude 4 Sonnet</SelectItem>
                           <SelectItem value="gpt-4.1">GPT-4.1</SelectItem>
                           <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                          <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
