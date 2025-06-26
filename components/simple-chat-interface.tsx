@@ -187,6 +187,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [thinkingTime, setThinkingTime] = useState(0);
     const [thoughtDuration, setThoughtDuration] = useState<number | null>(null);
     const thinkingTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const thinkingStartTimeRef = useRef<number | null>(null);
 
 
     // WebSocket and Recording State
@@ -304,13 +305,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // Start thinking timer when loading begins for reasoning models
     useEffect(() => {
-        if (isLoading && selectedModel === 'gemini-2.5-pro' && !isThinking) {
+        if (selectedModel === 'gemini-2.5-pro' && isLoading && !isThinking) {
             console.log('[Thinking] Starting timer for gemini-2.5-pro');
             setIsThinking(true);
             setThoughtDuration(null);
             setThinkingTime(0);
             
             const startTime = Date.now();
+            thinkingStartTimeRef.current = startTime;
             thinkingTimerRef.current = setInterval(() => {
                 const elapsed = (Date.now() - startTime) / 1000;
                 setThinkingTime(elapsed);
@@ -318,23 +320,28 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [isLoading, selectedModel, isThinking]);
 
-    // Stop thinking timer when loading finishes OR when assistant starts responding
+    // Stop thinking timer when loading finishes - separate effect without isThinking dependency
     useEffect(() => {
-        const lastMessage = messages[messages.length - 1];
-        const assistantIsResponding = lastMessage?.role === 'assistant' && isLoading;
-        
-        if (((!isLoading && isThinking) || (assistantIsResponding && isThinking)) && selectedModel === 'gemini-2.5-pro') {
-            console.log('[Thinking] Stopping timer, final time:', thinkingTime, 'assistantIsResponding:', assistantIsResponding);
+        if (selectedModel === 'gemini-2.5-pro' && !isLoading && thinkingTimerRef.current) {
+            // Calculate final time immediately
+            const now = Date.now();
+            const finalThinkingTime = thinkingStartTimeRef.current 
+                ? (now - thinkingStartTimeRef.current) / 1000 
+                : 0;
+            
+            console.log('[Thinking] Stopping timer, final time:', finalThinkingTime, 'start:', thinkingStartTimeRef.current, 'now:', now);
+            
             if (thinkingTimerRef.current) {
                 clearInterval(thinkingTimerRef.current);
                 thinkingTimerRef.current = null;
             }
             
-            // Store final time and stop thinking immediately
-            setThoughtDuration(thinkingTime);
+            // Store final time and stop thinking
+            setThoughtDuration(finalThinkingTime);
             setIsThinking(false);
+            thinkingStartTimeRef.current = null;
         }
-    }, [isLoading, isThinking, messages, thinkingTime, selectedModel]);
+    }, [isLoading, selectedModel]);
 
     // Cleanup timer on unmount
     useEffect(() => {
