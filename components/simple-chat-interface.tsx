@@ -185,9 +185,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // State for reasoning models
     const [isThinking, setIsThinking] = useState(false);
     const [thinkingTime, setThinkingTime] = useState(0);
-    const [thoughtDuration, setThoughtDuration] = useState<number | null>(null);
+    const [thoughtDurations, setThoughtDurations] = useState<Record<string, number>>({});
     const thinkingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const thinkingStartTimeRef = useRef<number | null>(null);
+    const thinkingForMessageIdRef = useRef<string | null>(null);
 
 
     // WebSocket and Recording State
@@ -308,17 +309,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (selectedModel === 'gemini-2.5-pro' && isLoading && !isThinking) {
             console.log('[Thinking] Starting timer for gemini-2.5-pro');
             setIsThinking(true);
-            setThoughtDuration(null);
-            setThinkingTime(0);
+            
+            // Store which message this thinking is for (the last user message)
+            const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+            if (lastUserMessage) {
+                thinkingForMessageIdRef.current = lastUserMessage.id;
+                console.log('[Thinking] Set message ID for thinking:', lastUserMessage.id);
+            }
             
             const startTime = Date.now();
             thinkingStartTimeRef.current = startTime;
+            
+            // Reset thinking time to 0 and start fresh
+            setThinkingTime(0);
             thinkingTimerRef.current = setInterval(() => {
                 const elapsed = (Date.now() - startTime) / 1000;
                 setThinkingTime(elapsed);
             }, 100);
         }
-    }, [isLoading, selectedModel, isThinking]);
+    }, [isLoading, selectedModel, isThinking, messages]);
 
     // Stop thinking timer when loading finishes - separate effect without isThinking dependency
     useEffect(() => {
@@ -329,17 +338,28 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 ? (now - thinkingStartTimeRef.current) / 1000 
                 : 0;
             
-            console.log('[Thinking] Stopping timer, final time:', finalThinkingTime, 'start:', thinkingStartTimeRef.current, 'now:', now);
+            const messageId = thinkingForMessageIdRef.current;
+            console.log('[Thinking] Stopping timer, final time:', finalThinkingTime, 'messageId:', messageId);
             
             if (thinkingTimerRef.current) {
                 clearInterval(thinkingTimerRef.current);
                 thinkingTimerRef.current = null;
             }
             
-            // Store final time and stop thinking
-            setThoughtDuration(finalThinkingTime);
+            // Store final time per message ID and stop thinking
+            if (messageId) {
+                console.log('[Thinking] Storing duration for message:', messageId, 'duration:', finalThinkingTime);
+                setThoughtDurations(prev => {
+                    const newDurations = { ...prev, [messageId]: finalThinkingTime };
+                    console.log('[Thinking] Updated thoughtDurations:', newDurations);
+                    return newDurations;
+                });
+            } else {
+                console.warn('[Thinking] No message ID to store thinking duration for');
+            }
             setIsThinking(false);
             thinkingStartTimeRef.current = null;
+            thinkingForMessageIdRef.current = null;
         }
     }, [isLoading, selectedModel]);
 
@@ -478,8 +498,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (isLoading) {
             stop();
         } else if (input.trim() || attachedFiles.length > 0 || (chatRequestOptions?.data && Object.keys(chatRequestOptions.data).length > 0) ) {
-            // Only clear thought duration when submitting a new user message (not when stopping/restarting)
-            setThoughtDuration(null);
+            // Don't clear thought duration here - let it be cleared when new thinking actually starts
             if (attachedFiles.length > 0) {
                 filesForNextMessageRef.current = [...attachedFiles];
                 setAttachedFiles([]);
@@ -1311,7 +1330,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       // Find the last user message index
                       const lastUserMessageIndex = combinedMessages.map((msg, idx) => msg.role === 'user' ? idx : -1).filter(idx => idx !== -1).pop() ?? -1;
                       const isLastUserMessage = isUser && index === lastUserMessageIndex;
-                      const shouldShowThinkingIndicator = isLastUserMessage && (isThinking || thoughtDuration !== null || isLoading);
+                      const messageThoughtDuration = isUser ? thoughtDurations[message.id] : undefined;
                       
                       return (
                         <React.Fragment key={message.id}>
@@ -1392,25 +1411,33 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               </>
                             )}
                           </motion.div>
-                          {/* Show thinking/thought indicator after the last user message */}
-                          {shouldShowThinkingIndicator && (
+                          
+                          {/* Show "Thought for" message for ANY user message that has thinking duration */}
+                          {isUser && messageThoughtDuration !== undefined && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="flex self-start mb-1 mt-1 pl-2"
+                            >
+                              <p className="opacity-50">
+                                Thought for {formatThoughtDuration(messageThoughtDuration)}.
+                              </p>
+                            </motion.div>
+                          )}
+                          
+                          {/* Show live thinking indicator and loading states only for the last user message */}
+                          {isLastUserMessage && (
                             <>
-                              {isThinking && (
+                              {isThinking && selectedModel === 'gemini-2.5-pro' && (
                                 <ThinkingIndicator elapsedTime={thinkingTime} />
                               )}
-                              {thoughtDuration !== null && !isThinking && (
-                                <motion.div
-                                  initial={{ opacity: 0, y: 5 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ duration: 0.3 }}
-                                  className="flex self-start mb-1 mt-1 pl-2"
-                                >
-                                  <p className="opacity-50">
-                                    Thought for {formatThoughtDuration(thoughtDuration)}.
-                                  </p>
-                                </motion.div>
-                              )}
-                              {isLoading && !isThinking && thoughtDuration === null && (
+                              {isLoading && (!isThinking || selectedModel !== 'gemini-2.5-pro') && messageThoughtDuration === undefined && (() => {
+                                // Hide thinking dot immediately when assistant starts responding
+                                const lastMessage = combinedMessages[combinedMessages.length - 1];
+                                const assistantIsResponding = lastMessage?.role === 'assistant' && isLoading;
+                                return !assistantIsResponding;
+                              })() && (
                                 <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1">
                                   <span className="thinking-dot"></span>
                                 </motion.div>
