@@ -318,23 +318,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [isLoading, selectedModel, isThinking]);
 
-    // Stop thinking timer when loading finishes
+    // Stop thinking timer when loading finishes OR when assistant starts responding
     useEffect(() => {
-        if (!isLoading && isThinking) {
-            console.log('[Thinking] Stopping timer, final time:', thinkingTime);
+        const lastMessage = messages[messages.length - 1];
+        const assistantIsResponding = lastMessage?.role === 'assistant' && isLoading;
+        
+        if (((!isLoading && isThinking) || (assistantIsResponding && isThinking)) && selectedModel === 'gemini-2.5-pro') {
+            console.log('[Thinking] Stopping timer, final time:', thinkingTime, 'assistantIsResponding:', assistantIsResponding);
             if (thinkingTimerRef.current) {
                 clearInterval(thinkingTimerRef.current);
                 thinkingTimerRef.current = null;
             }
             
-            // Store final time and stop thinking
-            const finalTime = thinkingTime;
-            setTimeout(() => {
-                setThoughtDuration(finalTime);
-                setIsThinking(false);
-            }, 150);
+            // Store final time and stop thinking immediately
+            setThoughtDuration(thinkingTime);
+            setIsThinking(false);
         }
-    }, [isLoading, isThinking]);
+    }, [isLoading, isThinking, messages, thinkingTime, selectedModel]);
 
     // Cleanup timer on unmount
     useEffect(() => {
@@ -471,7 +471,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (isLoading) {
             stop();
         } else if (input.trim() || attachedFiles.length > 0 || (chatRequestOptions?.data && Object.keys(chatRequestOptions.data).length > 0) ) {
-            setThoughtDuration(null); // Clear previous thought duration on new submission
+            // Only clear thought duration when submitting a new user message (not when stopping/restarting)
+            setThoughtDuration(null);
             if (attachedFiles.length > 0) {
                 filesForNextMessageRef.current = [...attachedFiles];
                 setAttachedFiles([]);
@@ -1289,58 +1290,169 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
                 {combinedMessages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {combinedMessages.length === 0 && isPageReady &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10 px-8"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
-                {combinedMessages.length > 0 && ( <div className="space-y-1 pt-8 pb-4"> {combinedMessages.map((message: UIMessage) => { const isUser = message.role === "user"; const isSystem = message.role === "system"; const isError = message.role === "error"; const messageAttachments = allAttachments.filter((file) => file.messageId === message.id); const hasAttachments = messageAttachments.length > 0; const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:"); const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content; return ( <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className={cn( "flex flex-col relative group mb-1", isUser ? "items-end" : isSystem ? "items-center" : "items-start", !isUser && !isSystem && !isError && "mb-4" )} onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)} onMouseLeave={() => !isMobile && setHoveredMessage(null)} onClick={() => !isSystem && !isError && handleMessageInteraction(message.id)} > {isError ? ( <div className="error-bubble flex items-center gap-2"> <AlertTriangle className="h-5 w-5 flex-shrink-0" /> <span>{message.content}</span> </div> ) : ( <> {isUser && hasAttachments && ( <div className="mb-2 file-attachment-wrapper self-end mr-1"> <FileAttachmentMinimal files={messageAttachments} onRemove={() => {}} className="file-attachment-message" maxVisible={1} isSubmitted={true} messageId={message.id} /> </div> )} <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}> {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>} {isUser || isSystem ? (
-                  <span
-                    dangerouslySetInnerHTML={{
-                      __html: displayContent.replace(/\n/g, "<br />"),
-                    }}
-                  />
-                ) : (
-                  <span
-                    dangerouslySetInnerHTML={{
-                      __html: formatAssistantMessage(displayContent),
-                    }}
-                  />
-                )} </div> {!isSystem && ( <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }} > {isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message"> <Pencil className="h-4 w-4" /> </button> </div> )} {!isUser && ( <div className="flex"> <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message"> {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />} </button> {hoveredMessage === message.id && ( <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud"> <Volume2 className="h-4 w-4" /> </button> )} </div> )} </div> )} </> )} </motion.div> ); })} </div> )}
-                {thoughtDuration !== null && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex self-start mb-1 mt-1 ml-3"
-                  >
-                    <p className="text-xs italic text-muted-foreground">
-                      Thought for {formatThoughtDuration(thoughtDuration)}.
-                    </p>
-                  </motion.div>
-                )}
-                {isLoading && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
-                  <>
-                    {isThinking ? (
-                      <ThinkingIndicator elapsedTime={thinkingTime} />
-                    ) : (
-                      <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1">
-                        <span className="thinking-dot"></span>
-                      </motion.div>
-                    )}
-                  </>
+                {combinedMessages.length > 0 && (
+                  <div className="space-y-1 pt-8 pb-4">
+                    {combinedMessages.map((message: UIMessage, index: number) => {
+                      const isUser = message.role === "user";
+                      const isSystem = message.role === "system";
+                      const isError = message.role === "error";
+                      const messageAttachments = allAttachments.filter((file) => file.messageId === message.id);
+                      const hasAttachments = messageAttachments.length > 0;
+                      const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:");
+                      const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content;
+                      
+                      // Find the last user message index
+                      const lastUserMessageIndex = combinedMessages.map((msg, idx) => msg.role === 'user' ? idx : -1).filter(idx => idx !== -1).pop() ?? -1;
+                      const isLastUserMessage = isUser && index === lastUserMessageIndex;
+                      const shouldShowThinkingIndicator = isLastUserMessage && (isThinking || thoughtDuration !== null || isLoading);
+                      
+                      return (
+                        <React.Fragment key={message.id}>
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            className={cn(
+                              "flex flex-col relative group mb-1",
+                              isUser ? "items-end" : isSystem ? "items-center" : "items-start",
+                              !isUser && !isSystem && !isError && "mb-4"
+                            )}
+                            onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)}
+                            onMouseLeave={() => !isMobile && setHoveredMessage(null)}
+                            onClick={() => !isSystem && !isError && handleMessageInteraction(message.id)}
+                          >
+                            {isError ? (
+                              <div className="error-bubble flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                                <span>{message.content}</span>
+                              </div>
+                            ) : (
+                              <>
+                                {isUser && hasAttachments && (
+                                  <div className="mb-2 file-attachment-wrapper self-end mr-1">
+                                    <FileAttachmentMinimal
+                                      files={messageAttachments}
+                                      onRemove={() => {}}
+                                      className="file-attachment-message"
+                                      maxVisible={1}
+                                      isSubmitted={true}
+                                      messageId={message.id}
+                                    />
+                                  </div>
+                                )}
+                                <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `bg-input-gray user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}>
+                                  {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>}
+                                  {isUser || isSystem ? (
+                                    <span
+                                      dangerouslySetInnerHTML={{
+                                        __html: displayContent.replace(/\n/g, "<br />"),
+                                      }}
+                                    />
+                                  ) : (
+                                    <span
+                                      dangerouslySetInnerHTML={{
+                                        __html: formatAssistantMessage(displayContent),
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                                {!isSystem && (
+                                  <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
+                                    {isUser && (
+                                      <div className="flex">
+                                        <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                          {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                        </button>
+                                        <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
+                                          <Pencil className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    {!isUser && (
+                                      <div className="flex">
+                                        <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                          {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                        </button>
+                                        {hoveredMessage === message.id && (
+                                          <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
+                                            <Volume2 className="h-4 w-4" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </motion.div>
+                          {/* Show thinking/thought indicator after the last user message */}
+                          {shouldShowThinkingIndicator && (
+                            <>
+                              {isThinking && (
+                                <ThinkingIndicator elapsedTime={thinkingTime} />
+                              )}
+                              {thoughtDuration !== null && !isThinking && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 5 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.3 }}
+                                  className="flex self-start mb-1 mt-1 ml-3"
+                                >
+                                  <p className="text-xs italic text-muted-foreground">
+                                    Thought for {formatThoughtDuration(thoughtDuration)}.
+                                  </p>
+                                </motion.div>
+                              )}
+                              {isLoading && !isThinking && thoughtDuration === null && (
+                                <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-1 mt-1 ml-1">
+                                  <span className="thinking-dot"></span>
+                                </motion.div>
+                              )}
+                            </>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
                 )}
                 <div ref={messagesEndRef} />
             </div>
 
-            {showScrollToBottom && ( <button onClick={() => scrollToBottom()} className="scroll-to-bottom-button" aria-label="Scroll to bottom"> <ChevronDown size={24} /> </button> )}
+            {showScrollToBottom && (
+              <button onClick={() => scrollToBottom()} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
+                <ChevronDown size={24} />
+              </button>
+            )}
 
             <div className="p-2 input-area-container">
-                {attachedFiles.length > 0 && ( <div className="flex justify-end mb-0.5 input-attachments-container"> <FileAttachmentMinimal files={attachedFiles} onRemove={removeFile} className="max-w-[50%] file-attachment-container" maxVisible={1} /> </div> )}
+                {attachedFiles.length > 0 && (
+                  <div className="flex justify-end mb-0.5 input-attachments-container">
+                    <FileAttachmentMinimal files={attachedFiles} onRemove={removeFile} className="max-w-[50%] file-attachment-container" maxVisible={1} />
+                  </div>
+                )}
                 <form onSubmit={onSubmit} className="relative">
                     <div className="bg-input-gray rounded-full p-2 flex items-center" ref={inputContainerRef}>
                         <div className="relative" ref={plusMenuRef}>
-                            <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting) && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting}> <Plus size={20} /> </button>
-                            {showPlusMenu && ( <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu" > <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} title="Attach file"><Paperclip size={20} /></button> <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Save chat"><Download size={20} /></button> <button type="button" className={cn(micButtonClass, "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]", isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400")} onClick={showAndPrepareRecordingControls} title={isBrowserRecording ? (isBrowserPaused ? "Recording Paused" : "Recording Live") : "Start recording"} > <Mic size={20} /> </button> </motion.div> )}
+                            <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting) && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting}>
+                              <Plus size={20} />
+                            </button>
+                            {showPlusMenu && (
+                              <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
+                                <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} title="Attach file">
+                                  <Paperclip size={20} />
+                                </button>
+                                <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Save chat">
+                                  <Download size={20} />
+                                </button>
+                                <button type="button" className={cn(micButtonClass, "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]", isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400")} onClick={showAndPrepareRecordingControls} title={isBrowserRecording ? (isBrowserPaused ? "Recording Paused" : "Recording Live") : "Start recording"}>
+                                  <Mic size={20} />
+                                </button>
+                              </motion.div>
+                            )}
                         </div>
                         <div className="relative" ref={recordUIRef}>
                              {showRecordUI && isBrowserRecording && ( 
-                                <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.3 }} className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" onMouseMove={handleRecordUIMouseMove} onClick={(e) => e.stopPropagation()} >
+                                <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.3 }} className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" onMouseMove={handleRecordUIMouseMove} onClick={(e) => e.stopPropagation()}>
                                     <button type="button" className={cn("p-1 record-ui-button", (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait")} onClick={handlePlayPauseMicClick} disabled={!!pendingActionRef.current} aria-label={isBrowserPaused ? "Resume recording" : "Pause recording"}>
                                         {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream')
                                           ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))]" />
