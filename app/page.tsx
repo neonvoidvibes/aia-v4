@@ -532,144 +532,115 @@ function HomeContent() {
     }
   }, [showSettings]); 
 
+  const fetchS3Data = useCallback(async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { console.warn(`Not fetching ${description}: no session.`); return; }
+
+    const proxyApiUrl = `/api/s3-proxy/list?prefix=${encodeURIComponent(prefix)}`;
+    try {
+      const response = await fetch(proxyApiUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` }});
+      if (!response.ok) throw new Error(`Failed to fetch ${description} via proxy: ${response.statusText} (URL: ${proxyApiUrl})`);
+      const data: FetchedFile[] = await response.json();
+      onDataFetched(data);
+    } catch (error) {
+      console.error(`Error fetching ${description} from proxy ${proxyApiUrl}:`, error);
+      onDataFetched([]);
+    }
+  }, [supabase.auth]);
+
+  // Effect for Transcriptions
   useEffect(() => {
-    const fetchAllData = async () => {
-      if (!showSettings || !pageAgentName || isAuthorized !== true) {
-        return; 
-      }
+    if (!showSettings || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.transcriptions) return;
+    const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
+    fetchS3Data(prefix, (data) => {
+      setTranscriptionS3Files(data);
+      setFetchedDataFlags(prev => ({ ...prev, transcriptions: true }));
+    }, "Transcriptions");
+  }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.transcriptions, fetchS3Data]);
 
+  // Effect for Base System Prompts
+  useEffect(() => {
+    if (!showSettings || isAuthorized !== true || fetchedDataFlags.baseSystemPrompts) return;
+    fetchS3Data('_config/', (data) => {
+      const basePromptRegex = new RegExp(`^systemprompt_base(\\.[^.]+)?$`);
+      setBaseSystemPromptS3Files(data.filter(f => basePromptRegex.test(f.name)));
+      setFetchedDataFlags(prev => ({ ...prev, baseSystemPrompts: true }));
+    }, "Base System Prompts");
+  }, [showSettings, isAuthorized, fetchedDataFlags.baseSystemPrompts, fetchS3Data]);
+  
+  // Effect for Base Frameworks
+  useEffect(() => {
+    if (!showSettings || isAuthorized !== true || fetchedDataFlags.baseFrameworks) return;
+    fetchS3Data('_config/', (data) => {
+      const baseFrameworkRegex = new RegExp(`^frameworks_base(\\.[^.]+)?$`);
+      setBaseFrameworkS3Files(data.filter(f => baseFrameworkRegex.test(f.name)));
+      setFetchedDataFlags(prev => ({ ...prev, baseFrameworks: true }));
+    }, "Base Frameworks");
+  }, [showSettings, isAuthorized, fetchedDataFlags.baseFrameworks, fetchS3Data]);
+
+  // Effect for Agent System Prompts
+  useEffect(() => {
+    if (!showSettings || !pageAgentName || isAuthorized !== true || fetchedDataFlags.agentSystemPrompts) return;
+    const prefix = `organizations/river/agents/${pageAgentName}/_config/`;
+    fetchS3Data(prefix, (data) => {
+      const agentPromptRegex = new RegExp(`^systemprompt_aID-${pageAgentName}(\\.[^.]+)?$`);
+      setAgentSystemPromptS3Files(data.filter(f => agentPromptRegex.test(f.name)));
+      setFetchedDataFlags(prev => ({ ...prev, agentSystemPrompts: true }));
+    }, "Agent System Prompts");
+  }, [showSettings, pageAgentName, isAuthorized, fetchedDataFlags.agentSystemPrompts, fetchS3Data]);
+
+  // Effect for Agent Primary Context
+  useEffect(() => {
+    if (!showSettings || !pageAgentName || isAuthorized !== true || fetchedDataFlags.agentPrimaryContext) return;
+    const prefix = `organizations/river/agents/${pageAgentName}/_config/`;
+    fetchS3Data(prefix, (data) => {
+      const agentContextRegex = new RegExp(`^context_aID-${pageAgentName}(\\.[^.]+)?$`);
+      setAgentPrimaryContextS3Files(data.filter(f => agentContextRegex.test(f.name)));
+      setFetchedDataFlags(prev => ({ ...prev, agentPrimaryContext: true }));
+    }, "Agent Primary Context");
+  }, [showSettings, pageAgentName, isAuthorized, fetchedDataFlags.agentPrimaryContext, fetchS3Data]);
+
+  // Effect for Saved Summaries
+  useEffect(() => {
+    if (!showSettings || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.savedSummaries) return;
+    const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/summarized/`;
+    fetchS3Data(prefix, (data) => {
+      setSavedTranscriptSummaries(data.filter(f => f.name.endsWith('.json')).map(f => ({...f, type: 'application/json'})));
+      setFetchedDataFlags(prev => ({ ...prev, savedSummaries: true }));
+    }, "Saved Transcript Summaries");
+  }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.savedSummaries, fetchS3Data]);
+
+  // Effect for Raw Saved Transcripts
+  useEffect(() => {
+    if (!showSettings || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.rawSavedS3TranscriptsFetched) return;
+    const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/saved/`;
+    fetchS3Data(prefix, (data) => {
+      setRawSavedS3Transcripts(data.filter(f => !f.name.endsWith('/')));
+      setFetchedDataFlags(prev => ({ ...prev, rawSavedS3TranscriptsFetched: true }));
+    }, "Raw Saved Transcripts");
+  }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.rawSavedS3TranscriptsFetched, fetchS3Data]);
+
+  // Effect for Pinecone Memory
+  useEffect(() => {
+    const fetchPinecone = async () => {
+      if (!showSettings || !pageAgentName || isAuthorized !== true || fetchedDataFlags.pineconeMemory) return;
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.warn("No session, cannot fetch settings data.");
-        return;
+      if (!session) return;
+      try {
+        const url = `/api/pinecone-proxy/list-docs?agentName=${encodeURIComponent(pageAgentName)}&namespace=${encodeURIComponent(pageAgentName)}`;
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${session.access_token}` }});
+        if (!res.ok) throw new Error(`Failed to fetch Pinecone docs: ${res.statusText}`);
+        const data = await res.json();
+        setPineconeMemoryDocs(data.unique_document_names?.map((name: string) => ({ name })) || []);
+      } catch (error) {
+        console.error("Error fetching Pinecone Memory Docs:", error);
+        setPineconeMemoryDocs([]);
+      } finally {
+        setFetchedDataFlags(prev => ({ ...prev, pineconeMemory: true }));
       }
-      const commonHeaders = { 'Authorization': `Bearer ${session.access_token}` };
-
-      const newFetchedDataFlags = { ...fetchedDataFlags };
-
-      const fetchS3Data = async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
-        const proxyApiUrl = `/api/s3-proxy/list?prefix=${encodeURIComponent(prefix)}`;
-        try {
-          const response = await fetch(proxyApiUrl, { headers: { 
-            'Authorization': commonHeaders.Authorization 
-          }});
-          if (!response.ok) throw new Error(`Failed to fetch ${description} via proxy: ${response.statusText} (URL: ${proxyApiUrl})`);
-          const data: FetchedFile[] = await response.json();
-          onDataFetched(data);
-        } catch (error) {
-          console.error(`Error fetching ${description} from proxy ${proxyApiUrl}:`, error);
-          onDataFetched([]);
-        }
-      };
-
-      if (pageEventId && !fetchedDataFlags.transcriptions) {
-        await fetchS3Data(
-          `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`,
-          (data: FetchedFile[]) => {
-            setTranscriptionS3Files(data);
-            newFetchedDataFlags.transcriptions = true;
-          },
-          "Transcriptions"
-        );
-      } else if (!pageEventId) {
-        setTranscriptionS3Files([]);
-        newFetchedDataFlags.transcriptions = true; 
-      }
-      
-      if (!fetchedDataFlags.baseSystemPrompts) {
-        await fetchS3Data(
-          `_config/`,
-          (allConfigDocs: FetchedFile[]) => {
-             const basePromptRegex = new RegExp(`^systemprompt_base(\\.[^.]+)?$`);
-             setBaseSystemPromptS3Files(allConfigDocs.filter(f => basePromptRegex.test(f.name)));
-             newFetchedDataFlags.baseSystemPrompts = true;
-          },
-          "Base System Prompts"
-        );
-      }
-
-      if (!fetchedDataFlags.baseFrameworks) {
-        await fetchS3Data(
-          `_config/`,
-          (allConfigDocs: FetchedFile[]) => {
-              const baseFrameworkRegex = new RegExp(`^frameworks_base(\\.[^.]+)?$`);
-              setBaseFrameworkS3Files(allConfigDocs.filter(f => baseFrameworkRegex.test(f.name)));
-              newFetchedDataFlags.baseFrameworks = true;
-          },
-          "Base Frameworks"
-        );
-      }
-
-      if (!fetchedDataFlags.agentSystemPrompts) {
-        await fetchS3Data(
-          `organizations/river/agents/${pageAgentName}/_config/`,
-          (agentConfigDocs: FetchedFile[]) => {
-             const agentPromptRegex = new RegExp(`^systemprompt_aID-${pageAgentName}(\\.[^.]+)?$`);
-             setAgentSystemPromptS3Files(agentConfigDocs.filter(f => agentPromptRegex.test(f.name)));
-             newFetchedDataFlags.agentSystemPrompts = true;
-          },
-          "Agent System Prompts"
-        );
-      }
-
-      if (!fetchedDataFlags.agentPrimaryContext && pageAgentName) { 
-        await fetchS3Data(
-          `organizations/river/agents/${pageAgentName}/_config/`, 
-          (agentConfigDocs: FetchedFile[]) => {
-            const agentContextRegex = new RegExp(`^context_aID-${pageAgentName}(\\.[^.]+)?$`);
-            setAgentPrimaryContextS3Files(agentConfigDocs.filter(f => agentContextRegex.test(f.name))) 
-            newFetchedDataFlags.agentPrimaryContext = true; 
-          },
-          "Agent Primary Context" 
-        );
-      }
-
-      if (!fetchedDataFlags.savedSummaries && pageAgentName && pageEventId) {
-        await fetchS3Data(
-          `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/summarized/`,
-          (data: FetchedFile[]) => {
-            // Ensure we only keep .json files and map type correctly
-            setSavedTranscriptSummaries(data.filter(f => f.name.endsWith('.json')).map(f => ({...f, type: 'application/json'})));
-            newFetchedDataFlags.savedSummaries = true;
-          },
-          "Saved Transcript Summaries"
-        );
-      }
-
-      if (!fetchedDataFlags.rawSavedS3TranscriptsFetched && pageAgentName && pageEventId) {
-        await fetchS3Data(
-          `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/saved/`,
-          (data: FetchedFile[]) => {
-            setRawSavedS3Transcripts(data.filter(f => !f.name.endsWith('/'))); // Filter out potential folder markers
-            newFetchedDataFlags.rawSavedS3TranscriptsFetched = true;
-          },
-          "Raw Saved Transcripts"
-        );
-      }
-
-      if (!fetchedDataFlags.pineconeMemory) {
-        try {
-          const pineconeProxyUrl = `/api/pinecone-proxy/list-docs?agentName=${encodeURIComponent(pageAgentName)}&namespace=${encodeURIComponent(pageAgentName)}`;
-          const pineconeResponse = await fetch(pineconeProxyUrl, { headers: {
-            'Authorization': commonHeaders.Authorization
-          }});
-          if (!pineconeResponse.ok) throw new Error(`Failed to fetch Pinecone docs via proxy: ${pineconeResponse.statusText} (URL: ${pineconeProxyUrl})`);
-          const pineconeData = await pineconeResponse.json();
-          const mappedDocs = pineconeData.unique_document_names?.map((name: string) => ({ name })) || [];
-          setPineconeMemoryDocs(mappedDocs);
-          newFetchedDataFlags.pineconeMemory = true;
-        } catch (error) {
-          console.error("Error fetching Pinecone Memory Docs via proxy:", error);
-          setPineconeMemoryDocs([]);
-          newFetchedDataFlags.pineconeMemory = true; 
-        }
-      }
-      setFetchedDataFlags(newFetchedDataFlags);
     };
-
-    fetchAllData();
-  }, [showSettings, pageAgentName, pageEventId, isAuthorized, supabase.auth, fetchedDataFlags]);
-
+    fetchPinecone();
+  }, [showSettings, pageAgentName, isAuthorized, supabase.auth, fetchedDataFlags.pineconeMemory]);
 
   useEffect(() => {
     const fetchObjectiveFunctions = async () => {
@@ -1015,8 +986,6 @@ function HomeContent() {
       <Button onClick={() => router.push('/login')}>Go to Login</Button>
     </div>
   );
-
-  const filesToHideViewIconFor = ['systemprompt_base.md', 'frameworks_base.md'];
 
   return (
     <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
@@ -1448,20 +1417,6 @@ function HomeContent() {
                 </TabsContent>
                 <TabsContent value="system" className="mt-0 tab-content-scrollable">
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
-                    {(agentObjectiveFunction || baseObjectiveFunction) && (
-                      <>
-                        <CollapsibleSection title="Core Directive (Objective Function)" defaultOpen={true}>
-                          <div className="space-y-2 w-full">
-                            <FetchedFileListItem
-                              file={(agentObjectiveFunction || baseObjectiveFunction)!}
-                              onView={() => handleViewS3File({ s3Key: (agentObjectiveFunction || baseObjectiveFunction)!.s3Key!, name: (agentObjectiveFunction || baseObjectiveFunction)!.name, type: (agentObjectiveFunction || baseObjectiveFunction)!.type || 'text/plain' })}
-                              showViewIcon={true}
-                            />
-                          </div>
-                        </CollapsibleSection>
-                        <Separator className="my-4" />
-                      </>
-                    )}
                     <CollapsibleSection title="System Prompt" defaultOpen={true}>
                       <div className="document-upload-container">
                         <DocumentUpload description="Locally added/edited system prompt files. Files from S3 are listed below." type="system" allowRemove={true} persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} onFilesAdded={handleSystemPromptUpdate} existingFiles={systemPromptFiles} transparentBackground={true} hideDropZone={true} />
@@ -1469,7 +1424,7 @@ function HomeContent() {
                       {baseSystemPromptS3Files.length > 0 && (
                         <div className="mt-4 space-y-2 w-full">
                           {baseSystemPromptS3Files.map(file => (
-                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!filesToHideViewIconFor.includes(file.name)} />
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!file.name.startsWith('systemprompt_base')} />
                           ))}
                         </div>
                       )}
@@ -1483,13 +1438,21 @@ function HomeContent() {
                       {(baseSystemPromptS3Files.length === 0 && agentSystemPromptS3Files.length === 0) && (<p className="text-sm text-muted-foreground mt-2">No system prompts found in S3.</p>)}
                     </CollapsibleSection>
                     <CollapsibleSection title="Frameworks" defaultOpen={true}>
-                      {baseFrameworkS3Files.length > 0 ? (
                         <div className="space-y-2 w-full">
-                          {baseFrameworkS3Files.map(file => (
-                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={false} />
-                          ))}
+                            {(agentObjectiveFunction || baseObjectiveFunction) && (
+                                <FetchedFileListItem
+                                  file={(agentObjectiveFunction || baseObjectiveFunction)!}
+                                  showViewIcon={false}
+                                />
+                            )}
+                            {baseFrameworkS3Files.length > 0 ? (
+                                baseFrameworkS3Files.map(file => (
+                                <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!file.name.startsWith('frameworks_base')} />
+                                ))
+                            ) : (
+                                !(agentObjectiveFunction || baseObjectiveFunction) && <p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>
+                            )}
                         </div>
-                      ) : (<p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>)}
                     </CollapsibleSection>
 
                     {/* <Separator className="my-4" /> */}
