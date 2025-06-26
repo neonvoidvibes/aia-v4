@@ -302,38 +302,49 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [agentName, eventId, isPageReady]);
 
+    // Start thinking timer when loading begins for reasoning models
     useEffect(() => {
-        // When loading starts for a reasoning model
         if (isLoading && selectedModel === 'gemini-2.5-pro' && !isThinking) {
+            console.log('[Thinking] Starting timer for gemini-2.5-pro');
             setIsThinking(true);
-            setThoughtDuration(null); // Clear previous duration
+            setThoughtDuration(null);
             setThinkingTime(0);
+            
             const startTime = Date.now();
             thinkingTimerRef.current = setInterval(() => {
-                setThinkingTime((Date.now() - startTime) / 1000);
+                const elapsed = (Date.now() - startTime) / 1000;
+                setThinkingTime(elapsed);
             }, 100);
         }
+    }, [isLoading, selectedModel, isThinking]);
 
-        // When loading finishes
+    // Stop thinking timer when loading finishes
+    useEffect(() => {
         if (!isLoading && isThinking) {
+            console.log('[Thinking] Stopping timer, final time:', thinkingTime);
             if (thinkingTimerRef.current) {
                 clearInterval(thinkingTimerRef.current);
                 thinkingTimerRef.current = null;
             }
-            // Add a small delay to show the final time before it disappears
+            
+            // Store final time and stop thinking
+            const finalTime = thinkingTime;
             setTimeout(() => {
-                setThoughtDuration(thinkingTime);
+                setThoughtDuration(finalTime);
                 setIsThinking(false);
             }, 150);
         }
-        
-        // Cleanup timer on unmount
+    }, [isLoading, isThinking]);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
         return () => {
             if (thinkingTimerRef.current) {
                 clearInterval(thinkingTimerRef.current);
+                thinkingTimerRef.current = null;
             }
         };
-    }, [isLoading, selectedModel, isThinking, thinkingTime]);
+    }, []);
 
 
     const supabase = createClient();
