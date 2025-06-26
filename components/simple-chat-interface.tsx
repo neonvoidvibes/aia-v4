@@ -1398,7 +1398,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   transition={{ duration: 0.3 }}
                                   className="flex self-start mb-1 mt-1 ml-3"
                                 >
-                                  <p className="text-xs italic text-muted-foreground">
+                                  <p className="opacity-50">
                                     Thought for {formatThoughtDuration(thoughtDuration)}.
                                   </p>
                                 </motion.div>

@@ -31,9 +31,9 @@ const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({ elapsedTime, clas
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={cn("flex self-start mb-1 mt-1 ml-3 items-center gap-3", className)}
+      className={cn("flex self-start mb-1 mt-1 items-center gap-3", className)}
     >
-      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+      <div className="flex items-center text-muted-foreground">
         {thinkingText.split("").map((char, i) => (
           <motion.span key={`${char}-${i}`} custom={i} variants={textVariants} initial="hidden" animate="visible">
             {char}
