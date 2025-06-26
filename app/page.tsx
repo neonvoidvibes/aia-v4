@@ -1411,7 +1411,7 @@ function HomeContent() {
                       {baseFrameworkS3Files.length > 0 ? (
                         <div className="space-y-2 w-full">
                           {baseFrameworkS3Files.map(file => (
-                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!filesToHideViewIconFor.includes(file.name)} />
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={false} />
                           ))}
                         </div>
                       ) : (<p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>)}
