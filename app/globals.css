@@ -1299,6 +1299,13 @@ body {
   backdrop-filter: blur(2px); /* Reduced blur for more visibility */
   -webkit-backdrop-filter: blur(2px); /* Safari support */
 }
+
+/* Mobile positioning for scroll button */
+@media (max-width: 640px) {
+  .scroll-to-bottom-button {
+    bottom: 90px; /* Even closer to input field on mobile */
+  }
+}
 /* Light mode scroll button styling */
 .light .scroll-to-bottom-button {
   background-color: rgba(224, 224, 224, 0.3); /* Light gray with transparency */
