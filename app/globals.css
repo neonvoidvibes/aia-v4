@@ -751,6 +751,10 @@ body {
   max-width: 760px;
   margin: 0 auto;
   width: min(760px, calc(100% - 2rem));
+  /* Ensure scroll works even when sidebar is open */
+  pointer-events: auto;
+  /* Move scrollbar to rightmost edge */
+  scrollbar-gutter: stable;
 }
 /* Mobile: Add horizontal padding to match header */
 @media (max-width: 640px) {
