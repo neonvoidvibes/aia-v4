@@ -38,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
           {isMobile ? (
             <ChevronRight className="!h-6 !w-6" />
           ) : (
-            <SidebarIcon className="!h-6 !w-6" />
+            <SidebarIcon className="!h-5 !w-5" />
           )}
         </Button>
       )}
@@ -53,7 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               {isMobile ? (
                 <ChevronLeft className="!h-6 !w-6" />
               ) : (
-                <SidebarIcon className="!h-6 !w-6" />
+                <SidebarIcon className="!h-5 !w-5" />
               )}
             </Button>
           </SheetHeader>
