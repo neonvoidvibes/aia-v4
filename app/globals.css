@@ -741,7 +741,7 @@ body {
   /* Ensure the flex container can actually scroll */
   flex: 1;
   min-height: 0; /* Critical for flex children to be scrollable */
-  overflow-y: auto;
+  overflow-y: visible; /* Let parent handle scrolling */
   overflow-x: hidden;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
@@ -753,8 +753,6 @@ body {
   width: min(760px, calc(100% - 2rem));
   /* Ensure scroll works even when sidebar is open */
   pointer-events: auto;
-  /* Move scrollbar to rightmost edge */
-  scrollbar-gutter: stable;
 }
 /* Mobile: Add horizontal padding to match header */
 @media (max-width: 640px) {
@@ -1859,6 +1857,10 @@ button {
 .main-content {
   transition: transform 0.3s ease-in-out, max-width 0.3s ease-in-out;
   height: 100%; /* Explicitly set height to 100% of parent */
+  overflow-y: auto; /* Enable scrolling at main content level */
+  overflow-x: hidden;
+  /* Move scrollbar to rightmost edge */
+  scrollbar-gutter: stable;
 }
 
 /* Desktop sidebar behavior - keep exactly as is */
