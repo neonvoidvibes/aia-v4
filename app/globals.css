@@ -1788,3 +1788,12 @@ button {
 .fullscreen-mode .input-area-container {
   padding-bottom: 1rem; /* Add some spacing below input area in fullscreen */
 }
+
+/* Sidebar Styles */
+.main-content {
+  transition: transform 0.3s ease-in-out;
+}
+
+.sidebar-open .main-content {
+  transform: translateX(16rem); /* 64 * 0.25rem = 256px */
+}

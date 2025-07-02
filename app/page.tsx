@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2
+import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2
+import Sidebar from "@/components/ui/sidebar";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { createClient } from '@/utils/supabase/client';
@@ -54,7 +55,7 @@ function HomeContent() {
 
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState("settings"); // Default settings tab
+  const [activeTab, setActiveTab] = useState("settings");
   const [previousActiveTab, setPreviousActiveTab] = useState("settings"); 
   const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
   const [allChatAttachments, setAllChatAttachments] = useState<AttachmentFile[]>([]);
@@ -78,7 +79,8 @@ function HomeContent() {
   // State for Canvas View enablement and general view state
   // Initialize currentView to "chat". Can be changed to "transcribe" if that's the preferred default.
   const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe">("chat");
-  const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(false); 
+  const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Lifted state for CanvasView
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
@@ -988,15 +990,18 @@ function HomeContent() {
   );
 
   return (
-    <div className="w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden">
-      <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`}>
-        <div className="flex items-center justify-between h-12">
-          {!isFullscreen && (
-            <button className="text-foreground/70 hover:text-foreground transition-all duration-200 transform hover:scale-105" onClick={(e) => { e.stopPropagation(); handleNewChatRequest(); }} aria-label="New chat">
-              <PenSquare size={20} />
-            </button>
-          )}
-          
+    <div className={`w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onOpen={() => setIsSidebarOpen(true)}
+        onClose={() => setIsSidebarOpen(false)}
+        className="flex items-center"
+        setCurrentView={setCurrentView}
+        setShowSettings={setShowSettings}
+      />
+      <div className="main-content flex flex-col flex-1">
+        <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`}>
+          <div className="flex items-center justify-between h-12">
           {!isFullscreen && (
             <ViewSwitcher 
               currentView={currentView} 
@@ -1021,16 +1026,10 @@ function HomeContent() {
               </span>
             </div>
           )}
-
-          <button className={`text-foreground/70 hover:text-foreground transition-colors ${isFullscreen ? 'ml-auto' : ''}`} onClick={(e) => { e.stopPropagation(); setShowSettings(!showS3FileViewer ? !showSettings : true ); }} aria-label="Toggle settings">
-            <div className="chevron-rotate transition-transform duration-300" style={{ transform: showSettings && !showS3FileViewer ? "rotate(180deg)" : "rotate(0deg)" }}>
-              <ChevronDown size={24} strokeWidth={2.5} />
-            </div>
-          </button>
-        </div>
-      </header>
-      
-      <main className="flex-1 flex flex-col overflow-hidden">
+          </div>
+        </header>
+        
+        <main className="flex-1 flex flex-col overflow-hidden">
         {currentView === "chat" && (
           <SimpleChatInterface 
             ref={chatInterfaceRef} 
@@ -1079,7 +1078,8 @@ function HomeContent() {
                 <p className="text-sm">You can enable it in the settings menu.</p>
             </div>
         )}
-      </main>
+        </main>
+      </div>
 
       {showSettings && !showS3FileViewer && (
         <Dialog 
