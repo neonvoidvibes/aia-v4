@@ -28,9 +28,10 @@ interface SidebarProps {
   setShowSettings: (show: boolean) => void;
   agentName?: string;
   selectedModel?: string;
+  onNewChat?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel, onNewChat }) => {
   const isMobile = useIsMobile();
   
   return (
@@ -68,7 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
             </div>
           </div>
           <div className="mt-10 flex flex-col space-y-1 -ml-2">
-            <Button variant="ghost" className="justify-start rounded-md font-medium">
+            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={onNewChat}>
               <SquarePen className="mr-3 h-5 w-5" />
               New Chat
             </Button>

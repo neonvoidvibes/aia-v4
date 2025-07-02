@@ -1000,6 +1000,7 @@ function HomeContent() {
         setShowSettings={setShowSettings}
         agentName={pageAgentName || undefined}
         selectedModel={selectedModel}
+        onNewChat={handleNewChatRequest}
       />
       <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto">
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
