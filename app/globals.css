@@ -876,8 +876,7 @@ body {
     /* Add safe area padding to header for menu chevron visibility and prevent overlap */
     header {
       padding-top: max(env(safe-area-inset-top), 0.5rem) !important;
-      /* Ensure header has proper background and z-index */
-      background-color: hsl(var(--background)) !important;
+      /* Ensure header has proper z-index */
       position: relative !important;
       z-index: 10 !important;
     }
@@ -906,7 +905,6 @@ body {
       left: 0 !important;
       right: 0 !important;
       padding-bottom: max(env(safe-area-inset-bottom), 0.5rem) !important;
-      background-color: hsl(var(--background)) !important;
     }
   }
 }
