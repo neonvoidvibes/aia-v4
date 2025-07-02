@@ -1312,8 +1312,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         });
     }, [messages, errorMessages]);
     return (
-        <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto messages-container" ref={messagesContainerRef}>
+        <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
+            <div className="messages-container" ref={messagesContainerRef}>
                 {combinedMessages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {combinedMessages.length === 0 && isPageReady &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10 px-8"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
                 {combinedMessages.length > 0 && (
@@ -1458,7 +1458,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               </button>
             )}
 
-            <div className="p-2 input-area-container">
+            <div className="p-2 input-area-container flex-shrink-0">
                 {attachedFiles.length > 0 && (
                   <div className="flex justify-end mb-0.5 input-attachments-container">
                     <FileAttachmentMinimal files={attachedFiles} onRemove={removeFile} className="max-w-[50%] file-attachment-container" maxVisible={1} />

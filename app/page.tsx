@@ -990,7 +990,7 @@ function HomeContent() {
   );
 
   return (
-    <div className={`min-h-dvh h-dvh flex flex-col overflow-hidden ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+    <div className={`min-h-dvh h-dvh flex flex-col ${isSidebarOpen ? 'sidebar-open' : ''}`}>
       <Sidebar
         isOpen={isSidebarOpen}
         onOpen={() => setIsSidebarOpen(true)}
@@ -1000,8 +1000,8 @@ function HomeContent() {
         setShowSettings={setShowSettings}
       />
       <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto">
-        <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`}>
-          <div className="flex items-center justify-center h-12">
+        <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
+          <div className="flex items-center justify-center h-full">
           {!isFullscreen && (
             <ViewSwitcher 
               currentView={currentView} 
@@ -1029,7 +1029,7 @@ function HomeContent() {
           </div>
         </header>
         
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col">
         {currentView === "chat" && (
           <SimpleChatInterface 
             ref={chatInterfaceRef} 
