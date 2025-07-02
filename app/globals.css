@@ -1071,14 +1071,17 @@ body {
   left: -12px; /* Shift further left */
   padding: 8px 12px;
   gap: 8px;
+  min-width: 140px; /* Increased width to properly contain all controls */
 }
 
-/* Mobile: Prevent record UI from stretching outside screen */
+/* Mobile: Fix positioning and prevent stretching outside screen */
 @media (max-width: 767px) {
   .record-ui {
-    left: -8px; /* Less aggressive left shift on mobile */
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%); /* Center properly */
     right: auto; /* Don't stretch to right edge */
     width: auto; /* Don't take full width */
+    min-width: 140px; /* Increased width to properly contain all controls */
     max-width: calc(100vw - 32px); /* Stay within screen bounds */
   }
 }
