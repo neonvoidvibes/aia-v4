@@ -1607,7 +1607,6 @@ body {
 .ai-bubble td {
   padding: 8px 12px;
   border-bottom: 1px solid hsl(var(--border));
-  white-space: nowrap; /* Prevent text wrapping inside cells */
 }
 
 .ai-bubble th {

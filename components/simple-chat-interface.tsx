@@ -66,8 +66,9 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(
         /^\|(.+)\|\r?\n\|( *[-:]+[-| :]*)\|\r?\n((?:\|.*\|(?:\r?\n|\r|$))+)/gm,
         (match, header, separator, body) => {
-            const headerCells = header.split('|').slice(1, -1).map(h => h.trim());
-            if (headerCells.length === 0) return match; // Not a valid table
+            const headerCells = header.split('|').map(h => h.trim());
+            // A valid header row must have at least one cell.
+            if (headerCells.length === 0 || headerCells.every(h => h === '')) return match;
 
             // Parse alignment from separator line
             const alignments = separator.split('|').slice(1, -1).map(s => {
@@ -79,7 +80,7 @@ const formatAssistantMessage = (text: string): string => {
 
             const headerHtml = `<thead><tr>${headerCells.map((h, i) => `<th style="text-align: ${alignments[i] || 'left'}">${h}</th>`).join('')}</tr></thead>`;
 
-            const rows = body.trim().split('\n');
+            const rows = body.trim().split(/\r?\n/);
             const bodyHtml = `<tbody>${rows.map(row => {
                 const cells = row.split('|').slice(1, -1).map(c => c.trim());
                 // Only render rows that have the same number of cells as the header
@@ -149,8 +150,8 @@ const formatAssistantMessage = (text: string): string => {
 
     // Newlines to <br>, but be careful not to add them inside list structures or other blocks
     const finalHtml = html.replace(/\n/g, '<br />')
-        .replace(/(<br \/>\s*)*<((h[1-3]|ul|ol|li|div|pre|blockquote|hr))/g, '<$2') // remove all <br>s before block elements
-        .replace(/(<\/(h[1-3]|ul|ol|li|div|pre|blockquote|hr)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
+        .replace(/(<br \/>\s*)*<((h[1-3]|ul|ol|li|div|pre|blockquote|hr|table))/g, '<$2') // remove all <br>s before block elements
+        .replace(/(<\/(h[1-3]|ul|ol|li|div|pre|blockquote|hr|table)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
     
     debugLog(`[Markdown Format] Input: "${text.substring(0, 50)}..." | Output HTML: "${finalHtml.substring(0, 80)}..."`);
     return finalHtml;
