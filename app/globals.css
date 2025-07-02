@@ -803,10 +803,21 @@ body {
     margin: 8px auto !important; /* Center on mobile */
   }
   
-  /* Mobile sidebar */
-  .sidebar-open .bg-input-gray {
-    width: min(calc(100vw - 18rem), 800px) !important; /* Account for mobile sidebar */
-    margin: 8px auto !important; /* Maintain centering on mobile */
+  /* Desktop sidebar - only resize input on desktop */
+  @media (min-width: 768px) {
+    .sidebar-open .bg-input-gray {
+      width: min(760px, calc(100% - 2rem)) !important; /* Identical = zero resizing */
+      max-width: 760px !important; /* Identical hard limit */
+      margin: 16px auto !important; /* Maintain centering */
+    }
+  }
+  
+  /* Mobile sidebar - no input resizing, let it be pushed with content */
+  @media (max-width: 767px) {
+    .sidebar-open .bg-input-gray {
+      width: min(calc(100vw - 2rem), 800px) !important; /* Same as normal mobile width */
+      margin: 8px auto !important; /* Same as normal mobile margin */
+    }
   }
 }
 
