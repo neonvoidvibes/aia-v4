@@ -773,14 +773,15 @@ body {
 
 /* Target the actual class used in the component */
 .bg-input-gray {
-  width: min(768px, calc(100% - 2rem)) !important; /* Fixed max size, respects container */
-  max-width: 800px !important; /* Fixed maximum width */
+  width: min(760px, calc(100% - 2rem)) !important; /* Never exceed container, but prefer 760px */
+  max-width: 760px !important; /* Hard limit */
   margin: 16px auto !important; /* Ensure centering */
 }
 
-/* When sidebar is open, use identical calculation for zero resizing */
+/* When sidebar is open, use identical calculation for absolute zero resizing */
 .sidebar-open .bg-input-gray {
-  width: min(768px, calc(100% - 2rem)) !important; /* Identical = zero resizing, no cut */
+  width: min(760px, calc(100% - 2rem)) !important; /* Identical = zero resizing */
+  max-width: 760px !important; /* Identical hard limit */
   margin: 16px auto !important; /* Maintain centering */
 }
 
