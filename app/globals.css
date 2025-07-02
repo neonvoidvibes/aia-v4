@@ -867,7 +867,7 @@ body {
 
 .user-bubble {
   max-width: 80%; /* Standard user max width */
-  /* No background-color property at all - completely removed */
+  background-color: hsl(var(--input-gray)); /* Background color back via CSS */
   align-self: flex-end;
   border-radius: var(--message-radius);
   border-bottom-right-radius: var(--message-radius);
