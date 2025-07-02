@@ -61,6 +61,38 @@ const formatAssistantMessage = (text: string): string => {
 
     let html = text.trim();
 
+    // Tables must be processed before other markdown that might interfere.
+    // This regex finds a markdown table (header, separator, and body).
+    html = html.replace(
+        /^\|(.+)\|\r?\n\|( *[-:]+[-| :]*)\|\r?\n((?:\|.*\|(?:\r?\n|\r|$))+)/gm,
+        (match, header, separator, body) => {
+            const headerCells = header.split('|').slice(1, -1).map(h => h.trim());
+            if (headerCells.length === 0) return match; // Not a valid table
+
+            // Parse alignment from separator line
+            const alignments = separator.split('|').slice(1, -1).map(s => {
+                const trimmed = s.trim();
+                if (trimmed.startsWith(':') && trimmed.endsWith(':')) return 'center';
+                if (trimmed.endsWith(':')) return 'right';
+                return 'left';
+            });
+
+            const headerHtml = `<thead><tr>${headerCells.map((h, i) => `<th style="text-align: ${alignments[i] || 'left'}">${h}</th>`).join('')}</tr></thead>`;
+
+            const rows = body.trim().split('\n');
+            const bodyHtml = `<tbody>${rows.map(row => {
+                const cells = row.split('|').slice(1, -1).map(c => c.trim());
+                // Only render rows that have the same number of cells as the header
+                if (cells.length === headerCells.length) {
+                    return `<tr>${cells.map((c, i) => `<td style="text-align: ${alignments[i] || 'left'}">${c}</td>`).join('')}</tr>`;
+                }
+                return ''; // Ignore malformed rows
+            }).join('')}</tbody>`;
+
+            return `<div class="table-wrapper"><table>${headerHtml}${bodyHtml}</table></div>`;
+        }
+    );
+
     // Block elements (processed first, line by line)
     // Headers
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');

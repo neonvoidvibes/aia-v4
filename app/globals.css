@@ -1585,6 +1585,46 @@ body {
   opacity: 0.8;
 }
 
+/* Table wrapper for horizontal scrolling */
+.ai-bubble .table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  -webkit-overflow-scrolling: touch; /* Momentum scrolling for iOS */
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+}
+
+.ai-bubble table {
+  width: 100%; /* Make table fill the wrapper */
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 90%;
+}
+
+.ai-bubble th,
+.ai-bubble td {
+  padding: 8px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  white-space: nowrap; /* Prevent text wrapping inside cells */
+}
+
+.ai-bubble th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  border-bottom-width: 2px;
+}
+
+.ai-bubble tr:last-child td {
+  border-bottom: none; /* No border on the last row */
+}
+
+.ai-bubble tr:hover {
+  background-color: hsl(var(--accent) / 0.5);
+}
+
 .ai-bubble pre code {
   background-color: transparent; /* Code inside pre should be transparent */
   border: none;
