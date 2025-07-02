@@ -53,7 +53,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
   const fetchChatHistory = async () => {
     if (!agentName) return;
     
-    setIsLoadingHistory(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
@@ -70,8 +69,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
       }
     } catch (error) {
       console.error('Failed to fetch chat history:', error);
-    } finally {
-      setIsLoadingHistory(false);
     }
   };
 
@@ -88,18 +85,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const groupChatsByDate = (chats: ChatHistoryItem[]) => {
     const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffInHours < 24 * 7) {
-      return date.toLocaleDateString([], { weekday: 'short' });
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    }
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const thisWeekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+    const lastWeekStart = new Date(thisWeekStart.getTime() - (7 * 24 * 60 * 60 * 1000));
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const groups: { [key: string]: ChatHistoryItem[] } = {};
+
+    chats.forEach(chat => {
+      const chatDate = new Date(chat.updatedAt);
+      const chatDateOnly = new Date(chatDate.getFullYear(), chatDate.getMonth(), chatDate.getDate());
+
+      if (chatDateOnly.getTime() === today.getTime()) {
+        if (!groups['Today']) groups['Today'] = [];
+        groups['Today'].push(chat);
+      } else if (chatDateOnly.getTime() === yesterday.getTime()) {
+        if (!groups['Yesterday']) groups['Yesterday'] = [];
+        groups['Yesterday'].push(chat);
+      } else if (chatDateOnly >= thisWeekStart) {
+        if (!groups['This Week']) groups['This Week'] = [];
+        groups['This Week'].push(chat);
+      } else if (chatDateOnly >= lastWeekStart) {
+        if (!groups['Last Week']) groups['Last Week'] = [];
+        groups['Last Week'].push(chat);
+      } else if (chatDateOnly >= thisMonthStart) {
+        if (!groups['This Month']) groups['This Month'] = [];
+        groups['This Month'].push(chat);
+      } else {
+        const monthName = chatDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
+        if (!groups[monthName]) groups[monthName] = [];
+        groups[monthName].push(chat);
+      }
+    });
+
+    return groups;
   };
   
   return (
@@ -159,30 +181,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               Chat History
             </div>
             <div className="flex-1 overflow-y-auto max-h-[300px]">
-              {isLoadingHistory ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
-                </div>
-              ) : chatHistory.length > 0 ? (
-                <div className="space-y-1">
-                  {chatHistory.map((chat) => (
-                    <Button
-                      key={chat.id}
-                      variant="ghost"
-                      className="w-full justify-start text-left h-auto p-2 rounded-md"
-                      onClick={() => handleLoadChat(chat.id)}
-                    >
-                      <div className="flex flex-col items-start w-full min-w-0">
-                        <div className="text-sm font-medium truncate w-full">
-                          {chat.title}
-                        </div>
-                        <div className="text-xs text-muted-foreground flex items-center">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {formatDate(chat.updatedAt)}
-                        </div>
+              {chatHistory.length > 0 ? (
+                <div className="space-y-2">
+                  {Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
+                    <div key={section}>
+                      <div className="px-4 py-1 text-xs font-medium text-muted-foreground">
+                        {section}
                       </div>
-                    </Button>
+                      <div className="space-y-0.5">
+                        {chats.map((chat) => (
+                          <Button
+                            key={chat.id}
+                            variant="ghost"
+                            className="w-full justify-start text-left h-auto px-4 py-2 rounded-sm hover:bg-accent/50"
+                            onClick={() => handleLoadChat(chat.id)}
+                          >
+                            <div className="text-sm font-medium truncate w-full">
+                              {chat.title}
+                            </div>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (

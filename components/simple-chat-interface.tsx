@@ -450,12 +450,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
+                    // Always update the current chat ID and title, whether new or existing
+                    setCurrentChatId(result.chatId);
+                    setChatTitle(result.title);
                     if (!currentChatId) {
-                        setCurrentChatId(result.chatId);
-                        setChatTitle(result.title);
                         console.info('[Auto-save] New chat created:', result.chatId, result.title);
                     } else {
-                        console.info('[Auto-save] Chat updated:', currentChatId);
+                        console.info('[Auto-save] Chat updated:', result.chatId);
                     }
                 }
             } else {
@@ -1241,7 +1242,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              setAttachedFiles([]); 
              setAllAttachments([]); 
              filesForNextMessageRef.current = [];
-             console.info("[New Chat] Client states (messages, attachments) reset.");
+             // Reset chat ID and title for new chat
+             setCurrentChatId(null);
+             setChatTitle(null);
+             console.info("[New Chat] Client states (messages, attachments, chat ID) reset.");
           },
          getMessagesCount: () => messages.length,
          scrollToTop: () => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); userHasScrolledRef.current = false; setShowScrollToBottom(false); },
