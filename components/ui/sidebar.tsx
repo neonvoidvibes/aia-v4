@@ -13,6 +13,7 @@ import {
   Pencil,
   MessageSquare,
   SquarePen,
+  AudioLines,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -55,7 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               Chat
             </Button>
             <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
-              <Waves className="mr-3 h-5 w-5" />
+              <AudioLines className="mr-3 h-5 w-5" />
               Transcribe
             </Button>
             <Separator className="my-2 bg-border/50" />
