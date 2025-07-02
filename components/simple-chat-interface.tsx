@@ -188,6 +188,7 @@ export interface ChatInterfaceHandle {
     }
   ) => void;
   setInput: (text: string) => void; // To prefill input from canvas
+  loadChatHistory: (chatId: string) => void; // Load chat history from database
 }
 
 const formatTime = (seconds: number): string => {
@@ -1191,8 +1192,50 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               { preventDefault: () => {}, stopPropagation: () => {} } as unknown as React.FormEvent<HTMLFormElement>,
               { data: canvasContext }
             );
+         },
+         loadChatHistory: async (chatId: string) => {
+            console.info("[Load Chat History] Loading chat:", chatId);
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session?.access_token) {
+                addErrorMessage('Authentication required to load chat history.');
+                return;
+              }
+
+              const response = await fetch(`/api/chat/history/get?chatId=${encodeURIComponent(chatId)}`, {
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to load chat: ${response.statusText}`);
+              }
+
+              const chatData = await response.json();
+              
+              // Stop any active recording first
+              if (isBrowserRecordingRef.current || sessionId) {
+                await handleStopRecording(undefined, false);
+              }
+
+              // Clear current state
+              setAttachedFiles([]);
+              setAllAttachments([]);
+              filesForNextMessageRef.current = [];
+
+              // Load the chat messages
+              if (chatData.messages && Array.isArray(chatData.messages)) {
+                setMessages(chatData.messages);
+                console.info("[Load Chat History] Loaded", chatData.messages.length, "messages");
+              }
+
+            } catch (error) {
+              console.error("[Load Chat History] Error:", error);
+              addErrorMessage(`Failed to load chat history: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
          }
-     }), [sessionId, setMessages, messages.length, handleStopRecording, handleInputChange, handleSubmitWithCanvasContext]);
+     }), [sessionId, setMessages, messages.length, handleStopRecording, handleInputChange, handleSubmitWithCanvasContext, supabase.auth, addErrorMessage]);
 
 
     const checkScroll = useCallback(() => {

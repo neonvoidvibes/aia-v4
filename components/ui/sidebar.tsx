@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './button';
 import { Separator } from './separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './sheet';
 import { useIsMobile } from './use-mobile';
+import { createClient } from '@/utils/supabase/client';
 import {
   MessageCircle,
   Settings,
@@ -17,7 +18,18 @@ import {
   AudioLines,
   ChevronRight,
   ChevronLeft,
+  History,
+  Clock,
+  Loader2,
 } from 'lucide-react';
+
+interface ChatHistoryItem {
+  id: string;
+  title: string;
+  updatedAt: string;
+  agentId: string;
+  agentName: string;
+}
 
 interface SidebarProps {
   isOpen: boolean;
@@ -29,10 +41,66 @@ interface SidebarProps {
   agentName?: string;
   selectedModel?: string;
   onNewChat?: () => void;
+  onLoadChat?: (chatId: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel, onNewChat }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel, onNewChat, onLoadChat }) => {
   const isMobile = useIsMobile();
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const supabase = createClient();
+
+  const fetchChatHistory = async () => {
+    if (!agentName) return;
+    
+    setIsLoadingHistory(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`/api/chat/history/list?agent=${encodeURIComponent(agentName)}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const history = await response.json();
+        setChatHistory(history);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && agentName) {
+      fetchChatHistory();
+    }
+  }, [isOpen, agentName]);
+
+  const handleLoadChat = (chatId: string) => {
+    if (onLoadChat) {
+      onLoadChat(chatId);
+      onClose(); // Close sidebar on mobile after selecting chat
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 24 * 7) {
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  };
   
   return (
     <div className={className}>
@@ -88,10 +156,41 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
             </Button>
             <Separator className="my-2 bg-border/50" />
             <div className="px-4 pt-4 text-sm font-medium opacity-50">
-              Saved Chats
+              Chat History
             </div>
-            {/* Placeholder for saved chats */}
-            <div className="flex-grow" />
+            <div className="flex-1 overflow-y-auto max-h-[300px]">
+              {isLoadingHistory ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+                </div>
+              ) : chatHistory.length > 0 ? (
+                <div className="space-y-1">
+                  {chatHistory.map((chat) => (
+                    <Button
+                      key={chat.id}
+                      variant="ghost"
+                      className="w-full justify-start text-left h-auto p-2 rounded-md"
+                      onClick={() => handleLoadChat(chat.id)}
+                    >
+                      <div className="flex flex-col items-start w-full min-w-0">
+                        <div className="text-sm font-medium truncate w-full">
+                          {chat.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {formatDate(chat.updatedAt)}
+                        </div>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <div className="px-4 py-2 text-sm text-muted-foreground">
+                  No chat history yet
+                </div>
+              )}
+            </div>
           </div>
         </SheetContent>
       </Sheet>

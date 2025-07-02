@@ -1017,6 +1017,11 @@ function HomeContent() {
         agentName={pageAgentName || undefined}
         selectedModel={selectedModel}
         onNewChat={handleNewChatRequest}
+        onLoadChat={(chatId: string) => {
+          if (chatInterfaceRef.current) {
+            chatInterfaceRef.current.loadChatHistory(chatId);
+          }
+        }}
       />
       
       {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
