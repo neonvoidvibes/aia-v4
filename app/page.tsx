@@ -998,6 +998,8 @@ function HomeContent() {
         className="absolute top-[15px] left-4 z-20"
         setCurrentView={setCurrentView}
         setShowSettings={setShowSettings}
+        agentName={pageAgentName || undefined}
+        selectedModel={selectedModel}
       />
       <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto">
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>

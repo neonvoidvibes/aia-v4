@@ -26,9 +26,11 @@ interface SidebarProps {
   className?: string;
   setCurrentView: (view: "chat" | "transcribe") => void;
   setShowSettings: (show: boolean) => void;
+  agentName?: string;
+  selectedModel?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel }) => {
   const isMobile = useIsMobile();
   
   return (
@@ -48,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
           className={`p-4 sidebar-bg border-r-0 ${isMobile ? 'w-[80vw]' : 'w-64'}`}
         >
           <SheetHeader className="flex flex-row items-center justify-between -mt-2">
-            <SheetTitle className="text-lg font-semibold pl-2 mt-[10px]">AIA</SheetTitle>
+            <SheetTitle className="text-lg font-semibold pl-2 mt-[10px]">River AI</SheetTitle>
             <Button onClick={onClose} variant="ghost" className="p-2 rounded-md">
               {isMobile ? (
                 <ChevronLeft className="!h-6 !w-6" />
@@ -57,21 +59,29 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               )}
             </Button>
           </SheetHeader>
-          <div className="mt-4 flex flex-col space-y-1 -ml-2">
-            <Button variant="ghost" className="justify-start rounded-md">
+          <div className="px-2 mt-2 mb-2">
+            <div className="text-sm text-muted-foreground">
+              Agent <strong>{agentName || 'Loading...'}</strong>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Model <strong>{selectedModel || 'Loading...'}</strong>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-col space-y-1 -ml-2">
+            <Button variant="ghost" className="justify-start rounded-md font-medium">
               <SquarePen className="mr-3 h-5 w-5" />
               New Chat
             </Button>
-            <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setShowSettings(true); }}>
+            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setShowSettings(true); }}>
               <Settings className="mr-3 h-5 w-5" />
               Settings
             </Button>
             <Separator className="my-2 bg-border/50" />
-            <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('chat'); }}>
+            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('chat'); }}>
               <MessageSquare className="mr-3 h-5 w-5" />
               Chat
             </Button>
-            <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
+            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('transcribe'); }}>
               <AudioLines className="mr-3 h-5 w-5" />
               Transcribe
             </Button>
