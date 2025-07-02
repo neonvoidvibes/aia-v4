@@ -1828,9 +1828,20 @@ button {
   transition: transform 0.3s ease-in-out, max-width 0.3s ease-in-out;
 }
 
-.sidebar-open .main-content {
-  transform: translateX(8rem); /* Center content in remaining space by shifting half sidebar width */
-  max-width: calc(100vw - 16rem); /* Constrain to remaining space */
+/* Desktop sidebar behavior - keep exactly as is */
+@media (min-width: 768px) {
+  .sidebar-open .main-content {
+    transform: translateX(8rem); /* Center content in remaining space by shifting half sidebar width */
+    max-width: calc(100vw - 16rem); /* Constrain to remaining space */
+  }
+}
+
+/* Mobile sidebar behavior - push content to the right */
+@media (max-width: 767px) {
+  .sidebar-open .main-content {
+    transform: translateX(90vw); /* Push content by sidebar width (90% of viewport) */
+    /* No max-width constraint - let content maintain full width and be pushed off-screen */
+  }
 }
 
 .sidebar-bg {

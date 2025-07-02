@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from './button';
 import { Separator } from './separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './sheet';
+import { useIsMobile } from './use-mobile';
 import {
   MessageCircle,
   Settings,
@@ -26,6 +27,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings }) => {
+  const isMobile = useIsMobile();
+  
   return (
     <div className={className}>
       {!isOpen && (
@@ -34,7 +37,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
         </Button>
       )}
       <Sheet open={isOpen} onOpenChange={(open) => (open ? onOpen() : onClose())}>
-        <SheetContent side="left" className="w-64 p-4 sidebar-bg border-r-0">
+        <SheetContent 
+          side="left" 
+          className={`p-4 sidebar-bg border-r-0 ${isMobile ? 'w-[90vw]' : 'w-64'}`}
+        >
           <SheetHeader className="flex flex-row items-center justify-between -mt-2">
             <SheetTitle className="text-lg font-semibold pl-2 mt-[10px]">AIA</SheetTitle>
             <Button onClick={onClose} variant="ghost" className="p-2 rounded-md">
