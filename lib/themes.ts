@@ -18,7 +18,7 @@ export interface ColorTheme {
 
 export const G_DEFAULT_WELCOME_MESSAGE: WelcomeMessageConfig = {
   text: "What is alive today?",
-  fontSize: "1.5rem", // Corresponds to Tailwind's text-2xl
+  fontSize: "2.25rem", // 50% larger than original 1.5rem
   fontWeight: 700,    // Corresponds to Tailwind's font-bold
 };
 
