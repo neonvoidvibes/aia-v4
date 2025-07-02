@@ -763,18 +763,47 @@ body {
   padding: 8px 16px; /* Keep internal padding */
   display: flex;
   align-items: center;
-  /* Desktop styles */
+  /* Desktop styles - account for sidebar state */
   margin: 16px auto;
-  width: 100%; /* Use full width within constrained parent */
-  max-width: 800px; /* But never exceed this fixed width */
+  width: min(calc(100vw - 4rem), 800px); /* Default when sidebar closed */
+  max-width: 800px; /* Fixed maximum width */
   position: relative;
   box-sizing: border-box; /* Ensure padding is included in width calc */
 }
-/* Mobile: Make input container fill padded parent */
+
+/* Target the actual class used in the component */
+.bg-input-gray {
+  width: min(calc(100vw - 4rem), 800px) !important; /* Default when sidebar closed */
+  max-width: 800px !important; /* Fixed maximum width */
+}
+
+/* When sidebar is open, adjust for sidebar width */
+.sidebar-open .input-container {
+  width: min(calc(100vw - 20rem), 800px); /* Account for 16rem sidebar + 4rem margins */
+}
+
+.sidebar-open .bg-input-gray {
+  width: min(calc(100vw - 20rem), 800px) !important; /* Account for 16rem sidebar + 4rem margins */
+}
+
+/* Mobile: Use viewport-based sizing with smaller margins */
 @media (max-width: 640px) {
   .input-container {
-    width: 100%; /* Fill the padded input-area-container */
+    width: min(calc(100vw - 2rem), 800px); /* Viewport-based for mobile */
     margin: 8px 0; /* Adjust vertical margin, remove side margin */
+  }
+  
+  .bg-input-gray {
+    width: min(calc(100vw - 2rem), 800px) !important; /* Viewport-based for mobile */
+  }
+  
+  /* Mobile sidebar adjustment */
+  .sidebar-open .input-container {
+    width: min(calc(100vw - 18rem), 800px); /* Account for 16rem sidebar + 2rem margins on mobile */
+  }
+  
+  .sidebar-open .bg-input-gray {
+    width: min(calc(100vw - 18rem), 800px) !important; /* Account for 16rem sidebar + 2rem margins on mobile */
   }
 }
 
