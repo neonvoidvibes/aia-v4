@@ -35,31 +35,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
       <Sheet open={isOpen} onOpenChange={(open) => (open ? onOpen() : onClose())}>
         <SheetContent side="left" className="w-64 p-4 sidebar-bg border-r-0">
           <SheetHeader className="flex flex-row items-center justify-between -mt-2">
-            <SheetTitle className="text-lg font-semibold pl-3">AIA</SheetTitle>
-            <Button onClick={onClose} variant="ghost" className="p-2">
+            <SheetTitle className="text-lg font-semibold pl-3 mt-[5px]">AIA</SheetTitle>
+            <Button onClick={onClose} variant="ghost" className="p-2 rounded-lg">
               <SidebarIcon className="h-6 w-6" />
             </Button>
           </SheetHeader>
-          <div className="mt-4 flex flex-col space-y-1">
-            <Button variant="ghost" className="justify-start">
+          <div className="mt-4 flex flex-col space-y-1 -ml-2">
+            <Button variant="ghost" className="justify-start rounded-lg">
               <SquarePen className="mr-3 h-5 w-5" />
               New Chat
             </Button>
-            <Button variant="ghost" className="justify-start" onClick={() => { setShowSettings(true); }}>
+            <Button variant="ghost" className="justify-start rounded-lg" onClick={() => { setShowSettings(true); }}>
               <Settings className="mr-3 h-5 w-5" />
               Settings
             </Button>
             <Separator className="my-2 bg-border/50" />
-            <Button variant="ghost" className="justify-start" onClick={() => { setCurrentView('chat'); }}>
+            <Button variant="ghost" className="justify-start rounded-lg" onClick={() => { setCurrentView('chat'); }}>
               <MessageSquare className="mr-3 h-5 w-5" />
               Chat
             </Button>
-            <Button variant="ghost" className="justify-start" onClick={() => { setCurrentView('transcribe'); }}>
+            <Button variant="ghost" className="justify-start rounded-lg" onClick={() => { setCurrentView('transcribe'); }}>
               <Waves className="mr-3 h-5 w-5" />
               Transcribe
             </Button>
             <Separator className="my-2 bg-border/50" />
-            <div className="px-3 pt-4 text-sm font-medium text-muted-foreground/40">
+            <div className="px-3 pt-4 text-sm font-medium text-muted-foreground/20">
               Saved Chats
             </div>
             {/* Placeholder for saved chats */}

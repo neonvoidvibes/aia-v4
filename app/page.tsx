@@ -995,7 +995,7 @@ function HomeContent() {
         isOpen={isSidebarOpen}
         onOpen={() => setIsSidebarOpen(true)}
         onClose={() => setIsSidebarOpen(false)}
-        className="absolute top-4 left-4 z-20"
+        className="absolute top-[15px] left-4 z-20"
         setCurrentView={setCurrentView}
         setShowSettings={setShowSettings}
       />
