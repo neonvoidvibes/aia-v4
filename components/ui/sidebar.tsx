@@ -15,6 +15,8 @@ import {
   MessageSquare,
   SquarePen,
   AudioLines,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,18 +35,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
     <div className={className}>
       {!isOpen && (
         <Button onClick={onOpen} variant="ghost" className="p-2">
-          <SidebarIcon className="h-6 w-6" />
+          {isMobile ? (
+            <ChevronRight className="!h-6 !w-6" />
+          ) : (
+            <SidebarIcon className="!h-6 !w-6" />
+          )}
         </Button>
       )}
       <Sheet open={isOpen} onOpenChange={(open) => (open ? onOpen() : onClose())}>
         <SheetContent 
           side="left" 
-          className={`p-4 sidebar-bg border-r-0 ${isMobile ? 'w-[90vw]' : 'w-64'}`}
+          className={`p-4 sidebar-bg border-r-0 ${isMobile ? 'w-[80vw]' : 'w-64'}`}
         >
           <SheetHeader className="flex flex-row items-center justify-between -mt-2">
             <SheetTitle className="text-lg font-semibold pl-2 mt-[10px]">AIA</SheetTitle>
             <Button onClick={onClose} variant="ghost" className="p-2 rounded-md">
-              <SidebarIcon className="h-6 w-6" />
+              {isMobile ? (
+                <ChevronLeft className="!h-6 !w-6" />
+              ) : (
+                <SidebarIcon className="!h-6 !w-6" />
+              )}
             </Button>
           </SheetHeader>
           <div className="mt-4 flex flex-col space-y-1 -ml-2">
