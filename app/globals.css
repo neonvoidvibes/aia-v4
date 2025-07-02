@@ -1088,9 +1088,10 @@ body {
     left: 50%; /* Center horizontally */
     transform: translateX(-50%); /* Center properly */
     right: auto; /* Don't stretch to right edge */
-    width: auto; /* Don't take full width */
-    min-width: 140px; /* Increased width to properly contain all controls */
-    max-width: calc(100vw - 32px); /* Stay within screen bounds */
+    width: auto !important; /* Don't take full width */
+    min-width: 120px !important; /* Adequate width for controls */
+    max-width: calc(100vw - 64px) !important; /* More conservative margin to stay within screen bounds */
+    box-sizing: border-box !important; /* Ensure padding is included in width calculations */
   }
 }
 
