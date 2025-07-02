@@ -422,9 +422,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const supabase = createClient();
 
-    // Auto-save chat history function
+    // Auto-save chat history function - only saves complete message pairs
     const saveChatHistory = useCallback(async () => {
         if (!agentName || messages.length === 0) return;
+
+        // Only save when we have complete message pairs (user + assistant)
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.role !== 'assistant') {
+            console.debug('[Auto-save] Skipping save - waiting for assistant response');
+            return;
+        }
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -450,10 +457,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
-                    // Always update the current chat ID and title, whether new or existing
-                    setCurrentChatId(result.chatId);
-                    setChatTitle(result.title);
+                    // Only update chat ID and title if we don't have them yet
                     if (!currentChatId) {
+                        setCurrentChatId(result.chatId);
+                        setChatTitle(result.title);
                         console.info('[Auto-save] New chat created:', result.chatId, result.title);
                     } else {
                         console.info('[Auto-save] Chat updated:', result.chatId);
@@ -1291,10 +1298,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               setAllAttachments([]);
               filesForNextMessageRef.current = [];
 
+              // Set the chat ID and title so future saves update this chat
+              setCurrentChatId(chatData.id);
+              setChatTitle(chatData.title);
+
               // Load the chat messages
               if (chatData.messages && Array.isArray(chatData.messages)) {
                 setMessages(chatData.messages);
-                console.info("[Load Chat History] Loaded", chatData.messages.length, "messages");
+                console.info("[Load Chat History] Loaded", chatData.messages.length, "messages for chat:", chatData.id);
               }
 
             } catch (error) {
