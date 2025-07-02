@@ -457,23 +457,10 @@ function HomeContent() {
     }
   }, [transcriptionLanguage, pageAgentName]); // Dependencies: transcriptionLanguage, pageAgentName
 
-  // Load and persist fullscreen mode (user + agent specific)
+  // Set fullscreen mode to permanent (always true)
   useEffect(() => {
-    if (pageAgentName && userName) {
-      const key = `fullscreenMode_${userName}_${pageAgentName}`;
-      const savedMode = localStorage.getItem(key);
-      if (savedMode !== null) {
-        setIsFullscreen(JSON.parse(savedMode));
-      }
-    }
-  }, [pageAgentName, userName]);
-
-  useEffect(() => {
-    if (pageAgentName && userName) {
-      const key = `fullscreenMode_${userName}_${pageAgentName}`;
-      localStorage.setItem(key, JSON.stringify(isFullscreen));
-    }
-  }, [isFullscreen, pageAgentName, userName]);
+    setIsFullscreen(true);
+  }, []);
 
   // Load and persist selectedModel (agent-specific)
   useEffect(() => {
@@ -1002,6 +989,21 @@ function HomeContent() {
         selectedModel={selectedModel}
         onNewChat={handleNewChatRequest}
       />
+      
+      {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
+      {isFullscreen && recordingState.isBrowserRecording && (
+        <div className="fixed top-[15px] right-4 z-20 flex items-center gap-2 text-xs text-foreground/70">
+          <span className={`inline-block w-2 h-2 rounded-full ${
+            recordingState.isReconnecting ? 'bg-orange-500 animate-pulse' :
+            recordingState.isBrowserPaused ? 'bg-yellow-500' : 
+            'bg-red-500 animate-pulse'
+          }`}></span>
+          <span className="font-mono">
+            {Math.floor(recordingState.clientRecordingTime / 60).toString().padStart(2, '0')}:
+            {(recordingState.clientRecordingTime % 60).toString().padStart(2, '0')}
+          </span>
+        </div>
+      )}
       <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto">
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
           <div className="flex items-center justify-center h-full">
@@ -1015,20 +1017,6 @@ function HomeContent() {
             />
           )}
 
-          {/* Fullscreen recording indicator */}
-          {isFullscreen && recordingState.isBrowserRecording && (
-            <div className="flex items-center gap-2 text-xs text-foreground/70 mr-4 pl-1">
-              <span className={`inline-block w-2 h-2 rounded-full ${
-                recordingState.isReconnecting ? 'bg-orange-500 animate-pulse' :
-                recordingState.isBrowserPaused ? 'bg-yellow-500' : 
-                'bg-red-500 animate-pulse'
-              }`}></span>
-              <span className="font-mono">
-                {Math.floor(recordingState.clientRecordingTime / 60).toString().padStart(2, '0')}:
-                {(recordingState.clientRecordingTime % 60).toString().padStart(2, '0')}
-              </span>
-            </div>
-          )}
           </div>
         </header>
         
@@ -1275,15 +1263,6 @@ function HomeContent() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="fullscreen-toggle">Fullscreen Mode</Label>
-                      <Switch
-                        id="fullscreen-toggle"
-                        checked={isFullscreen}
-                        onCheckedChange={setIsFullscreen}
-                        aria-label="Toggle fullscreen mode"
-                      />
                     </div>
                   </div>
                 </TabsContent>

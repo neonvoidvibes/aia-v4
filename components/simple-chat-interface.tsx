@@ -472,9 +472,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const startHideTimeout = useCallback(() => {
          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
          if (!pendingActionRef.current) { 
-              hideTimeoutRef.current = setTimeout(hideRecordUI, 3000);
+              hideTimeoutRef.current = setTimeout(hideRecordUI, 5000);
           }
-     }, [hideRecordUI]); 
+     }, [hideRecordUI]);
 
 
     useEffect(() => {
@@ -1215,15 +1215,33 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => { const c = messagesContainerRef.current; if (c) { c.addEventListener("scroll", checkScroll, { passive: true }); return () => c.removeEventListener("scroll", checkScroll); } }, [checkScroll]);
 
     useEffect(() => { 
-         const handleClick = (e: MouseEvent) => {
-             const isOutsideControls = showRecordUI && recordUIRef.current && !recordUIRef.current.contains(e.target as Node);
-             const isOutsideTrigger = statusRecordingRef.current && !statusRecordingRef.current.contains(e.target as Node);
-             if (isOutsideControls && isOutsideTrigger && !pendingActionRef.current && isBrowserRecordingRef.current) hideRecordUI();
-             if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) setShowPlusMenu(false);
+         const handleClick = (e: Event) => {
+             const target = e.target as Node;
+             
+             // Handle record UI click outside
+             if (showRecordUI && isBrowserRecordingRef.current && !pendingActionRef.current) {
+                 const isOutsideControls = recordUIRef.current && !recordUIRef.current.contains(target);
+                 const isOutsideTrigger = statusRecordingRef.current && !statusRecordingRef.current.contains(target);
+                 
+                 if (isOutsideControls && isOutsideTrigger) {
+                     hideRecordUI();
+                 }
+             }
+             
+             // Handle plus menu click outside
+             if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(target)) {
+                 setShowPlusMenu(false);
+             }
          };
+         
          document.addEventListener("mousedown", handleClick, true);
-         return () => document.removeEventListener("mousedown", handleClick, true);
-     }, [showRecordUI, showPlusMenu, hideRecordUI]);
+         document.addEventListener("touchstart", handleClick, true); // Add touch support
+         
+         return () => {
+             document.removeEventListener("mousedown", handleClick, true);
+             document.removeEventListener("touchstart", handleClick, true);
+         };
+     }, [showRecordUI, showPlusMenu, hideRecordUI, isBrowserRecordingRef.current, pendingActionRef.current]);
 
     useEffect(() => { 
          const el = statusRecordingRef.current; if (!el) return;
