@@ -1280,7 +1280,7 @@ body {
 /* Scroll to bottom button */
 .scroll-to-bottom-button {
   position: absolute;
-  bottom: 115px; /* Increased value to move it up */
+  bottom: 130px; /* Moved down slightly */
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(128, 128, 128, 0.3); /* Fallback transparent background */
@@ -1918,4 +1918,43 @@ button {
 .sidebar-bg {
   background-color: hsl(var(--background));
   filter: brightness(0.8);
+}
+
+/* Sidebar font styling to match user and assistant messages */
+.sidebar-bg button {
+  font-size: 17px; /* Match body font size */
+  font-weight: 300; /* Match body font weight */
+  line-height: 1.6; /* Match body line height */
+}
+
+/* Mobile sidebar font styling */
+@media (max-width: 640px) {
+  .sidebar-bg button {
+    font-size: 19px; /* Match mobile body font size */
+    font-weight: 400; /* Match mobile body font weight */
+  }
+}
+
+/* Sidebar title styling */
+.sidebar-bg h3 {
+  font-size: 17px; /* Match body font size */
+  font-weight: 600; /* Slightly heavier for title */
+}
+
+@media (max-width: 640px) {
+  .sidebar-bg h3 {
+    font-size: 19px; /* Match mobile body font size */
+  }
+}
+
+/* Sidebar "Saved Chats" label styling */
+.sidebar-bg .text-sm {
+  font-size: 15px; /* Slightly smaller than body */
+  font-weight: 300; /* Match body font weight */
+}
+
+@media (max-width: 640px) {
+  .sidebar-bg .text-sm {
+    font-size: 17px; /* Slightly smaller than mobile body */
+  }
 }

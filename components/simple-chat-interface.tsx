@@ -16,6 +16,7 @@ type UIMessage = Message | ErrorMessage;
 import {
   Plus,
   ArrowUp,
+  ArrowDown,
   Square,
   Download,
   Paperclip,
@@ -1313,7 +1314,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [messages, errorMessages]);
     return (
         <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
-            <div className="messages-container" ref={messagesContainerRef} style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+            <div className="messages-container" ref={messagesContainerRef} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
                 {combinedMessages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {combinedMessages.length === 0 && isPageReady &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10 px-8"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
                 {combinedMessages.length > 0 && (
@@ -1454,7 +1455,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
             {showScrollToBottom && (
               <button onClick={() => scrollToBottom()} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
-                <ChevronDown size={24} />
+                <ArrowDown size={24} />
               </button>
             )}
 
