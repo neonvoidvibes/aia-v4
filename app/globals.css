@@ -1607,6 +1607,7 @@ body {
 .ai-bubble td {
   padding: 8px 12px;
   border-bottom: 1px solid hsl(var(--border));
+  vertical-align: top;
 }
 
 .ai-bubble th {
