@@ -1037,8 +1037,12 @@ function HomeContent() {
           />
         )}
         {currentView === "transcribe" && (
-          <div className="p-3 sm:p-4 h-full overflow-y-auto"> 
-            <FullFileTranscriber agentName={pageAgentName} userName={userName} />
+          <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
+            <div className="messages-container" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
+              <div className="space-y-1 pt-8 pb-4">
+                <FullFileTranscriber agentName={pageAgentName} userName={userName} />
+              </div>
+            </div>
           </div>
         )}
         {currentView === "canvas" && isCanvasViewEnabled && (
