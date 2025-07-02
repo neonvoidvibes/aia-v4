@@ -840,38 +840,18 @@ body {
   }
 }
 
-/* iOS Safari specific fixes */
+/* iOS Safari specific fixes - more targeted approach */
 @supports (-webkit-touch-callout: none) {
-  /* iOS Safari input positioning fix */
+  /* Only apply safe area insets without changing positioning */
   @media (max-width: 640px) {
-    .input-area-container {
-      position: fixed !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      z-index: 1000 !important;
-      background-color: hsl(var(--background)) !important;
-      padding-bottom: env(safe-area-inset-bottom) !important;
-    }
-    
-    .bg-input-gray {
-      margin: 8px auto 8px auto !important;
-    }
-    
-    /* Ensure messages container accounts for fixed input */
-    .messages-container {
-      padding-bottom: calc(var(--input-area-height) + env(safe-area-inset-bottom) + 1rem) !important;
-    }
-  }
-  
-  /* iOS Safari header fix for menu chevron visibility */
-  @media (max-width: 640px) {
+    /* Add safe area padding to header for menu chevron visibility */
     header {
-      padding-top: env(safe-area-inset-top) !important;
-      background-color: hsl(var(--background)) !important;
-      position: sticky !important;
-      top: 0 !important;
-      z-index: 100 !important;
+      padding-top: max(env(safe-area-inset-top), 0.5rem) !important;
+    }
+    
+    /* Add safe area padding to input area bottom */
+    .input-area-container {
+      padding-bottom: max(env(safe-area-inset-bottom), 0.5rem) !important;
     }
   }
 }
