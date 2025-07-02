@@ -286,7 +286,13 @@ function HomeContent() {
 
   // Callbacks for child components
   const updateChatAttachments = useCallback((attachments: AttachmentFile[]) => {
-    setAllChatAttachments(attachments);
+    // Sort attachments by lastModified date in descending order (newest first)
+    const sortedAttachments = [...attachments].sort((a, b) => {
+      const dateA = new Date(a.lastModified || 0).getTime();
+      const dateB = new Date(b.lastModified || 0).getTime();
+      return dateB - dateA;
+    });
+    setAllChatAttachments(sortedAttachments);
   }, []);
 
   const handleAgentMemoryUpdate = useCallback((files: AttachmentFile[]) => {
@@ -542,7 +548,13 @@ function HomeContent() {
     if (!showSettings || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.transcriptions) return;
     const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
     fetchS3Data(prefix, (data) => {
-      setTranscriptionS3Files(data);
+      // Sort by lastModified date in descending order (newest first)
+      const sortedData = [...data].sort((a, b) => {
+        const dateA = new Date(a.lastModified || 0).getTime();
+        const dateB = new Date(b.lastModified || 0).getTime();
+        return dateB - dateA;
+      });
+      setTranscriptionS3Files(sortedData);
       setFetchedDataFlags(prev => ({ ...prev, transcriptions: true }));
     }, "Transcriptions");
   }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.transcriptions, fetchS3Data]);
@@ -594,7 +606,16 @@ function HomeContent() {
     if (!showSettings || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.savedSummaries) return;
     const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/summarized/`;
     fetchS3Data(prefix, (data) => {
-      setSavedTranscriptSummaries(data.filter(f => f.name.endsWith('.json')).map(f => ({...f, type: 'application/json'})));
+      // Filter and sort by lastModified date in descending order (newest first)
+      const filteredAndSorted = data
+        .filter(f => f.name.endsWith('.json'))
+        .map(f => ({...f, type: 'application/json'}))
+        .sort((a, b) => {
+          const dateA = new Date(a.lastModified || 0).getTime();
+          const dateB = new Date(b.lastModified || 0).getTime();
+          return dateB - dateA;
+        });
+      setSavedTranscriptSummaries(filteredAndSorted);
       setFetchedDataFlags(prev => ({ ...prev, savedSummaries: true }));
     }, "Saved Transcript Summaries");
   }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.savedSummaries, fetchS3Data]);
@@ -604,7 +625,15 @@ function HomeContent() {
     if (!showSettings || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.rawSavedS3TranscriptsFetched) return;
     const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/saved/`;
     fetchS3Data(prefix, (data) => {
-      setRawSavedS3Transcripts(data.filter(f => !f.name.endsWith('/')));
+      // Filter and sort by lastModified date in descending order (newest first)
+      const filteredAndSorted = data
+        .filter(f => !f.name.endsWith('/'))
+        .sort((a, b) => {
+          const dateA = new Date(a.lastModified || 0).getTime();
+          const dateB = new Date(b.lastModified || 0).getTime();
+          return dateB - dateA;
+        });
+      setRawSavedS3Transcripts(filteredAndSorted);
       setFetchedDataFlags(prev => ({ ...prev, rawSavedS3TranscriptsFetched: true }));
     }, "Raw Saved Transcripts");
   }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.rawSavedS3TranscriptsFetched, fetchS3Data]);
