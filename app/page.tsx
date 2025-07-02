@@ -1107,10 +1107,9 @@ function HomeContent() {
             <DialogDescription><VisuallyHidden>Manage application settings, documents, system prompts, and memory.</VisuallyHidden></DialogDescription>
             <EnvWarning />
             <Tabs value={activeTab} onValueChange={handleSettingsTabChange} className="w-full flex flex-col flex-1 min-h-0">
-              <TabsList className="grid w-full grid-cols-4 mb-4">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
                 <TabsTrigger value="settings">Settings</TabsTrigger>
-                <TabsTrigger value="documents">{isMobile ? "Docs" : "Documents"}</TabsTrigger>
-                <TabsTrigger value="memory">Memory</TabsTrigger>
+                <TabsTrigger value="memory">{isMobile ? "Memory" : "Memory"}</TabsTrigger>
                 <TabsTrigger value="system">System</TabsTrigger>
               </TabsList>
               <div className="tab-content-wrapper flex-1 overflow-y-auto" ref={tabContentRef}>
@@ -1288,7 +1287,7 @@ function HomeContent() {
                     </div>
                   </div>
                 </TabsContent>
-                <TabsContent value="documents" className="mt-0 tab-content-scrollable">
+                <TabsContent value="memory" className="mt-0 tab-content-scrollable">
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <CollapsibleSection title="Chat Attachments" defaultOpen={allChatAttachments.length > 0}>
                       <div className="document-upload-container">
@@ -1416,6 +1415,18 @@ function HomeContent() {
                          )}
                        </div>
                     </CollapsibleSection>
+                    <CollapsibleSection title="Database" defaultOpen={true}>
+                      <div className="document-upload-container">
+                        <DocumentUpload description="Locally added/edited memory files. Documents from Pinecone are listed below." type="memory" allowRemove={true} persistKey={`agent-memory-${pageAgentName}-${pageEventId}`} onFilesAdded={handleAgentMemoryUpdate} existingFiles={agentMemoryFiles} transparentBackground={true} hideDropZone={true} />
+                      </div>
+                      <div className="mt-4 space-y-2 w-full">
+                        {pineconeMemoryDocs.length > 0 ? (
+                          pineconeMemoryDocs.map(doc => (
+                            <FetchedFileListItem key={doc.name} file={{ name: doc.name, type: 'pinecone/document' }} showViewIcon={false} />
+                          ))
+                        ) : (<p className="text-sm text-muted-foreground">No documents found in Pinecone memory for '{pageAgentName}'.</p>)}
+                      </div>
+                    </CollapsibleSection>
                   </div>
                 </TabsContent>
                 <TabsContent value="system" className="mt-0 tab-content-scrollable">
@@ -1439,6 +1450,18 @@ function HomeContent() {
                         </div>
                       )}
                       {(baseSystemPromptS3Files.length === 0 && agentSystemPromptS3Files.length === 0) && (<p className="text-sm text-muted-foreground mt-2">No system prompts found in S3.</p>)}
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Context" defaultOpen={true}>
+                      <div className="document-upload-container">
+                        <DocumentUpload description="Locally added/edited context files. Agent-specific context from S3 is listed below." type="context" allowRemove={true} persistKey={`context-files-${pageAgentName}-${pageEventId}`} onFilesAdded={handleContextUpdate} existingFiles={contextFiles} transparentBackground={true} hideDropZone={true} />
+                      </div>
+                      <div className="mt-4 space-y-2 w-full">
+                        {agentPrimaryContextS3Files.length > 0 ? (
+                          agentPrimaryContextS3Files.map(file => (
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
+                          ))
+                        ) : (<p className="text-sm text-muted-foreground">No agent-specific context files found in S3 for '{pageAgentName}'.</p>)}
+                      </div>
                     </CollapsibleSection>
                     <CollapsibleSection title="Frameworks" defaultOpen={true}>
                         <div className="space-y-2 w-full">
@@ -1477,36 +1500,6 @@ function HomeContent() {
                       </Button>
                     </div>
 
-                  </div>
-                </TabsContent>
-                <TabsContent value="memory" className="mt-0 memory-tab-content" ref={memoryTabRef}>
-                <div className="tab-content-inner tab-content-scrollable px-2 md:px-4 py-3">
-                    <div className={`memory-tab-grid ${isMobile && hasOpenSection ? 'has-open-section' : ''}`}>
-                      <CollapsibleSection title="Context" defaultOpen={true} onToggle={handleSectionToggle}>
-                        <div className="document-upload-container">
-                          <DocumentUpload description="Locally added/edited context files. Agent-specific context from S3 is listed below." type="context" allowRemove={true} persistKey={`context-files-${pageAgentName}-${pageEventId}`} onFilesAdded={handleContextUpdate} existingFiles={contextFiles} transparentBackground={true} hideDropZone={true} />
-                        </div>
-                        <div className="mt-4 space-y-2 w-full">
-                          {agentPrimaryContextS3Files.length > 0 ? (
-                            agentPrimaryContextS3Files.map(file => (
-                              <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
-                            ))
-                          ) : (<p className="text-sm text-muted-foreground">No agent-specific context files found in S3 for '{pageAgentName}'.</p>)}
-                        </div>
-                      </CollapsibleSection>
-                      <CollapsibleSection title="Memory" defaultOpen={true} onToggle={handleSectionToggle}>
-                        <div className="document-upload-container">
-                          <DocumentUpload description="Locally added/edited memory files. Documents from Pinecone are listed below." type="memory" allowRemove={true} persistKey={`agent-memory-${pageAgentName}-${pageEventId}`} onFilesAdded={handleAgentMemoryUpdate} existingFiles={agentMemoryFiles} transparentBackground={true} hideDropZone={true} />
-                        </div>
-                        <div className="mt-4 space-y-2 w-full">
-                          {pineconeMemoryDocs.length > 0 ? (
-                            pineconeMemoryDocs.map(doc => (
-                              <FetchedFileListItem key={doc.name} file={{ name: doc.name, type: 'pinecone/document' }} showViewIcon={false} />
-                            ))
-                          ) : (<p className="text-sm text-muted-foreground">No documents found in Pinecone memory for '{pageAgentName}'.</p>)}
-                        </div>
-                      </CollapsibleSection>
-                    </div>
                   </div>
                 </TabsContent>
               </div>
