@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
           className={`p-4 sidebar-bg border-r-0 ${isMobile ? 'w-[80vw]' : 'w-64'}`}
         >
           <SheetHeader className="flex flex-row items-center justify-between -mt-2">
-            <SheetTitle className="text-lg font-semibold pl-2 mt-[10px]">River AI</SheetTitle>
+            <SheetTitle className="text-xl font-bold pl-2 mt-[10px]">River AI</SheetTitle>
             <Button onClick={onClose} variant="ghost" className="p-2 rounded-md">
               {isMobile ? (
                 <ChevronLeft className="!h-6 !w-6" />
@@ -60,14 +60,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
             </Button>
           </SheetHeader>
           <div className="px-2 mt-2 mb-2">
-            <div className="text-sm text-muted-foreground">
-              Agent <strong>{agentName || 'Loading...'}</strong>
+            <div className="text-xs text-muted-foreground">
+              Agent <span className="font-bold">{agentName || 'Loading...'}</span>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Model <strong>{selectedModel || 'Loading...'}</strong>
+            <div className="text-xs text-muted-foreground">
+              Model <span className="font-bold">{selectedModel || 'Loading...'}</span>
             </div>
           </div>
-          <div className="mt-6 flex flex-col space-y-1 -ml-2">
+          <div className="mt-10 flex flex-col space-y-1 -ml-2">
             <Button variant="ghost" className="justify-start rounded-md font-medium">
               <SquarePen className="mr-3 h-5 w-5" />
               New Chat
