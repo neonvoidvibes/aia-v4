@@ -840,18 +840,57 @@ body {
   }
 }
 
-/* iOS Safari specific fixes - more targeted approach */
+/* iOS Safari specific fixes - comprehensive approach */
 @supports (-webkit-touch-callout: none) {
-  /* Only apply safe area insets without changing positioning */
+  /* Fix Safari viewport issues */
   @media (max-width: 640px) {
+    /* Fix body height to prevent phantom bottom spacing */
+    body {
+      height: 100vh !important;
+      height: 100dvh !important; /* Use dynamic viewport height */
+      min-height: 100vh !important;
+      min-height: 100dvh !important;
+      overflow: hidden !important;
+      position: relative !important;
+    }
+    
+    /* Ensure main container uses full height without extra spacing */
+    .chat-container {
+      height: 100vh !important;
+      height: 100dvh !important;
+      max-height: 100vh !important;
+      max-height: 100dvh !important;
+      overflow: hidden !important;
+    }
+    
+    /* Fix main content area */
+    .main-content {
+      height: calc(100vh - var(--header-height)) !important;
+      height: calc(100dvh - var(--header-height)) !important;
+      max-height: calc(100vh - var(--header-height)) !important;
+      max-height: calc(100dvh - var(--header-height)) !important;
+    }
+    
     /* Add safe area padding to header for menu chevron visibility */
     header {
       padding-top: max(env(safe-area-inset-top), 0.5rem) !important;
     }
     
-    /* Add safe area padding to input area bottom */
+    /* Fix input area positioning to prevent bottom spacing */
     .input-area-container {
+      position: absolute !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
       padding-bottom: max(env(safe-area-inset-bottom), 0.5rem) !important;
+      background-color: hsl(var(--background)) !important;
+    }
+    
+    /* Adjust messages container to account for fixed input */
+    .messages-container {
+      padding-bottom: calc(var(--input-area-height) + env(safe-area-inset-bottom) + 1rem) !important;
+      height: calc(100% - var(--input-area-height) - env(safe-area-inset-bottom) - 1rem) !important;
+      overflow-y: auto !important;
     }
   }
 }
