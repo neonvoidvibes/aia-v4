@@ -765,8 +765,8 @@ body {
   align-items: center;
   /* Desktop styles */
   margin: 16px auto;
-  width: calc(100% - 32px); /* Default width for desktop */
-  max-width: 800px;
+  width: 100%; /* Use full width within constrained parent */
+  max-width: 800px; /* But never exceed this fixed width */
   position: relative;
   box-sizing: border-box; /* Ensure padding is included in width calc */
 }
@@ -1791,11 +1791,12 @@ button {
 
 /* Sidebar Styles */
 .main-content {
-  transition: transform 0.3s ease-in-out;
+  transition: transform 0.3s ease-in-out, max-width 0.3s ease-in-out;
 }
 
 .sidebar-open .main-content {
-  transform: translateX(16rem); /* 64 * 0.25rem = 256px */
+  transform: translateX(8rem); /* Center content in remaining space by shifting half sidebar width */
+  max-width: calc(100vw - 16rem); /* Constrain to remaining space */
 }
 
 .sidebar-bg {
