@@ -1221,7 +1221,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              // Handle record UI click outside
              if (showRecordUI && isBrowserRecordingRef.current && !pendingActionRef.current) {
                  const isOutsideControls = recordUIRef.current && !recordUIRef.current.contains(target);
-                 const isOutsideTrigger = statusRecordingRef.current && !statusRecordingRef.current.contains(target);
+                 // In fullscreen mode, statusRecordingRef.current is null, so we need to handle this case
+                 const isOutsideTrigger = !statusRecordingRef.current || !statusRecordingRef.current.contains(target);
                  
                  if (isOutsideControls && isOutsideTrigger) {
                      hideRecordUI();
