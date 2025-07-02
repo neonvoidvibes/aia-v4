@@ -10,6 +10,9 @@ import {
   Sidebar as SidebarIcon,
   Waves,
   LayoutGrid,
+  Pencil,
+  MessageSquare,
+  SquarePen,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,8 +33,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
         </Button>
       )}
       <Sheet open={isOpen} onOpenChange={(open) => (open ? onOpen() : onClose())}>
-        <SheetContent side="left" className="w-64 p-4 sidebar-bg">
-          <SheetHeader className="flex flex-row items-center justify-between">
+        <SheetContent side="left" className="w-64 p-4 sidebar-bg border-r-0">
+          <SheetHeader className="flex flex-row items-center justify-between -mt-2">
             <SheetTitle className="text-lg font-semibold pl-3">AIA</SheetTitle>
             <Button onClick={onClose} variant="ghost" className="p-2">
               <SidebarIcon className="h-6 w-6" />
@@ -39,24 +42,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
           </SheetHeader>
           <div className="mt-4 flex flex-col space-y-1">
             <Button variant="ghost" className="justify-start">
-              <PlusSquare className="mr-3 h-5 w-5" />
+              <SquarePen className="mr-3 h-5 w-5" />
               New Chat
             </Button>
-            <Button variant="ghost" className="justify-start" onClick={() => { setShowSettings(true); onClose(); }}>
+            <Button variant="ghost" className="justify-start" onClick={() => { setShowSettings(true); }}>
               <Settings className="mr-3 h-5 w-5" />
               Settings
             </Button>
-            <Separator className="my-2" />
-            <Button variant="ghost" className="justify-start" onClick={() => { setCurrentView('chat'); onClose(); }}>
-              <MessageCircle className="mr-3 h-5 w-5" />
+            <Separator className="my-2 bg-border/50" />
+            <Button variant="ghost" className="justify-start" onClick={() => { setCurrentView('chat'); }}>
+              <MessageSquare className="mr-3 h-5 w-5" />
               Chat
             </Button>
-            <Button variant="ghost" className="justify-start" onClick={() => { setCurrentView('transcribe'); onClose(); }}>
+            <Button variant="ghost" className="justify-start" onClick={() => { setCurrentView('transcribe'); }}>
               <Waves className="mr-3 h-5 w-5" />
               Transcribe
             </Button>
-            <Separator className="my-2" />
-            <div className="px-3 pt-2 text-sm font-medium text-muted-foreground/80">
+            <Separator className="my-2 bg-border/50" />
+            <div className="px-3 pt-4 text-sm font-medium text-muted-foreground/40">
               Saved Chats
             </div>
             {/* Placeholder for saved chats */}
