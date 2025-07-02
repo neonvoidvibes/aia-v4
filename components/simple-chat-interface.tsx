@@ -66,26 +66,26 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(
         /^\|(.+)\|\r?\n\|( *[-:]+[-| :]*)\|\r?\n((?:\|.*\|(?:\r?\n|\r|$))+)/gm,
         (match, header, separator, body) => {
-            const headerCells = header.split('|').map(h => h.trim());
+            const headerCells = header.split('|').map((h: string) => h.trim());
             // A valid header row must have at least one cell.
-            if (headerCells.length === 0 || headerCells.every(h => h === '')) return match;
+            if (headerCells.length === 0 || headerCells.every((h: string) => h === '')) return match;
 
             // Parse alignment from separator line
-            const alignments = separator.split('|').slice(1, -1).map(s => {
+            const alignments = separator.split('|').slice(1, -1).map((s: string) => {
                 const trimmed = s.trim();
                 if (trimmed.startsWith(':') && trimmed.endsWith(':')) return 'center';
                 if (trimmed.endsWith(':')) return 'right';
                 return 'left';
             });
 
-            const headerHtml = `<thead><tr>${headerCells.map((h, i) => `<th style="text-align: ${alignments[i] || 'left'}">${h}</th>`).join('')}</tr></thead>`;
+            const headerHtml = `<thead><tr>${headerCells.map((h: string, i: number) => `<th style="text-align: ${alignments[i] || 'left'}">${h}</th>`).join('')}</tr></thead>`;
 
             const rows = body.trim().split(/\r?\n/);
-            const bodyHtml = `<tbody>${rows.map(row => {
-                const cells = row.split('|').slice(1, -1).map(c => c.trim());
+            const bodyHtml = `<tbody>${rows.map((row: string) => {
+                const cells = row.split('|').slice(1, -1).map((c: string) => c.trim());
                 // Only render rows that have the same number of cells as the header
                 if (cells.length === headerCells.length) {
-                    return `<tr>${cells.map((c, i) => `<td style="text-align: ${alignments[i] || 'left'}">${c}</td>`).join('')}</tr>`;
+                    return `<tr>${cells.map((c: string, i: number) => `<td style="text-align: ${alignments[i] || 'left'}">${c}</td>`).join('')}</tr>`;
                 }
                 return ''; // Ignore malformed rows
             }).join('')}</tbody>`;
@@ -1417,7 +1417,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   )}
                                 </div>
                                 {!isSystem && (
-                                  <div className={cn( "message-actions flex", isUser ? "justify-end mr-1 mt-1" : "justify-start ml-1 -mt-2" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
+                                  <div className={cn( "message-actions flex", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-2 -mt-3" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
                                     {isUser && (
                                       <div className="flex">
                                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
