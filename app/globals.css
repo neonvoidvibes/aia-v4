@@ -1280,7 +1280,7 @@ body {
 /* Scroll to bottom button */
 .scroll-to-bottom-button {
   position: absolute;
-  bottom: 130px; /* Moved down slightly */
+  bottom: 110px; /* Moved down closer to input field */
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(128, 128, 128, 0.3); /* Fallback transparent background */
@@ -1296,8 +1296,8 @@ body {
   z-index: 20;
   transition: all 0.2s ease;
   animation: fadeIn 0.3s ease;
-  backdrop-filter: blur(4px); /* Add blur for all themes */
-  -webkit-backdrop-filter: blur(4px); /* Safari support */
+  backdrop-filter: blur(2px); /* Reduced blur for more visibility */
+  -webkit-backdrop-filter: blur(2px); /* Safari support */
 }
 /* Light mode scroll button styling */
 .light .scroll-to-bottom-button {
