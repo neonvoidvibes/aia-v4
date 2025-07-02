@@ -731,12 +731,18 @@ body {
   -webkit-overflow-scrolling: touch;
   /* Default padding (for desktop/larger screens) */
   padding: 4px 10px 1.5rem 10px;
+  /* Use same width constraint as input field - relative to container, not viewport */
+  max-width: 760px;
+  margin: 0 auto;
+  width: min(760px, calc(100% - 2rem));
 }
 /* Mobile: Add horizontal padding to match header */
 @media (max-width: 640px) {
   .messages-container {
     padding-left: 1rem; /* 16px */
     padding-right: 1rem; /* 16px */
+    max-width: calc(100% - 2rem);
+    width: calc(100% - 2rem);
   }
 }
 /* Input area container */
@@ -861,16 +867,18 @@ body {
 
 .user-bubble {
   max-width: 80%; /* Standard user max width */
-  background-color: hsl(var(--input-gray)); /* Kept !important here as it's not text color */
+  /* No background-color property at all - completely removed */
   align-self: flex-end;
-  border-radius: var(--message-radius); /* Set default radius for all corners */
-  /* No special bottom‑right override – keep uniform rounding */
+  border-radius: var(--message-radius);
   border-bottom-right-radius: var(--message-radius);
   margin-right: 8px;
-  display: inline-block; /* Makes the bubble wrap its content snugly */
-  text-align: left; /* Ensure text inside aligns left */
-  width: max-content; /* Further ensures bubble shrinks to content, constrained by max-width */
-  color: hsl(var(--user-message-text-color)); /* UPDATED to use hsl() wrapper for consistency */
+  display: inline-block;
+  text-align: left;
+  width: max-content;
+  color: hsl(var(--user-message-text-color));
+  /* Ensure messages stay within chat container, not affected by sidebar transforms */
+  position: relative;
+  box-sizing: border-box;
 }
 
 .user-bubble.with-attachment {
@@ -1579,9 +1587,9 @@ button {
 /* Ensure consistent background colors for UI elements */
 .bg-input-gray { background-color: hsl(var(--input-gray)) !important; }
 
-/* User bubble uses --input-gray background */
+/* User bubble should NOT have forced background - remove the unwanted background color */
 .user-bubble {
-  background-color: hsl(var(--input-gray)) !important;
+  /* background-color removed - let it use its natural styling */
   /* color is now handled by --user-message-text-color */
 }
 /* REMOVED Folkhemmet specific !important rule for user bubble text color */
