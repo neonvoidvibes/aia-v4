@@ -773,17 +773,15 @@ body {
 
 /* Target the actual class used in the component */
 .bg-input-gray {
-  width: min(calc(100vw - 4rem), 800px) !important; /* Default when sidebar closed */
+  width: min(768px, calc(100% - 2rem)) !important; /* Fixed max size, respects container */
   max-width: 800px !important; /* Fixed maximum width */
+  margin: 16px auto !important; /* Ensure centering */
 }
 
-/* When sidebar is open, adjust for sidebar width */
-.sidebar-open .input-container {
-  width: min(calc(100vw - 20rem), 800px); /* Account for 16rem sidebar + 4rem margins */
-}
-
+/* When sidebar is open, use identical calculation for zero resizing */
 .sidebar-open .bg-input-gray {
-  width: min(calc(100vw - 20rem), 800px) !important; /* Account for 16rem sidebar + 4rem margins */
+  width: min(768px, calc(100% - 2rem)) !important; /* Identical = zero resizing, no cut */
+  margin: 16px auto !important; /* Maintain centering */
 }
 
 /* Mobile: Use viewport-based sizing with smaller margins */
@@ -795,15 +793,13 @@ body {
   
   .bg-input-gray {
     width: min(calc(100vw - 2rem), 800px) !important; /* Viewport-based for mobile */
+    margin: 8px auto !important; /* Center on mobile */
   }
   
-  /* Mobile sidebar adjustment */
-  .sidebar-open .input-container {
-    width: min(calc(100vw - 18rem), 800px); /* Account for 16rem sidebar + 2rem margins on mobile */
-  }
-  
+  /* Mobile sidebar */
   .sidebar-open .bg-input-gray {
-    width: min(calc(100vw - 18rem), 800px) !important; /* Account for 16rem sidebar + 2rem margins on mobile */
+    width: min(calc(100vw - 18rem), 800px) !important; /* Account for mobile sidebar */
+    margin: 8px auto !important; /* Maintain centering on mobile */
   }
 }
 
