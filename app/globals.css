@@ -863,17 +863,40 @@ body {
       overflow: hidden !important;
     }
     
-    /* Fix main content area */
+    /* Fix main content area - ensure it accounts for safe areas */
     .main-content {
       height: calc(100vh - var(--header-height)) !important;
       height: calc(100dvh - var(--header-height)) !important;
       max-height: calc(100vh - var(--header-height)) !important;
       max-height: calc(100dvh - var(--header-height)) !important;
+      /* Add top padding to account for safe area and prevent content from going under notch */
+      padding-top: env(safe-area-inset-top) !important;
     }
     
-    /* Add safe area padding to header for menu chevron visibility */
+    /* Add safe area padding to header for menu chevron visibility and prevent overlap */
     header {
       padding-top: max(env(safe-area-inset-top), 0.5rem) !important;
+      /* Ensure header has proper background and z-index */
+      background-color: hsl(var(--background)) !important;
+      position: relative !important;
+      z-index: 10 !important;
+    }
+    
+    /* Fix the chat interface container to account for safe areas */
+    .flex.flex-col[style*="calc(100vh - var(--header-height) - var(--input-area-height))"] {
+      height: calc(100vh - var(--header-height) - var(--input-area-height) - env(safe-area-inset-top)) !important;
+      height: calc(100dvh - var(--header-height) - var(--input-area-height) - env(safe-area-inset-top)) !important;
+      padding-top: env(safe-area-inset-top) !important;
+    }
+    
+    /* Ensure messages container has proper top spacing */
+    .messages-container {
+      padding-top: max(env(safe-area-inset-top), 2rem) !important;
+      padding-bottom: calc(var(--input-area-height) + env(safe-area-inset-bottom) + 1rem) !important;
+      height: calc(100% - var(--input-area-height) - env(safe-area-inset-bottom) - 1rem) !important;
+      overflow-y: auto !important;
+      /* Ensure messages don't go under the notch */
+      margin-top: 0 !important;
     }
     
     /* Fix input area positioning to prevent bottom spacing */
@@ -884,13 +907,6 @@ body {
       right: 0 !important;
       padding-bottom: max(env(safe-area-inset-bottom), 0.5rem) !important;
       background-color: hsl(var(--background)) !important;
-    }
-    
-    /* Adjust messages container to account for fixed input */
-    .messages-container {
-      padding-bottom: calc(var(--input-area-height) + env(safe-area-inset-bottom) + 1rem) !important;
-      height: calc(100% - var(--input-area-height) - env(safe-area-inset-bottom) - 1rem) !important;
-      overflow-y: auto !important;
     }
   }
 }
