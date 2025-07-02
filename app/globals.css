@@ -1797,3 +1797,9 @@ button {
 .sidebar-open .main-content {
   transform: translateX(16rem); /* 64 * 0.25rem = 256px */
 }
+
+.sidebar-bg {
+  background-color: hsl(var(--background) / 0.9);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}

@@ -9,6 +9,7 @@ import {
   PlusSquare,
   Sidebar as SidebarIcon,
   Waves,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,18 +24,20 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings }) => {
   return (
     <div className={className}>
-      <Button onClick={onOpen} variant="ghost" className="p-2">
-        <SidebarIcon className="h-6 w-6" />
-      </Button>
+      {!isOpen && (
+        <Button onClick={onOpen} variant="ghost" className="p-2">
+          <LayoutGrid className="h-6 w-6" />
+        </Button>
+      )}
       <Sheet open={isOpen} onOpenChange={(open) => (open ? onOpen() : onClose())}>
-        <SheetContent side="left" className="w-64 bg-background/95 p-4">
+        <SheetContent side="left" className="w-64 p-4 sidebar-bg">
           <SheetHeader className="flex flex-row items-center justify-between">
             <SheetTitle className="text-lg font-semibold">AIA</SheetTitle>
             <Button onClick={onClose} variant="ghost" className="p-2">
-              <X className="h-5 w-5 text-muted-foreground" />
+              <LayoutGrid className="h-6 w-6" />
             </Button>
           </SheetHeader>
-          <div className="mt-8 flex flex-col space-y-4">
+          <div className="mt-4 flex flex-col space-y-2">
             <Button variant="ghost" className="justify-start">
               <PlusSquare className="mr-3 h-5 w-5" />
               New Chat

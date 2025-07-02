@@ -990,18 +990,18 @@ function HomeContent() {
   );
 
   return (
-    <div className={`w-full sm:max-w-[800px] sm:mx-auto min-h-dvh h-dvh flex flex-col overflow-hidden ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+    <div className={`min-h-dvh h-dvh flex flex-col overflow-hidden ${isSidebarOpen ? 'sidebar-open' : ''}`}>
       <Sidebar
         isOpen={isSidebarOpen}
         onOpen={() => setIsSidebarOpen(true)}
         onClose={() => setIsSidebarOpen(false)}
-        className="flex items-center"
+        className="absolute top-4 left-4 z-20"
         setCurrentView={setCurrentView}
         setShowSettings={setShowSettings}
       />
-      <div className="main-content flex flex-col flex-1">
+      <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto">
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`}>
-          <div className="flex items-center justify-between h-12">
+          <div className="flex items-center justify-center h-12">
           {!isFullscreen && (
             <ViewSwitcher 
               currentView={currentView} 
