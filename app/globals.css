@@ -1061,9 +1061,17 @@ body {
 /* Mobile: Prevent plus menu from stretching full width */
 @media (max-width: 767px) {
   .plus-menu {
-    left: 0;
-    width: auto; /* Don't stretch to full width */
-    max-width: 60px; /* Constrain width */
+    left: 0 !important;
+    width: auto !important; /* Don't stretch to full width */
+    max-width: 60px !important; /* Constrain width */
+    right: auto !important; /* Prevent stretching to right */
+  }
+  
+  /* Target the motion.div that contains the plus menu */
+  .relative .plus-menu {
+    width: auto !important;
+    max-width: 60px !important;
+    min-width: 48px !important;
   }
 }
 
