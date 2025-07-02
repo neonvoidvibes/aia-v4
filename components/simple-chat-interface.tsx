@@ -31,6 +31,7 @@ import {
   ChevronDown,
   Loader2,
   AlertTriangle, // Added for error messages
+  SquareArrowUp, // Added for save to memory
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { useMobile } from "@/hooks/use-mobile"
@@ -293,6 +294,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, []);
 
+    // State for chat history auto-save
+    const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+    const [chatTitle, setChatTitle] = useState<string | null>(null);
+
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
       isLoading, stop, setMessages, append,
@@ -330,6 +335,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
         
         addErrorMessage(displayMessage);
+      },
+      onFinish: async (message) => {
+        // Auto-save chat after each assistant response
+        if (agentName && messages.length > 0) {
+          await saveChatHistory();
+        }
       },
     });
 
@@ -410,6 +421,50 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
 
     const supabase = createClient();
+
+    // Auto-save chat history function
+    const saveChatHistory = useCallback(async () => {
+        if (!agentName || messages.length === 0) return;
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                console.warn('[Auto-save] No session available for auto-save');
+                return;
+            }
+
+            const response = await fetch('/api/chat/history/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    agent: agentName,
+                    messages: messages,
+                    chatId: currentChatId,
+                    title: chatTitle,
+                }),
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    if (!currentChatId) {
+                        setCurrentChatId(result.chatId);
+                        setChatTitle(result.title);
+                        console.info('[Auto-save] New chat created:', result.chatId, result.title);
+                    } else {
+                        console.info('[Auto-save] Chat updated:', currentChatId);
+                    }
+                }
+            } else {
+                console.error('[Auto-save] Failed to save chat:', response.statusText);
+            }
+        } catch (error) {
+            console.error('[Auto-save] Error saving chat:', error);
+        }
+    }, [agentName, messages, currentChatId, chatTitle, supabase.auth]);
 
     const messagesRef = useRef<Message[]>(messages);
     useEffect(() => { messagesRef.current = messages; }, [messages]);
@@ -567,6 +622,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
             originalHandleSubmit(e as React.FormEvent<HTMLFormElement>, { data: augmentedBody });
+            
+            // Auto-save after user message is sent
+            setTimeout(() => {
+                if (agentName) {
+                    saveChatHistory();
+                }
+            }, 100);
         }
     }, [
         input, 
@@ -582,7 +644,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         selectedModel,
         temperature,
         setAttachedFiles,
-        addErrorMessage
+        addErrorMessage,
+        saveChatHistory
     ]);
 
     const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop', payload?: any): Promise<any> => {
@@ -1315,6 +1378,54 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [handleStartRecordingSession, handleToggleBrowserPause]);
 
     const saveChat = useCallback(() => { console.info("[Save Chat] Initiated."); const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setShowPlusMenu(false); }, [messages, agentName, eventId]);
+
+    const saveChatToMemory = useCallback(async () => {
+        console.info("[Save Chat to Memory] Initiated.");
+        if (!agentName || messages.length === 0) {
+            addErrorMessage('No chat content to save to memory.');
+            setShowPlusMenu(false);
+            return;
+        }
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                addErrorMessage('Authentication required to save chat to memory.');
+                setShowPlusMenu(false);
+                return;
+            }
+
+            const response = await fetch('/api/agent/memory/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    agent: agentName,
+                    messages: messages,
+                    chatId: currentChatId,
+                    title: chatTitle || `Chat from ${new Date().toLocaleDateString()}`,
+                }),
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    console.info('[Save to Memory] Chat saved successfully:', result.memoryId);
+                    // Could show a success message here
+                } else {
+                    addErrorMessage('Failed to save chat to memory.');
+                }
+            } else {
+                addErrorMessage('Failed to save chat to memory.');
+            }
+        } catch (error) {
+            console.error('[Save to Memory] Error:', error);
+            addErrorMessage('Error saving chat to memory.');
+        }
+        setShowPlusMenu(false);
+    }, [agentName, messages, currentChatId, chatTitle, supabase.auth, addErrorMessage]);
     const attachDocument = useCallback(() => { debugLog("[Attach Document] Triggered."); fileInputRef.current?.click(); setShowPlusMenu(false); }, []);
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); debugLog("[File Change] Files attached:", newFiles.map(f=>f.name)); } if (fileInputRef.current) fileInputRef.current.value = ""; }, []);
     const removeFile = useCallback((id: string) => { debugLog("[Remove File] Removing file ID:", id); setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); }); }, []);
@@ -1573,6 +1684,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 </button>
                                 <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Save chat">
                                   <Download size={20} />
+                                </button>
+                                <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChatToMemory} title="Save to memory" disabled={messages.length === 0}>
+                                  <SquareArrowUp size={20} />
                                 </button>
                                 <button type="button" className={cn(micButtonClass, "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]", isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400")} onClick={showAndPrepareRecordingControls} title={isBrowserRecording ? (isBrowserPaused ? "Recording Paused" : "Recording Live") : "Start recording"}>
                                   <Mic size={20} />
