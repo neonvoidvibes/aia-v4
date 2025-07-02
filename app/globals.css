@@ -840,6 +840,42 @@ body {
   }
 }
 
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari input positioning fix */
+  @media (max-width: 640px) {
+    .input-area-container {
+      position: fixed !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      z-index: 1000 !important;
+      background-color: hsl(var(--background)) !important;
+      padding-bottom: env(safe-area-inset-bottom) !important;
+    }
+    
+    .bg-input-gray {
+      margin: 8px auto 8px auto !important;
+    }
+    
+    /* Ensure messages container accounts for fixed input */
+    .messages-container {
+      padding-bottom: calc(var(--input-area-height) + env(safe-area-inset-bottom) + 1rem) !important;
+    }
+  }
+  
+  /* iOS Safari header fix for menu chevron visibility */
+  @media (max-width: 640px) {
+    header {
+      padding-top: env(safe-area-inset-top) !important;
+      background-color: hsl(var(--background)) !important;
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+    }
+  }
+}
+
 
 /* Input field inherits text color */
 .input-container input {
