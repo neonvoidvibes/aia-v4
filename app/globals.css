@@ -1047,12 +1047,40 @@ body {
   left: 0;
   padding: 8px 0;
   flex-direction: column; /* Stack icons vertically */
+  min-width: 48px; /* Ensure adequate width on desktop */
+}
+
+/* Desktop: Position plus menu closer to plus icon */
+@media (min-width: 768px) {
+  .plus-menu {
+    left: -8px; /* Move closer to plus icon */
+    min-width: 48px; /* Adequate width, not minimal */
+  }
+}
+
+/* Mobile: Prevent plus menu from stretching full width */
+@media (max-width: 767px) {
+  .plus-menu {
+    left: 0;
+    width: auto; /* Don't stretch to full width */
+    max-width: 60px; /* Constrain width */
+  }
 }
 
 .record-ui {
   left: -12px; /* Shift further left */
   padding: 8px 12px;
   gap: 8px;
+}
+
+/* Mobile: Prevent record UI from stretching outside screen */
+@media (max-width: 767px) {
+  .record-ui {
+    left: -8px; /* Less aggressive left shift on mobile */
+    right: auto; /* Don't stretch to right edge */
+    width: auto; /* Don't take full width */
+    max-width: calc(100vw - 32px); /* Stay within screen bounds */
+  }
 }
 
 /* Popup menu items */
@@ -1907,7 +1935,7 @@ button {
   display: flex;
   gap: 4px; /* Spacing between dots */
   align-items: center;
-  padding-left: 10px; /* Align with AI bubble */
+  padding-left: 6px; /* Reduced from 10px to move a few pixels left */
 }
 
 .thinking-dot {
@@ -1983,7 +2011,7 @@ button {
 /* Sidebar font styling to match user and assistant messages */
 .sidebar-bg button {
   font-size: 17px; /* Match body font size */
-  font-weight: 300; /* Match body font weight */
+  font-weight: 300; /* Match body font weight - same as chat messages */
   line-height: 1.6; /* Match body line height */
 }
 
@@ -1991,7 +2019,7 @@ button {
 @media (max-width: 640px) {
   .sidebar-bg button {
     font-size: 19px; /* Match mobile body font size */
-    font-weight: 400; /* Match mobile body font weight */
+    font-weight: 300; /* Match mobile body font weight - same as chat messages */
   }
 }
 
