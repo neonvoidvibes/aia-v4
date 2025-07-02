@@ -1190,20 +1190,23 @@ body {
 
 /* --- Settings Dialog --- */
 .fixed-dialog {
-  width: 750px !important; /* Increased width */
+  width: 750px !important;
   max-width: 90vw !important;
   overflow: hidden !important;
-  top: 80px !important; /* Position from top */
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  margin: 0 !important;
-  max-height: calc(100vh - 120px); /* Max height relative to viewport */
+  display: flex !important;
+  flex-direction: column !important;
 }
-/* Dialog Content */
-.fixed-dialog > div[role="dialog"] {
-  max-height: 100%; /* Allow content to fill dialog */
-  display: flex;
-  flex-direction: column;
+
+/* Mobile Settings Dialog - Enable proper scrolling */
+@media (max-width: 768px) {
+  .fixed-dialog {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    height: 85vh !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
 }
 /* Tabs List Background */
 .fixed-dialog .tabs-list-container { /* Add a wrapper if needed or target Shadcn's list directly */
@@ -1219,12 +1222,45 @@ body {
 .tab-content-wrapper {
   /* This container now handles master scrolling via classes in page.tsx */
   /* scrollbar styles are applied there too */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+
+/* Tab Content Area - Enable scrolling */
+.tab-content-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Mobile Tab Content - Ensure scrolling works */
+@media (max-width: 768px) {
+  .tab-content-wrapper {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+}
+
 .tab-content-scrollable {
-  /* This class is on TabsContent. It should no longer scroll. */
-  overflow-x: hidden; /* Still useful to prevent horizontal overflow */
-  width: 100%; /* Ensure it takes full width of its parent */
+  /* This class is on TabsContent. Let parent handle scrolling. */
+  overflow-x: hidden;
+  width: 100%;
+  height: auto;
 }
+
+/* Mobile Tab Content Scrollable */
+@media (max-width: 768px) {
+  .tab-content-scrollable {
+    overflow-y: visible !important; /* Let parent handle scrolling */
+    height: auto !important;
+  }
+}
+
 
 /*
   CSS rules for .document-upload-card transparency in settings dialog
@@ -1671,8 +1707,6 @@ button {
     overflow-y: visible !important; /* Ensure parent scrolls */
   }
   .document-upload-container { max-height: none !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
-  .fixed-dialog { max-height: 80vh !important; overflow: hidden !important; }
-  .tab-content-wrapper { max-height: 70vh !important; overflow: hidden !important; }
   .memory-tab-content.has-open-section {
       /* This rule's max-height might conflict or be redundant if .tab-content-inner.tab-content-scrollable controls height.
          Let's keep it for now, but it might need adjustment based on testing.
