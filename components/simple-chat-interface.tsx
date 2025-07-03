@@ -917,13 +917,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     wsToClose.send(JSON.stringify({ action: "stop_stream" }));
                 }
                 
-                if (wsToClose.readyState !== WebSocket.CLOSED && wsToClose.readyState !== WebSocket.CLOSING) {
-                     debugLog(`[Stop Recording] WebSocket: Closing client-side connection (current state: ${wsToClose.readyState}).`);
-                     try { wsToClose.close(1000, "Client user stopped recording"); } catch(err){ console.warn("[Stop Recording] Error during ws.close():", err); if (wsStatus !== 'error') setWsStatus('idle'); wsRef.current = null;}
-                } else { 
-                     if (wsRef.current === wsToClose) wsRef.current = null; 
-                     if (wsStatus !== 'error') setWsStatus('idle');
-                }
+                // Give a brief moment for the message to be sent before closing
+                setTimeout(() => {
+                    if (wsToClose.readyState !== WebSocket.CLOSED && wsToClose.readyState !== WebSocket.CLOSING) {
+                        debugLog(`[Stop Recording] WebSocket: Closing client-side connection (current state: ${wsToClose.readyState}).`);
+                        try { wsToClose.close(1000, "Client user stopped recording"); } catch(err){ console.warn("[Stop Recording] Error during ws.close():", err); if (wsStatus !== 'error') setWsStatus('idle'); wsRef.current = null;}
+                    } else { 
+                        if (wsRef.current === wsToClose) wsRef.current = null; 
+                        if (wsStatus !== 'error') setWsStatus('idle');
+                    }
+                }, 100);
             } else {
                 setWsStatus('idle'); 
             }
