@@ -7,6 +7,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress"; // Added Progress import
 import { cn } from '@/lib/utils';
 
+const truncateString = (str: string, maxLength: number) => {
+  if (str.length <= maxLength) {
+    return str;
+  }
+  return str.substring(0, maxLength) + '... (truncated)';
+};
+
 interface WhisperSegment {
   id: number;
   seek: number;
@@ -423,7 +430,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     // Get transcription language setting
     const transcriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "en";
     formData.append('transcription_language', transcriptionLanguage);
-    logger.info(`FullFileTranscriber: Sending transcription_language: ${transcriptionLanguage}`);
+    console.info(`FullFileTranscriber: Sending transcription_language: ${transcriptionLanguage}`);
 
     try {
       const response = await fetch('/api/transcribe-audio', {
@@ -432,7 +439,13 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       });
 
       const data = await response.json();
-      console.log("[FullFileTranscriber] Received data from /api/transcribe-audio:", JSON.stringify(data, null, 2));
+      // Truncate transcript for logging to avoid excessively long console outputs
+      const loggableData = {
+        transcript: data.transcript ? truncateString(data.transcript, 200) : data.transcript,
+        // Segments are intentionally excluded from logs to avoid excessively long console outputs.
+        // They are still stored in state and local storage for functionality (e.g., download).
+      };
+      console.log("[FullFileTranscriber] Received data from /api/transcribe-audio:", JSON.stringify(loggableData, null, 2));
 
       if (!response.ok) {
         throw new Error(data.error || data.message || data.details || `Transcription failed with status ${response.status}`);
