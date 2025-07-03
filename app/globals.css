@@ -1821,6 +1821,25 @@ button {
 
 .plus-menu-item { color: hsl(var(--text-secondary)); }
 .plus-menu-item:hover { color: hsl(var(--text-primary)); }
+
+/* Disabled bookmark button styles - higher specificity */
+.plus-menu-item.opacity-50 {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+.plus-menu-item.opacity-50:hover {
+  color: hsl(var(--text-secondary)) !important; /* Prevent hover color change when disabled */
+  opacity: 0.5 !important;
+}
+
+.action-button.opacity-50 {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+.action-button.opacity-50:hover {
+  color: hsl(var(--icon-secondary)) !important; /* Prevent hover color change when disabled */
+  opacity: 0.5 !important;
+}
 .scroll-to-bottom-button { background-color: hsl(var(--input-gray)); color: hsl(var(--text-secondary)); }
 .scroll-to-bottom-button:hover { background-color: hsl(var(--input-gray)); filter: brightness(0.95); }
 
