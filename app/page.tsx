@@ -1162,6 +1162,7 @@ function HomeContent() {
                 active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
                 pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
             })}
+            onChatIdChange={setCurrentChatId}
           />
         </div>
         {currentView === "transcribe" && (

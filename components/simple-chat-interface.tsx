@@ -175,6 +175,7 @@ interface SimpleChatInterfaceProps {
     active_canvas_insights?: string; // JSON string
     pinned_canvas_insights?: string; // JSON string
   };
+  onChatIdChange?: (chatId: string | null) => void; // New prop to notify parent of chat ID changes
 }
 
 export interface ChatInterfaceHandle {
@@ -210,7 +211,7 @@ const formatThoughtDuration = (totalSeconds: number): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, getCanvasContext }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, getCanvasContext, onChatIdChange }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -328,6 +329,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // State for chat history auto-save
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
     const [chatTitle, setChatTitle] = useState<string | null>(null);
+
+    // Notify parent when chat ID changes
+    useEffect(() => {
+        if (onChatIdChange) {
+            onChatIdChange(currentChatId);
+        }
+    }, [currentChatId, onChatIdChange]);
 
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
