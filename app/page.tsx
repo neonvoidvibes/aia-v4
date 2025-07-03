@@ -133,6 +133,9 @@ function HomeContent() {
   const [showForgetConfirmModal, setShowForgetConfirmModal] = useState(false);
   const [memoryToForget, setMemoryToForget] = useState<{ id: string, summary: string } | null>(null);
 
+  // State for tracking current chat ID
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+
   // State to track S3 keys of files currently being processed (saved to memory or archived)
   const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
   const [fileActionTypes, setFileActionTypes] = useState<Record<string, 'saving_to_memory' | 'archiving'>>({});
@@ -327,13 +330,21 @@ function HomeContent() {
       } else {
           console.log("No messages, calling startNewChat directly");
           chatInterfaceRef.current?.startNewChat();
+          setCurrentChatId(null);
       }
   };
 
   const confirmAndStartNewChat = () => {
       console.log("Modal confirmed, calling startNewChat via ref");
       chatInterfaceRef.current?.startNewChat();
+      setCurrentChatId(null);
       setShowNewChatConfirm(false);
+  };
+
+  const handleNewChatFromSidebar = () => {
+      console.log("New chat requested from sidebar");
+      chatInterfaceRef.current?.startNewChat();
+      setCurrentChatId(null);
   };
 
   const cancelNewChat = () => {
@@ -1096,12 +1107,14 @@ function HomeContent() {
         setShowSettings={setShowSettings}
         agentName={pageAgentName || undefined}
         selectedModel={selectedModel}
-        onNewChat={handleNewChatRequest}
+        onNewChat={handleNewChatFromSidebar}
         onLoadChat={(chatId: string) => {
           if (chatInterfaceRef.current) {
             chatInterfaceRef.current.loadChatHistory(chatId);
+            setCurrentChatId(chatId);
           }
         }}
+        currentChatId={currentChatId || undefined}
       />
       
       {/* Fullscreen recording timer - positioned at very far right, outside chat container */}

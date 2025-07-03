@@ -52,9 +52,10 @@ interface SidebarProps {
   selectedModel?: string;
   onNewChat?: () => void;
   onLoadChat?: (chatId: string) => void;
+  currentChatId?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel, onNewChat, onLoadChat }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel, onNewChat, onLoadChat, currentChatId }) => {
   const isMobile = useIsMobile();
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -107,6 +108,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
 
         if (response.ok) {
             setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
+            
+            // If the deleted chat is the currently active chat, start a new chat
+            if (chatIdToDelete === currentChatId && onNewChat) {
+                onNewChat();
+            }
         } else {
             console.error('Failed to delete chat history');
         }
@@ -127,7 +133,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
   const handleLoadChat = (chatId: string) => {
     if (onLoadChat) {
       onLoadChat(chatId);
-      onClose(); // Close sidebar on mobile after selecting chat
+      // Only close sidebar on mobile after selecting chat
+      if (isMobile) {
+        onClose();
+      }
     }
   };
 
