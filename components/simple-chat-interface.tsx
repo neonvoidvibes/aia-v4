@@ -423,8 +423,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const supabase = createClient();
 
     // Auto-save chat history function - saves complete conversation
-    const saveChatHistory = useCallback(async () => {
-        if (!agentName || messages.length === 0) return;
+    const saveChatHistory = useCallback(async (messagesToSave?: Message[]) => {
+        const currentMessages = messagesToSave || messages;
+        if (!agentName || currentMessages.length === 0) return;
+
+        console.info('[Auto-save] Saving chat with', currentMessages.length, 'messages');
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -441,7 +444,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 },
                 body: JSON.stringify({
                     agent: agentName,
-                    messages: messages, // Always save the complete conversation
+                    messages: currentMessages, // Always save the complete conversation
                     chatId: currentChatId,
                     title: chatTitle,
                 }),
@@ -456,7 +459,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         setChatTitle(result.title);
                         console.info('[Auto-save] New chat created:', result.chatId, result.title);
                     } else {
-                        console.info('[Auto-save] Chat updated with all messages:', result.chatId);
+                        console.info('[Auto-save] Chat updated with all messages:', result.chatId, 'Total messages saved:', currentMessages.length);
                     }
                 }
             } else {
@@ -469,6 +472,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const messagesRef = useRef<Message[]>(messages);
     useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+    // Auto-save whenever messages change (with debouncing)
+    useEffect(() => {
+        if (messages.length > 0 && agentName) {
+            const timeoutId = setTimeout(() => {
+                saveChatHistory();
+            }, 500); // Debounce to avoid too frequent saves
+            
+            return () => clearTimeout(timeoutId);
+        }
+    }, [messages, agentName, saveChatHistory]);
     useEffect(() => {
       if (filesForNextMessageRef.current.length > 0) {
         const lastMsg = messagesRef.current[messagesRef.current.length - 1];
