@@ -16,6 +16,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { createClient } from '@/utils/supabase/client';
+
+// Utility for development-only logging
+const debugLog = (...args: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[RecordView DEBUG]', ...args);
+  }
+};
 
 type GlobalRecordingStatus = {
   type: 'transcript' | 'recording' | null;
@@ -49,13 +57,35 @@ const RecordView: React.FC<RecordViewProps> = ({
 }) => {
   const [finishedRecordings, setFinishedRecordings] = useState<FinishedRecording[]>([]);
   const [isEmbedding, setIsEmbedding] = useState<Record<string, boolean>>({});
-  const [isStopping, setIsStopping] = useState(false);
   const [recordingToDelete, setRecordingToDelete] = useState<FinishedRecording | null>(null);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const webSocketRef = useRef<WebSocket | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
   const isPineconeEnabled = agentCapabilities.pinecone_index_exists;
+
+  // --- Robust WebSocket and State Management ---
+  const [wsStatus, setWsStatus] = useState<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'start' | 'stop' | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const webSocketRef = useRef<WebSocket | null>(null);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const reconnectAttemptsRef = useRef(0);
+  const isStoppingRef = useRef(false);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const tryReconnectRef = React.useRef<() => void>(() => {});
+  const supabase = createClient();
+
+  // Industry-standard reconnection and heartbeat parameters
+  const MAX_RECONNECT_ATTEMPTS = 10;
+  const RECONNECT_DELAY_BASE_MS = 2500;
+  const HEARTBEAT_INTERVAL_MS = 25000;
+  const PONG_TIMEOUT_MS = 10000;
+  const MAX_HEARTBEAT_MISSES = 2;
+  const heartbeatMissesRef = useRef(0);
 
   useEffect(() => {
     if (agentName) {
@@ -86,182 +116,399 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
   };
 
-  const handleStartRecording = async () => {
+  const resetRecordingStates = useCallback(() => {
+    debugLog("[Resetting States] Initiated.");
+    isStoppingRef.current = true;
+
+    stopTimer();
+    setGlobalRecordingStatus({ type: null, isRecording: false, isPaused: false, time: 0, sessionId: null });
+    setWsStatus('idle');
+    setIsReconnecting(false);
+
+    // Clear all timers and intervals
+    if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+    if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+    heartbeatIntervalRef.current = null;
+    pongTimeoutRef.current = null;
+    reconnectTimeoutRef.current = null;
+
+    // Reset counters
+    reconnectAttemptsRef.current = 0;
+    heartbeatMissesRef.current = 0;
+
+    // Cleanup WebSocket
+    if (webSocketRef.current) {
+      const ws = webSocketRef.current;
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        (ws as any).__intentionalClose = true;
+        ws.close(1000, "Client resetting states");
+      }
+      webSocketRef.current = null;
+    }
+
+    // Cleanup MediaRecorder
+    if (mediaRecorderRef.current) {
+      const mr = mediaRecorderRef.current;
+      mr.ondataavailable = null;
+      mr.onstop = null;
+      mr.onerror = null;
+      if (mr.state !== "inactive") {
+        try { mr.stop(); } catch (e) { console.warn("[Reset] Error stopping MediaRecorder:", e); }
+      }
+      mediaRecorderRef.current = null;
+    }
+
+    // Cleanup AudioStream
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => track.stop());
+      audioStreamRef.current = null;
+    }
+    
+    if (pendingAction === 'start') {
+      setPendingAction(null);
+    }
+    
+    isStoppingRef.current = false;
+    debugLog("[Resetting States] Finished.");
+  }, [setGlobalRecordingStatus, pendingAction]);
+
+  const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop' | 'pause' | 'resume', payload?: any): Promise<any> => {
+    debugLog(`[HTTP API] Action: ${action}, Payload:`, payload);
     if (!agentName) {
-      toast.error("Agent not selected. Cannot start recording.");
+      toast.error(`Cannot ${action} recording. Agent not set.`);
+      return { success: false, error: "Agent not set" };
+    }
+
+    try {
+      const response = await fetch(`/api/audio-recording-proxy?action=${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, agent: agentName }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || `Failed action '${action}'`);
+      
+      console.info(`[HTTP API] '${action}' successful.`);
+      return { success: true, data };
+    } catch (error: any) {
+      console.error(`[HTTP API] Error (${action}):`, error);
+      toast.error(`Failed to ${action} recording: ${error?.message}`);
+      return { success: false, error: error?.message };
+    }
+  }, [agentName]);
+
+  const handleStopRecording = useCallback(async (e?: React.MouseEvent, dueToError: boolean = false) => {
+    e?.stopPropagation();
+    const { sessionId } = globalRecordingStatus;
+    if (!sessionId || pendingAction === 'stop') return;
+
+    debugLog(`[Stop Recording] Initiated. Error: ${dueToError}, Session: ${sessionId}`);
+    setPendingAction('stop');
+    reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS + 1; // Prevent reconnects
+    setIsReconnecting(false);
+    stopTimer();
+
+    // 1. Stop MediaRecorder
+    if (mediaRecorderRef.current) {
+      const recorder = mediaRecorderRef.current;
+      recorder.onstop = () => {
+        debugLog("[Stop] MediaRecorder.onstop executed.");
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach(track => track.stop());
+          audioStreamRef.current = null;
+        }
+      };
+      if (recorder.state !== "inactive") {
+        recorder.stop();
+      } else {
+        recorder.onstop(new Event('manual_stop'));
+      }
+    }
+
+    // 2. Notify server and close WebSocket
+    if (webSocketRef.current) {
+      const ws = webSocketRef.current;
+      (ws as any).__intentionalClose = true;
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: "stop_stream" }));
+      }
+      // Give a brief moment for the message to be sent before closing
+      setTimeout(() => {
+        if (ws.readyState !== WebSocket.CLOSED) {
+          ws.close(1000, "Client-initiated stop");
+        }
+      }, 100);
+    }
+
+    // 3. Finalize via HTTP
+    const result = await callHttpRecordingApi('stop', { session_id: sessionId });
+    if (result.success) {
+      const newRecording: FinishedRecording = {
+        s3Key: result.data.s3Key,
+        filename: result.data.s3Key.split('/').pop()!,
+        agentName: agentName!,
+        timestamp: new Date().toISOString(),
+      };
+      setFinishedRecordings(prev => {
+        const updated = [newRecording, ...prev];
+        saveRecordingsToLocalStorage(updated);
+        return updated;
+      });
+      toast.success("Recording stopped and saved.");
+    } else if (!dueToError) {
+      toast.error(`Could not properly stop recording session: ${result.error || ''}`);
+    }
+
+    // 4. Reset State
+    setGlobalRecordingStatus({ type: null, isRecording: false, isPaused: false, time: 0, sessionId: null });
+    setPendingAction(null);
+    debugLog("[Stop Recording] Finished.");
+  }, [globalRecordingStatus, pendingAction, callHttpRecordingApi, agentName]);
+
+  const startBrowserMediaRecording = useCallback(async () => {
+    debugLog(`[MediaRecorder] Attempting start. WS state: ${webSocketRef.current?.readyState}`);
+    if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) {
+      toast.error('Cannot start microphone. Stream not ready.');
+      if (pendingAction === 'start') setPendingAction(null);
       return;
     }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        // @ts-ignore
+        delete options.mimeType;
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && webSocketRef.current?.readyState === WebSocket.OPEN) {
+          webSocketRef.current.send(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        debugLog("[MediaRecorder] onstop triggered.");
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach(track => track.stop());
+          audioStreamRef.current = null;
+        }
+      };
+      
+      mediaRecorder.onerror = (event) => {
+        console.error("[MediaRecorder] Error:", event);
+        toast.error('Microphone recording error.');
+        // Full stop due to unrecoverable error
+        handleStopRecording(undefined, true);
+      };
+
+      mediaRecorder.start(3000); // Send data every 3 seconds
+      console.info("[MediaRecorder] Started.");
+      setGlobalRecordingStatus(prev => ({ ...prev, isRecording: true, isPaused: false }));
+      startTimer();
+      if (pendingAction === 'start') setPendingAction(null);
+
+    } catch (err) {
+      console.error("[MediaRecorder] Error getting user media:", err);
+      toast.error('Could not access microphone. Please check permissions.');
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(track => track.stop());
+        audioStreamRef.current = null;
+      }
+      setWsStatus('error');
+      if (pendingAction === 'start') setPendingAction(null);
+    }
+  }, [pendingAction, setGlobalRecordingStatus, handleStopRecording]);
+
+  const connectWebSocket = useCallback((sessionId: string) => {
+    debugLog(`[WebSocket] Connecting for session: ${sessionId}`);
+    if (webSocketRef.current && (webSocketRef.current.readyState === WebSocket.OPEN || webSocketRef.current.readyState === WebSocket.CONNECTING)) {
+      console.warn(`[WebSocket] Already open or connecting.`);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.access_token) {
+        toast.error('Authentication error. Cannot start recording stream.');
+        setWsStatus('error');
+        if (pendingAction === 'start') setPendingAction(null);
+        return;
+      }
+
+      setWsStatus('connecting');
+      const backendHost = (process.env.NEXT_PUBLIC_BACKEND_API_URL || '').replace(/^http/, 'ws');
+      const wsUrl = `${backendHost}/ws/audio_stream/${sessionId}?token=${session.access_token}`;
+      
+      const newWs = new WebSocket(wsUrl);
+      webSocketRef.current = newWs;
+      (newWs as any).__intentionalClose = false;
+
+      newWs.onopen = () => {
+        if (webSocketRef.current !== newWs) return; // Stale connection
+        console.info(`[WebSocket] Connection open. Reconnecting: ${isReconnecting}`);
+        setWsStatus('open');
+        
+        // Reset heartbeat on new connection
+        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+        heartbeatMissesRef.current = 0;
+        
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
+            if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+              newWs.close(1000, "Heartbeat timeout");
+              return;
+            }
+            newWs.send(JSON.stringify({action: 'ping'}));
+            pongTimeoutRef.current = setTimeout(() => {
+              heartbeatMissesRef.current++;
+              if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+                newWs.close(1000, "Heartbeat timeout");
+              }
+            }, PONG_TIMEOUT_MS);
+          }
+        }, HEARTBEAT_INTERVAL_MS);
+        
+        if (isReconnecting) {
+          if (mediaRecorderRef.current?.state === "paused") {
+            mediaRecorderRef.current.resume();
+            setGlobalRecordingStatus(prev => ({ ...prev, isPaused: false }));
+          }
+        } else {
+          startBrowserMediaRecording();
+        }
+      };
+
+      newWs.onmessage = (event) => {
+        try {
+          const messageData = JSON.parse(event.data);
+          if (messageData.type === 'pong') {
+            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+            heartbeatMissesRef.current = 0;
+            if (isReconnecting) {
+              setIsReconnecting(false);
+              reconnectAttemptsRef.current = 0;
+              toast.success("Connection re-established.");
+            }
+          }
+        } catch (e) { /* Non-JSON message */ }
+      };
+
+      newWs.onerror = (event) => {
+        console.error(`[WebSocket] Error:`, event);
+        if (webSocketRef.current === newWs) {
+          toast.error('Recording stream connection failed.');
+          setWsStatus('error');
+        }
+      };
+
+      newWs.onclose = (event) => {
+        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+
+        if (webSocketRef.current === newWs) {
+          const intentional = (newWs as any).__intentionalClose || pendingAction === 'stop';
+          setWsStatus('closed');
+          webSocketRef.current = null;
+          if (!intentional && globalRecordingStatus.isRecording) {
+            if (mediaRecorderRef.current?.state === "recording") {
+              mediaRecorderRef.current.pause();
+              setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
+            }
+            if (!isReconnecting) {
+              setIsReconnecting(true);
+              reconnectAttemptsRef.current = 0;
+              tryReconnectRef.current();
+            } else {
+              tryReconnectRef.current();
+            }
+          }
+        }
+      };
+    });
+  }, [isReconnecting, supabase.auth, startBrowserMediaRecording, setGlobalRecordingStatus, pendingAction, globalRecordingStatus.isRecording]);
+
+  const tryReconnect = useCallback(() => {
+    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+      toast.error('Failed to reconnect. Please stop and start recording again.');
+      resetRecordingStates();
+      return;
+    }
+    reconnectAttemptsRef.current++;
+    const attempt = reconnectAttemptsRef.current;
+    toast.info(`Connection lost. Paused. Reconnecting (${attempt}/${MAX_RECONNECT_ATTEMPTS})...`);
+    
+    const delay = (RECONNECT_DELAY_BASE_MS * Math.pow(2, attempt - 1)) + (Math.random() * 1000);
+    reconnectTimeoutRef.current = setTimeout(() => {
+      const sessionId = globalRecordingStatus.sessionId;
+      if (sessionId) {
+        connectWebSocket(sessionId);
+      } else {
+        toast.error("Cannot reconnect: session info lost.");
+        resetRecordingStates();
+      }
+    }, delay);
+  }, [resetRecordingStates, connectWebSocket, globalRecordingStatus.sessionId]);
+
+  useEffect(() => {
+    tryReconnectRef.current = tryReconnect;
+  }, [tryReconnect]);
+
+  const handleStartRecording = async () => {
+    if (!agentName || pendingAction || globalRecordingStatus.isRecording) return;
     if (isTranscriptRecordingActive) {
       toast.error("A chat transcript is already being recorded. Please stop it first.");
       return;
     }
+    
+    setPendingAction('start');
+    resetRecordingStates(); // Ensure clean state before starting
 
-    try {
-      const response = await fetch('/api/audio-recording-proxy?action=start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: agentName, transcriptionLanguage: 'any' }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        const sessionId = data.session_id;
-        setGlobalRecordingStatus({
-          type: 'recording',
-          isRecording: true,
-          isPaused: false,
-          time: 0,
-          sessionId: sessionId,
-        });
-        startTimer();
-        await setupMediaRecorder(sessionId);
-        toast.success("Recording started.");
-      } else {
-        throw new Error(data.message || "Failed to start recording.");
-      }
-    } catch (error) {
-      console.error("Error starting recording:", error);
-      toast.error((error as Error).message);
-    }
-  };
-
-  const setupMediaRecorder = async (sessionId: string) => {
-    try {
-      const { createClient } = await import('@/utils/supabase/client');
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        toast.error("Authentication error. Cannot start recording.");
-        return;
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorderRef.current = mediaRecorder;
-
-      const wsUrl = (process.env.NEXT_PUBLIC_BACKEND_API_URL || '').replace(/^http/, 'ws');
-      const webSocket = new WebSocket(`${wsUrl}/ws/audio_stream/${sessionId}?token=${session.access_token}`);
-      webSocketRef.current = webSocket;
-
-      webSocket.onopen = () => {
-        mediaRecorder.start(3000); // Send data every 3 seconds
-      };
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && webSocket.readyState === WebSocket.OPEN) {
-          webSocket.send(event.data);
-        }
-      };
-
-      webSocket.onclose = () => {
-        if (mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
-      };
-
-    } catch (error) {
-      console.error("Error setting up media recorder:", error);
-      toast.error("Could not start recording. Please check microphone permissions.");
+    const result = await callHttpRecordingApi('start', { transcriptionLanguage: 'any' });
+    if (result.success && result.data?.session_id) {
+      const sessionId = result.data.session_id;
+      setGlobalRecordingStatus({ type: 'recording', isRecording: false, isPaused: false, time: 0, sessionId });
+      connectWebSocket(sessionId);
+      toast.success("Recording session initiated.");
+    } else {
+      setPendingAction(null);
     }
   };
 
   const handlePauseRecording = async () => {
-    if (!globalRecordingStatus.sessionId) return;
-
-    stopTimer();
-    try {
-      const response = await fetch('/api/audio-recording-proxy?action=pause', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: globalRecordingStatus.sessionId }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
-        toast.info("Recording paused.");
-      } else {
-        throw new Error(data.message || "Failed to pause recording.");
-      }
-    } catch (error) {
-      console.error("Error pausing recording:", error);
-      toast.error((error as Error).message);
+    if (!globalRecordingStatus.isRecording || globalRecordingStatus.isPaused) return;
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.pause();
     }
+    stopTimer();
+    setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
+    toast.info("Recording paused.");
+    // Optionally, notify backend about pause
+    // await callHttpRecordingApi('pause', { session_id: globalRecordingStatus.sessionId });
   };
 
   const handleResumeRecording = async () => {
-    if (!globalRecordingStatus.sessionId) return;
-
-    try {
-      const response = await fetch('/api/audio-recording-proxy?action=resume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: globalRecordingStatus.sessionId }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setGlobalRecordingStatus(prev => ({ ...prev, isPaused: false }));
-        startTimer();
-        toast.success("Recording resumed.");
-      } else {
-        throw new Error(data.message || "Failed to resume recording.");
-      }
-    } catch (error) {
-      console.error("Error resuming recording:", error);
-      toast.error((error as Error).message);
+    if (!globalRecordingStatus.isRecording || !globalRecordingStatus.isPaused) return;
+    if (mediaRecorderRef.current?.state === "paused") {
+      mediaRecorderRef.current.resume();
     }
+    startTimer();
+    setGlobalRecordingStatus(prev => ({ ...prev, isPaused: false }));
+    toast.success("Recording resumed.");
+    // Optionally, notify backend about resume
+    // await callHttpRecordingApi('resume', { session_id: globalRecordingStatus.sessionId });
   };
 
-  const handleStopRecording = async () => {
-    if (!globalRecordingStatus.sessionId || isStopping) return;
-
-    setIsStopping(true);
-    stopTimer();
-
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-
-    if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
-      webSocketRef.current.close(1000, "Client-initiated stop");
-    }
-
-    // Wait a moment for the last audio chunk to be sent
-    setTimeout(async () => {
-      await performStopRecording();
-      setIsStopping(false);
-    }, 500);
-  };
-
-  const performStopRecording = async () => {
-    if (!globalRecordingStatus.sessionId) return;
-    try {
-      const response = await fetch('/api/audio-recording-proxy?action=stop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: globalRecordingStatus.sessionId }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        const newRecording: FinishedRecording = {
-          s3Key: data.s3Key,
-          filename: data.s3Key.split('/').pop()!,
-          agentName: agentName!,
-          timestamp: new Date().toISOString(),
-        };
-        const updatedRecordings = [newRecording, ...finishedRecordings];
-        setFinishedRecordings(updatedRecordings);
-        saveRecordingsToLocalStorage(updatedRecordings);
-        toast.success("Recording stopped and saved.");
-      } else {
-        throw new Error(data.message || "Failed to stop recording.");
-      }
-    } catch (error) {
-      console.error("Error stopping recording:", error);
-      toast.error((error as Error).message);
-    } finally {
-        setGlobalRecordingStatus({ type: null, isRecording: false, isPaused: false, time: 0, sessionId: null });
-    }
-  };
 
   const handleEmbedRecording = async (s3Key: string) => {
     if (!agentName) return;
@@ -293,20 +540,15 @@ const RecordView: React.FC<RecordViewProps> = ({
 
   const handleDeleteRecording = async () => {
     if (!recordingToDelete || !agentName) return;
-
     try {
       const response = await fetch('/api/recordings/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ s3Key: recordingToDelete.s3Key, agentName }),
       });
-
       const data = await response.json();
-
       if (response.ok) {
-        const updatedRecordings = finishedRecordings.filter(
-          (rec) => rec.s3Key !== recordingToDelete.s3Key
-        );
+        const updatedRecordings = finishedRecordings.filter(rec => rec.s3Key !== recordingToDelete.s3Key);
         setFinishedRecordings(updatedRecordings);
         saveRecordingsToLocalStorage(updatedRecordings);
         toast.success(`Deleted recording: ${recordingToDelete.filename}`);
@@ -329,18 +571,19 @@ const RecordView: React.FC<RecordViewProps> = ({
     toast.info("Cleared recordings from the list.");
   };
 
-  const isRecording = globalRecordingStatus.type === 'recording' && globalRecordingStatus.isRecording;
-  const isPaused = isRecording && globalRecordingStatus.isPaused;
-
   const handlePlayPauseClick = () => {
-    if (!isRecording) {
+    if (!globalRecordingStatus.isRecording) {
       handleStartRecording();
-    } else if (isPaused) {
+    } else if (globalRecordingStatus.isPaused) {
       handleResumeRecording();
     } else {
       handlePauseRecording();
     }
   };
+
+  const isRecording = globalRecordingStatus.type === 'recording' && globalRecordingStatus.isRecording;
+  const isPaused = isRecording && globalRecordingStatus.isPaused;
+  const isStopping = pendingAction === 'stop';
 
   return (
     <AlertDialog>
@@ -350,44 +593,51 @@ const RecordView: React.FC<RecordViewProps> = ({
           <div className="flex items-center justify-center space-x-4">
             <Button
               onClick={handlePlayPauseClick}
-              disabled={isTranscriptRecordingActive || !isPineconeEnabled}
+              disabled={isTranscriptRecordingActive || !isPineconeEnabled || isStopping || pendingAction === 'start'}
               className={cn(
                 "flex items-center h-12 px-6 rounded-md text-foreground",
-                "disabled:opacity-25 disabled:cursor-not-allowed",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
                 "transition-colors duration-200",
                 isRecording ? "bg-red-500 hover:bg-red-600 text-white" : "bg-primary hover:bg-primary/90 text-primary-foreground"
               )}
               title={isRecording ? "Pause Recording" : "Start Recording"}
             >
-              {isRecording && !isPaused ? (
+              {pendingAction === 'start' ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : isRecording && !isPaused ? (
                 <Pause className="w-5 h-5 mr-2" fill="currentColor" />
               ) : (
                 <Play className="w-5 h-5 mr-2" fill="currentColor" />
               )}
-              <span className="text-base">{isRecording ? (isPaused ? "Resume" : "Pause") : "Record"}</span>
+              <span className="text-base">{pendingAction === 'start' ? "Starting..." : isRecording ? (isPaused ? "Resume" : "Pause") : "Record"}</span>
             </Button>
-          <Button
-            onClick={handleStopRecording}
-            disabled={!isRecording || !isPineconeEnabled || isStopping}
-            className={cn(
-              "flex items-center h-12 px-6 rounded-md text-foreground",
-              "disabled:opacity-25 disabled:cursor-not-allowed",
-              "transition-colors duration-200",
-              "bg-secondary hover:bg-secondary/80 text-secondary-foreground"
-            )}
-            title="Stop Recording"
-          >
-            {isStopping ? (
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            ) : (
-              <Square className="w-5 h-5 mr-2" />
-            )}
-            <span className="text-base">{isStopping ? "Stopping..." : "Stop"}</span>
-          </Button>
+            <Button
+              onClick={(e) => handleStopRecording(e)}
+              disabled={!isRecording || !isPineconeEnabled || isStopping}
+              className={cn(
+                "flex items-center h-12 px-6 rounded-md text-foreground",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                "transition-colors duration-200",
+                "bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+              )}
+              title="Stop Recording"
+            >
+              {isStopping ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <Square className="w-5 h-5 mr-2" />
+              )}
+              <span className="text-base">{isStopping ? "Stopping..." : "Stop"}</span>
+            </Button>
           </div>
           {(isTranscriptRecordingActive || !isPineconeEnabled) && (
             <p className="text-xs text-muted-foreground text-center">
               {!isPineconeEnabled ? "Agent has no memory index. Recording disabled." : "Stop the chat transcript to enable recording."}
+            </p>
+          )}
+          {isReconnecting && (
+            <p className="text-xs text-orange-500 text-center animate-pulse">
+              Connection lost. Attempting to reconnect...
             </p>
           )}
 
@@ -412,32 +662,14 @@ const RecordView: React.FC<RecordViewProps> = ({
                       </p>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)}
-                        title="Download"
-                        disabled={!isPineconeEnabled}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)} title="Download" disabled={!isPineconeEnabled}>
                         <Download className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEmbedRecording(rec.s3Key)}
-                        disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled}
-                        title="Bookmark to Memory"
-                        className={!isPineconeEnabled ? 'cursor-not-allowed' : ''}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleEmbedRecording(rec.s3Key)} disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled} title="Bookmark to Memory" className={!isPineconeEnabled ? 'cursor-not-allowed' : ''}>
                         {isEmbedding[rec.s3Key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
                       </Button>
                       <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setRecordingToDelete(rec)}
-                          title="Delete"
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => setRecordingToDelete(rec)} title="Delete">
                           <X className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
