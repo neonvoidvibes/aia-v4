@@ -1062,8 +1062,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
             const token = session.access_token;
             setWsStatus('connecting');
-            const backendHost = process.env.NEXT_PUBLIC_WEBSOCKET_URL || (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host.replace(/:\d+$/, '') + (process.env.NODE_ENV === 'development' ? ":5001" : "");
-            const wsUrl = `${backendHost}/ws/audio_stream/${currentSessionId}?token=${token}`;
+            
+            // Unified WebSocket URL logic
+            const wsBaseUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || (process.env.NEXT_PUBLIC_BACKEND_API_URL || '').replace(/^http/, 'ws');
+            if (!wsBaseUrl) {
+                console.error("[WebSocket] WebSocket URL is not configured. Set NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_BACKEND_API_URL.");
+                addErrorMessage('Error: WebSocket URL is not configured.');
+                setWsStatus('error');
+                if (pendingActionRef.current === 'start') setPendingAction(null);
+                return;
+            }
+
+            const wsUrl = `${wsBaseUrl}/ws/audio_stream/${currentSessionId}?token=${token}`;
             
             console.info("[WebSocket] Attempting to connect to URL:", wsUrl.replace(/token=.*$/, 'token=REDACTED'));
             const newWs = new WebSocket(wsUrl);

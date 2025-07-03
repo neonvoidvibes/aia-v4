@@ -254,7 +254,7 @@ const RecordView: React.FC<RecordViewProps> = ({
 
     // 3. Finalize via HTTP
     const result = await callHttpRecordingApi('stop', { session_id: sessionId });
-    if (result.success) {
+    if (result.success && result.data?.s3Key) {
       const newRecording: FinishedRecording = {
         s3Key: result.data.s3Key,
         filename: result.data.s3Key.split('/').pop()!,
@@ -267,8 +267,12 @@ const RecordView: React.FC<RecordViewProps> = ({
         return updated;
       });
       toast.success("Recording stopped and saved.");
-    } else if (!dueToError) {
-      toast.error(`Could not properly stop recording session: ${result.error || ''}`);
+    } else {
+      const errorMessage = result.error || "Failed to get recording data from server.";
+      if (!dueToError) {
+        toast.error(`Could not finalize recording: ${errorMessage}`);
+      }
+      console.error("[Stop Recording] Finalization failed:", result);
     }
 
     // 4. Reset State
@@ -353,8 +357,17 @@ const RecordView: React.FC<RecordViewProps> = ({
       }
 
       setWsStatus('connecting');
-      const backendHost = (process.env.NEXT_PUBLIC_BACKEND_API_URL || '').replace(/^http/, 'ws');
-      const wsUrl = `${backendHost}/ws/audio_stream/${sessionId}?token=${session.access_token}`;
+      
+      // Unified WebSocket URL logic
+      const wsBaseUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || (process.env.NEXT_PUBLIC_BACKEND_API_URL || '').replace(/^http/, 'ws');
+      if (!wsBaseUrl) {
+        toast.error("WebSocket URL is not configured. Set NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_BACKEND_API_URL.");
+        setWsStatus('error');
+        if (pendingAction === 'start') setPendingAction(null);
+        return;
+      }
+
+      const wsUrl = `${wsBaseUrl}/ws/audio_stream/${sessionId}?token=${session.access_token}`;
       
       const newWs = new WebSocket(wsUrl);
       webSocketRef.current = newWs;
