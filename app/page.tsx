@@ -1055,7 +1055,8 @@ function HomeContent() {
         </header>
         
         <main className="flex-1 flex flex-col">
-        {currentView === "chat" && (
+        {/* Keep SimpleChatInterface always mounted but hidden when not active to preserve state */}
+        <div className={currentView === "chat" ? "flex flex-col flex-1" : "hidden"}>
           <SimpleChatInterface 
             ref={chatInterfaceRef} 
             onAttachmentsUpdate={updateChatAttachments} 
@@ -1069,7 +1070,7 @@ function HomeContent() {
                 pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
             })}
           />
-        )}
+        </div>
         {currentView === "transcribe" && (
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
             <div className="messages-container" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
