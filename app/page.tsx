@@ -156,6 +156,8 @@ function HomeContent() {
   // State to track S3 keys of files currently being processed (saved to memory or archived)
   const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
   const [fileActionTypes, setFileActionTypes] = useState<Record<string, 'saving_to_memory' | 'archiving'>>({});
+  const [agentCapabilities, setAgentCapabilities] = useState({ pinecone_index_exists: false });
+
 
   const handleRecordingStateChange = useCallback((newState: {
     isBrowserRecording: boolean;
@@ -256,14 +258,19 @@ function HomeContent() {
               }
 
               const data = await response.json();
-              const fetchedAllowedAgents: string[] = data.allowedAgents?.map((agent: any) => agent.name) || [];
-              setAllowedAgents(fetchedAllowedAgents);
+              const fetchedAllowedAgents: { name: string, capabilities: { pinecone_index_exists: boolean } }[] = data.allowedAgents || [];
+              setAllowedAgents(fetchedAllowedAgents.map(a => a.name));
+
+              const currentAgentData = fetchedAllowedAgents.find(a => a.name === agentParam);
+              if (currentAgentData) {
+                setAgentCapabilities(currentAgentData.capabilities);
+              }
               
               // Set user name
               const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
               setUserName(name);
 
-              if (fetchedAllowedAgents.includes(agentParam)) {
+              if (fetchedAllowedAgents.map(a => a.name).includes(agentParam)) {
                   console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
                   setIsAuthorized(true);
 
@@ -1214,6 +1221,7 @@ function HomeContent() {
             globalRecordingStatus={globalRecordingStatus}
             setGlobalRecordingStatus={setGlobalRecordingStatus}
             isTranscriptRecordingActive={globalRecordingStatus.type === 'transcript' && globalRecordingStatus.isRecording}
+            agentCapabilities={agentCapabilities}
           />
         )}
         {currentView === "canvas" && isCanvasViewEnabled && (

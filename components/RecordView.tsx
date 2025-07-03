@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, StopCircle, Download, Bookmark, Loader2 } from 'lucide-react';
+import { Play, Pause, Square, Download, Bookmark, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 type GlobalRecordingStatus = {
   type: 'transcript' | 'recording' | null;
@@ -18,6 +19,7 @@ interface RecordViewProps {
   globalRecordingStatus: GlobalRecordingStatus;
   setGlobalRecordingStatus: React.Dispatch<React.SetStateAction<GlobalRecordingStatus>>;
   isTranscriptRecordingActive: boolean;
+  agentCapabilities: { pinecone_index_exists: boolean };
 }
 
 interface FinishedRecording {
@@ -32,10 +34,12 @@ const RecordView: React.FC<RecordViewProps> = ({
   globalRecordingStatus,
   setGlobalRecordingStatus,
   isTranscriptRecordingActive,
+  agentCapabilities,
 }) => {
   const [finishedRecordings, setFinishedRecordings] = useState<FinishedRecording[]>([]);
   const [isEmbedding, setIsEmbedding] = useState<Record<string, boolean>>({});
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isPineconeEnabled = agentCapabilities.pinecone_index_exists;
 
   useEffect(() => {
     if (agentName) {
@@ -164,30 +168,66 @@ const RecordView: React.FC<RecordViewProps> = ({
   };
 
   const isRecording = globalRecordingStatus.type === 'recording' && globalRecordingStatus.isRecording;
+  const isPaused = isRecording && globalRecordingStatus.isPaused;
+
+  const handlePlayPauseClick = () => {
+    if (isRecording) {
+      // This would be where pause/resume logic goes if implemented
+      // For now, it just acts as a visual toggle
+    } else {
+      handleStartRecording();
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full p-4 space-y-4">
-      <div className="flex-shrink-0 flex flex-col items-center justify-center space-y-4 py-8 bg-card rounded-lg">
-        <div className="flex items-center space-x-4">
+    <div className="flex flex-col h-full p-4">
+      <div className="flex-grow flex flex-col items-center justify-center space-y-4">
+        <div className="flex items-center justify-center space-x-4">
           <Button
-            onClick={isRecording ? handleStopRecording : handleStartRecording}
-            disabled={isTranscriptRecordingActive}
-            className="w-24 h-24 rounded-full"
-            variant={isRecording ? "destructive" : "default"}
+            onClick={handlePlayPauseClick}
+            disabled={isTranscriptRecordingActive || !isPineconeEnabled}
+            className={cn(
+              "flex items-center justify-center h-12 px-4 rounded-md text-foreground",
+              "disabled:opacity-25 disabled:cursor-not-allowed",
+              "transition-colors duration-200",
+              isRecording ? "bg-red-500 hover:bg-red-600 text-white" : "bg-primary hover:bg-primary/90 text-primary-foreground"
+            )}
+            title={isRecording ? "Pause Recording" : "Start Recording"}
           >
-            {isRecording ? <StopCircle className="w-12 h-12" /> : <Play className="w-12 h-12" />}
+            {isRecording ? (
+              <Pause className="w-5 h-5 mr-2" fill="currentColor" />
+            ) : (
+              <Play className="w-5 h-5 mr-2" fill="currentColor" />
+            )}
+            <span className="text-base">{isRecording ? "Pause" : "Record"}</span>
+          </Button>
+          <Button
+            onClick={handleStopRecording}
+            disabled={!isRecording || !isPineconeEnabled}
+            className={cn(
+              "flex items-center justify-center h-12 px-4 rounded-md text-foreground",
+              "disabled:opacity-25 disabled:cursor-not-allowed",
+              "transition-colors duration-200",
+              "bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+            )}
+            title="Stop Recording"
+          >
+            <Square className="w-5 h-5 mr-2" />
+            <span className="text-base">Stop</span>
           </Button>
         </div>
-        {isTranscriptRecordingActive && (
-            <p className="text-xs text-muted-foreground">Stop the chat transcript to enable recording.</p>
+        {(isTranscriptRecordingActive || !isPineconeEnabled) && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+                {!isPineconeEnabled ? "Agent has no memory index. Recording disabled." : "Stop the chat transcript to enable recording."}
+            </p>
         )}
       </div>
-      <div className="flex-grow overflow-y-auto bg-card rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-4">Finished Recordings</h2>
-        <div className="space-y-2">
+      <div className="flex-shrink-0 flex flex-col" style={{ height: '33vh' }}>
+        <h2 className="text-lg font-semibold text-center mb-2">Finished Recordings</h2>
+        <div className="flex-grow overflow-y-auto space-y-2 px-1">
           {finishedRecordings.length > 0 ? (
             finishedRecordings.map((rec) => (
-              <div key={rec.s3Key} className="flex items-center justify-between p-2 border rounded-md">
+              <div key={rec.s3Key} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" title={rec.filename}>{rec.filename}</p>
                   <p className="text-xs text-muted-foreground">
@@ -200,6 +240,7 @@ const RecordView: React.FC<RecordViewProps> = ({
                     size="icon"
                     onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)}
                     title="Download"
+                    disabled={!isPineconeEnabled}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -207,8 +248,9 @@ const RecordView: React.FC<RecordViewProps> = ({
                     variant="ghost"
                     size="icon"
                     onClick={() => handleEmbedRecording(rec.s3Key)}
-                    disabled={isEmbedding[rec.s3Key]}
+                    disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled}
                     title="Bookmark to Memory"
+                    className={!isPineconeEnabled ? 'cursor-not-allowed' : ''}
                   >
                     {isEmbedding[rec.s3Key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
                   </Button>
@@ -216,7 +258,9 @@ const RecordView: React.FC<RecordViewProps> = ({
               </div>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">No recordings yet.</p>
+            <div className="flex items-center justify-center h-full">
+                <p className="text-sm text-muted-foreground text-center">No recordings yet.</p>
+            </div>
           )}
         </div>
       </div>

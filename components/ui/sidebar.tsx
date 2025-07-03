@@ -31,7 +31,10 @@ import {
   History,
   Clock,
   Loader2,
+  Disc,
 } from 'lucide-react';
+
+type View = "chat" | "transcribe" | "record" | "canvas";
 
 interface ChatHistoryItem {
   id: string;
@@ -46,7 +49,7 @@ interface SidebarProps {
   onClose: () => void;
   onOpen: () => void;
   className?: string;
-  setCurrentView: (view: "chat" | "transcribe") => void;
+  setCurrentView: (view: View) => void;
   setShowSettings: (show: boolean) => void;
   agentName?: string;
   selectedModel?: string;
@@ -235,6 +238,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
             <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('chat'); }}>
               <MessageSquare className="mr-3 h-5 w-5" />
               Chat
+            </Button>
+            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('record'); }}>
+              <Disc className="mr-3 h-5 w-5" />
+              Record
             </Button>
             <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('transcribe'); }}>
               <AudioLines className="mr-3 h-5 w-5" />
