@@ -338,7 +338,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       },
       onFinish: async (message) => {
         // Auto-save chat after each assistant response
-        if (agentName && messages.length > 0) {
+        if (agentName) {
           await saveChatHistory();
         }
       },
@@ -422,16 +422,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const supabase = createClient();
 
-    // Auto-save chat history function - only saves complete message pairs
+    // Auto-save chat history function - saves complete conversation
     const saveChatHistory = useCallback(async () => {
         if (!agentName || messages.length === 0) return;
-
-        // Only save when we have complete message pairs (user + assistant)
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.role !== 'assistant') {
-            console.debug('[Auto-save] Skipping save - waiting for assistant response');
-            return;
-        }
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -448,7 +441,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 },
                 body: JSON.stringify({
                     agent: agentName,
-                    messages: messages,
+                    messages: messages, // Always save the complete conversation
                     chatId: currentChatId,
                     title: chatTitle,
                 }),
@@ -463,7 +456,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         setChatTitle(result.title);
                         console.info('[Auto-save] New chat created:', result.chatId, result.title);
                     } else {
-                        console.info('[Auto-save] Chat updated:', result.chatId);
+                        console.info('[Auto-save] Chat updated with all messages:', result.chatId);
                     }
                 }
             } else {
@@ -633,9 +626,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             // Auto-save after user message is sent
             setTimeout(() => {
-                if (agentName) {
-                    saveChatHistory();
-                }
+                saveChatHistory();
             }, 100);
         }
     }, [
