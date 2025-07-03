@@ -107,29 +107,27 @@ export async function GET(req: NextRequest) {
 // Route handler for POST (for actions like start, stop, pause, resume)
 export async function POST(req: NextRequest) {
     console.log("[API /api/recording-proxy] Received POST request");
-    // Instantiate client using our helper (handles cookies internally)
-    const supabase = await createServerActionClient() // Use the correct helper, add await
+    const supabase = await createServerActionClient();
 
-    // --- Authenticate User ---
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
         console.warn("[API /api/recording-proxy] Unauthorized POST request:", authError?.message);
         return formatErrorResponse("Unauthorized: Invalid session", 401);
     }
     console.log(`[API /api/recording-proxy] POST Authenticated user: ${user.id}`);
-    // --- End Authentication ---
 
-    let action: string | undefined;
-    let payload: any = {};
+    let body: any;
     try {
-        const body = await req.json();
-        action = body?.action; // Expect 'action' in the body
-        payload = body?.payload || {}; // Optional payload for 'start'
-        if (!action || !['start', 'stop', 'pause', 'resume'].includes(action)) { // Add 'resume' to valid actions
-            return formatErrorResponse("Missing or invalid 'action' in request body (start, stop, pause, resume)", 400);
-        }
+        body = await req.json();
     } catch (e) {
         return formatErrorResponse("Invalid JSON request body", 400);
+    }
+
+    const action = body?.action;
+    const payload = body?.payload || {};
+
+    if (!action || !['start', 'stop', 'pause', 'resume'].includes(action)) {
+        return formatErrorResponse("Missing or invalid 'action' in request body", 400);
     }
 
     console.log(`[API /api/recording-proxy] Action requested: ${action}`);
@@ -139,7 +137,7 @@ export async function POST(req: NextRequest) {
         return formatErrorResponse(`Could not connect to backend for action: ${action}.`, 503);
     }
 
-    const targetUrl = `${activeBackendUrl}/api/recording/${action}`; // Construct target URL dynamically
+    const targetUrl = `${activeBackendUrl}/api/recording/${action}`;
     console.log(`[API /api/recording-proxy] Forwarding POST to ${targetUrl}`);
 
     try {
@@ -161,7 +159,7 @@ export async function POST(req: NextRequest) {
             method: 'POST',
             headers: backendHeaders, // Send potentially updated headers
             // 'start' and 'stop' (and potentially others) will send a JSON body
-            body: (action === 'start' || action === 'stop') ? JSON.stringify(payload) : undefined
+            body: JSON.stringify({ ...payload, ...body }),
         });
 
         // Check Content-Type and status before assuming JSON
