@@ -39,6 +39,9 @@ const RecordView: React.FC<RecordViewProps> = ({
   const [finishedRecordings, setFinishedRecordings] = useState<FinishedRecording[]>([]);
   const [isEmbedding, setIsEmbedding] = useState<Record<string, boolean>>({});
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const webSocketRef = useRef<WebSocket | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const isPineconeEnabled = agentCapabilities.pinecone_index_exists;
 
   useEffect(() => {
@@ -76,8 +79,8 @@ const RecordView: React.FC<RecordViewProps> = ({
       return;
     }
     if (isTranscriptRecordingActive) {
-        toast.error("A chat transcript is already being recorded. Please stop it first.");
-        return;
+      toast.error("A chat transcript is already being recorded. Please stop it first.");
+      return;
     }
 
     try {
@@ -88,14 +91,16 @@ const RecordView: React.FC<RecordViewProps> = ({
       });
       const data = await response.json();
       if (response.ok) {
+        const sessionId = data.session_id;
         setGlobalRecordingStatus({
           type: 'recording',
           isRecording: true,
           isPaused: false,
           time: 0,
-          sessionId: data.session_id,
+          sessionId: sessionId,
         });
         startTimer();
+        await setupMediaRecorder(sessionId);
         toast.success("Recording started.");
       } else {
         throw new Error(data.message || "Failed to start recording.");
@@ -103,6 +108,47 @@ const RecordView: React.FC<RecordViewProps> = ({
     } catch (error) {
       console.error("Error starting recording:", error);
       toast.error((error as Error).message);
+    }
+  };
+
+  const setupMediaRecorder = async (sessionId: string) => {
+    try {
+      const { createClient } = await import('@/utils/supabase/client');
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        toast.error("Authentication error. Cannot start recording.");
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+
+      const wsUrl = (process.env.NEXT_PUBLIC_BACKEND_API_URL || '').replace(/^http/, 'ws');
+      const webSocket = new WebSocket(`${wsUrl}/ws/audio_stream/${sessionId}?token=${session.access_token}`);
+      webSocketRef.current = webSocket;
+
+      webSocket.onopen = () => {
+        mediaRecorder.start(3000); // Send data every 3 seconds
+      };
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && webSocket.readyState === WebSocket.OPEN) {
+          webSocket.send(event.data);
+        }
+      };
+
+      webSocket.onclose = () => {
+        if (mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+      };
+
+    } catch (error) {
+      console.error("Error setting up media recorder:", error);
+      toast.error("Could not start recording. Please check microphone permissions.");
     }
   };
 
@@ -156,6 +202,13 @@ const RecordView: React.FC<RecordViewProps> = ({
     if (!globalRecordingStatus.sessionId) return;
 
     stopTimer();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+      webSocketRef.current.close();
+    }
+
     try {
       const response = await fetch('/api/audio-recording-proxy?action=stop', {
         method: 'POST',
