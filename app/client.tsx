@@ -22,7 +22,7 @@ export default function ClientLayout({
           themes={allThemeNames} // Provide all available theme names
         >
           {children}
-          <Toaster />
+          <Toaster position="top-right" />
         </ThemeProvider>
       </body>
     </html>

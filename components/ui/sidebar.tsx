@@ -5,6 +5,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './sh
 import { useIsMobile } from './use-mobile';
 import { createClient } from '@/utils/supabase/client';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   MessageCircle,
   Settings,
   X,
@@ -48,6 +58,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
   const isMobile = useIsMobile();
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [chatIdToDelete, setChatIdToDelete] = useState<string | null>(null);
   const supabase = createClient();
 
   const fetchChatHistory = async () => {
@@ -69,6 +81,40 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
       }
     } catch (error) {
       console.error('Failed to fetch chat history:', error);
+    }
+  };
+
+  const handleDeleteInitiated = (chatId: string) => {
+    setChatIdToDelete(chatId);
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!chatIdToDelete) return;
+
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const response = await fetch(`/api/chat/history/delete`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ chatId: chatIdToDelete }),
+        });
+
+        if (response.ok) {
+            setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
+        } else {
+            console.error('Failed to delete chat history');
+        }
+    } catch (error) {
+        console.error('Failed to delete chat history:', error);
+    } finally {
+        setChatIdToDelete(null);
+        setShowDeleteConfirmation(false);
     }
   };
 
@@ -190,16 +236,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                       </div>
                       <div className="space-y-0.5">
                         {chats.map((chat) => (
-                          <Button
-                            key={chat.id}
-                            variant="ghost"
-                            className="w-full justify-start text-left h-auto px-4 py-2 rounded-sm hover:bg-accent/50"
-                            onClick={() => handleLoadChat(chat.id)}
-                          >
-                            <div className="text-sm font-medium truncate w-full">
-                              {chat.title}
-                            </div>
-                          </Button>
+                          <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent/50">
+                            <Button
+                              variant="ghost"
+                              className="flex-grow justify-start text-left h-auto px-4 py-2 rounded-sm min-w-0"
+                              onClick={() => handleLoadChat(chat.id)}
+                            >
+                              <div className="text-sm font-medium truncate">
+                                {chat.title}
+                              </div>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 flex-shrink-0 opacity-0 group-hover:opacity-100 mr-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteInitiated(chat.id);
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -212,6 +270,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               )}
             </div>
           </div>
+          <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete the chat history. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </SheetContent>
       </Sheet>
     </div>
