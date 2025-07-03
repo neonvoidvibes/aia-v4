@@ -98,6 +98,10 @@ function HomeContent() {
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
+  
+  // State for saved chats (agent memories)
+  const [savedChatsMode, setSavedChatsMode] = useState<"disabled" | "enabled">("disabled");
+  const [savedChats, setSavedChats] = useState<FetchedFile[]>([]);
 
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -141,6 +145,7 @@ function HomeContent() {
     agentPrimaryContext: false, 
     savedSummaries: false, // Added savedSummaries here
     rawSavedS3TranscriptsFetched: false, // New flag for raw saved transcripts
+    savedChats: false, // New flag for saved chats
     pineconeMemory: false,
     objectiveFunctions: false,
   });
@@ -167,6 +172,7 @@ function HomeContent() {
           agentPrimaryContext: false,
           savedSummaries: false, // Add flag for summaries
           rawSavedS3TranscriptsFetched: false, // Ensure this new flag is included in the reset
+          savedChats: false, // Add flag for saved chats
           pineconeMemory: false,
           objectiveFunctions: false,
         });
@@ -462,6 +468,26 @@ function HomeContent() {
       console.log(`[LangSetting] Saved '${transcriptionLanguage}' for agent '${pageAgentName}' to localStorage.`);
     }
   }, [transcriptionLanguage, pageAgentName]); // Dependencies: transcriptionLanguage, pageAgentName
+
+  // Load and persist savedChatsMode (agent-specific)
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `savedChatsModeSetting_${pageAgentName}`;
+      const savedMode = localStorage.getItem(key);
+      if (savedMode === "disabled" || savedMode === "enabled") {
+        setSavedChatsMode(savedMode as "disabled" | "enabled");
+      } else {
+        setSavedChatsMode("disabled"); // Default if no agent-specific setting found
+      }
+    }
+  }, [pageAgentName]);
+
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `savedChatsModeSetting_${pageAgentName}`;
+      localStorage.setItem(key, savedChatsMode);
+    }
+  }, [savedChatsMode, pageAgentName]);
 
   // Set fullscreen mode to permanent (always true)
   useEffect(() => {
@@ -937,17 +963,18 @@ function HomeContent() {
       toast.success(result.message || "Cache reloaded successfully.");
 
       // Re-trigger the data fetch for the settings dialog
-      setFetchedDataFlags({
-        transcriptions: false,
-        baseSystemPrompts: false,
-        agentSystemPrompts: false,
-        baseFrameworks: false,
-        agentPrimaryContext: false,
-        savedSummaries: false,
-        rawSavedS3TranscriptsFetched: false,
-        pineconeMemory: false,
-        objectiveFunctions: false,
-      });
+        setFetchedDataFlags({
+          transcriptions: false,
+          baseSystemPrompts: false,
+          agentSystemPrompts: false,
+          baseFrameworks: false,
+          agentPrimaryContext: false,
+          savedSummaries: false,
+          rawSavedS3TranscriptsFetched: false,
+          savedChats: false,
+          pineconeMemory: false,
+          objectiveFunctions: false,
+        });
 
     } catch (error: any) {
       console.error("Error clearing S3 cache:", error);
@@ -1432,6 +1459,45 @@ function HomeContent() {
                            <p className="text-sm text-muted-foreground">No raw saved transcripts found in S3.</p>
                          )}
                        </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Saved Chats" defaultOpen={false}>
+                      <div className="flex items-center justify-between py-3 border-b mb-3">
+                        <div className="flex items-center gap-2">
+                          <MessageCircle className="h-5 w-5 text-muted-foreground" />
+                          <Label htmlFor="saved-chats-toggle" className="memory-section-title text-sm font-medium">Saved Chats:</Label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-muted-foreground w-16 text-right">
+                            {savedChatsMode === "disabled" ? "Disabled" : "Enabled"}
+                          </span>
+                          <Switch
+                            id="saved-chats-toggle"
+                            checked={savedChatsMode === "enabled"}
+                            onCheckedChange={(checked) =>
+                              setSavedChatsMode(checked ? "enabled" : "disabled")
+                            }
+                            aria-label="Saved chats mode"
+                          />
+                        </div>
+                      </div>
+                      <div className="pb-3 space-y-2 w-full">
+                        {savedChats.length > 0 ? (
+                          savedChats.map(chatFile => (
+                            <FetchedFileListItem
+                              key={chatFile.s3Key || chatFile.name}
+                              file={chatFile}
+                              onView={() => handleViewS3File({ s3Key: chatFile.s3Key!, name: chatFile.name, type: chatFile.type || 'application/json' })}
+                              onDownload={() => handleDownloadS3File({ s3Key: chatFile.s3Key!, name: chatFile.name })}
+                              showViewIcon={true}
+                              showDownloadIcon={true}
+                              showArchiveIcon={false}
+                              showSaveAsMemoryIcon={false}
+                            />
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No saved chats found.</p>
+                        )}
+                      </div>
                     </CollapsibleSection>
                     <CollapsibleSection title="Database" defaultOpen={true}>
                       <div className="document-upload-container">
