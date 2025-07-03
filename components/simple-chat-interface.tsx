@@ -32,6 +32,7 @@ import {
   Loader2,
   AlertTriangle, // Added for error messages
   Upload, // Added for save to memory
+  Bookmark, // Added for save individual message
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { useMobile } from "@/hooks/use-mobile"
@@ -1475,6 +1476,41 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             toast.error(`Failed to save memory: ${error.message}`, { id: toastId });
         }
     }, [agentName, messages, currentChatId, addErrorMessage]);
+
+    const handleSaveMessageToMemory = useCallback(async (message: Message) => {
+        debugLog("[Save Message to Memory] Initiated for message:", message.id);
+        if (!agentName || !agentCapabilities.pinecone_index_exists) {
+            addErrorMessage('Cannot save message: Agent not configured or Pinecone index missing.');
+            return;
+        }
+
+        const toastId = `save-message-${message.id}`;
+        toast.loading("Saving message to memory...", { id: toastId });
+
+        try {
+            const response = await fetch('/api/memory/save-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    agentName: agentName,
+                    messages: [message], // Save only this single message
+                    sessionId: `message_${message.id}_${Date.now()}` // Unique session ID for individual message
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "Failed to save message.");
+            }
+
+            toast.success("Message saved to memory successfully.", { id: toastId });
+
+        } catch (error: any) {
+            console.error('[Save Message to Memory] Error:', error);
+            toast.error(`Failed to save message: ${error.message}`, { id: toastId });
+        }
+    }, [agentName, agentCapabilities.pinecone_index_exists, addErrorMessage]);
     const attachDocument = useCallback(() => { debugLog("[Attach Document] Triggered."); fileInputRef.current?.click(); setShowPlusMenu(false); }, []);
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); debugLog("[File Change] Files attached:", newFiles.map(f=>f.name)); } if (fileInputRef.current) fileInputRef.current.value = ""; }, []);
     const removeFile = useCallback((id: string) => { debugLog("[Remove File] Removing file ID:", id); setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); }); }, []);
@@ -1645,6 +1681,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                           {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                         </button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists}>
+                                          <Bookmark className="h-4 w-4" />
+                                        </button>
                                         <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
                                           <Pencil className="h-4 w-4" />
                                         </button>
@@ -1654,6 +1693,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       <div className="flex">
                                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                           {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists}>
+                                          <Bookmark className="h-4 w-4" />
                                         </button>
                                         {hoveredMessage === message.id && (
                                           <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
