@@ -45,8 +45,42 @@ export async function GET(request: Request) {
 
     console.log(`Permissions API: User ${user.id} has access to agents:`, allowedAgentNames);
 
-    // Return the list of allowed agent NAMES
-    return NextResponse.json({ allowedAgentNames }, { status: 200 })
+    // --- Check for Pinecone index existence ---
+    let pineconeIndexes: string[] = [];
+    try {
+        // Construct the absolute URL for the internal API call
+        const host = request.headers.get('host') || 'localhost:3000';
+        const protocol = host.startsWith('localhost') ? 'http' : 'https';
+        const internalApiUrl = `${protocol}://${host}/api/internal/pinecone/list-indexes`;
+        
+        console.log(`Permissions API: Calling internal proxy to list Pinecone indexes: ${internalApiUrl}`);
+        const pineconeResponse = await fetch(internalApiUrl, {
+            headers: {
+                // Forward the cookie from the original request to maintain the session
+                'Cookie': request.headers.get('Cookie') || ''
+            }
+        });
+        
+        if (pineconeResponse.ok) {
+            const pineconeData = await pineconeResponse.json();
+            pineconeIndexes = pineconeData.indexes || [];
+        } else {
+            console.warn(`Permissions API: Failed to fetch Pinecone indexes. Status: ${pineconeResponse.status}`);
+        }
+    } catch (e) {
+        console.error(`Permissions API: Error calling internal Pinecone list API:`, e);
+    }
+
+    // Enhance the response with agent capabilities
+    const agentsWithCapabilities = allowedAgentNames.map(name => ({
+        name: name,
+        capabilities: {
+            pinecone_index_exists: pineconeIndexes.includes(name)
+        }
+    }));
+
+    // Return the enhanced list of agents with their capabilities
+    return NextResponse.json({ allowedAgents: agentsWithCapabilities }, { status: 200 })
 
   } catch (error) {
     console.error('Permissions API: Unexpected error:', error);

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2
+import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2 } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2
 import Sidebar from "@/components/ui/sidebar";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
@@ -98,10 +98,6 @@ function HomeContent() {
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
-  
-  // State for saved chats (agent memories)
-  const [savedChatsMode, setSavedChatsMode] = useState<"disabled" | "enabled">("disabled");
-  const [savedChats, setSavedChats] = useState<FetchedFile[]>([]);
 
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -131,6 +127,12 @@ function HomeContent() {
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [fileToSaveAsMemory, setFileToSaveAsMemory] = useState<FetchedFile | null>(null);
 
+  // State for new Chat Memory feature
+  const [useChatMemory, setUseChatMemory] = useState(false);
+  const [savedMemories, setSavedMemories] = useState<{ id: string, created_at: string, summary: string }[]>([]);
+  const [showForgetConfirmModal, setShowForgetConfirmModal] = useState(false);
+  const [memoryToForget, setMemoryToForget] = useState<{ id: string, summary: string } | null>(null);
+
   // State to track S3 keys of files currently being processed (saved to memory or archived)
   const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
   const [fileActionTypes, setFileActionTypes] = useState<Record<string, 'saving_to_memory' | 'archiving'>>({});
@@ -145,7 +147,6 @@ function HomeContent() {
     agentPrimaryContext: false, 
     savedSummaries: false, // Added savedSummaries here
     rawSavedS3TranscriptsFetched: false, // New flag for raw saved transcripts
-    savedChats: false, // New flag for saved chats
     pineconeMemory: false,
     objectiveFunctions: false,
   });
@@ -172,7 +173,6 @@ function HomeContent() {
           agentPrimaryContext: false,
           savedSummaries: false, // Add flag for summaries
           rawSavedS3TranscriptsFetched: false, // Ensure this new flag is included in the reset
-          savedChats: false, // Add flag for saved chats
           pineconeMemory: false,
           objectiveFunctions: false,
         });
@@ -220,7 +220,7 @@ function HomeContent() {
               }
 
               const data = await response.json();
-              const fetchedAllowedAgents: string[] = data.allowedAgentNames || [];
+              const fetchedAllowedAgents: string[] = data.allowedAgents?.map((agent: any) => agent.name) || [];
               setAllowedAgents(fetchedAllowedAgents);
               
               // Set user name
@@ -469,25 +469,45 @@ function HomeContent() {
     }
   }, [transcriptionLanguage, pageAgentName]); // Dependencies: transcriptionLanguage, pageAgentName
 
-  // Load and persist savedChatsMode (agent-specific)
+  // Load/persist "Use Chat Memory" toggle state
   useEffect(() => {
     if (pageAgentName) {
-      const key = `savedChatsModeSetting_${pageAgentName}`;
-      const savedMode = localStorage.getItem(key);
-      if (savedMode === "disabled" || savedMode === "enabled") {
-        setSavedChatsMode(savedMode as "disabled" | "enabled");
+      const key = `useChatMemory_${pageAgentName}`;
+      const savedValue = localStorage.getItem(key);
+      setUseChatMemory(savedValue === 'true');
+    }
+  }, [pageAgentName]);
+
+  const handleUseChatMemoryChange = (checked: boolean) => {
+    setUseChatMemory(checked);
+    if (pageAgentName) {
+      localStorage.setItem(`useChatMemory_${pageAgentName}`, String(checked));
+    }
+  };
+
+  // Fetch saved chat memories when settings are opened
+  const fetchSavedMemories = useCallback(async () => {
+    if (!pageAgentName) return;
+    try {
+      const response = await fetch(`/api/memory/list-saved-chats?agentName=${encodeURIComponent(pageAgentName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSavedMemories(data);
       } else {
-        setSavedChatsMode("disabled"); // Default if no agent-specific setting found
+        console.error("Failed to fetch saved memories");
+        setSavedMemories([]);
       }
+    } catch (error) {
+      console.error("Error fetching saved memories:", error);
+      setSavedMemories([]);
     }
   }, [pageAgentName]);
 
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `savedChatsModeSetting_${pageAgentName}`;
-      localStorage.setItem(key, savedChatsMode);
+    if (showSettings && activeTab === 'memory') {
+      fetchSavedMemories();
     }
-  }, [savedChatsMode, pageAgentName]);
+  }, [showSettings, activeTab, fetchSavedMemories]);
 
   // Set fullscreen mode to permanent (always true)
   useEffect(() => {
@@ -938,6 +958,40 @@ function HomeContent() {
     setFileToSaveAsMemory(null);
   };
 
+  const handleForgetRequest = (memory: { id: string, summary: string }) => {
+    setMemoryToForget(memory);
+    setShowForgetConfirmModal(true);
+  };
+
+  const confirmForgetMemory = async () => {
+    if (!memoryToForget || !pageAgentName) return;
+    
+    const toastId = `forget-memory-${memoryToForget.id}`;
+    toast.loading("Forgetting memory...", { id: toastId });
+    setShowForgetConfirmModal(false);
+
+    try {
+      const response = await fetch('/api/memory/forget-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentName: pageAgentName, memoryId: memoryToForget.id }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to forget memory.");
+      }
+
+      toast.success("Memory forgotten.", { id: toastId });
+      setSavedMemories(prev => prev.filter(m => m.id !== memoryToForget.id));
+    } catch (error: any) {
+      console.error("Error forgetting memory:", error);
+      toast.error(`Failed to forget memory: ${error.message}`, { id: toastId });
+    } finally {
+      setMemoryToForget(null);
+    }
+  };
+
   const handleClearS3Cache = async () => {
     if (!pageAgentName) {
       toast.error("Cannot clear cache: No agent selected.");
@@ -963,18 +1017,17 @@ function HomeContent() {
       toast.success(result.message || "Cache reloaded successfully.");
 
       // Re-trigger the data fetch for the settings dialog
-        setFetchedDataFlags({
-          transcriptions: false,
-          baseSystemPrompts: false,
-          agentSystemPrompts: false,
-          baseFrameworks: false,
-          agentPrimaryContext: false,
-          savedSummaries: false,
-          rawSavedS3TranscriptsFetched: false,
-          savedChats: false,
-          pineconeMemory: false,
-          objectiveFunctions: false,
-        });
+      setFetchedDataFlags({
+        transcriptions: false,
+        baseSystemPrompts: false,
+        agentSystemPrompts: false,
+        baseFrameworks: false,
+        agentPrimaryContext: false,
+        savedSummaries: false,
+        rawSavedS3TranscriptsFetched: false,
+        pineconeMemory: false,
+        objectiveFunctions: false,
+      });
 
     } catch (error: any) {
       console.error("Error clearing S3 cache:", error);
@@ -1115,6 +1168,7 @@ function HomeContent() {
             pinnedInsights={pinnedCanvasInsights}
             onPinInsight={handlePinInsight}
             onUnpinInsight={handleUnpinInsight}
+            className="flex-grow" // Simplified class
             isEnabled={isCanvasViewEnabled}
             initialCanvasData={canvasData}
             setCanvasData={setCanvasData}
@@ -1122,10 +1176,10 @@ function HomeContent() {
             setIsCanvasLoading={setIsCanvasLoading}
             canvasError={canvasError}
             setCanvasError={setCanvasError}
-            selectedFilter={selectedFilter}
-            setSelectedFilter={setSelectedFilter}
-            selectedTimeWindow={selectedTimeWindow}
-            setSelectedTimeWindow={setSelectedTimeWindow}
+            selectedFilter={selectedCanvasFilter} // Use dedicated state for canvas filter
+            setSelectedFilter={setSelectedCanvasFilter} // Use dedicated setter
+            selectedTimeWindow={selectedCanvasTimeWindow} // Use dedicated state for canvas time window
+            setSelectedTimeWindow={setSelectedCanvasTimeWindow} // Use dedicated setter
           />
         )}
          {currentView === "canvas" && !isCanvasViewEnabled && (
@@ -1460,42 +1514,41 @@ function HomeContent() {
                          )}
                        </div>
                     </CollapsibleSection>
-                    <CollapsibleSection title="Saved Chats" defaultOpen={false}>
+                    <CollapsibleSection title="Saved Chats" defaultOpen={true}>
                       <div className="flex items-center justify-between py-3 border-b mb-3">
                         <div className="flex items-center gap-2">
-                          <MessageCircle className="h-5 w-5 text-muted-foreground" />
-                          <Label htmlFor="saved-chats-toggle" className="memory-section-title text-sm font-medium">Saved Chats:</Label>
+                          <Brain className="h-5 w-5 text-muted-foreground" />
+                          <Label htmlFor="use-chat-memory-toggle" className="memory-section-title text-sm font-medium">Use Chat Memory:</Label>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm text-muted-foreground w-16 text-right">
-                            {savedChatsMode === "disabled" ? "Disabled" : "Enabled"}
-                          </span>
-                          <Switch
-                            id="saved-chats-toggle"
-                            checked={savedChatsMode === "enabled"}
-                            onCheckedChange={(checked) =>
-                              setSavedChatsMode(checked ? "enabled" : "disabled")
-                            }
-                            aria-label="Saved chats mode"
-                          />
-                        </div>
+                        <Switch
+                          id="use-chat-memory-toggle"
+                          checked={useChatMemory}
+                          onCheckedChange={handleUseChatMemoryChange}
+                        />
                       </div>
-                      <div className="pb-3 space-y-2 w-full">
-                        {savedChats.length > 0 ? (
-                          savedChats.map(chatFile => (
-                            <FetchedFileListItem
-                              key={chatFile.s3Key || chatFile.name}
-                              file={chatFile}
-                              onView={() => handleViewS3File({ s3Key: chatFile.s3Key!, name: chatFile.name, type: chatFile.type || 'application/json' })}
-                              onDownload={() => handleDownloadS3File({ s3Key: chatFile.s3Key!, name: chatFile.name })}
-                              showViewIcon={true}
-                              showDownloadIcon={true}
-                              showArchiveIcon={false}
-                              showSaveAsMemoryIcon={false}
-                            />
+                      <div className="pb-3 space-y-2 w-full settings-section-scrollable">
+                        {savedMemories.length > 0 ? (
+                          savedMemories.map((memory) => (
+                            <div key={memory.id} className="flex items-center justify-between p-2 border rounded-md">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate" title={memory.summary}>{memory.summary}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Saved: {new Date(memory.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleForgetRequest({ id: memory.id, summary: memory.summary })}
+                                title="Forget this memory"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           ))
                         ) : (
-                          <p className="text-sm text-muted-foreground">No saved chats found.</p>
+                          <p className="text-sm text-muted-foreground text-center py-4">No saved memories for this agent.</p>
                         )}
                       </div>
                     </CollapsibleSection>
@@ -1623,6 +1676,25 @@ function HomeContent() {
         confirmText="Confirm & Save"
         cancelText="Cancel"
         confirmVariant="default"
+      />
+      
+      <AlertDialogConfirm
+        isOpen={showForgetConfirmModal}
+        onClose={() => setShowForgetConfirmModal(false)}
+        onConfirm={confirmForgetMemory}
+        title="Forget Memory"
+        message={
+          <span>
+            Are you sure you want to permanently forget this memory?
+            <br />
+            <strong className="font-semibold text-destructive">{memoryToForget?.summary}</strong>
+            <br />
+            This action cannot be undone.
+          </span>
+        }
+        confirmText="Forget"
+        cancelText="Cancel"
+        confirmVariant="destructive"
       />
 
       {showS3FileViewer && s3FileToView && fileEditorFileProp && (
