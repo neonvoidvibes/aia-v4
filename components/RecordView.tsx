@@ -49,6 +49,7 @@ const RecordView: React.FC<RecordViewProps> = ({
 }) => {
   const [finishedRecordings, setFinishedRecordings] = useState<FinishedRecording[]>([]);
   const [isEmbedding, setIsEmbedding] = useState<Record<string, boolean>>({});
+  const [isStopping, setIsStopping] = useState(false);
   const [recordingToDelete, setRecordingToDelete] = useState<FinishedRecording | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -211,23 +212,24 @@ const RecordView: React.FC<RecordViewProps> = ({
   };
 
   const handleStopRecording = async () => {
-    if (!globalRecordingStatus.sessionId) return;
+    if (!globalRecordingStatus.sessionId || isStopping) return;
 
+    setIsStopping(true);
     stopTimer();
-    if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
-      webSocketRef.current.onclose = () => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-          mediaRecorderRef.current.stop();
-        }
-        performStopRecording();
-      };
-      webSocketRef.current.close(1000, "Client-initiated stop");
-    } else {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-      await performStopRecording();
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
     }
+
+    if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+      webSocketRef.current.close(1000, "Client-initiated stop");
+    }
+
+    // Wait a moment for the last audio chunk to be sent
+    setTimeout(async () => {
+      await performStopRecording();
+      setIsStopping(false);
+    }, 500);
   };
 
   const performStopRecording = async () => {
@@ -364,20 +366,24 @@ const RecordView: React.FC<RecordViewProps> = ({
               )}
               <span className="text-base">{isRecording ? (isPaused ? "Resume" : "Pause") : "Record"}</span>
             </Button>
-            <Button
-              onClick={handleStopRecording}
-              disabled={!isRecording || !isPineconeEnabled}
-              className={cn(
-                "flex items-center h-12 px-6 rounded-md text-foreground",
-                "disabled:opacity-25 disabled:cursor-not-allowed",
-                "transition-colors duration-200",
-                "bg-secondary hover:bg-secondary/80 text-secondary-foreground"
-              )}
-              title="Stop Recording"
-            >
+          <Button
+            onClick={handleStopRecording}
+            disabled={!isRecording || !isPineconeEnabled || isStopping}
+            className={cn(
+              "flex items-center h-12 px-6 rounded-md text-foreground",
+              "disabled:opacity-25 disabled:cursor-not-allowed",
+              "transition-colors duration-200",
+              "bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+            )}
+            title="Stop Recording"
+          >
+            {isStopping ? (
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            ) : (
               <Square className="w-5 h-5 mr-2" />
-              <span className="text-base">Stop</span>
-            </Button>
+            )}
+            <span className="text-base">{isStopping ? "Stopping..." : "Stop"}</span>
+          </Button>
           </div>
           {(isTranscriptRecordingActive || !isPineconeEnabled) && (
             <p className="text-xs text-muted-foreground text-center">
