@@ -166,13 +166,24 @@ function HomeContent() {
     isReconnecting: boolean;
   }) => {
     setRecordingState(newState);
-    setGlobalRecordingStatus({
-      type: newState.isBrowserRecording ? 'transcript' : null,
-      isRecording: newState.isBrowserRecording,
-      isPaused: newState.isBrowserPaused,
-      time: newState.clientRecordingTime,
-      sessionId: null, // The chat interface doesn't manage session ID in this state object
-    });
+    if (newState.isBrowserRecording) {
+      setGlobalRecordingStatus({
+        type: 'transcript',
+        isRecording: true,
+        isPaused: newState.isBrowserPaused,
+        time: newState.clientRecordingTime,
+        sessionId: null, // This will be managed by the chat interface
+      });
+    } else {
+      // Only reset if the current global recording is a transcript
+      setGlobalRecordingStatus(prev => prev.type === 'transcript' ? {
+        type: null,
+        isRecording: false,
+        isPaused: false,
+        time: 0,
+        sessionId: null,
+      } : prev);
+    }
   }, []);
 
 

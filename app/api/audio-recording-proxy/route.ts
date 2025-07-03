@@ -32,6 +32,10 @@ export async function POST(request: Request) {
     return proxyRequest(request, 'start');
   } else if (action === 'stop') {
     return proxyRequest(request, 'stop');
+  } else if (action === 'pause') {
+    return proxyRequest(request, 'pause');
+  } else if (action === 'resume') {
+    return proxyRequest(request, 'resume');
   } else {
     return new NextResponse(JSON.stringify({ error: 'Invalid action' }), { status: 400 });
   }

@@ -193,15 +193,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
           )}
         </Button>
       )}
-      <Sheet open={isOpen} onOpenChange={(open) => {
-        // On desktop, only allow closing via the sidebar icon (handled by onClose button)
-        // On mobile, allow normal auto-hide behavior
+      <Sheet modal={isMobile} open={isOpen} onOpenChange={(open) => {
         if (open) {
           onOpen();
-        } else if (isMobile) {
-          onClose();
+        } else {
+          if (isMobile) {
+            onClose();
+          }
         }
-        // On desktop, ignore the close request from clicking outside
       }}>
         <SheetContent 
           side="left" 

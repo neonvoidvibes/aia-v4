@@ -106,6 +106,52 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
   };
 
+  const handlePauseRecording = async () => {
+    if (!globalRecordingStatus.sessionId) return;
+
+    stopTimer();
+    try {
+      const response = await fetch('/api/audio-recording-proxy?action=pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: globalRecordingStatus.sessionId }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
+        toast.info("Recording paused.");
+      } else {
+        throw new Error(data.message || "Failed to pause recording.");
+      }
+    } catch (error) {
+      console.error("Error pausing recording:", error);
+      toast.error((error as Error).message);
+    }
+  };
+
+  const handleResumeRecording = async () => {
+    if (!globalRecordingStatus.sessionId) return;
+
+    try {
+      const response = await fetch('/api/audio-recording-proxy?action=resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: globalRecordingStatus.sessionId }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setGlobalRecordingStatus(prev => ({ ...prev, isPaused: false }));
+        startTimer();
+        toast.success("Recording resumed.");
+      } else {
+        throw new Error(data.message || "Failed to resume recording.");
+      }
+    } catch (error) {
+      console.error("Error resuming recording:", error);
+      toast.error((error as Error).message);
+    }
+  };
+
   const handleStopRecording = async () => {
     if (!globalRecordingStatus.sessionId) return;
 
@@ -171,17 +217,18 @@ const RecordView: React.FC<RecordViewProps> = ({
   const isPaused = isRecording && globalRecordingStatus.isPaused;
 
   const handlePlayPauseClick = () => {
-    if (isRecording) {
-      // This would be where pause/resume logic goes if implemented
-      // For now, it just acts as a visual toggle
-    } else {
+    if (!isRecording) {
       handleStartRecording();
+    } else if (isPaused) {
+      handleResumeRecording();
+    } else {
+      handlePauseRecording();
     }
   };
 
   return (
     <div className="flex flex-col h-full p-4 items-center justify-center">
-      <div className="flex flex-col items-center justify-center space-y-4 w-full max-w-md">
+      <div className="flex flex-col items-center justify-center space-y-2 w-full max-w-md">
         {/* Controls */}
         <div className="flex items-center justify-center space-x-4">
           <Button
@@ -195,12 +242,12 @@ const RecordView: React.FC<RecordViewProps> = ({
             )}
             title={isRecording ? "Pause Recording" : "Start Recording"}
           >
-            {isRecording ? (
+            {isRecording && !isPaused ? (
               <Pause className="w-5 h-5 mr-2" fill="currentColor" />
             ) : (
               <Play className="w-5 h-5 mr-2" fill="currentColor" />
             )}
-            <span className="text-base">{isRecording ? "Pause" : "Record"}</span>
+            <span className="text-base">{isRecording ? (isPaused ? "Resume" : "Pause") : "Record"}</span>
           </Button>
           <Button
             onClick={handleStopRecording}
