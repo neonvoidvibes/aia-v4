@@ -120,7 +120,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       if (response.ok) {
         const newRecording: FinishedRecording = {
           s3Key: data.s3Key,
-          filename: data.s3Key.split('/').pop(),
+          filename: data.s3Key.split('/').pop()!,
           agentName: agentName!,
           timestamp: new Date().toISOString(),
         };
@@ -180,14 +180,15 @@ const RecordView: React.FC<RecordViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full p-4">
-      <div className="flex-grow flex flex-col items-center justify-center space-y-4">
+    <div className="flex flex-col h-full p-4 items-center justify-center">
+      <div className="flex flex-col items-center justify-center space-y-4 w-full max-w-md">
+        {/* Controls */}
         <div className="flex items-center justify-center space-x-4">
           <Button
             onClick={handlePlayPauseClick}
             disabled={isTranscriptRecordingActive || !isPineconeEnabled}
             className={cn(
-              "flex items-center justify-center h-12 px-4 rounded-md text-foreground",
+              "flex items-center h-12 px-6 rounded-md text-foreground",
               "disabled:opacity-25 disabled:cursor-not-allowed",
               "transition-colors duration-200",
               isRecording ? "bg-red-500 hover:bg-red-600 text-white" : "bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -205,7 +206,7 @@ const RecordView: React.FC<RecordViewProps> = ({
             onClick={handleStopRecording}
             disabled={!isRecording || !isPineconeEnabled}
             className={cn(
-              "flex items-center justify-center h-12 px-4 rounded-md text-foreground",
+              "flex items-center h-12 px-6 rounded-md text-foreground",
               "disabled:opacity-25 disabled:cursor-not-allowed",
               "transition-colors duration-200",
               "bg-secondary hover:bg-secondary/80 text-secondary-foreground"
@@ -217,51 +218,53 @@ const RecordView: React.FC<RecordViewProps> = ({
           </Button>
         </div>
         {(isTranscriptRecordingActive || !isPineconeEnabled) && (
-            <p className="text-xs text-muted-foreground text-center mt-2">
+            <p className="text-xs text-muted-foreground text-center">
                 {!isPineconeEnabled ? "Agent has no memory index. Recording disabled." : "Stop the chat transcript to enable recording."}
             </p>
         )}
-      </div>
-      <div className="flex-shrink-0 flex flex-col" style={{ height: '33vh' }}>
-        <h2 className="text-lg font-semibold text-center mb-2">Finished Recordings</h2>
-        <div className="flex-grow overflow-y-auto space-y-2 px-1">
-          {finishedRecordings.length > 0 ? (
-            finishedRecordings.map((rec) => (
-              <div key={rec.s3Key} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" title={rec.filename}>{rec.filename}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(rec.timestamp).toLocaleString()}
-                  </p>
+
+        {/* Finished Recordings Section */}
+        <div className="w-full pt-4">
+          <h2 className="text-lg font-semibold text-center mb-2">Finished Recordings</h2>
+          <div className="overflow-y-auto space-y-1 px-1" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+            {finishedRecordings.length > 0 ? (
+              finishedRecordings.map((rec) => (
+                <div key={rec.s3Key} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" title={rec.filename}>{rec.filename}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(rec.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)}
+                      title="Download"
+                      disabled={!isPineconeEnabled}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEmbedRecording(rec.s3Key)}
+                      disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled}
+                      title="Bookmark to Memory"
+                      className={!isPineconeEnabled ? 'cursor-not-allowed' : ''}
+                    >
+                      {isEmbedding[rec.s3Key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)}
-                    title="Download"
-                    disabled={!isPineconeEnabled}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEmbedRecording(rec.s3Key)}
-                    disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled}
-                    title="Bookmark to Memory"
-                    className={!isPineconeEnabled ? 'cursor-not-allowed' : ''}
-                  >
-                    {isEmbedding[rec.s3Key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
-                  </Button>
-                </div>
+              ))
+            ) : (
+              <div className="flex items-center justify-center pt-4">
+                  <p className="text-sm text-muted-foreground text-center">No recordings yet.</p>
               </div>
-            ))
-          ) : (
-            <div className="flex items-center justify-center h-full">
-                <p className="text-sm text-muted-foreground text-center">No recordings yet.</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
