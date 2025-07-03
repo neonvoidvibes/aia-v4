@@ -69,7 +69,13 @@ export async function POST(req: NextRequest) {
 
     try {
         responseData = JSON.parse(responseText);
-        console.log("[API /api/transcribe-audio] Parsed responseData from Python:", JSON.stringify(responseData, null, 2));
+        // Log a summary instead of the full data to avoid spamming logs
+        const summaryForLog = {
+          transcript_length: responseData.transcript?.length,
+          segment_count: responseData.segments?.length,
+          ...(responseData.error && { error: responseData.error }),
+        };
+        console.log("[API /api/transcribe-audio] Parsed responseData from Python:", JSON.stringify(summaryForLog, null, 2));
     } catch (err) {
         console.error("[API /api/transcribe-audio] Error parsing JSON from backend. Raw text:", responseText.substring(0, 500));
         // If parsing fails, but response was ok, it might be an unexpected success format or an error string.
