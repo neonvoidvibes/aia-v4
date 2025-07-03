@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseUser } from '@/app/api/proxyUtils';
-
-const API_URL = process.env.API_URL;
+import { getSupabaseUser, getBackendUrl } from '@/app/api/proxyUtils';
 
 async function proxyRequest(request: Request, endpoint: string) {
   const user = await getSupabaseUser(request);
@@ -10,8 +8,13 @@ async function proxyRequest(request: Request, endpoint: string) {
   }
 
   const body = await request.json();
+  const backendUrl = await getBackendUrl();
 
-  const apiResponse = await fetch(`${API_URL}/api/audio-recording/${endpoint}`, {
+  if (!backendUrl) {
+    return new NextResponse(JSON.stringify({ error: 'Backend not available' }), { status: 503 });
+  }
+
+  const apiResponse = await fetch(`${backendUrl}/api/audio-recording/${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

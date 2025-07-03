@@ -94,3 +94,9 @@ export function formatErrorChunk(errorMsg: string): string {
 
 // Add formatTextChunk if needed by other proxy routes, though it's chat-specific
 // export function formatTextChunk(text: string): string { ... }
+
+// A new function to get the backend URL
+export async function getBackendUrl(): Promise<string | null> {
+    const backendUrls = (process.env.NEXT_PUBLIC_BACKEND_API_URLS || '').split(',').map(url => url.trim()).filter(Boolean);
+    return findActiveBackend(backendUrls);
+}
