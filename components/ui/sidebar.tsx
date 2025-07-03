@@ -177,7 +177,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               Transcribe
             </Button>
             <Separator className="my-2 bg-border/50" />
-            <div className="px-4 pt-4 text-sm font-medium opacity-50">
+            <div className="px-4 pt-4 pb-4 text-sm font-medium opacity-50">
               Chat History
             </div>
             <div className="flex-1 overflow-y-auto max-h-[300px]">
@@ -185,7 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                 <div className="space-y-2">
                   {Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
                     <div key={section}>
-                      <div className="px-4 py-1 text-xs font-medium text-muted-foreground">
+                      <div className="px-4 py-1 pb-2.5 text-xs font-medium text-muted-foreground opacity-50">
                         {section}
                       </div>
                       <div className="space-y-0.5">
