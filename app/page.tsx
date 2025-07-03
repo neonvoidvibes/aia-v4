@@ -40,7 +40,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
-import ViewSwitcher from "@/components/ui/view-switcher"; 
+import ViewSwitcher from "@/components/ui/view-switcher";
+import RecordView from "@/components/RecordView";
 import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; 
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
@@ -77,8 +78,7 @@ function HomeContent() {
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
   // State for Canvas View enablement and general view state
-  // Initialize currentView to "chat". Can be changed to "transcribe" if that's the preferred default.
-  const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe">("chat");
+  const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe" | "record">("chat");
   const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
@@ -112,6 +112,23 @@ function HomeContent() {
     isReconnecting: false
   });
 
+  // New global state for recording status
+  type GlobalRecordingStatus = {
+    type: 'transcript' | 'recording' | null;
+    isRecording: boolean;
+    isPaused: boolean;
+    time: number;
+    sessionId: string | null;
+  };
+
+  const [globalRecordingStatus, setGlobalRecordingStatus] = useState<GlobalRecordingStatus>({
+    type: null,
+    isRecording: false,
+    isPaused: false,
+    time: 0,
+    sessionId: null,
+  });
+
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
   const [showS3FileViewer, setShowS3FileViewer] = useState(false);
@@ -139,6 +156,22 @@ function HomeContent() {
   // State to track S3 keys of files currently being processed (saved to memory or archived)
   const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
   const [fileActionTypes, setFileActionTypes] = useState<Record<string, 'saving_to_memory' | 'archiving'>>({});
+
+  const handleRecordingStateChange = useCallback((newState: {
+    isBrowserRecording: boolean;
+    isBrowserPaused: boolean;
+    clientRecordingTime: number;
+    isReconnecting: boolean;
+  }) => {
+    setRecordingState(newState);
+    setGlobalRecordingStatus({
+      type: newState.isBrowserRecording ? 'transcript' : null,
+      isRecording: newState.isBrowserRecording,
+      isPaused: newState.isBrowserPaused,
+      time: newState.clientRecordingTime,
+      sessionId: null, // The chat interface doesn't manage session ID in this state object
+    });
+  }, []);
 
 
   // Flags to track if data has been fetched for the current agent/event
@@ -1118,16 +1151,16 @@ function HomeContent() {
       />
       
       {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
-      {isFullscreen && recordingState.isBrowserRecording && (
+      {isFullscreen && globalRecordingStatus.isRecording && (
         <div className="fixed top-[15px] right-4 z-20 flex items-center gap-2 text-xs text-foreground/70">
           <span className={`inline-block w-2 h-2 rounded-full ${
-            recordingState.isReconnecting ? 'bg-orange-500 animate-pulse' :
-            recordingState.isBrowserPaused ? 'bg-yellow-500' : 
-            'bg-red-500 animate-pulse'
+            globalRecordingStatus.isPaused ? 'bg-yellow-500' :
+            globalRecordingStatus.type === 'transcript' ? 'bg-red-500 animate-pulse' :
+            'bg-blue-500 animate-pulse'
           }`}></span>
           <span className="font-mono">
-            {Math.floor(recordingState.clientRecordingTime / 60).toString().padStart(2, '0')}:
-            {(recordingState.clientRecordingTime % 60).toString().padStart(2, '0')}
+            {Math.floor(globalRecordingStatus.time / 60).toString().padStart(2, '0')}:
+            {(globalRecordingStatus.time % 60).toString().padStart(2, '0')}
           </span>
         </div>
       )}
@@ -1156,7 +1189,8 @@ function HomeContent() {
             isFullscreen={isFullscreen}
             selectedModel={selectedModel}
             temperature={temperature}
-            onRecordingStateChange={setRecordingState}
+            onRecordingStateChange={handleRecordingStateChange}
+            isDedicatedRecordingActive={globalRecordingStatus.type === 'recording' && globalRecordingStatus.isRecording}
             getCanvasContext={() => ({
                 current_canvas_time_window_label: selectedTimeWindow,
                 active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
@@ -1173,6 +1207,14 @@ function HomeContent() {
               </div>
             </div>
           </div>
+        )}
+        {currentView === "record" && (
+          <RecordView
+            agentName={pageAgentName}
+            globalRecordingStatus={globalRecordingStatus}
+            setGlobalRecordingStatus={setGlobalRecordingStatus}
+            isTranscriptRecordingActive={globalRecordingStatus.type === 'transcript' && globalRecordingStatus.isRecording}
+          />
         )}
         {currentView === "canvas" && isCanvasViewEnabled && (
           <CanvasView 

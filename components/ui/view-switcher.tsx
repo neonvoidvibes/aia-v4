@@ -1,17 +1,21 @@
 "use client"
 
+"use client"
+
 import * as React from "react"
-import { MessageSquare, LayoutGrid, AudioLines } from "lucide-react" // Added AudioLines
+import { MessageSquare, LayoutGrid, AudioLines, Disc } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useMobile } from "@/hooks/use-mobile"
 
+type View = "chat" | "canvas" | "transcribe" | "record";
+
 interface ViewSwitcherProps {
-  currentView: "chat" | "canvas" | "transcribe"
-  onViewChange: (view: "chat" | "canvas" | "transcribe") => void
+  currentView: View
+  onViewChange: (view: View) => void
   agentName?: string | null
   className?: string
-  isCanvasEnabled?: boolean // To conditionally hide canvas tab
+  isCanvasEnabled?: boolean
 }
 
 export default function ViewSwitcher({
@@ -19,26 +23,31 @@ export default function ViewSwitcher({
   onViewChange,
   agentName,
   className,
-  isCanvasEnabled = false, // Default to false if not provided
+  isCanvasEnabled = false,
 }: ViewSwitcherProps) {
   const isMobile = useMobile()
 
-  const chatLabel = isMobile ? "Chat" : "Chat" // Simplified label, agent name might be displayed elsewhere
+  const chatLabel = "Chat"
   const transcribeLabel = isMobile ? "Audio" : "Transcribe"
-  const canvasLabel = isMobile ? "Canvas" : "Canvas"
+  const recordLabel = "Record"
+  const canvasLabel = "Canvas"
   
-  const gridColsClass = isCanvasEnabled ? "grid-cols-3" : "grid-cols-2";
+  const gridColsClass = isCanvasEnabled ? "grid-cols-4" : "grid-cols-3";
 
   return (
     <Tabs
       value={currentView}
-      onValueChange={(value) => onViewChange(value as "chat" | "canvas" | "transcribe")}
+      onValueChange={(value) => onViewChange(value as View)}
       className={cn("w-auto mx-auto", className)}
     >
       <TabsList className={cn("grid w-full h-9 sm:h-10", gridColsClass)}>
         <TabsTrigger value="chat" className="px-2 sm:px-3 text-xs sm:text-sm h-full">
           <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
           {chatLabel}
+        </TabsTrigger>
+        <TabsTrigger value="record" className="px-2 sm:px-3 text-xs sm:text-sm h-full">
+          <Disc className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+          {recordLabel}
         </TabsTrigger>
         <TabsTrigger value="transcribe" className="px-2 sm:px-3 text-xs sm:text-sm h-full">
           <AudioLines className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
