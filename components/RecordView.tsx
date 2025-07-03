@@ -96,6 +96,13 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
   }, [agentName]);
 
+  useEffect(() => {
+    // When recording becomes active, clear the "start" pending action.
+    if (globalRecordingStatus.isRecording && pendingAction === 'start') {
+      setPendingAction(null);
+    }
+  }, [globalRecordingStatus.isRecording, pendingAction]);
+
   const saveRecordingsToLocalStorage = (recordings: FinishedRecording[]) => {
     if (agentName) {
       localStorage.setItem(`finishedRecordings_${agentName}`, JSON.stringify(recordings));
@@ -316,7 +323,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       console.info("[MediaRecorder] Started.");
       setGlobalRecordingStatus(prev => ({ ...prev, isRecording: true, isPaused: false }));
       startTimer();
-      if (pendingAction === 'start') setPendingAction(null);
+      // The setPendingAction(null) is now handled by a useEffect watching globalRecordingStatus.isRecording
 
     } catch (err) {
       console.error("[MediaRecorder] Error getting user media:", err);
