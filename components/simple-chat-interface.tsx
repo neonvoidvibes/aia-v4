@@ -1774,7 +1774,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   <Paperclip size={20} />
                                 </button>
                                 <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={handleSaveChatToMemory} title="Save chat to memory" disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists}>
-                                  <Upload size={20} />
+                                  <Bookmark size={20} />
                                 </button>
                                 <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Download chat">
                                   <Download size={20} />
