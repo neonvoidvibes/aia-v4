@@ -1170,7 +1170,7 @@ function HomeContent() {
       
       {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
       {isFullscreen && globalRecordingStatus.isRecording && (
-        <div className="fixed top-[15px] right-4 z-20 flex items-center gap-2 text-xs text-foreground/70">
+        <div className="fixed top-[27px] right-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70">
           <span className={`inline-block w-2 h-2 rounded-full ${
             globalRecordingStatus.isPaused ? 'bg-yellow-500' :
             globalRecordingStatus.type === 'transcript' ? 'bg-blue-500 animate-pulse' :

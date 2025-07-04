@@ -693,7 +693,7 @@ const RecordView: React.FC<RecordViewProps> = ({
           {/* Finished Recordings Section */}
           <div className="w-full pt-4">
             {finishedRecordings.length > 0 && (
-              <div className="flex justify-between items-center mb-2">
+              <div className="flex justify-center items-center mb-2">
                 <h2 className="text-lg font-semibold">Finished Recordings</h2>
               </div>
             )}
