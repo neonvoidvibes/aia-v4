@@ -14,7 +14,9 @@ export function VADSettings({ aggressiveness, onAggressivenessChange }: VADSetti
   const isMobile = useMobile();
   const handleValueChange = (value: string) => {
     if (value) {
-      onAggressivenessChange(parseInt(value, 10) as VADAggressiveness);
+      const newAggressiveness = parseInt(value, 10) as VADAggressiveness;
+      console.log(`[VAD TEST] Aggressiveness changed to: ${newAggressiveness}`);
+      onAggressivenessChange(newAggressiveness);
     }
   };
 
