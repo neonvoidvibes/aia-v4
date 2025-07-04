@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Square, Download, Bookmark, Loader2, X } from 'lucide-react';
+import { Play, Pause, Square, Download, Bookmark, Loader2, X, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { createClient } from '@/utils/supabase/client';
 
 // Utility for development-only logging
@@ -44,7 +53,7 @@ interface RecordViewProps {
 interface FinishedRecording {
   s3Key: string;
   filename: string;
-  agentName: string;
+  agentName?: string; // Made optional as it might not come from the new API
   timestamp: string;
 }
 
@@ -58,6 +67,9 @@ const RecordView: React.FC<RecordViewProps> = ({
   const [finishedRecordings, setFinishedRecordings] = useState<FinishedRecording[]>([]);
   const [isEmbedding, setIsEmbedding] = useState<Record<string, boolean>>({});
   const [recordingToDelete, setRecordingToDelete] = useState<FinishedRecording | null>(null);
+  const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState<{ filename: string; content: string } | null>(null);
+  const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
   const isPineconeEnabled = agentCapabilities.pinecone_index_exists;
 
   // --- Robust WebSocket and State Management ---
@@ -87,14 +99,33 @@ const RecordView: React.FC<RecordViewProps> = ({
   const MAX_HEARTBEAT_MISSES = 2;
   const heartbeatMissesRef = useRef(0);
 
-  useEffect(() => {
-    if (agentName) {
-      const storedRecordings = localStorage.getItem(`finishedRecordings_${agentName}`);
-      if (storedRecordings) {
-        setFinishedRecordings(JSON.parse(storedRecordings));
+  const fetchRecordings = useCallback(async () => {
+    if (!agentName) return;
+    debugLog("Fetching recordings for agent:", agentName);
+    try {
+      const response = await fetch('/api/recordings/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentName }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch recordings');
       }
+      const recordings: FinishedRecording[] = await response.json();
+      setFinishedRecordings(recordings);
+      debugLog("Fetched recordings:", recordings);
+    } catch (error) {
+      console.error("Error fetching recordings:", error);
+      toast.error(`Could not load recordings: ${(error as Error).message}`);
     }
   }, [agentName]);
+
+  useEffect(() => {
+    if (agentName) {
+      fetchRecordings();
+    }
+  }, [agentName, fetchRecordings]);
 
   useEffect(() => {
     // When recording becomes active, clear the "start" pending action.
@@ -102,12 +133,6 @@ const RecordView: React.FC<RecordViewProps> = ({
       setPendingAction(null);
     }
   }, [globalRecordingStatus.isRecording, pendingAction]);
-
-  const saveRecordingsToLocalStorage = (recordings: FinishedRecording[]) => {
-    if (agentName) {
-      localStorage.setItem(`finishedRecordings_${agentName}`, JSON.stringify(recordings));
-    }
-  };
 
   const startTimer = () => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
@@ -261,11 +286,8 @@ const RecordView: React.FC<RecordViewProps> = ({
         agentName: agentName!,
         timestamp: new Date().toISOString(),
       };
-      setFinishedRecordings(prev => {
-        const updated = [newRecording, ...prev];
-        saveRecordingsToLocalStorage(updated);
-        return updated;
-      });
+      // Instead of updating local state directly, re-fetch from the source of truth
+      fetchRecordings();
       toast.success("Recording stopped and saved.");
     } else {
       const errorMessage = result.error || "Failed to get recording data from server.";
@@ -568,9 +590,8 @@ const RecordView: React.FC<RecordViewProps> = ({
       });
       const data = await response.json();
       if (response.ok) {
-        const updatedRecordings = finishedRecordings.filter(rec => rec.s3Key !== recordingToDelete.s3Key);
-        setFinishedRecordings(updatedRecordings);
-        saveRecordingsToLocalStorage(updatedRecordings);
+        // Re-fetch the list from S3 to ensure UI is in sync
+        fetchRecordings();
         toast.success(`Deleted recording: ${recordingToDelete.filename}`);
       } else {
         throw new Error(data.error || "Failed to delete recording.");
@@ -583,12 +604,25 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
   };
 
-  const handleClearRecordings = () => {
-    setFinishedRecordings([]);
-    if (agentName) {
-      localStorage.removeItem(`finishedRecordings_${agentName}`);
+  const handleViewTranscript = async (s3Key: string, filename: string) => {
+    setIsLoadingTranscript(true);
+    setCurrentTranscript({ filename, content: "Loading..." });
+    setIsTranscriptModalOpen(true);
+    try {
+      const response = await fetch(`/api/s3/view?s3Key=${encodeURIComponent(s3Key)}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch transcript');
+      }
+      const data = await response.json();
+      setCurrentTranscript({ filename, content: data.content });
+    } catch (error) {
+      console.error("Error fetching transcript:", error);
+      toast.error(`Could not load transcript: ${(error as Error).message}`);
+      setCurrentTranscript({ filename, content: `Error: ${(error as Error).message}` });
+    } finally {
+      setIsLoadingTranscript(false);
     }
-    toast.info("Cleared recordings from the list.");
   };
 
   const handlePlayPauseClick = () => {
@@ -666,9 +700,6 @@ const RecordView: React.FC<RecordViewProps> = ({
             {finishedRecordings.length > 0 && (
               <div className="flex justify-between items-center mb-2">
                 <h2 className="text-lg font-semibold">Finished Recordings</h2>
-                <Button variant="outline" size="sm" onClick={handleClearRecordings}>
-                  Clear List
-                </Button>
               </div>
             )}
             <div className="overflow-y-auto space-y-1 px-1" style={{ maxHeight: 'calc(100vh - 350px)' }}>
@@ -682,6 +713,9 @@ const RecordView: React.FC<RecordViewProps> = ({
                       </p>
                     </div>
                     <div className="flex items-center space-x-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleViewTranscript(rec.s3Key, rec.filename)} title="View Transcript" disabled={!isPineconeEnabled}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)} title="Download" disabled={!isPineconeEnabled}>
                         <Download className="h-4 w-4" />
                       </Button>
@@ -719,6 +753,34 @@ const RecordView: React.FC<RecordViewProps> = ({
           </AlertDialogContent>
         </div>
       </div>
+      <Dialog open={isTranscriptModalOpen} onOpenChange={setIsTranscriptModalOpen}>
+        <DialogContent className="max-w-3xl h-4/5 flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="truncate">Transcript: {currentTranscript?.filename}</DialogTitle>
+            <DialogDescription>
+              Content of the selected recording.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-grow overflow-y-auto border rounded-md p-4 bg-muted/20">
+            {isLoadingTranscript ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <pre className="text-sm whitespace-pre-wrap break-words">
+                {currentTranscript?.content}
+              </pre>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Close
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AlertDialog>
   );
 };
