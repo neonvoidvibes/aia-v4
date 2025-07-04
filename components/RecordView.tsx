@@ -280,12 +280,6 @@ const RecordView: React.FC<RecordViewProps> = ({
     // 3. Finalize via HTTP
     const result = await callHttpRecordingApi('stop', { session_id: sessionId });
     if (result.success && result.data?.s3Key) {
-      const newRecording: FinishedRecording = {
-        s3Key: result.data.s3Key,
-        filename: result.data.s3Key.split('/').pop()!,
-        agentName: agentName!,
-        timestamp: new Date().toISOString(),
-      };
       // Instead of updating local state directly, re-fetch from the source of truth
       fetchRecordings();
       toast.success("Recording stopped and saved.");
@@ -301,7 +295,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     setGlobalRecordingStatus({ type: null, isRecording: false, isPaused: false, time: 0, sessionId: null });
     setPendingAction(null);
     debugLog("[Stop Recording] Finished.");
-  }, [globalRecordingStatus, pendingAction, callHttpRecordingApi, agentName]);
+  }, [globalRecordingStatus, pendingAction, callHttpRecordingApi, agentName, fetchRecordings]);
 
   const startBrowserMediaRecording = useCallback(async () => {
     debugLog(`[MediaRecorder] Attempting start. WS state: ${webSocketRef.current?.readyState}`);
@@ -522,6 +516,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       setGlobalRecordingStatus({ type: 'recording', isRecording: false, isPaused: false, time: 0, sessionId });
       connectWebSocket(sessionId);
       toast.success("Recording session initiated.");
+      fetchRecordings(); // Refresh the list
     } else {
       setPendingAction(null);
     }
