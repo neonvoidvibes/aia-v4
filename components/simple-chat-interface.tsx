@@ -1268,6 +1268,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setAgentName(currentAgent); setEventId(currentEvent);
         const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any";
         try {
+            console.log(`[VAD TEST] Starting recording with aggressiveness: ${vadAggressiveness}`);
             const result = await callHttpRecordingApi('start', { 
               agent: currentAgent, 
               event: currentEvent, 
