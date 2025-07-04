@@ -240,11 +240,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
             </Button>
             <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('record'); }}>
               <Disc className="mr-3 h-5 w-5" />
-              Record
+              Record Note
             </Button>
             <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('transcribe'); }}>
               <AudioLines className="mr-3 h-5 w-5" />
-              Transcribe
+              Transcribe Document
             </Button>
             <Separator className="my-2 bg-border/50" />
             <div className="px-4 pt-4 pb-4 text-sm font-medium opacity-50">
