@@ -104,94 +104,46 @@ export async function GET(req: NextRequest) {
 }
 
 
-// Route handler for POST (for actions like start, stop, pause, resume)
+// Route handler for POST (for actions like start, stop)
 export async function POST(req: NextRequest) {
-    console.log("[API /api/recording-proxy] Received POST request");
     const supabase = await createServerActionClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        console.warn("[API /api/recording-proxy] Unauthorized POST request:", authError?.message);
-        return formatErrorResponse("Unauthorized: Invalid session", 401);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return formatErrorResponse("Unauthorized", 401);
     }
-    console.log(`[API /api/recording-proxy] POST Authenticated user: ${user.id}`);
-
-    let body: any;
-    try {
-        body = await req.json();
-    } catch (e) {
-        return formatErrorResponse("Invalid JSON request body", 400);
-    }
-
-    const action = body?.action;
-    const payload = body?.payload || {};
-
-    if (!action || !['start', 'stop', 'pause', 'resume'].includes(action)) {
-        return formatErrorResponse("Missing or invalid 'action' in request body", 400);
-    }
-
-    console.log(`[API /api/recording-proxy] Action requested: ${action}`);
 
     const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
     if (!activeBackendUrl) {
-        return formatErrorResponse(`Could not connect to backend for action: ${action}.`, 503);
+        return formatErrorResponse("Backend service not available", 503);
+    }
+
+    const originalBody = await req.json();
+    const action = originalBody?.action;
+
+    if (!action || !['start', 'stop'].includes(action)) {
+        return formatErrorResponse("Invalid or missing action", 400);
     }
 
     const targetUrl = `${activeBackendUrl}/api/recording/${action}`;
-    console.log(`[API /api/recording-proxy] Forwarding POST to ${targetUrl}`);
+    console.log(`[API /api/recording-proxy] Forwarding POST for action '${action}' to ${targetUrl}`);
 
     try {
-        // Forward the Authorization header from the original frontend request
         const originalAuthHeader = req.headers.get('Authorization');
-        const backendHeaders: HeadersInit = {
-            'Content-Type': 'application/json' // Always set for POST to backend
-        };
-        if (originalAuthHeader) {
-             backendHeaders['Authorization'] = originalAuthHeader;
-             console.log(`[API /api/recording-proxy] Forwarding Authorization header for action '${action}'.`);
-        } else {
-             console.warn(`[API /api/recording-proxy] Original Authorization header missing for action '${action}'. Backend might reject.`);
-             // You might want to return an error here if the header is absolutely required
-             // return formatErrorResponse("Internal error: Auth token missing for backend call", 500);
+        if (!originalAuthHeader) {
+            return formatErrorResponse("Authorization header missing", 401);
         }
 
         const backendResponse = await fetch(targetUrl, {
             method: 'POST',
-            headers: backendHeaders, // Send potentially updated headers
-            // 'start' and 'stop' (and potentially others) will send a JSON body
-            body: JSON.stringify({ ...payload, ...body }),
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': originalAuthHeader,
+            },
+            body: JSON.stringify(originalBody.payload), // Forward the nested payload object
         });
 
-        // Check Content-Type and status before assuming JSON
-        const contentType = backendResponse.headers.get("content-type");
-        let responseData;
-
-        if (backendResponse.ok && contentType && contentType.includes("application/json")) {
-             try {
-                responseData = await backendResponse.json();
-             } catch (jsonError: any) {
-                 console.error(`[API /api/recording-proxy] Action '${action}' JSON parse error: ${jsonError.message}`);
-                 return formatErrorResponse(`Backend returned invalid JSON for action '${action}'`, 500);
-             }
-        } else if (backendResponse.ok) {
-             const textResponse = await backendResponse.text().catch(() => "Could not read response text");
-             console.warn(`[API /api/recording-proxy] Action '${action}' backend returned OK but non-JSON: ${contentType}`);
-             return formatErrorResponse(`Backend returned unexpected format for action '${action}'`, 502);
-        } else {
-             const errorText = await backendResponse.text().catch(() => `Status ${backendResponse.statusText}`);
-             console.error(`[API /api/recording-proxy] Action '${action}' backend error: ${backendResponse.status}`, errorText);
-             // Attempt to parse potential JSON error from backend
-             if (contentType && contentType.includes("application/json")) {
-                 try { responseData = JSON.parse(errorText); } catch { responseData = { message: errorText }; }
-             } else {
-                 responseData = { message: errorText };
-             }
-             return NextResponse.json(responseData, { status: backendResponse.status });
-        }
-
-        // If we got here, response was OK and JSON parsed
-        console.log(`[API /api/recording-proxy] Action '${action}' success:`, responseData);
-        return NextResponse.json(responseData);
+        const responseData = await backendResponse.json();
+        return NextResponse.json(responseData, { status: backendResponse.status });
 
     } catch (error: any) {
         console.error(`[API /api/recording-proxy] Fetch error for action '${action}': ${error.message}`, error);

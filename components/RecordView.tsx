@@ -272,7 +272,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       if (!dueToError) {
         toast.error(`Could not finalize recording: ${errorMessage}`);
       }
-      console.error("[Stop Recording] Finalization failed:", result);
+      console.error("[Stop Recording] Finalization failed. Full result:", JSON.stringify(result, null, 2));
     }
 
     // 4. Reset State
