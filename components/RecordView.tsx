@@ -642,7 +642,7 @@ const RecordView: React.FC<RecordViewProps> = ({
           <div className="flex items-center justify-center space-x-4">
             <Button
               onClick={handlePlayPauseClick}
-              disabled={isTranscriptRecordingActive || !isPineconeEnabled || isStopping || pendingAction === 'start'}
+              disabled={isTranscriptRecordingActive || isStopping || pendingAction === 'start'}
               className={cn(
                 "flex items-center h-12 px-6 rounded-md text-foreground",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -662,7 +662,7 @@ const RecordView: React.FC<RecordViewProps> = ({
             </Button>
             <Button
               onClick={(e) => handleStopRecording(e)}
-              disabled={!isRecording || !isPineconeEnabled || isStopping}
+              disabled={!isRecording || isStopping}
               className={cn(
                 "flex items-center h-12 px-6 rounded-md text-foreground",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -679,9 +679,14 @@ const RecordView: React.FC<RecordViewProps> = ({
               <span className="text-base">{isStopping ? "Stopping..." : "Stop"}</span>
             </Button>
           </div>
-          {(isTranscriptRecordingActive || !isPineconeEnabled) && (
+          {isTranscriptRecordingActive && (
             <p className="text-xs text-muted-foreground text-center">
-              {!isPineconeEnabled ? "Agent has no memory index. Recording disabled." : "Stop the chat transcript to enable recording."}
+              Stop the chat transcript to enable recording.
+            </p>
+          )}
+          {!isPineconeEnabled && !isTranscriptRecordingActive && (
+            <p className="text-xs text-muted-foreground text-center">
+              Agent has no memory index. Saving to memory is disabled.
             </p>
           )}
           {isReconnecting && (
@@ -708,10 +713,10 @@ const RecordView: React.FC<RecordViewProps> = ({
                       </p>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleViewTranscript(rec.s3Key, rec.filename)} title="View Transcript" disabled={!isPineconeEnabled}>
+                      <Button variant="ghost" size="icon" onClick={() => handleViewTranscript(rec.s3Key, rec.filename)} title="View Transcript">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)} title="Download" disabled={!isPineconeEnabled}>
+                      <Button variant="ghost" size="icon" onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)} title="Download">
                         <Download className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleEmbedRecording(rec.s3Key)} disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled} title="Bookmark to Memory" className={!isPineconeEnabled ? 'cursor-not-allowed' : ''}>
