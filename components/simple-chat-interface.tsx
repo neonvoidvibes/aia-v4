@@ -44,6 +44,7 @@ import { createClient } from '@/utils/supabase/client'
 import ThinkingIndicator from "@/components/ui/ThinkingIndicator"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner" // Import toast
+import { type VADAggressiveness } from "./VADSettings";
 
 // Utility for development-only logging
 const debugLog = (...args: any[]) => {
@@ -172,6 +173,7 @@ interface SimpleChatInterfaceProps {
     isReconnecting: boolean;
   }) => void;
   isDedicatedRecordingActive?: boolean;
+  vadAggressiveness: VADAggressiveness;
   getCanvasContext?: () => { // New prop to fetch dynamic canvas context
     current_canvas_time_window_label?: string;
     active_canvas_insights?: string; // JSON string
@@ -213,7 +215,7 @@ const formatThoughtDuration = (totalSeconds: number): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, getCanvasContext, onChatIdChange }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, getCanvasContext, onChatIdChange }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -1266,7 +1268,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setAgentName(currentAgent); setEventId(currentEvent);
         const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any";
         try {
-            const result = await callHttpRecordingApi('start', { agent: currentAgent, event: currentEvent, transcriptionLanguage: currentTranscriptionLanguage });
+            const result = await callHttpRecordingApi('start', { 
+              agent: currentAgent, 
+              event: currentEvent, 
+              transcriptionLanguage: currentTranscriptionLanguage,
+              vad_aggressiveness: vadAggressiveness 
+            });
             if (result.success && result.data?.session_id) {
                 console.info("[Start Recording Session] HTTP start successful. New Session ID:", result.data.session_id);
                 setSessionId(result.data.session_id); setSessionStartTimeUTC(result.data.session_start_time_utc);

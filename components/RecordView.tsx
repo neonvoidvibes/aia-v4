@@ -42,12 +42,15 @@ type GlobalRecordingStatus = {
   sessionId: string | null;
 };
 
+import { type VADAggressiveness } from './VADSettings';
+
 interface RecordViewProps {
   agentName: string | null;
   globalRecordingStatus: GlobalRecordingStatus;
   setGlobalRecordingStatus: React.Dispatch<React.SetStateAction<GlobalRecordingStatus>>;
   isTranscriptRecordingActive: boolean;
   agentCapabilities: { pinecone_index_exists: boolean };
+  vadAggressiveness: VADAggressiveness;
 }
 
 interface FinishedRecording {
@@ -63,6 +66,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   setGlobalRecordingStatus,
   isTranscriptRecordingActive,
   agentCapabilities,
+  vadAggressiveness,
 }) => {
   const [finishedRecordings, setFinishedRecordings] = useState<FinishedRecording[]>([]);
   const [isEmbedding, setIsEmbedding] = useState<Record<string, boolean>>({});
@@ -510,7 +514,10 @@ const RecordView: React.FC<RecordViewProps> = ({
     setPendingAction('start');
     resetRecordingStates(); // Ensure clean state before starting
 
-    const result = await callHttpRecordingApi('start', { transcriptionLanguage: 'any' });
+    const result = await callHttpRecordingApi('start', { 
+      transcriptionLanguage: 'any',
+      vad_aggressiveness: vadAggressiveness
+    });
     if (result.success && result.data?.session_id) {
       const sessionId = result.data.session_id;
       setGlobalRecordingStatus({ type: 'recording', isRecording: false, isPaused: false, time: 0, sessionId });

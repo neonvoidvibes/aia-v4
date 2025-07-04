@@ -48,6 +48,7 @@ import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
 
 // Main content component that uses useSearchParams
 function HomeContent() {
@@ -97,6 +98,7 @@ function HomeContent() {
   const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "latest" | "all">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
+  const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness>(2);
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
 
   // Fullscreen mode state
@@ -502,6 +504,26 @@ function HomeContent() {
   }, [savedTranscriptMemoryMode, pageAgentName]);
 
   // Load and persist transcriptionLanguage (agent-specific)
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `vadAggressivenessSetting_${pageAgentName}`;
+      const savedValue = localStorage.getItem(key);
+      if (savedValue && ["1", "2", "3"].includes(savedValue)) {
+        setVadAggressiveness(parseInt(savedValue, 10) as VADAggressiveness);
+      } else {
+        setVadAggressiveness(2); // Default to 'Balanced'
+        localStorage.setItem(key, "2");
+      }
+    }
+  }, [pageAgentName]);
+
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `vadAggressivenessSetting_${pageAgentName}`;
+      localStorage.setItem(key, vadAggressiveness.toString());
+    }
+  }, [vadAggressiveness, pageAgentName]);
+
   useEffect(() => {
     if (pageAgentName) { // Ensure agentName is available
       const key = `transcriptionLanguageSetting_${pageAgentName}`;
@@ -1209,6 +1231,7 @@ function HomeContent() {
             temperature={temperature}
             onRecordingStateChange={handleRecordingStateChange}
             isDedicatedRecordingActive={globalRecordingStatus.type === 'recording' && globalRecordingStatus.isRecording}
+            vadAggressiveness={vadAggressiveness}
             getCanvasContext={() => ({
                 current_canvas_time_window_label: selectedTimeWindow,
                 active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
@@ -1233,6 +1256,7 @@ function HomeContent() {
             setGlobalRecordingStatus={setGlobalRecordingStatus}
             isTranscriptRecordingActive={globalRecordingStatus.type === 'transcript' && globalRecordingStatus.isRecording}
             agentCapabilities={agentCapabilities}
+            vadAggressiveness={vadAggressiveness}
           />
         )}
         {currentView === "canvas" && isCanvasViewEnabled && (
@@ -1459,6 +1483,10 @@ function HomeContent() {
                         </DropdownMenu>
                       )}
                     </div>
+                    <VADSettings
+                      aggressiveness={vadAggressiveness}
+                      onAggressivenessChange={setVadAggressiveness}
+                    />
                   </div>
                 </TabsContent>
                 <TabsContent value="memory" className="mt-0 tab-content-scrollable">
