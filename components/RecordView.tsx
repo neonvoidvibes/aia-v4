@@ -692,7 +692,7 @@ const RecordView: React.FC<RecordViewProps> = ({
             </p>
           )}
           {!isPineconeEnabled && !isTranscriptRecordingActive && (
-            <p className="text-xs text-muted-foreground text-center">
+            <p className="text-xs text-muted-foreground text-center pt-4">
               Agent has no memory index. Saving to memory is disabled.
             </p>
           )}
