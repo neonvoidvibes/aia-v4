@@ -33,8 +33,10 @@ import {
   AlertTriangle, // Added for error messages
   Upload, // Added for save to memory
   Bookmark, // Added for save individual message
+  Trash2, // Added for deleting messages
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useMobile } from "@/hooks/use-mobile"
 import { useTheme } from "next-themes"
 import { motion } from "framer-motion"
@@ -561,6 +563,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [allAttachments, setAllAttachments] = useState<AttachmentFile[]>([]);
     const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
     const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
+    const [messageToDelete, setMessageToDelete] = useState<UIMessage | null>(null);
     const isMobile = useMobile();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -1631,6 +1634,51 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         console.info("[Read Aloud] Triggered.");
     }, []);
 
+    const handleDeleteMessage = useCallback(async () => {
+        if (!messageToDelete || !currentChatId) return;
+
+        const toastId = `delete-message-${messageToDelete.id}`;
+        toast.loading("Deleting message...", { id: toastId });
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                toast.error("Authentication error. Cannot delete message.", { id: toastId });
+                return;
+            }
+
+            const response = await fetch('/api/chat/history/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    chatId: currentChatId,
+                    messageId: messageToDelete.id,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || "Failed to delete message from backend.");
+            }
+
+            // Remove message from UI state
+            setMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
+            setErrorMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
+
+
+            toast.success("Message deleted.", { id: toastId });
+        } catch (error: any) {
+            console.error('[Delete Message] Error:', error);
+            toast.error(`Failed to delete message: ${error.message}`, { id: toastId });
+        } finally {
+            setMessageToDelete(null);
+        }
+    }, [messageToDelete, currentChatId, supabase.auth, setMessages]);
+
     const onSubmit = handleSubmitWithCanvasContext;
     
     useEffect(() => { 
@@ -1782,6 +1830,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
                                                 <Pencil className="h-4 w-4" />
                                               </button>
+                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]" aria-label="Delete message">
+                                                <Trash2 className="h-4 w-4" />
+                                              </button>
                                             </div>
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 ml-2">
                                               Message saved
@@ -1799,6 +1850,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             </button>
                                             <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", !agentCapabilities.pinecone_index_exists ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists}>
                                               <Bookmark className="h-4 w-4" />
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]" aria-label="Delete message">
+                                                <Trash2 className="h-4 w-4" />
                                             </button>
                                           </>
                                         )}
@@ -1819,6 +1873,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
                                                 <Volume2 className="h-4 w-4" />
                                               </button>
+                                               <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]" aria-label="Delete message">
+                                                <Trash2 className="h-4 w-4" />
+                                              </button>
                                               <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
                                             </div>
                                           </>
@@ -1831,9 +1888,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               <Bookmark className="h-4 w-4" />
                                             </button>
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
+                                              <>
                                               <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
                                                 <Volume2 className="h-4 w-4" />
                                               </button>
+                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]" aria-label="Delete message">
+                                                <Trash2 className="h-4 w-4" />
+                                              </button>
+                                              </>
                                             )}
                                             <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
                                           </>
@@ -1905,6 +1967,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             )}
 
             <div className="input-area-container flex-shrink-0" style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+                <AlertDialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete the message from this chat and any saved memories. This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setMessageToDelete(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteMessage}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
                 {attachedFiles.length > 0 && (
                   <div className="flex justify-end mb-0.5 input-attachments-container">
                     <FileAttachmentMinimal files={attachedFiles} onRemove={removeFile} className="max-w-[50%] file-attachment-container" maxVisible={1} />
