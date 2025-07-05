@@ -1390,7 +1390,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               }
 
               // Populate saved states from the loaded data
-              if (chatData.savedMessageIds) {
+              if (chatData.savedMessageIds && Object.keys(chatData.savedMessageIds).length > 0) {
                 const newSavedMessages = new Map(Object.entries(chatData.savedMessageIds).map(([id, dateStr]) => [id, new Date(dateStr as string)]));
                 setSavedMessageIds(newSavedMessages);
                 console.info("[Load Chat History] Loaded", newSavedMessages.size, "saved messages.");

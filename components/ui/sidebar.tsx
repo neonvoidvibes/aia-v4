@@ -280,7 +280,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                                     "absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0",
                                     chat.isConversationSaved
                                       ? "bg-[hsl(var(--save-memory-color))]"
-                                      : "border-2 border-[hsl(var(--save-memory-color))]"
+                                      : "border border-[hsl(var(--save-memory-color))]"
                                   )}
                                   style={{
                                     borderColor: chat.hasSavedMessages && !chat.isConversationSaved ? 'hsl(var(--save-memory-color))' : undefined,
