@@ -1501,23 +1501,54 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setShowPlusMenu(false);
 
         try {
-            const response = await fetch('/api/memory/save-chat', {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                toast.error("Authentication error. Cannot save memory.", { id: toastId });
+                return;
+            }
+
+            // This now correctly calls the history save endpoint, which also handles the memory log logic on the backend
+            const response = await fetch('/api/chat/history/save', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
                 body: JSON.stringify({
-                    agentName: agentName,
+                    agent: agentName,
                     messages: messages,
-                    sessionId: currentChatId,
-                    lastMessageId: lastMessageId, // Pass the last message ID
-                    savedAt: new Date().toISOString()
+                    chatId: currentChatId,
+                    title: chatTitle,
+                    lastMessageId: lastMessageId, // Pass the last message ID to be stored
                 }),
             });
 
             const result = await response.json();
 
-            if (!response.ok) {
-                throw new Error(result.error || "Failed to save memory.");
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || "Failed to save chat history.");
             }
+
+            // Also trigger the more complex memory saving/embedding process
+            const memoryResponse = await fetch('/api/memory/save-chat', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({
+                    agentName: agentName,
+                    messages: messages,
+                    sessionId: currentChatId,
+                    savedAt: new Date().toISOString()
+                }),
+            });
+
+            if (!memoryResponse.ok) {
+                 const memResult = await memoryResponse.json().catch(() => ({}));
+                 throw new Error(memResult.error || "Failed to save to intelligent memory.");
+            }
+
 
             toast.success("Chat saved to memory successfully.", { id: toastId });
             if (lastMessageId) {
@@ -1528,7 +1559,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.error('[Save to Memory] Error:', error);
             toast.error(`Failed to save memory: ${error.message}`, { id: toastId });
         }
-    }, [agentName, messages, currentChatId, addErrorMessage]);
+    }, [agentName, messages, currentChatId, chatTitle, addErrorMessage, supabase.auth]);
 
     const handleSaveMessageToMemory = useCallback(async (message: Message) => {
         debugLog("[Save Message to Memory] Initiated for message:", message.id);
@@ -1847,7 +1878,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             </>
                           )}
                           {shouldShowSaveMarker && (
-                            <div className="relative my-4 text-center">
+                            <div className="relative my-8 text-center">
                               <div className="absolute inset-0 flex items-center" aria-hidden="true">
                                 <div className="w-full border-t border-[hsl(var(--save-memory-color))] opacity-50"></div>
                               </div>
