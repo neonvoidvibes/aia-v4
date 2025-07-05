@@ -1488,13 +1488,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const handleSaveChatToMemory = useCallback(async () => {
         debugLog("[Save Chat to Memory] Initiated.");
-        if (!agentName || messages.length === 0 || !currentChatId) {
+        const currentMessages = messagesRef.current;
+        if (!agentName || currentMessages.length === 0 || !currentChatId) {
             addErrorMessage('Cannot save memory: Chat is empty or has not been initialized.');
             setShowPlusMenu(false);
             return;
         }
 
-        const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+        const lastMessageId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null;
 
         const toastId = `save-memory-${currentChatId}`;
         toast.loading("Saving to memory...", { id: toastId });
@@ -1516,7 +1517,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 },
                 body: JSON.stringify({
                     agent: agentName,
-                    messages: messages,
+                    messages: currentMessages,
                     chatId: currentChatId,
                     title: chatTitle,
                     lastMessageId: lastMessageId, // Pass the last message ID to be stored
@@ -1538,7 +1539,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 },
                 body: JSON.stringify({
                     agentName: agentName,
-                    messages: messages,
+                    messages: currentMessages,
                     sessionId: currentChatId,
                     savedAt: new Date().toISOString()
                 }),
@@ -1559,7 +1560,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.error('[Save to Memory] Error:', error);
             toast.error(`Failed to save memory: ${error.message}`, { id: toastId });
         }
-    }, [agentName, messages, currentChatId, chatTitle, addErrorMessage, supabase.auth]);
+    }, [agentName, currentChatId, chatTitle, addErrorMessage, supabase.auth]);
 
     const handleSaveMessageToMemory = useCallback(async (message: Message) => {
         debugLog("[Save Message to Memory] Initiated for message:", message.id);
