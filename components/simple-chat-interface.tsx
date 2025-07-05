@@ -564,6 +564,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
     const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
     const [messageToDelete, setMessageToDelete] = useState<UIMessage | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const isMobile = useMobile();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -1635,8 +1636,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, []);
 
     const handleDeleteMessage = useCallback(async () => {
-        if (!messageToDelete || !currentChatId) return;
+        if (!messageToDelete || !currentChatId || isDeleting) return;
 
+        setIsDeleting(true);
         const toastId = `delete-message-${messageToDelete.id}`;
         toast.loading("Deleting message...", { id: toastId });
 
@@ -1668,6 +1670,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             // Remove message from UI state
             setMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
             setErrorMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
+            
+            // Update the save marker if necessary
+            if (result.new_last_message_id_at_save) {
+                setConversationSaveMarkerMessageId(result.new_last_message_id_at_save);
+            } else if (conversationSaveMarkerMessageId === messageToDelete.id) {
+                // If the deleted message was the marker and there's no new one, clear it
+                setConversationSaveMarkerMessageId(null);
+            }
 
 
             toast.success("Message deleted.", { id: toastId });
@@ -1676,8 +1686,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             toast.error(`Failed to delete message: ${error.message}`, { id: toastId });
         } finally {
             setMessageToDelete(null);
+            setIsDeleting(false);
         }
-    }, [messageToDelete, currentChatId, supabase.auth, setMessages]);
+    }, [messageToDelete, currentChatId, supabase.auth, setMessages, isDeleting, conversationSaveMarkerMessageId]);
 
     const onSubmit = handleSubmitWithCanvasContext;
     
@@ -1830,7 +1841,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
                                                 <Pencil className="h-4 w-4" />
                                               </button>
-                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]" aria-label="Delete message">
+                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                               </button>
                                             </div>
@@ -1848,10 +1859,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
                                               <Pencil className="h-4 w-4" />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", !agentCapabilities.pinecone_index_exists ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists}>
+                                            <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
                                               <Bookmark className="h-4 w-4" />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]" aria-label="Delete message">
+                                            <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
                                           </>
@@ -1873,7 +1884,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
                                                 <Volume2 className="h-4 w-4" />
                                               </button>
-                                               <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]" aria-label="Delete message">
+                                               <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                               </button>
                                               <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
@@ -1884,7 +1895,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                               {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", !agentCapabilities.pinecone_index_exists ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists}>
+                                            <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
                                               <Bookmark className="h-4 w-4" />
                                             </button>
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
@@ -1892,7 +1903,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
                                                 <Volume2 className="h-4 w-4" />
                                               </button>
-                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]" aria-label="Delete message">
+                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                               </button>
                                               </>
