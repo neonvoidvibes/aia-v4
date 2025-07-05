@@ -102,9 +102,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
 
     const originalChatHistory = [...chatHistory];
     const chatToDelete = chatHistory.find(chat => chat.id === chatIdToDelete);
+    const isDeletingCurrentChat = chatIdToDelete === currentChatId;
 
     // Optimistically remove the chat from the UI
     setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
+    
+    // If the deleted chat is the currently active chat, start a new chat instantly
+    if (isDeletingCurrentChat && onNewChat) {
+        onNewChat();
+    }
     setShowDeleteConfirmation(false);
 
     try {
@@ -127,10 +133,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
             throw new Error(errorData.error);
         }
 
-        // If the deleted chat is the currently active chat, start a new chat
-        if (chatIdToDelete === currentChatId && onNewChat) {
-            onNewChat();
-        }
         toast.success("Conversation deleted.");
 
     } catch (error: any) {
@@ -138,6 +140,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
         toast.error(`Failed to delete conversation: ${error.message}. Restoring.`);
         // Rollback UI on failure
         setChatHistory(originalChatHistory);
+        // If deletion of the current chat fails, reload it.
+        if (isDeletingCurrentChat && onLoadChat && chatToDelete) {
+          onLoadChat(chatToDelete.id, chatToDelete.isConversationSaved);
+        }
     } finally {
         setChatIdToDelete(null);
     }
