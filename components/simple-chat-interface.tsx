@@ -1515,6 +1515,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
         const toastId = `save-memory-${currentChatId}`;
 
+        if (onHistoryRefreshNeeded) {
+            onHistoryRefreshNeeded();
+        }
+
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) throw new Error("Authentication error. Cannot save memory.");
@@ -1548,9 +1552,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 throw new Error(memResult.error || "Failed to save to intelligent memory.");
             }
             toast.success("Chat saved to memory successfully.", { id: toastId });
-            if (onHistoryRefreshNeeded) {
-                onHistoryRefreshNeeded();
-            }
         } catch (error: any) {
             console.error('[Save to Memory] Error:', error);
             toast.error(`Failed to save memory: ${error.message}. Reverting.`, { id: toastId });
@@ -1572,6 +1573,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const newSaveDate = new Date();
         setSavedMessageIds(prev => new Map(prev).set(message.id, newSaveDate));
 
+        if (onHistoryRefreshNeeded) {
+            onHistoryRefreshNeeded();
+        }
+
         try {
             const response = await fetch('/api/memory/save-chat', {
                 method: 'POST',
@@ -1586,9 +1591,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || "Failed to save message.");
             toast.success("Message saved to memory.", { id: toastId });
-            if (onHistoryRefreshNeeded) {
-                onHistoryRefreshNeeded();
-            }
         } catch (error: any) {
             console.error('[Save Message to Memory] Error:', error);
             toast.error(`Failed to save message: ${error.message}. Reverting.`, { id: toastId });
