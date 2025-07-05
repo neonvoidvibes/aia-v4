@@ -1370,24 +1370,34 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
               const chatData = await response.json();
               
-              // Stop any active recording first
               if (isBrowserRecordingRef.current || sessionId) {
                 await handleStopRecording(undefined, false);
               }
 
-              // Clear current state
+              // Clear all relevant states for the new chat
               setAttachedFiles([]);
               setAllAttachments([]);
               filesForNextMessageRef.current = [];
+              setSavedMessageIds(new Map());
+              setLastConversationSaveTime(null);
 
-              // Set the chat ID and title so future saves update this chat
               setCurrentChatId(chatData.id);
               setChatTitle(chatData.title);
 
-              // Load the chat messages
               if (chatData.messages && Array.isArray(chatData.messages)) {
                 setMessages(chatData.messages);
                 console.info("[Load Chat History] Loaded", chatData.messages.length, "messages for chat:", chatData.id);
+              }
+
+              // Populate saved states from the loaded data
+              if (chatData.savedMessageIds) {
+                const newSavedMessages = new Map(Object.entries(chatData.savedMessageIds).map(([id, dateStr]) => [id, new Date(dateStr as string)]));
+                setSavedMessageIds(newSavedMessages);
+                console.info("[Load Chat History] Loaded", newSavedMessages.size, "saved messages.");
+              }
+              if (chatData.isConversationSaved && chatData.lastConversationSaveTime) {
+                setLastConversationSaveTime(new Date(chatData.lastConversationSaveTime));
+                console.info("[Load Chat History] Loaded conversation save time:", chatData.lastConversationSaveTime);
               }
 
             } catch (error) {
