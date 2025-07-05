@@ -1500,19 +1500,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
 
         const lastMessageId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null;
+        const originalSaveMarker = conversationSaveMarkerMessageId;
 
+        // Optimistically update the UI
+        if (lastMessageId) {
+            setConversationSaveMarkerMessageId(lastMessageId);
+        }
+        setShowPlusMenu(false);
         const toastId = `save-memory-${currentChatId}`;
         toast.loading("Saving to memory...", { id: toastId });
-        setShowPlusMenu(false);
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) {
-                toast.error("Authentication error. Cannot save memory.", { id: toastId });
-                return;
+                throw new Error("Authentication error. Cannot save memory.");
             }
 
-            // This now correctly calls the history save endpoint, which also handles the memory log logic on the backend
             const response = await fetch('/api/chat/history/save', {
                 method: 'POST',
                 headers: { 
@@ -1524,17 +1527,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     messages: currentMessages,
                     chatId: currentChatId,
                     title: chatTitle,
-                    lastMessageId: lastMessageId, // Pass the last message ID to be stored
+                    lastMessageId: lastMessageId,
                 }),
             });
 
             const result = await response.json();
-
             if (!response.ok || !result.success) {
                 throw new Error(result.error || "Failed to save chat history.");
             }
 
-            // Also trigger the more complex memory saving/embedding process
             const memoryResponse = await fetch('/api/memory/save-chat', {
                 method: 'POST',
                 headers: { 
@@ -1554,17 +1555,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                  throw new Error(memResult.error || "Failed to save to intelligent memory.");
             }
 
-
             toast.success("Chat saved to memory successfully.", { id: toastId });
-            if (lastMessageId) {
-                setConversationSaveMarkerMessageId(lastMessageId);
-            }
 
         } catch (error: any) {
             console.error('[Save to Memory] Error:', error);
-            toast.error(`Failed to save memory: ${error.message}`, { id: toastId });
+            toast.error(`Failed to save memory: ${error.message}. Reverting.`, { id: toastId });
+            // Rollback UI on failure
+            setConversationSaveMarkerMessageId(originalSaveMarker);
         }
-    }, [agentName, currentChatId, chatTitle, addErrorMessage, supabase.auth]);
+    }, [agentName, currentChatId, chatTitle, addErrorMessage, supabase.auth, conversationSaveMarkerMessageId]);
 
     const handleSaveMessageToMemory = useCallback(async (message: Message) => {
         debugLog("[Save Message to Memory] Initiated for message:", message.id);
@@ -1574,7 +1573,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
 
         const toastId = `save-message-${message.id}`;
-        toast.loading("Saving message to memory...", { id: toastId });
+        
+        // Optimistically update the UI
+        const newSaveDate = new Date();
+        setSavedMessageIds(prev => new Map(prev).set(message.id, newSaveDate));
 
         try {
             const response = await fetch('/api/memory/save-chat', {
@@ -1584,7 +1586,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     agentName: agentName,
                     messages: [message], // Save only this single message
                     sessionId: `message_${message.id}_${Date.now()}`, // Unique session ID for individual message
-                    savedAt: new Date().toISOString()
+                    savedAt: newSaveDate.toISOString()
                 }),
             });
 
@@ -1594,12 +1596,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 throw new Error(result.error || "Failed to save message.");
             }
 
-            toast.success("Message saved to memory successfully.", { id: toastId });
-            setSavedMessageIds(prev => new Map(prev).set(message.id, new Date()));
+            toast.success("Message saved to memory.", { id: toastId });
 
         } catch (error: any) {
             console.error('[Save Message to Memory] Error:', error);
-            toast.error(`Failed to save message: ${error.message}`, { id: toastId });
+            toast.error(`Failed to save message: ${error.message}. Reverting.`, { id: toastId });
+            
+            // Rollback UI on failure
+            setSavedMessageIds(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(message.id);
+                return newMap;
+            });
         }
     }, [agentName, agentCapabilities.pinecone_index_exists, addErrorMessage]);
     const attachDocument = useCallback(() => { debugLog("[Attach Document] Triggered."); fileInputRef.current?.click(); setShowPlusMenu(false); }, []);
