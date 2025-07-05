@@ -1850,7 +1850,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         </div>
                         <div className="relative flex justify-center">
                           <span className="bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))]">
-                            Memory saved on {formatTimestamp(lastConversationSaveTime)}
+                            Memory saved
                           </span>
                         </div>
                       </div>
