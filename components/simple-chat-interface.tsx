@@ -1492,7 +1492,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 body: JSON.stringify({
                     agentName: agentName,
                     messages: messages,
-                    sessionId: currentChatId
+                    sessionId: currentChatId,
+                    savedAt: new Date().toISOString()
                 }),
             });
 
@@ -1527,7 +1528,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 body: JSON.stringify({
                     agentName: agentName,
                     messages: [message], // Save only this single message
-                    sessionId: `message_${message.id}_${Date.now()}` // Unique session ID for individual message
+                    sessionId: `message_${message.id}_${Date.now()}`, // Unique session ID for individual message
+                    savedAt: new Date().toISOString()
                 }),
             });
 
