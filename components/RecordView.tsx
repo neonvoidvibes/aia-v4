@@ -238,68 +238,41 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
   }, [agentName]);
 
-  const handleStopRecording = useCallback(async (e?: React.MouseEvent, dueToError: boolean = false) => {
+  const handleStopRecording = useCallback((e?: React.MouseEvent, dueToError: boolean = false) => {
     e?.stopPropagation();
     const { sessionId } = globalRecordingStatus;
     if (!sessionId || pendingAction === 'stop') return;
 
     debugLog(`[Stop Recording] Initiated. Error: ${dueToError}, Session: ${sessionId}`);
     setPendingAction('stop');
+    isStoppingRef.current = true;
     reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS + 1; // Prevent reconnects
-    setIsReconnecting(false);
     stopTimer();
 
-    // 1. Stop MediaRecorder
-    if (mediaRecorderRef.current) {
-      const recorder = mediaRecorderRef.current;
-      recorder.onstop = () => {
-        debugLog("[Stop] MediaRecorder.onstop executed.");
-        if (audioStreamRef.current) {
-          audioStreamRef.current.getTracks().forEach(track => track.stop());
-          audioStreamRef.current = null;
-        }
-      };
-      if (recorder.state !== "inactive") {
-        recorder.stop();
-      } else {
-        recorder.onstop(new Event('manual_stop'));
-      }
+    // Step 1: Stop the MediaRecorder. This will trigger its ondataavailable for the last time.
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
     }
 
-    // 2. Notify server and close WebSocket
-    if (webSocketRef.current) {
-      const ws = webSocketRef.current;
-      (ws as any).__intentionalClose = true;
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ action: "stop_stream" }));
-      }
-      // Give a brief moment for the message to be sent before closing
-      setTimeout(() => {
-        if (ws.readyState !== WebSocket.CLOSED) {
-          ws.close(1000, "Client-initiated stop");
-        }
-      }, 100);
-    }
-
-    // 3. Finalize via HTTP
-    const result = await callHttpRecordingApi('stop', { session_id: sessionId });
-    if (result.success && result.data?.s3Key) {
-      // Instead of updating local state directly, re-fetch from the source of truth
-      fetchRecordings();
-      toast.success("Recording stopped and saved.");
+    // Step 2: Tell the server to stop. The server will then close the WebSocket connection.
+    // The ws.onclose event handler is now responsible for the rest of the cleanup.
+    if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+      (webSocketRef.current as any).__intentionalClose = true;
+      webSocketRef.current.send(JSON.stringify({ action: "stop_stream" }));
     } else {
-      const errorMessage = result.error || "Failed to get recording data from server.";
-      if (!dueToError) {
-        toast.error(`Could not finalize recording: ${errorMessage}`);
-      }
-      console.error("[Stop Recording] Finalization failed. Full result:", JSON.stringify(result, null, 2));
+      // If WebSocket is already gone for some reason, we must manually trigger the finalization.
+      debugLog("[Stop Recording] WebSocket not open, manually finalizing.");
+      callHttpRecordingApi('stop', { session_id: sessionId }).then(result => {
+        if (result.success && result.data?.s3Key) {
+          fetchRecordings();
+          toast.success("Recording stopped and saved.");
+        } else if (!dueToError) {
+          toast.error(`Could not finalize recording: ${result.error || "Unknown error"}`);
+        }
+        resetRecordingStates(); // Hard reset as a fallback.
+      });
     }
-
-    // 4. Reset State
-    setGlobalRecordingStatus({ type: null, isRecording: false, isPaused: false, time: 0, sessionId: null });
-    setPendingAction(null);
-    debugLog("[Stop Recording] Finished.");
-  }, [globalRecordingStatus, pendingAction, callHttpRecordingApi, agentName, fetchRecordings]);
+  }, [globalRecordingStatus, pendingAction, callHttpRecordingApi, fetchRecordings, resetRecordingStates]);
 
   const startBrowserMediaRecording = useCallback(async () => {
     debugLog(`[MediaRecorder] Attempting start. WS state: ${webSocketRef.current?.readyState}`);
@@ -378,7 +351,6 @@ const RecordView: React.FC<RecordViewProps> = ({
 
       setWsStatus('connecting');
       
-      // Unified WebSocket URL logic
       const wsBaseUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || (process.env.NEXT_PUBLIC_BACKEND_API_URL || '').replace(/^http/, 'ws');
       if (!wsBaseUrl) {
         toast.error("WebSocket URL is not configured. Set NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_BACKEND_API_URL.");
@@ -394,11 +366,10 @@ const RecordView: React.FC<RecordViewProps> = ({
       (newWs as any).__intentionalClose = false;
 
       newWs.onopen = () => {
-        if (webSocketRef.current !== newWs) return; // Stale connection
+        if (webSocketRef.current !== newWs) return;
         console.info(`[WebSocket] Connection open. Reconnecting: ${isReconnecting}`);
         setWsStatus('open');
         
-        // Reset heartbeat on new connection
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
         if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
         heartbeatMissesRef.current = 0;
@@ -456,27 +427,44 @@ const RecordView: React.FC<RecordViewProps> = ({
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
         if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
 
-        if (webSocketRef.current === newWs) {
-          const intentional = (newWs as any).__intentionalClose || pendingAction === 'stop';
-          setWsStatus('closed');
-          webSocketRef.current = null;
-          if (!intentional && globalRecordingStatus.isRecording) {
-            if (mediaRecorderRef.current?.state === "recording") {
-              mediaRecorderRef.current.pause();
-              setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
-            }
-            if (!isReconnecting) {
-              setIsReconnecting(true);
-              reconnectAttemptsRef.current = 0;
-              tryReconnectRef.current();
-            } else {
-              tryReconnectRef.current();
-            }
+        if (webSocketRef.current !== newWs) return;
+
+        const intentional = (newWs as any).__intentionalClose || pendingAction === 'stop';
+        setWsStatus('closed');
+        webSocketRef.current = null;
+
+        if (pendingAction === 'stop') {
+          debugLog("[WebSocket onclose] Stop sequence finalization.");
+          const sessionId = globalRecordingStatus.sessionId;
+          if (sessionId) {
+            callHttpRecordingApi('stop', { session_id: sessionId }).then(result => {
+              if (result.success && result.data?.s3Key) {
+                fetchRecordings();
+                toast.success("Recording stopped and saved.");
+              } else {
+                toast.error(`Could not finalize recording: ${result.error || "Unknown error"}`);
+              }
+              resetRecordingStates();
+            });
+          } else {
+            resetRecordingStates();
+          }
+        } else if (!intentional && globalRecordingStatus.isRecording) {
+          if (mediaRecorderRef.current?.state === "recording") {
+            mediaRecorderRef.current.pause();
+            setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
+          }
+          if (!isReconnecting) {
+            setIsReconnecting(true);
+            reconnectAttemptsRef.current = 0;
+            tryReconnectRef.current();
+          } else {
+            tryReconnectRef.current();
           }
         }
       };
     });
-  }, [isReconnecting, supabase.auth, startBrowserMediaRecording, setGlobalRecordingStatus, pendingAction, globalRecordingStatus.isRecording]);
+  }, [isReconnecting, supabase.auth, startBrowserMediaRecording, setGlobalRecordingStatus, pendingAction, globalRecordingStatus, callHttpRecordingApi, fetchRecordings, resetRecordingStates]);
 
   const tryReconnect = useCallback(() => {
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
