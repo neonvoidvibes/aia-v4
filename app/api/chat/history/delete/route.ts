@@ -6,14 +6,17 @@ const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'htt
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
 
 export async function POST(req: NextRequest) {
+    console.log('[API /chat/history/delete] Received request');
     const supabase = await createServerActionClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
+        console.error('[API /chat/history/delete] Unauthorized access attempt.');
         return formatErrorResponse('Unauthorized', 401);
     }
 
     const { chatId, messageId } = await req.json();
+    console.log(`[API /chat/history/delete] Processing deletion for chatId: ${chatId}, messageId: ${messageId}`);
 
     if (!chatId || !messageId) {
         return formatErrorResponse('chatId and messageId are required', 400);
@@ -22,18 +25,24 @@ export async function POST(req: NextRequest) {
     try {
         const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
         if (!activeBackendUrl) {
+          console.error('[API /chat/history/delete] No active backend found.');
           return formatErrorResponse("Could not connect to backend for message deletion.", 503);
         }
 
         const targetUrl = `${activeBackendUrl}/delete_message`;
+        console.log(`[API /chat/history/delete] Forwarding request to backend: ${targetUrl}`);
         
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+        };
+        if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
         const backendResponse = await fetch(targetUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // This endpoint is called from the server, so we can use a server-to-server auth key if needed
-                // For now, we rely on Supabase user context passed in the body
-            },
+            headers: headers,
             body: JSON.stringify({
                 user_id: user.id,
                 chat_id: chatId,
@@ -48,6 +57,7 @@ export async function POST(req: NextRequest) {
         }
 
         const result = await backendResponse.json();
+        console.log('[API /chat/history/delete] Successfully received response from backend:', result);
         return NextResponse.json({ success: true, ...result });
 
     } catch (error: any) {
