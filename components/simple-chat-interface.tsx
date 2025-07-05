@@ -1508,7 +1508,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
         setShowPlusMenu(false);
         const toastId = `save-memory-${currentChatId}`;
-        toast.loading("Saving to memory...", { id: toastId });
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
