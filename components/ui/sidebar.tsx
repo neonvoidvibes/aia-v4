@@ -33,15 +33,18 @@ import {
   Loader2,
   Disc,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type View = "chat" | "transcribe" | "record" | "canvas";
 
 interface ChatHistoryItem {
   id: string;
-  title: string;
+  title:string;
   updatedAt: string;
   agentId: string;
   agentName: string;
+  hasSavedMessages?: boolean;
+  isConversationSaved?: boolean;
 }
 
 interface SidebarProps {
@@ -260,7 +263,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                       </div>
                       <div className="space-y-0.5">
                         {chats.map((chat) => (
-                          <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent/50">
+                          <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent/50 pr-2">
                             <Button
                               variant="ghost"
                               className="flex-grow justify-start text-left h-auto px-4 py-2 rounded-sm min-w-0"
@@ -270,17 +273,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                                 {chat.title}
                               </div>
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 flex-shrink-0 opacity-0 group-hover:opacity-100 mr-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteInitiated(chat.id);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                            <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
+                              {(chat.isConversationSaved || chat.hasSavedMessages) && (
+                                <div
+                                  className={cn(
+                                    "absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0",
+                                    chat.isConversationSaved
+                                      ? "bg-[hsl(var(--save-memory-color))]"
+                                      : "border-2 border-[hsl(var(--save-memory-color))]"
+                                  )}
+                                  style={{
+                                    borderColor: chat.hasSavedMessages && !chat.isConversationSaved ? 'hsl(var(--save-memory-color))' : undefined,
+                                  }}
+                                />
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute h-8 w-8 opacity-0 group-hover:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteInitiated(chat.id);
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
