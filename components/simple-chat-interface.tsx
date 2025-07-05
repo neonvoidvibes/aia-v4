@@ -566,6 +566,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
     const [messageToDelete, setMessageToDelete] = useState<UIMessage | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation'; message?: Message } | null>(null);
     const isMobile = useMobile();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -1493,37 +1494,30 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const saveChat = useCallback(() => { console.info("[Save Chat] Initiated."); const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setShowPlusMenu(false); }, [messages, agentName, eventId]);
 
-    const handleSaveChatToMemory = useCallback(async () => {
-        debugLog("[Save Chat to Memory] Initiated.");
+
+    const executeSaveConversation = useCallback(async () => {
+        debugLog("[Save Chat to Memory] Executing after confirmation.");
         const currentMessages = messagesRef.current;
         if (!agentName || currentMessages.length === 0 || !currentChatId) {
             addErrorMessage('Cannot save memory: Chat is empty or has not been initialized.');
-            setShowPlusMenu(false);
             return;
         }
 
         const lastMessageId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null;
         const originalSaveMarker = conversationSaveMarkerMessageId;
 
-        // Optimistically update the UI
         if (lastMessageId) {
             setConversationSaveMarkerMessageId(lastMessageId);
         }
-        setShowPlusMenu(false);
         const toastId = `save-memory-${currentChatId}`;
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-                throw new Error("Authentication error. Cannot save memory.");
-            }
+            if (!session?.access_token) throw new Error("Authentication error. Cannot save memory.");
 
             const response = await fetch('/api/chat/history/save', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
                 body: JSON.stringify({
                     agent: agentName,
                     messages: currentMessages,
@@ -1532,18 +1526,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     lastMessageId: lastMessageId,
                 }),
             });
-
             const result = await response.json();
-            if (!response.ok || !result.success) {
-                throw new Error(result.error || "Failed to save chat history.");
-            }
+            if (!response.ok || !result.success) throw new Error(result.error || "Failed to save chat history.");
 
             const memoryResponse = await fetch('/api/memory/save-chat', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
                 body: JSON.stringify({
                     agentName: agentName,
                     messages: currentMessages,
@@ -1551,32 +1539,29 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     savedAt: new Date().toISOString()
                 }),
             });
-
             if (!memoryResponse.ok) {
-                 const memResult = await memoryResponse.json().catch(() => ({}));
-                 throw new Error(memResult.error || "Failed to save to intelligent memory.");
+                const memResult = await memoryResponse.json().catch(() => ({}));
+                throw new Error(memResult.error || "Failed to save to intelligent memory.");
             }
-
             toast.success("Chat saved to memory successfully.", { id: toastId });
-
         } catch (error: any) {
             console.error('[Save to Memory] Error:', error);
             toast.error(`Failed to save memory: ${error.message}. Reverting.`, { id: toastId });
-            // Rollback UI on failure
             setConversationSaveMarkerMessageId(originalSaveMarker);
+        } finally {
+            setConfirmationRequest(null);
         }
     }, [agentName, currentChatId, chatTitle, addErrorMessage, supabase.auth, conversationSaveMarkerMessageId]);
 
-    const handleSaveMessageToMemory = useCallback(async (message: Message) => {
-        debugLog("[Save Message to Memory] Initiated for message:", message.id);
+    const executeSaveMessage = useCallback(async (message: Message) => {
+        debugLog("[Save Message to Memory] Executing after confirmation for message:", message.id);
         if (!agentName || !agentCapabilities.pinecone_index_exists) {
             addErrorMessage('Cannot save message: Agent not configured or Pinecone index missing.');
+            setConfirmationRequest(null);
             return;
         }
 
         const toastId = `save-message-${message.id}`;
-        
-        // Optimistically update the UI
         const newSaveDate = new Date();
         setSavedMessageIds(prev => new Map(prev).set(message.id, newSaveDate));
 
@@ -1586,32 +1571,35 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     agentName: agentName,
-                    messages: [message], // Save only this single message
-                    sessionId: `message_${message.id}_${Date.now()}`, // Unique session ID for individual message
+                    messages: [message],
+                    sessionId: `message_${message.id}_${Date.now()}`,
                     savedAt: newSaveDate.toISOString()
                 }),
             });
-
             const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || "Failed to save message.");
-            }
-
+            if (!response.ok) throw new Error(result.error || "Failed to save message.");
             toast.success("Message saved to memory.", { id: toastId });
-
         } catch (error: any) {
             console.error('[Save Message to Memory] Error:', error);
             toast.error(`Failed to save message: ${error.message}. Reverting.`, { id: toastId });
-            
-            // Rollback UI on failure
             setSavedMessageIds(prev => {
                 const newMap = new Map(prev);
                 newMap.delete(message.id);
                 return newMap;
             });
+        } finally {
+            setConfirmationRequest(null);
         }
     }, [agentName, agentCapabilities.pinecone_index_exists, addErrorMessage]);
+
+    const handleSaveChatToMemory = () => {
+        setShowPlusMenu(false);
+        setConfirmationRequest({ type: 'save-conversation' });
+    };
+
+    const handleSaveMessageToMemory = (message: Message) => {
+        setConfirmationRequest({ type: 'save-message', message });
+    };
     const attachDocument = useCallback(() => { debugLog("[Attach Document] Triggered."); fileInputRef.current?.click(); setShowPlusMenu(false); }, []);
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); debugLog("[File Change] Files attached:", newFiles.map(f=>f.name)); } if (fileInputRef.current) fileInputRef.current.value = ""; }, []);
     const removeFile = useCallback((id: string) => { debugLog("[Remove File] Removing file ID:", id); setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); }); }, []);
@@ -2001,6 +1989,31 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => setMessageToDelete(null)}>Cancel</AlertDialogCancel>
                             <AlertDialogAction onClick={handleDeleteMessage}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <AlertDialog open={!!confirmationRequest} onOpenChange={(open) => !open && setConfirmationRequest(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Save</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                {confirmationRequest?.type === 'save-message'
+                                    ? "Do you want to save this message to your memory?"
+                                    : "Do you want to save the entire conversation to your memory?"}
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setConfirmationRequest(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
+                                if (confirmationRequest?.type === 'save-message' && confirmationRequest.message) {
+                                    executeSaveMessage(confirmationRequest.message);
+                                } else if (confirmationRequest?.type === 'save-conversation') {
+                                    executeSaveConversation();
+                                }
+                            }}>
+                                Save
+                            </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
