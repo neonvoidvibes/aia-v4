@@ -566,7 +566,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
     const { theme } = useTheme();
     const [savedMessageIds, setSavedMessageIds] = useState<Map<string, Date>>(new Map());
-    const [lastConversationSaveTime, setLastConversationSaveTime] = useState<Date | null>(null);
+    const [conversationSaveMarkerMessageId, setConversationSaveMarkerMessageId] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<string | null>(null);
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
 
@@ -1379,7 +1379,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               setAllAttachments([]);
               filesForNextMessageRef.current = [];
               setSavedMessageIds(new Map());
-              setLastConversationSaveTime(null);
+              setConversationSaveMarkerMessageId(null);
 
               setCurrentChatId(chatData.id);
               setChatTitle(chatData.title);
@@ -1395,9 +1395,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 setSavedMessageIds(newSavedMessages);
                 console.info("[Load Chat History] Loaded", newSavedMessages.size, "saved messages.");
               }
-              if (chatData.isConversationSaved && chatData.lastConversationSaveTime) {
-                setLastConversationSaveTime(new Date(chatData.lastConversationSaveTime));
-                console.info("[Load Chat History] Loaded conversation save time:", chatData.lastConversationSaveTime);
+              if (chatData.last_message_id_at_save) {
+                setConversationSaveMarkerMessageId(chatData.last_message_id_at_save);
+                console.info("[Load Chat History] Loaded conversation save marker at message ID:", chatData.last_message_id_at_save);
               }
 
             } catch (error) {
@@ -1494,6 +1494,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             return;
         }
 
+        const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+
         const toastId = `save-memory-${currentChatId}`;
         toast.loading("Saving to memory...", { id: toastId });
         setShowPlusMenu(false);
@@ -1506,6 +1508,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     agentName: agentName,
                     messages: messages,
                     sessionId: currentChatId,
+                    lastMessageId: lastMessageId, // Pass the last message ID
                     savedAt: new Date().toISOString()
                 }),
             });
@@ -1517,7 +1520,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
 
             toast.success("Chat saved to memory successfully.", { id: toastId });
-            setLastConversationSaveTime(new Date());
+            if (lastMessageId) {
+                setConversationSaveMarkerMessageId(lastMessageId);
+            }
 
         } catch (error: any) {
             console.error('[Save to Memory] Error:', error);
@@ -1670,6 +1675,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       const isError = message.role === "error";
                       const isMessageSaved = savedMessageIds.has(message.id);
                       const messageSaveTime = savedMessageIds.get(message.id);
+                      const shouldShowSaveMarker = message.id === conversationSaveMarkerMessageId;
                       const messageAttachments = allAttachments.filter((file) => file.messageId === message.id);
                       const hasAttachments = messageAttachments.length > 0;
                       const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:");
@@ -1840,21 +1846,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               )}
                             </>
                           )}
+                          {shouldShowSaveMarker && (
+                            <div className="relative my-4 text-center">
+                              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                <div className="w-full border-t border-[hsl(var(--save-memory-color))] opacity-50"></div>
+                              </div>
+                              <div className="relative flex justify-center">
+                                <span className="bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))]">
+                                  Memory saved
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </React.Fragment>
                       );
                     })}
-                    {lastConversationSaveTime && (
-                      <div className="relative my-4 text-center">
-                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                          <div className="w-full border-t border-[hsl(var(--save-memory-color))] opacity-50"></div>
-                        </div>
-                        <div className="relative flex justify-center">
-                          <span className="bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))]">
-                            Memory saved
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
                 <div ref={messagesEndRef} />
