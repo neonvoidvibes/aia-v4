@@ -245,10 +245,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               <SquarePen className="mr-3 h-5 w-5" />
               New Chat
             </Button>
-            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setShowSettings(true); }}>
-              <Settings className="mr-3 h-5 w-5" />
-              Settings
-            </Button>
             <Separator className="my-2 bg-border/50" />
             <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('chat'); }}>
               <MessageSquare className="mr-3 h-5 w-5" />
@@ -261,6 +257,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
             <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('transcribe'); }}>
               <AudioLines className="mr-3 h-5 w-5" />
               Transcribe Document
+            </Button>
+            <Separator className="my-2 bg-border/50" />
+            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setShowSettings(true); }}>
+              <Settings className="mr-3 h-5 w-5" />
+              Settings
             </Button>
             <Separator className="my-2 bg-border/50" />
             <div className="px-4 pt-4 pb-4 text-sm font-medium opacity-50">
