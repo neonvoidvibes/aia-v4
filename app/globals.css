@@ -64,6 +64,7 @@
   --icon-active: 0 0% 100%; /* Active icon color for dark mode (e.g. recording) */
   --icon-inactive: 0 0% 50%; /* Inactive/disabled icon color for dark mode */
   --icon-destructive: 0 84.2% 60.2%; /* Destructive icon color */
+  --save-memory-color: 220 85% 75%; /* Added: For saved memory highlights */
 
   /* NEW: Text color variables for chat interface elements - Default Theme */
   --input-field-text-color: var(--foreground);
@@ -121,6 +122,7 @@
   --icon-active: 0 0% 0%;      /* Active icon color for light mode (e.g. recording) */
   --icon-inactive: 0 0% 70%;   /* Inactive/disabled icon color for light mode */
   /* --icon-destructive uses the default destructive color */
+  --save-memory-color: 220 80% 60%; /* Added: For saved memory highlights */
 
   /* NEW: Text color variables for chat interface elements - Light Theme */
   --input-field-text-color: var(--foreground);
@@ -170,6 +172,7 @@
   --icon-active: 60 100% 60%; /* Bright yellow for recording active */
   --icon-inactive: 30 70% 60%;
   --icon-destructive: 0 100% 60%;
+  --save-memory-color: 180 100% 70%; /* Added: For saved memory highlights */
 
   /* Overrides for specific components if needed for this theme */
   --button-active: 30 100% 90%; /* For plus menu icons, etc. */
@@ -221,6 +224,7 @@
   --icon-active: 180 100% 35%; /* Sea green for recording active */
   --icon-inactive: 210 30% 70%;
   --icon-destructive: 0 70% 50%;
+  --save-memory-color: 320 70% 75%; /* Added: For saved memory highlights */
 
   /* Overrides for specific components if needed for this theme */
   --button-active: 210 30% 25%;
@@ -272,6 +276,7 @@
   --icon-active: 70 80% 55%; /* Goldenrod/Amber for recording active */
   --icon-inactive: 90 20% 55%;
   --icon-destructive: 30 60% 45%;
+  --save-memory-color: 45 80% 70%; /* Added: For saved memory highlights */
 
   /* Overrides for specific components if needed for this theme */
   --button-active: 90 30% 90%;
@@ -323,6 +328,7 @@
   --icon-active: 210 90% 70%; /* Brighter Electric Blue for recording active */
   --icon-inactive: 240 5% 50%;
   --icon-destructive: 0 70% 55%;
+  --save-memory-color: 300 50% 70%; /* Added: For saved memory highlights */
 
   /* Overrides for specific components if needed for this theme */
   --button-active: 240 5% 90%;
@@ -374,6 +380,7 @@
   --icon-active: 50 100% 50%; /* Bright Yellow for recording active */
   --icon-inactive: 35 30% 60%;
   --icon-destructive: 0 80% 60%;
+  --save-memory-color: 195 70% 60%; /* Added: For saved memory highlights */
 
   /* Overrides for specific components if needed for this theme */
   --button-active: 25 60% 20%;
@@ -425,6 +432,7 @@
   --icon-active: 150 100% 60%; /* Bright Lime Green for recording active */
   --icon-inactive: 200 30% 60%;
   --icon-destructive: 0 90% 65%;
+  --save-memory-color: 275 80% 80%; /* Added: For saved memory highlights */
 
   /* Overrides for specific components if needed for this theme */
   --button-active: 170 60% 90%;
@@ -476,6 +484,7 @@
   --icon-active: 190 70% 40%; /* Oasis Turquoise for recording active */
   --icon-inactive: 30 25% 60%;
   --icon-destructive: 0 60% 45%;
+  --save-memory-color: 190 80% 55%; /* Added: For saved memory highlights */
 
   /* Overrides for specific components if needed for this theme */
   --button-active: 25 60% 25%;
@@ -542,6 +551,7 @@
   --icon-active: hsl(var(--accent)); /* IKEA Yellow */
   --icon-inactive: 204 25% 70%; /* Light, visible blue-gray */
   /* --icon-destructive uses the default destructive color from above */
+  --save-memory-color: 110 51% 39%; /* Added: For saved memory highlights */
 
   /* NEW: Text color variables for chat interface elements - Folkhemmet Theme */
   --input-field-text-color: var(--user-input-text);
@@ -602,6 +612,7 @@
   --icon-active: 0 0% 100%;
   --icon-inactive: 0 0% 50%;
   --icon-destructive: 0 84.2% 60.2%;
+  --save-memory-color: 260 70% 75%; /* Added: For saved memory highlights */
 
   /* NEW: Text color variables for chat interface elements - CFL Theme */
   --input-field-text-color: var(--text-secondary);
@@ -649,6 +660,7 @@
   --icon-active: 194 23% 49%;
   --icon-inactive: 240 5% 50%;
   --icon-destructive: 0 63% 31%;
+  --save-memory-color: 160 40% 60%; /* Added: For saved memory highlights */
 
   /* Overrides for specific components if needed for this theme */
   --button-active: 240 5% 91%;
