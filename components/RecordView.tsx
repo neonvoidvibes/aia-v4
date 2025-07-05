@@ -81,6 +81,17 @@ const RecordView: React.FC<RecordViewProps> = ({
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [pendingAction, setPendingAction] = useState<'start' | 'stop' | null>(null);
 
+  // Refs to hold the latest state for use in closures like event handlers
+  const pendingActionRef = useRef(pendingAction);
+  useEffect(() => {
+    pendingActionRef.current = pendingAction;
+  }, [pendingAction]);
+
+  const globalRecordingStatusRef = useRef(globalRecordingStatus);
+  useEffect(() => {
+    globalRecordingStatusRef.current = globalRecordingStatus;
+  }, [globalRecordingStatus]);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
@@ -205,13 +216,12 @@ const RecordView: React.FC<RecordViewProps> = ({
       audioStreamRef.current = null;
     }
     
-    if (pendingAction === 'start') {
-      setPendingAction(null);
-    }
+    // This function is a "dumb" resetter, it shouldn't clear pending actions
+    // as the caller is responsible for that.
     
     isStoppingRef.current = false;
     debugLog("[Resetting States] Finished.");
-  }, [setGlobalRecordingStatus, pendingAction]);
+  }, [setGlobalRecordingStatus]);
 
   const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop' | 'pause' | 'resume', payload?: any): Promise<any> => {
     debugLog(`[HTTP API] Action: ${action}, Payload:`, payload);
@@ -244,23 +254,19 @@ const RecordView: React.FC<RecordViewProps> = ({
     if (!sessionId || pendingAction === 'stop') return;
 
     debugLog(`[Stop Recording] Initiated. Error: ${dueToError}, Session: ${sessionId}`);
-    setPendingAction('stop');
+    setPendingAction('stop'); // Set the action, the onclose handler will clear it.
     isStoppingRef.current = true;
-    reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS + 1; // Prevent reconnects
+    reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS + 1;
     stopTimer();
 
-    // Step 1: Stop the MediaRecorder. This will trigger its ondataavailable for the last time.
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
 
-    // Step 2: Tell the server to stop. The server will then close the WebSocket connection.
-    // The ws.onclose event handler is now responsible for the rest of the cleanup.
     if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
       (webSocketRef.current as any).__intentionalClose = true;
       webSocketRef.current.send(JSON.stringify({ action: "stop_stream" }));
     } else {
-      // If WebSocket is already gone for some reason, we must manually trigger the finalization.
       debugLog("[Stop Recording] WebSocket not open, manually finalizing.");
       callHttpRecordingApi('stop', { session_id: sessionId }).then(result => {
         if (result.success && result.data?.s3Key) {
@@ -269,7 +275,8 @@ const RecordView: React.FC<RecordViewProps> = ({
         } else if (!dueToError) {
           toast.error(`Could not finalize recording: ${result.error || "Unknown error"}`);
         }
-        resetRecordingStates(); // Hard reset as a fallback.
+        resetRecordingStates();
+        setPendingAction(null); // Clear pending action in the fallback path
       });
     }
   }, [globalRecordingStatus, pendingAction, callHttpRecordingApi, fetchRecordings, resetRecordingStates]);
@@ -345,7 +352,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       if (!session?.access_token) {
         toast.error('Authentication error. Cannot start recording stream.');
         setWsStatus('error');
-        if (pendingAction === 'start') setPendingAction(null);
+        setPendingAction(null);
         return;
       }
 
@@ -355,7 +362,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       if (!wsBaseUrl) {
         toast.error("WebSocket URL is not configured. Set NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_BACKEND_API_URL.");
         setWsStatus('error');
-        if (pendingAction === 'start') setPendingAction(null);
+        setPendingAction(null);
         return;
       }
 
@@ -429,15 +436,15 @@ const RecordView: React.FC<RecordViewProps> = ({
 
         if (webSocketRef.current !== newWs) return;
 
-        const intentional = (newWs as any).__intentionalClose || pendingAction === 'stop';
+        const intentional = (newWs as any).__intentionalClose || pendingActionRef.current === 'stop';
         setWsStatus('closed');
         webSocketRef.current = null;
 
-        if (pendingAction === 'stop') {
+        if (pendingActionRef.current === 'stop') {
           debugLog("[WebSocket onclose] Stop sequence finalization.");
-          const sessionId = globalRecordingStatus.sessionId;
-          if (sessionId) {
-            callHttpRecordingApi('stop', { session_id: sessionId }).then(result => {
+          const currentSessionId = globalRecordingStatusRef.current.sessionId;
+          if (currentSessionId) {
+            callHttpRecordingApi('stop', { session_id: currentSessionId }).then(result => {
               if (result.success && result.data?.s3Key) {
                 fetchRecordings();
                 toast.success("Recording stopped and saved.");
@@ -445,11 +452,13 @@ const RecordView: React.FC<RecordViewProps> = ({
                 toast.error(`Could not finalize recording: ${result.error || "Unknown error"}`);
               }
               resetRecordingStates();
+              setPendingAction(null);
             });
           } else {
             resetRecordingStates();
+            setPendingAction(null);
           }
-        } else if (!intentional && globalRecordingStatus.isRecording) {
+        } else if (!intentional && globalRecordingStatusRef.current.isRecording) {
           if (mediaRecorderRef.current?.state === "recording") {
             mediaRecorderRef.current.pause();
             setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
@@ -464,7 +473,7 @@ const RecordView: React.FC<RecordViewProps> = ({
         }
       };
     });
-  }, [isReconnecting, supabase.auth, startBrowserMediaRecording, setGlobalRecordingStatus, pendingAction, globalRecordingStatus, callHttpRecordingApi, fetchRecordings, resetRecordingStates]);
+  }, [isReconnecting, supabase.auth, startBrowserMediaRecording, setGlobalRecordingStatus, callHttpRecordingApi, fetchRecordings, resetRecordingStates]);
 
   const tryReconnect = useCallback(() => {
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
