@@ -1738,11 +1738,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                           <>
                                             <div className="opacity-0 group-hover:opacity-100 flex items-center transition-opacity">
                                               <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
-                                              <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
-                                                <Pencil className="h-4 w-4" />
-                                              </button>
                                               <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                                 {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                              </button>
+                                              <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
+                                                <Pencil className="h-4 w-4" />
                                               </button>
                                             </div>
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 ml-2">
