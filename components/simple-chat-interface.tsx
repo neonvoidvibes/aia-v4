@@ -1921,7 +1921,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} title="Attach file">
                                   <Paperclip size={20} />
                                 </button>
-                                <button type="button" className={cn("p-2 plus-menu-item text-[hsl(var(--save-memory-color))]", (!agentCapabilities.pinecone_index_exists || messages.length === 0) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} onClick={handleSaveChatToMemory} title="Save chat to memory" disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists}>
+                                <button type="button" className={cn("p-2 plus-menu-item text-[hsl(var(--save-memory-color))]", (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} onClick={handleSaveChatToMemory} title="Save chat to memory" disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}>
                                   <Bookmark size={20} className="stroke-[hsl(var(--save-memory-color))]" />
                                 </button>
                                 <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Download chat">
