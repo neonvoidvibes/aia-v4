@@ -182,6 +182,7 @@ interface SimpleChatInterfaceProps {
     pinned_canvas_insights?: string; // JSON string
   };
   onChatIdChange?: (chatId: string | null) => void; // New prop to notify parent of chat ID changes
+  isConversationSaved?: boolean;
 }
 
 export interface ChatInterfaceHandle {
@@ -228,7 +229,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, getCanvasContext, onChatIdChange }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, getCanvasContext, onChatIdChange, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -1353,8 +1354,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               { data: canvasContext }
             );
          },
-         loadChatHistory: async (chatId: string) => {
-            console.info("[Load Chat History] Loading chat:", chatId);
+         loadChatHistory: async (chatId: string, isSaved?: boolean) => {
+            console.info("[Load Chat History] Loading chat:", chatId, "isSaved:", isSaved);
             try {
               const { data: { session } } = await supabase.auth.getSession();
               if (!session?.access_token) {
@@ -1399,9 +1400,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 setSavedMessageIds(newSavedMessages);
                 console.info("[Load Chat History] Loaded", newSavedMessages.size, "saved messages.");
               }
-              if (chatData.last_message_id_at_save) {
+              if (isSaved && chatData.last_message_id_at_save) {
                 setConversationSaveMarkerMessageId(chatData.last_message_id_at_save);
                 console.info("[Load Chat History] Loaded conversation save marker at message ID:", chatData.last_message_id_at_save);
+              } else {
+                setConversationSaveMarkerMessageId(null);
               }
 
             } catch (error) {

@@ -154,6 +154,7 @@ function HomeContent() {
 
   // State for tracking current chat ID
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [isConversationSaved, setIsConversationSaved] = useState(false);
 
   // State to track S3 keys of files currently being processed (saved to memory or archived)
   const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
@@ -1181,10 +1182,11 @@ function HomeContent() {
         agentName={pageAgentName || undefined}
         selectedModel={selectedModel}
         onNewChat={handleNewChatFromSidebar}
-        onLoadChat={(chatId: string) => {
+        onLoadChat={(chatId: string, isSaved?: boolean) => {
           if (chatInterfaceRef.current) {
             chatInterfaceRef.current.loadChatHistory(chatId);
             setCurrentChatId(chatId);
+            setIsConversationSaved(isSaved || false);
           }
         }}
         currentChatId={currentChatId || undefined}
