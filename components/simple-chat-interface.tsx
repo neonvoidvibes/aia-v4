@@ -1785,7 +1785,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 ml-2">
                                               Message saved
                                             </span>
-                                            <Bookmark className="h-4 w-4 text-[hsl(var(--save-memory-color))] fill-[hsl(var(--save-memory-color))] ml-2" />
+                                            <Bookmark className="h-4 w-4 stroke-[hsl(var(--save-memory-color))] ml-2" />
                                           </>
                                         ) : (
                                           <>
@@ -1807,7 +1807,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       <div className="flex items-center">
                                         {isMessageSaved ? (
                                           <>
-                                            <Bookmark className="h-4 w-4 text-[hsl(var(--save-memory-color))] fill-[hsl(var(--save-memory-color))] mr-2" />
+                                            <Bookmark className="h-4 w-4 stroke-[hsl(var(--save-memory-color))] mr-2" />
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
                                               Message saved
                                             </span>
@@ -1921,7 +1921,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   <Paperclip size={20} />
                                 </button>
                                 <button type="button" className={cn("p-2 plus-menu-item text-[hsl(var(--save-memory-color))]", (!agentCapabilities.pinecone_index_exists || messages.length === 0) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} onClick={handleSaveChatToMemory} title="Save chat to memory" disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists}>
-                                  <Bookmark size={20} className="fill-[hsl(var(--save-memory-color))]" />
+                                  <Bookmark size={20} className="stroke-[hsl(var(--save-memory-color))]" />
                                 </button>
                                 <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Download chat">
                                   <Download size={20} />
