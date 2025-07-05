@@ -155,6 +155,7 @@ function HomeContent() {
   // State for tracking current chat ID
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isConversationSaved, setIsConversationSaved] = useState(false);
+  const [historyNeedsRefresh, setHistoryNeedsRefresh] = useState(false);
 
   // State to track S3 keys of files currently being processed (saved to memory or archived)
   const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
@@ -393,12 +394,14 @@ function HomeContent() {
       chatInterfaceRef.current?.startNewChat();
       setCurrentChatId(null);
       setShowNewChatConfirm(false);
+      setHistoryNeedsRefresh(true); // Trigger refresh
   };
 
   const handleNewChatFromSidebar = () => {
       console.log("New chat requested from sidebar");
       chatInterfaceRef.current?.startNewChat();
       setCurrentChatId(null);
+      setHistoryNeedsRefresh(true); // Trigger refresh
   };
 
   const cancelNewChat = () => {
@@ -1190,6 +1193,8 @@ function HomeContent() {
           }
         }}
         currentChatId={currentChatId || undefined}
+        historyNeedsRefresh={historyNeedsRefresh}
+        onHistoryRefreshed={() => setHistoryNeedsRefresh(false)}
       />
       
       {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
@@ -1240,6 +1245,7 @@ function HomeContent() {
                 pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
             })}
             onChatIdChange={setCurrentChatId}
+            onHistoryRefreshNeeded={() => setHistoryNeedsRefresh(true)}
           />
         </div>
         {currentView === "transcribe" && (

@@ -60,9 +60,11 @@ interface SidebarProps {
   onNewChat?: () => void;
   onLoadChat?: (chatId: string, isSaved?: boolean) => void;
   currentChatId?: string;
+  historyNeedsRefresh?: boolean;
+  onHistoryRefreshed?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel, onNewChat, onLoadChat, currentChatId }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel, onNewChat, onLoadChat, currentChatId, historyNeedsRefresh, onHistoryRefreshed }) => {
   const isMobile = useIsMobile();
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -154,6 +156,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
       fetchChatHistory();
     }
   }, [isOpen, agentName]);
+
+  useEffect(() => {
+    if (historyNeedsRefresh && agentName) {
+      fetchChatHistory().then(() => {
+        if (onHistoryRefreshed) {
+          onHistoryRefreshed();
+        }
+      });
+    }
+  }, [historyNeedsRefresh, agentName, onHistoryRefreshed]);
 
   const handleLoadChat = (chatId: string, isSaved?: boolean) => {
     if (onLoadChat) {

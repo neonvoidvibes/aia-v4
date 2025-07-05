@@ -182,6 +182,7 @@ interface SimpleChatInterfaceProps {
     pinned_canvas_insights?: string; // JSON string
   };
   onChatIdChange?: (chatId: string | null) => void; // New prop to notify parent of chat ID changes
+  onHistoryRefreshNeeded?: () => void;
   isConversationSaved?: boolean;
 }
 
@@ -229,7 +230,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, getCanvasContext, onChatIdChange, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -1340,6 +1341,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              // Reset chat ID and title for new chat
              setCurrentChatId(null);
              setChatTitle(null);
+             if (onHistoryRefreshNeeded) {
+                onHistoryRefreshNeeded();
+             }
              console.info("[New Chat] Client states (messages, attachments, chat ID) reset.");
           },
          getMessagesCount: () => messages.length,
