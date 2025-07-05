@@ -214,6 +214,17 @@ const formatThoughtDuration = (totalSeconds: number): string => {
   return `${seconds.toFixed(1)} seconds`;
 };
 
+const formatTimestamp = (date: Date | undefined): string => {
+  if (!date) return '';
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  const hours = d.getHours().toString().padStart(2, '0');
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  return `${year}.${month}.${day} ${hours}:${minutes}`;
+};
+
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
   function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, getCanvasContext, onChatIdChange }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
@@ -548,7 +559,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [recordUIVisible, setRecordUIVisible] = useState(true); 
     const [attachedFiles, setAttachedFiles] = useState<AttachmentFile[]>([]);
     const [allAttachments, setAllAttachments] = useState<AttachmentFile[]>([]);
-    const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
+    const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
     const isMobile = useMobile();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -1538,7 +1549,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const removeFile = useCallback((id: string) => { debugLog("[Remove File] Removing file ID:", id); setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); }); }, []);
     const handleRecordUIMouseMove = useCallback(() => { if (isBrowserRecordingRef.current) { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); setRecordUIVisible(true); startHideTimeout(); }}, [startHideTimeout]);
     const handlePlusMenuClick = useCallback((e: React.MouseEvent) => { e.stopPropagation(); if (showRecordUI && !isBrowserRecordingRef.current) hideRecordUI(); setShowPlusMenu(prev => !prev); }, [showRecordUI, hideRecordUI]);
-    const handleMessageInteraction = useCallback((id: string) => { if (isMobile) setHoveredMessage(prev => prev === id ? null : id); }, [isMobile]);
+    const handleMessageInteraction = useCallback((id: string) => { setSelectedMessage(prev => prev === id ? null : id); }, []);
     
     const copyToClipboard = useCallback((text: string, id: string) => { 
       const notifySuccess = () => { setCopyState({ id, copied: true }); setTimeout(() => { setCopyState({ id: "", copied: false }); }, 2000); }; 
@@ -1657,8 +1668,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               isUser ? "items-end" : isSystem ? "items-center" : "items-start",
                               !isUser && !isSystem && !isError && "mb-4"
                             )}
-                            onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)}
-                            onMouseLeave={() => !isMobile && setHoveredMessage(null)}
                             onClick={() => !isSystem && !isError && handleMessageInteraction(message.id)}
                           >
                             {isError ? (
@@ -1697,9 +1706,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   )}
                                 </div>
                                 {!isSystem && (
-                                  <div className={cn( "message-actions flex", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-1 -mt-3" )} style={{ opacity: hoveredMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: hoveredMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
+                                  <div className={cn( "message-actions flex items-center", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-1 -mt-3" )} style={{ opacity: selectedMessage === message.id || copyState.id === message.id ? 1 : 0, visibility: selectedMessage === message.id || copyState.id === message.id ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
                                     {isUser && (
-                                      <div className="flex">
+                                      <div className="flex items-center">
+                                        <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
                                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                           {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                         </button>
@@ -1712,18 +1722,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       </div>
                                     )}
                                     {!isUser && (
-                                      <div className="flex">
+                                      <div className="flex items-center">
                                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                           {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                         </button>
                                         <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", !agentCapabilities.pinecone_index_exists ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists}>
                                           <Bookmark className="h-4 w-4" />
                                         </button>
-                                        {hoveredMessage === message.id && (
+                                        {selectedMessage === message.id && (
                                           <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
                                             <Volume2 className="h-4 w-4" />
                                           </button>
                                         )}
+                                        <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
                                       </div>
                                     )}
                                   </div>
