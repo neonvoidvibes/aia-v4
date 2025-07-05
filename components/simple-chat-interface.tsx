@@ -1734,42 +1734,46 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   <div className={cn( "message-actions flex items-center", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-1 -mt-3" )} style={{ opacity: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? 1 : 0, visibility: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
                                     {isUser && (
                                       <div className="flex items-center">
-                                        {isMessageSaved && messageSaveTime && (
-                                          <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
-                                            Message saved on {formatTimestamp(messageSaveTime)}
-                                          </span>
+                                        {isMessageSaved && messageSaveTime ? (
+                                          <>
+                                            <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
+                                              Message saved on {formatTimestamp(messageSaveTime)}
+                                            </span>
+                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                              {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
+                                            </button>
+                                            <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
+                                              <Pencil className="h-4 w-4" />
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
                                         )}
-                                        <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
-                                        <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
-                                          {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
-                                        </button>
-                                        <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
-                                          <Pencil className="h-4 w-4" />
-                                        </button>
-                                        <button onClick={(e) => { e.stopPropagation(); if (!isMessageSaved) handleSaveMessageToMemory(message as Message); }} className={cn("action-button", !agentCapabilities.pinecone_index_exists && !isMessageSaved ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]", isMessageSaved ? "text-[hsl(var(--save-memory-color))]" : "text-[hsl(var(--icon-secondary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists && !isMessageSaved}>
-                                          <Bookmark className={cn("h-4 w-4", isMessageSaved && "fill-[hsl(var(--save-memory-color))]")} />
+                                        <button onClick={(e) => { e.stopPropagation(); if (!isMessageSaved) handleSaveMessageToMemory(message as Message); }} className={cn("action-button", !agentCapabilities.pinecone_index_exists && !isMessageSaved ? "opacity-50 cursor-not-allowed" : "", isMessageSaved ? "text-[hsl(var(--save-memory-color))]" : "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists && !isMessageSaved}>
+                                          <Bookmark className={cn("h-4 w-4", isMessageSaved && "fill-current")} />
                                         </button>
                                       </div>
                                     )}
                                     {!isUser && (
                                       <div className="flex items-center">
-                                        {isMessageSaved && messageSaveTime && (
+                                        {isMessageSaved && messageSaveTime ? (
                                           <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
                                             Message saved on {formatTimestamp(messageSaveTime)}
                                           </span>
+                                        ) : (
+                                          <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
                                         )}
                                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                           {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); if (!isMessageSaved) handleSaveMessageToMemory(message as Message); }} className={cn("action-button", !agentCapabilities.pinecone_index_exists && !isMessageSaved ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]", isMessageSaved ? "text-[hsl(var(--save-memory-color))]" : "text-[hsl(var(--icon-secondary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists && !isMessageSaved}>
-                                          <Bookmark className={cn("h-4 w-4", isMessageSaved && "fill-[hsl(var(--save-memory-color))]")} />
+                                        <button onClick={(e) => { e.stopPropagation(); if (!isMessageSaved) handleSaveMessageToMemory(message as Message); }} className={cn("action-button", !agentCapabilities.pinecone_index_exists && !isMessageSaved ? "opacity-50 cursor-not-allowed" : "", isMessageSaved ? "text-[hsl(var(--save-memory-color))]" : "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists && !isMessageSaved}>
+                                          <Bookmark className={cn("h-4 w-4", isMessageSaved && "fill-current")} />
                                         </button>
                                         {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                           <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
                                             <Volume2 className="h-4 w-4" />
                                           </button>
                                         )}
-                                        <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
                                       </div>
                                     )}
                                   </div>
@@ -1816,10 +1820,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     {lastConversationSaveTime && (
                       <div className="relative my-4 text-center">
                         <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                          <div className="w-full border-t border-[hsl(var(--border))] opacity-50"></div>
+                          <div className="w-full border-t border-[hsl(var(--save-memory-color))] opacity-50"></div>
                         </div>
                         <div className="relative flex justify-center">
-                          <span className="bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--text-muted))]">
+                          <span className="bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))]">
                             Memory saved on {formatTimestamp(lastConversationSaveTime)}
                           </span>
                         </div>
