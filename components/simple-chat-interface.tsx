@@ -1878,7 +1878,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             </>
                           )}
                           {shouldShowSaveMarker && (
-                            <div className="relative my-8 text-center">
+                            <div className="relative py-4 my-8 text-center">
                               <div className="absolute inset-0 flex items-center" aria-hidden="true">
                                 <div className="w-full border-t border-[hsl(var(--save-memory-color))] opacity-50"></div>
                               </div>
