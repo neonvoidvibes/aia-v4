@@ -1638,15 +1638,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const handleDeleteMessage = useCallback(async () => {
         if (!messageToDelete || !currentChatId || isDeleting) return;
 
-        setIsDeleting(true);
-        const toastId = `delete-message-${messageToDelete.id}`;
-        toast.loading("Deleting message...", { id: toastId });
+        const originalMessages = [...messages];
+        const originalErrorMessages = [...errorMessages];
+        const messageIdToDelete = messageToDelete.id;
 
+        // Optimistically remove the message from the UI
+        setMessages(prev => prev.filter(m => m.id !== messageIdToDelete));
+        setErrorMessages(prev => prev.filter(m => m.id !== messageIdToDelete));
+        setMessageToDelete(null); // Close the dialog immediately
+
+        const toastId = `delete-message-${messageIdToDelete}`;
+        
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) {
-                toast.error("Authentication error. Cannot delete message.", { id: toastId });
-                return;
+                throw new Error("Authentication error. Cannot delete message.");
             }
 
             const response = await fetch('/api/chat/history/delete', {
@@ -1657,7 +1663,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 },
                 body: JSON.stringify({
                     chatId: currentChatId,
-                    messageId: messageToDelete.id,
+                    messageId: messageIdToDelete,
                 }),
             });
 
@@ -1667,28 +1673,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 throw new Error(result.error || "Failed to delete message from backend.");
             }
 
-            // Remove message from UI state
-            setMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
-            setErrorMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
-            
-            // Update the save marker if necessary
+            // Backend confirmed deletion, update save marker if necessary
             if (result.new_last_message_id_at_save) {
                 setConversationSaveMarkerMessageId(result.new_last_message_id_at_save);
-            } else if (conversationSaveMarkerMessageId === messageToDelete.id) {
-                // If the deleted message was the marker and there's no new one, clear it
+            } else if (conversationSaveMarkerMessageId === messageIdToDelete) {
                 setConversationSaveMarkerMessageId(null);
             }
-
-
+            
             toast.success("Message deleted.", { id: toastId });
+
         } catch (error: any) {
             console.error('[Delete Message] Error:', error);
-            toast.error(`Failed to delete message: ${error.message}`, { id: toastId });
-        } finally {
-            setMessageToDelete(null);
-            setIsDeleting(false);
+            toast.error(`Failed to delete message: ${error.message}. Restoring.`, { id: toastId });
+            
+            // Rollback UI on failure
+            setMessages(originalMessages);
+            setErrorMessages(originalErrorMessages);
         }
-    }, [messageToDelete, currentChatId, supabase.auth, setMessages, isDeleting, conversationSaveMarkerMessageId]);
+    }, [messageToDelete, currentChatId, supabase.auth, setMessages, isDeleting, conversationSaveMarkerMessageId, messages, errorMessages]);
 
     const onSubmit = handleSubmitWithCanvasContext;
     

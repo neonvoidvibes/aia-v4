@@ -34,6 +34,7 @@ import {
   Disc,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from "sonner";
 
 type View = "chat" | "transcribe" | "record" | "canvas";
 
@@ -99,9 +100,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
   const handleDeleteConfirm = async () => {
     if (!chatIdToDelete) return;
 
+    const originalChatHistory = [...chatHistory];
+    const chatToDelete = chatHistory.find(chat => chat.id === chatIdToDelete);
+
+    // Optimistically remove the chat from the UI
+    setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
+    setShowDeleteConfirmation(false);
+
     try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
+        if (!session?.access_token) {
+            throw new Error("Authentication error. Cannot delete chat.");
+        }
 
         const response = await fetch(`/api/chat/history/delete`, {
             method: 'DELETE',
@@ -112,21 +122,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
             body: JSON.stringify({ chatId: chatIdToDelete }),
         });
 
-        if (response.ok) {
-            setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
-            
-            // If the deleted chat is the currently active chat, start a new chat
-            if (chatIdToDelete === currentChatId && onNewChat) {
-                onNewChat();
-            }
-        } else {
-            console.error('Failed to delete chat history');
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: "Failed to delete chat history" }));
+            throw new Error(errorData.error);
         }
-    } catch (error) {
+
+        // If the deleted chat is the currently active chat, start a new chat
+        if (chatIdToDelete === currentChatId && onNewChat) {
+            onNewChat();
+        }
+        toast.success("Conversation deleted.");
+
+    } catch (error: any) {
         console.error('Failed to delete chat history:', error);
+        toast.error(`Failed to delete conversation: ${error.message}. Restoring.`);
+        // Rollback UI on failure
+        setChatHistory(originalChatHistory);
     } finally {
         setChatIdToDelete(null);
-        setShowDeleteConfirmation(false);
     }
   };
 
