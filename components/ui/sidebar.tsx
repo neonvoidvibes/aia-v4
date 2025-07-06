@@ -282,7 +282,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                 <Settings className="mr-3 h-5 w-5" />
                 Settings
               </Button>
-              <Separator className="my-2 bg-border/50" />
             </div>
           </div>
           <div className="flex-1 flex flex-col min-h-0">
