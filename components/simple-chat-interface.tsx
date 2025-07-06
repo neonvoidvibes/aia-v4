@@ -105,6 +105,10 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    // Custom rule: Treat a line that is only bold as a header to solve layout issues.
+    html = html.replace(/^\s*\*\*(.*)\*\*\s*$/gim, '<h3>$1</h3>');
+    // Custom rule: Treat a line that is only bold as a header to solve layout issues.
+    html = html.replace(/^\*\*(.*)\*\*$/gim, '<h3>$1</h3>');
     
     // Horizontal Rule
     html = html.replace(/^\s*---*\s*$/gm, '<hr />');
@@ -119,9 +123,51 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/^\s*[\*-]\s+(.*(?:\n\s+.*)*)/gm, '<temp-ul-li>$1</temp-ul-li>');
     html = html.replace(/^\s*\d+\.\s+(.*(?:\n\s+.*)*)/gm, '<temp-ol-li>$1</temp-ol-li>');
 
-    // Wrap consecutive list items of the same type in their respective list tags.
-    html = html.replace(/((?:<temp-ul-li>[\s\S]*?<\/temp-ul-li>\s*)+)/g, '<ul>\n$1\n</ul>');
-    html = html.replace(/((?:<temp-ol-li>[\s\S]*?<\/temp-ol-li>\s*)+)/g, '<ol>\n$1\n</ol>');
+    // Wrap list items in <ul> and <ol> tags using line-by-line processing
+    // to avoid greedy regex issues.
+    const lines = html.split('\n');
+    let processedLines = [];
+    let inUl = false;
+    let inOl = false;
+
+    for (const line of lines) {
+        const isUl = line.includes('<temp-ul-li>');
+        const isOl = line.includes('<temp-ol-li>');
+
+        // Handle Unordered Lists
+        if (isUl && !inUl) {
+            if (inOl) { // Close OL if it's open
+                processedLines.push('</ol>');
+                inOl = false;
+            }
+            processedLines.push('<ul>');
+            inUl = true;
+        } else if (!isUl && inUl) {
+            processedLines.push('</ul>');
+            inUl = false;
+        }
+
+        // Handle Ordered Lists
+        if (isOl && !inOl) {
+            if (inUl) { // Close UL if it's open
+                processedLines.push('</ul>');
+                inUl = false;
+            }
+            processedLines.push('<ol>');
+            inOl = true;
+        } else if (!isOl && inOl) {
+            processedLines.push('</ol>');
+            inOl = false;
+        }
+        
+        processedLines.push(line);
+    }
+
+    // Close any remaining open lists at the end
+    if (inUl) processedLines.push('</ul>');
+    if (inOl) processedLines.push('</ol>');
+
+    html = processedLines.join('\n');
 
     // Now replace the temporary tags with real <li> tags
     html = html.replace(/<temp-ul-li>/g, '<li>').replace(/<\/temp-ul-li>/g, '</li>');
