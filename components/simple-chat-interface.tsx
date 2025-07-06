@@ -1390,10 +1390,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              // Reset chat ID and title for new chat
              setCurrentChatId(null);
              setChatTitle(null);
+             setConversationSaveMarkerMessageId(null);
+             setConversationMemoryId(null);
              if (onHistoryRefreshNeeded) {
                 onHistoryRefreshNeeded();
              }
-             console.info("[New Chat] Client states (messages, attachments, chat ID) reset.");
+             console.info("[New Chat] Client states (messages, attachments, chat ID, memory) reset.");
           },
          getMessagesCount: () => messages.length,
          scrollToTop: () => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); userHasScrolledRef.current = false; setShowScrollToBottom(false); },
@@ -2115,10 +2117,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <div className="absolute inset-0 flex items-center" aria-hidden="true">
                                 <div className="w-full border-t border-[hsl(var(--save-memory-color))] opacity-50"></div>
                               </div>
-                              <div className="relative flex justify-center">
-                                <span className="bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))]">
-                                  Memory saved
-                                </span>
+                              <div className="relative flex justify-center items-center">
+                                <button
+                                  onClick={handleSaveChatToMemory}
+                                  className="flex items-center bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))] hover:opacity-80 transition-opacity"
+                                  aria-label="Forget conversation memory"
+                                >
+                                  <Bookmark className="h-3 w-3 mr-2" />
+                                  <span>Memory saved</span>
+                                </button>
                               </div>
                             </div>
                           )}
