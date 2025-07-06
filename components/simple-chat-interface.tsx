@@ -615,13 +615,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
     const [messageToDelete, setMessageToDelete] = useState<UIMessage | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation'; message?: Message } | null>(null);
+    const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation' | 'forget-message' | 'forget-conversation'; message?: Message; memoryId?: string; } | null>(null);
     const isMobile = useMobile();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
     const { theme } = useTheme();
-    const [savedMessageIds, setSavedMessageIds] = useState<Map<string, Date>>(new Map());
+    const [savedMessageIds, setSavedMessageIds] = useState<Map<string, { savedAt: Date; memoryId: string; }>>(new Map());
     const [conversationSaveMarkerMessageId, setConversationSaveMarkerMessageId] = useState<string | null>(null);
+    const [conversationMemoryId, setConversationMemoryId] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<string | null>(null);
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
 
@@ -1449,9 +1450,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
               // Populate saved states from the loaded data
               if (chatData.savedMessageIds && Object.keys(chatData.savedMessageIds).length > 0) {
-                const newSavedMessages = new Map(Object.entries(chatData.savedMessageIds).map(([id, dateStr]) => [id, new Date(dateStr as string)]));
+                const newSavedMessages = new Map(Object.entries(chatData.savedMessageIds).map(([id, info]) => [id, { savedAt: new Date((info as any).savedAt), memoryId: (info as any).memoryId }]));
                 setSavedMessageIds(newSavedMessages);
                 console.info("[Load Chat History] Loaded", newSavedMessages.size, "saved messages.");
+              }
+              if (chatData.conversationMemoryId) {
+                setConversationMemoryId(chatData.conversationMemoryId);
               }
               if (isSaved && chatData.last_message_id_at_save) {
                 setConversationSaveMarkerMessageId(chatData.last_message_id_at_save);
@@ -1557,6 +1561,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         const lastMessageId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null;
         const originalSaveMarker = conversationSaveMarkerMessageId;
+        const originalMemoryId = conversationMemoryId;
 
         if (lastMessageId) {
             setConversationSaveMarkerMessageId(lastMessageId);
@@ -1595,19 +1600,26 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     savedAt: new Date().toISOString()
                 }),
             });
+            
+            const memResult = await memoryResponse.json();
             if (!memoryResponse.ok) {
-                const memResult = await memoryResponse.json().catch(() => ({}));
                 throw new Error(memResult.error || "Failed to save to intelligent memory.");
             }
+            
+            if (memResult.log_id) {
+                setConversationMemoryId(memResult.log_id);
+            }
+
             toast.success("Chat saved to memory successfully.", { id: toastId });
         } catch (error: any) {
             console.error('[Save to Memory] Error:', error);
             toast.error(`Failed to save memory: ${error.message}. Reverting.`, { id: toastId });
             setConversationSaveMarkerMessageId(originalSaveMarker);
+            setConversationMemoryId(originalMemoryId);
         } finally {
             setConfirmationRequest(null);
         }
-    }, [agentName, currentChatId, chatTitle, addErrorMessage, supabase.auth, conversationSaveMarkerMessageId]);
+    }, [agentName, currentChatId, chatTitle, addErrorMessage, supabase.auth, conversationSaveMarkerMessageId, conversationMemoryId, onHistoryRefreshNeeded]);
 
     const executeSaveMessage = useCallback(async (message: Message) => {
         debugLog("[Save Message to Memory] Executing after confirmation for message:", message.id);
@@ -1619,7 +1631,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         const toastId = `save-message-${message.id}`;
         const newSaveDate = new Date();
-        setSavedMessageIds(prev => new Map(prev).set(message.id, newSaveDate));
+        
+        // Optimistic update placeholder
+        const placeholderInfo = { savedAt: newSaveDate, memoryId: 'pending' };
+        setSavedMessageIds(prev => new Map(prev).set(message.id, placeholderInfo));
 
         if (onHistoryRefreshNeeded) {
             onHistoryRefreshNeeded();
@@ -1638,6 +1653,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || "Failed to save message.");
+
+            if (result.log_id) {
+                // Final update with the real memoryId
+                setSavedMessageIds(prev => new Map(prev).set(message.id, { savedAt: newSaveDate, memoryId: result.log_id }));
+            } else {
+                // If no log_id, something is wrong, revert.
+                throw new Error("Backend did not return a memoryId.");
+            }
+
             toast.success("Message saved to memory.", { id: toastId });
         } catch (error: any) {
             console.error('[Save Message to Memory] Error:', error);
@@ -1650,15 +1674,85 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } finally {
             setConfirmationRequest(null);
         }
-    }, [agentName, agentCapabilities.pinecone_index_exists, addErrorMessage]);
+    }, [agentName, agentCapabilities.pinecone_index_exists, addErrorMessage, onHistoryRefreshNeeded]);
+
+    const executeForgetMemory = useCallback(async (memoryId: string, type: 'message' | 'conversation', messageId?: string) => {
+        debugLog(`[Forget Memory] Executing for memoryId: ${memoryId}`);
+        if (!agentName) {
+            addErrorMessage('Cannot forget memory: Agent not configured.');
+            return;
+        }
+
+        const toastId = `forget-memory-${memoryId}`;
+        
+        // Optimistic UI update
+        let originalState: any;
+        if (type === 'message' && messageId) {
+            originalState = new Map(savedMessageIds);
+            setSavedMessageIds(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(messageId);
+                return newMap;
+            });
+        } else if (type === 'conversation') {
+            originalState = {
+                marker: conversationSaveMarkerMessageId,
+                memoryId: conversationMemoryId
+            };
+            setConversationSaveMarkerMessageId(null);
+            setConversationMemoryId(null);
+        }
+
+        if (onHistoryRefreshNeeded) {
+            onHistoryRefreshNeeded();
+        }
+
+        try {
+            const response = await fetch('/api/memory/forget', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agentName, memoryId }),
+            });
+
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                throw new Error(result.error || "Failed to forget memory.");
+            }
+            
+            toast.success("Memory forgotten.", { id: toastId });
+
+        } catch (error: any) {
+            console.error('[Forget Memory] Error:', error);
+            toast.error(`Failed to forget memory: ${error.message}. Reverting.`, { id: toastId });
+            
+            // Revert UI on failure
+            if (type === 'message') {
+                setSavedMessageIds(originalState as Map<string, { savedAt: Date; memoryId: string; }>);
+            } else if (type === 'conversation') {
+                setConversationSaveMarkerMessageId(originalState.marker);
+                setConversationMemoryId(originalState.memoryId);
+            }
+        } finally {
+            setConfirmationRequest(null);
+        }
+    }, [agentName, addErrorMessage, onHistoryRefreshNeeded, savedMessageIds, conversationSaveMarkerMessageId, conversationMemoryId]);
 
     const handleSaveChatToMemory = () => {
         setShowPlusMenu(false);
-        setConfirmationRequest({ type: 'save-conversation' });
+        if (conversationMemoryId) {
+            setConfirmationRequest({ type: 'forget-conversation', memoryId: conversationMemoryId });
+        } else {
+            setConfirmationRequest({ type: 'save-conversation' });
+        }
     };
 
     const handleSaveMessageToMemory = (message: Message) => {
-        setConfirmationRequest({ type: 'save-message', message });
+        const savedInfo = savedMessageIds.get(message.id);
+        if (savedInfo && savedInfo.memoryId !== 'pending') {
+            setConfirmationRequest({ type: 'forget-message', message, memoryId: savedInfo.memoryId });
+        } else {
+            setConfirmationRequest({ type: 'save-message', message });
+        }
     };
     const attachDocument = useCallback(() => { debugLog("[Attach Document] Triggered."); fileInputRef.current?.click(); setShowPlusMenu(false); }, []);
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); debugLog("[File Change] Files attached:", newFiles.map(f=>f.name)); } if (fileInputRef.current) fileInputRef.current.value = ""; }, []);
@@ -1824,8 +1918,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       const isUser = message.role === "user";
                       const isSystem = message.role === "system";
                       const isError = message.role === "error";
-                      const isMessageSaved = savedMessageIds.has(message.id);
-                      const messageSaveTime = savedMessageIds.get(message.id);
+                      const messageSaveInfo = savedMessageIds.get(message.id);
+                      const isMessageSaved = !!messageSaveInfo;
+                      const messageSaveTime = messageSaveInfo?.savedAt;
                       const shouldShowSaveMarker = message.id === conversationSaveMarkerMessageId;
                       const messageAttachments = allAttachments.filter((file) => file.messageId === message.id);
                       const hasAttachments = messageAttachments.length > 0;
@@ -1908,7 +2003,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 ml-2">
                                               Message saved
                                             </span>
-                                            <Bookmark className="h-4 w-4 stroke-[hsl(var(--save-memory-color))] ml-2" />
+                                            <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button" aria-label="Forget message memory">
+                                                <Bookmark className="h-4 w-4 stroke-[hsl(var(--save-memory-color))] ml-2" />
+                                            </button>
                                           </>
                                         ) : (
                                           <>
@@ -1933,7 +2030,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       <div className="flex items-center">
                                         {isMessageSaved ? (
                                           <>
-                                            <Bookmark className="h-4 w-4 stroke-[hsl(var(--save-memory-color))] mr-2" />
+                                            <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button" aria-label="Forget message memory">
+                                                <Bookmark className="h-4 w-4 stroke-[hsl(var(--save-memory-color))] mr-2" />
+                                            </button>
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
                                               Message saved
                                             </span>
@@ -2056,23 +2155,33 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 <AlertDialog open={!!confirmationRequest} onOpenChange={(open) => !open && setConfirmationRequest(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Save</AlertDialogTitle>
+                            <AlertDialogTitle>
+                                {confirmationRequest?.type.startsWith('forget') ? 'Confirm Forget' : 'Confirm Save'}
+                            </AlertDialogTitle>
                             <AlertDialogDescription>
-                                {confirmationRequest?.type === 'save-message'
-                                    ? "Do you want to save this message to your memory?"
-                                    : "Do you want to save the entire conversation to your memory?"}
+                                {confirmationRequest?.type === 'save-message' && "Do you want to save this message to your memory?"}
+                                {confirmationRequest?.type === 'save-conversation' && "Do you want to save the entire conversation to your memory?"}
+                                {confirmationRequest?.type === 'forget-message' && "This will permanently delete the saved memory for this message. This action cannot be undone."}
+                                {confirmationRequest?.type === 'forget-conversation' && "This will permanently delete the saved memory for this conversation. This action cannot be undone."}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => setConfirmationRequest(null)}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => {
-                                if (confirmationRequest?.type === 'save-message' && confirmationRequest.message) {
-                                    executeSaveMessage(confirmationRequest.message);
-                                } else if (confirmationRequest?.type === 'save-conversation') {
-                                    executeSaveConversation();
-                                }
-                            }}>
-                                Save
+                            <AlertDialogAction
+                                className={confirmationRequest?.type.startsWith('forget') ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+                                onClick={() => {
+                                    if (confirmationRequest?.type === 'save-message' && confirmationRequest.message) {
+                                        executeSaveMessage(confirmationRequest.message);
+                                    } else if (confirmationRequest?.type === 'save-conversation') {
+                                        executeSaveConversation();
+                                    } else if (confirmationRequest?.type === 'forget-message' && confirmationRequest.memoryId && confirmationRequest.message) {
+                                        executeForgetMemory(confirmationRequest.memoryId, 'message', confirmationRequest.message.id);
+                                    } else if (confirmationRequest?.type === 'forget-conversation' && confirmationRequest.memoryId) {
+                                        executeForgetMemory(confirmationRequest.memoryId, 'conversation');
+                                    }
+                                }}
+                            >
+                                {confirmationRequest?.type.startsWith('forget') ? 'Forget' : 'Save'}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
