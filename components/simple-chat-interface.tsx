@@ -114,13 +114,14 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/(<\/blockquote>\n*<blockquote>)/g, '<br>'); // Join adjacent blockquotes
 
     // Lists (unordered and ordered)
-    // Use temporary placeholders to distinguish list types before wrapping, which prevents incorrect nesting.
-    html = html.replace(/^\s*[\*-]\s(.*)/gm, '<temp-ul-li>$1</temp-ul-li>');
-    html = html.replace(/^\s*\d+\.\s(.*)/gm, '<temp-ol-li>$1</temp-ol-li>');
+    // This regex handles multi-line list items by looking for subsequent lines that are indented.
+    // It now correctly handles one or more spaces after the list marker.
+    html = html.replace(/^\s*[\*-]\s+(.*(?:\n\s+.*)*)/gm, '<temp-ul-li>$1</temp-ul-li>');
+    html = html.replace(/^\s*\d+\.\s+(.*(?:\n\s+.*)*)/gm, '<temp-ol-li>$1</temp-ol-li>');
 
-    // Wrap groups of the same list type
-    html = html.replace(/((<temp-ul-li>.*<\/temp-ul-li>\s*)+)/g, '<ul>\n$1</ul>');
-    html = html.replace(/((<temp-ol-li>.*<\/temp-ol-li>\s*)+)/g, '<ol>\n$1</ol>');
+    // Wrap consecutive list items of the same type in their respective list tags.
+    html = html.replace(/((?:<temp-ul-li>[\s\S]*?<\/temp-ul-li>\s*)+)/g, '<ul>\n$1\n</ul>');
+    html = html.replace(/((?:<temp-ol-li>[\s\S]*?<\/temp-ol-li>\s*)+)/g, '<ol>\n$1\n</ol>');
 
     // Now replace the temporary tags with real <li> tags
     html = html.replace(/<temp-ul-li>/g, '<li>').replace(/<\/temp-ul-li>/g, '</li>');
