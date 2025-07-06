@@ -2116,7 +2116,7 @@ button {
 @media (max-width: 640px) {
   .sidebar-bg button {
     font-size: 19px; /* Match mobile body font size */
-    font-weight: 300; /* Match mobile body font weight - same as chat messages */
+    font-weight: 400; /* Match mobile body font weight - same as chat messages */
   }
 }
 
