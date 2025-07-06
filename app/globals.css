@@ -1500,9 +1500,9 @@ body {
   margin-top: 1em;
 }
 
-.ai-bubble h1 { font-size: 1.25em; } /* ~20px */
-.ai-bubble h2 { font-size: 1.15em; } /* ~18px */
-.ai-bubble h3 { font-size: 1.05em; } /* ~17px */
+.ai-bubble h1 { font-size: 1.55em; } /* ~20px */
+.ai-bubble h2 { font-size: 1.45em; } /* ~18px */
+.ai-bubble h3 { font-size: 1.2em; } /* ~17px */
 
 .ai-bubble ul, .ai-bubble ol {
   margin-left: 1.25rem; /* ~20px */
