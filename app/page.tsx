@@ -1404,7 +1404,7 @@ function HomeContent() {
                       {isMobile ? (
                         <Sheet>
                           <SheetTrigger asChild>
-                             <Button variant="outline" className="w-[180px] justify-between">
+                             <Button variant="outline" className="w-[180px] justify-between text-sm">
                                <span>
                                  {
                                    (currentAgentTheme === "light" && "Light") ||
@@ -1456,7 +1456,7 @@ function HomeContent() {
                       ) : (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-[180px] justify-between">
+                            <Button variant="outline" className="w-[180px] justify-between text-sm">
                               <span>
                                 {
                                   (currentAgentTheme === "light" && "Light") ||
