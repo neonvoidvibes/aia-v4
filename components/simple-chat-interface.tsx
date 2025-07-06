@@ -1800,7 +1800,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             className={cn(
                               "flex flex-col relative group mb-1",
                               isUser ? "items-end" : isSystem ? "items-center" : "items-start",
-                              !isUser && !isSystem && !isError && "mb-4"
+                              !isUser && !isSystem && !isError && "assistant-message-container"
                             )}
                             onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)}
                             onMouseLeave={() => !isMobile && setHoveredMessage(null)}

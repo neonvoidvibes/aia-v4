@@ -2139,7 +2139,12 @@ button {
 }
 
 @media (max-width: 640px) {
-  .sidebar-bg .text-sm {
-    font-size: 17px; /* Slightly smaller than mobile body */
+.sidebar-bg .text-sm {
+  font-size: 17px; /* Slightly smaller than mobile body */
   }
+}
+
+/* Custom override for assistant message spacing */
+.assistant-message-container {
+  margin-bottom: 1.5rem !important;
 }
