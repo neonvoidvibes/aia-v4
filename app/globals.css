@@ -2107,17 +2107,9 @@ button {
 
 /* Sidebar font styling to match user and assistant messages */
 .sidebar-bg button {
-  font-size: 17px; /* Match body font size */
-  font-weight: 300; /* Match body font weight - same as chat messages */
-  line-height: 1.6; /* Match body line height */
-}
-
-/* Mobile sidebar font styling */
-@media (max-width: 640px) {
-  .sidebar-bg button {
-    font-size: 19px; /* Match mobile body font size */
-    font-weight: 400; /* Match mobile body font weight - same as chat messages */
-  }
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
 }
 
 /* Sidebar title styling */

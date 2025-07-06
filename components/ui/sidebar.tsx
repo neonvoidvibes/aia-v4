@@ -260,25 +260,25 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               </div>
             </div>
             <div className="mt-10 flex flex-col space-y-1 -ml-2">
-              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={onNewChat}>
+              <Button variant="ghost" className="justify-start rounded-md" onClick={onNewChat}>
                 <SquarePen className="mr-3 h-5 w-5" />
                 New Chat
               </Button>
               <Separator className="my-2 bg-border/50" />
-              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('chat'); }}>
+              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('chat'); }}>
                 <MessageSquare className="mr-3 h-5 w-5" />
                 Chat
               </Button>
-              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('record'); }}>
+              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('record'); }}>
                 <Disc className="mr-3 h-5 w-5" />
                 Record Note
               </Button>
-              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('transcribe'); }}>
+              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
                 <AudioLines className="mr-3 h-5 w-5" />
                 Transcribe Document
               </Button>
               <Separator className="my-2 bg-border/50" />
-              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setShowSettings(true); }}>
+              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setShowSettings(true); }}>
                 <Settings className="mr-3 h-5 w-5" />
                 Settings
               </Button>
@@ -286,7 +286,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
           </div>
           <div className="flex-1 flex flex-col min-h-0">
             <Separator className="my-2 bg-border/50" />
-            <div className="px-4 pt-4 pb-4 text-sm font-medium opacity-50">
+            <div className="px-4 pt-4 pb-4 text-sm opacity-50">
               Chat History
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -294,7 +294,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                 <div className="space-y-2">
                   {Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
                     <div key={section}>
-                      <div className="px-4 py-1 pb-2.5 text-xs font-medium text-muted-foreground opacity-50">
+                      <div className="px-4 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">
                         {section}
                       </div>
                       <div className="space-y-0.5">
@@ -305,7 +305,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                               className="flex-grow justify-start text-left h-auto px-4 py-2 rounded-sm min-w-0"
                               onClick={() => handleLoadChat(chat.id, chat.isConversationSaved)}
                             >
-                              <div className="text-sm font-medium truncate">
+                              <div className="truncate">
                                 {chat.title}
                               </div>
                             </Button>
