@@ -236,56 +236,60 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
           }
         }
       }}>
-        <SheetContent 
-          side="left" 
-          className={`p-4 sidebar-bg border-r-0 ${isMobile ? 'w-[80vw]' : 'w-64'}`}
+        <SheetContent
+          side="left"
+          className={`p-4 sidebar-bg border-r-0 flex flex-col h-full ${isMobile ? 'w-[80vw]' : 'w-64'}`}
         >
-          <SheetHeader className="flex flex-row items-center justify-between -mt-2">
-            <SheetTitle className="text-xl font-bold pl-2 mt-[10px]">River AI</SheetTitle>
-            <Button onClick={onClose} variant="ghost" className="p-2 rounded-md">
-              {isMobile ? (
-                <ChevronLeft className="!h-6 !w-6" />
-              ) : (
-                <SidebarIcon className="!h-5 !w-5" />
-              )}
-            </Button>
-          </SheetHeader>
-          <div className="px-2 mt-2 mb-2">
-            <div className="text-xs text-muted-foreground">
-              Agent <span className="font-bold">{agentName || 'Loading...'}</span>
+          <div>
+            <SheetHeader className="flex flex-row items-center justify-between -mt-2">
+              <SheetTitle className="text-xl font-bold pl-2 mt-[10px]">River AI</SheetTitle>
+              <Button onClick={onClose} variant="ghost" className="p-2 rounded-md">
+                {isMobile ? (
+                  <ChevronLeft className="!h-6 !w-6" />
+                ) : (
+                  <SidebarIcon className="!h-5 !w-5" />
+                )}
+              </Button>
+            </SheetHeader>
+            <div className="px-2 mt-2 mb-2">
+              <div className="text-xs text-muted-foreground">
+                Agent <span className="font-bold">{agentName || 'Loading...'}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Model <span className="font-bold">{selectedModel || 'Loading...'}</span>
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              Model <span className="font-bold">{selectedModel || 'Loading...'}</span>
+            <div className="mt-10 flex flex-col space-y-1 -ml-2">
+              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={onNewChat}>
+                <SquarePen className="mr-3 h-5 w-5" />
+                New Chat
+              </Button>
+              <Separator className="my-2 bg-border/50" />
+              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('chat'); }}>
+                <MessageSquare className="mr-3 h-5 w-5" />
+                Chat
+              </Button>
+              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('record'); }}>
+                <Disc className="mr-3 h-5 w-5" />
+                Record Note
+              </Button>
+              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('transcribe'); }}>
+                <AudioLines className="mr-3 h-5 w-5" />
+                Transcribe Document
+              </Button>
+              <Separator className="my-2 bg-border/50" />
+              <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setShowSettings(true); }}>
+                <Settings className="mr-3 h-5 w-5" />
+                Settings
+              </Button>
             </div>
           </div>
-          <div className="mt-10 flex flex-col space-y-1 -ml-2">
-            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={onNewChat}>
-              <SquarePen className="mr-3 h-5 w-5" />
-              New Chat
-            </Button>
-            <Separator className="my-2 bg-border/50" />
-            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('chat'); }}>
-              <MessageSquare className="mr-3 h-5 w-5" />
-              Chat
-            </Button>
-            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('record'); }}>
-              <Disc className="mr-3 h-5 w-5" />
-              Record Note
-            </Button>
-            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setCurrentView('transcribe'); }}>
-              <AudioLines className="mr-3 h-5 w-5" />
-              Transcribe Document
-            </Button>
-            <Separator className="my-2 bg-border/50" />
-            <Button variant="ghost" className="justify-start rounded-md font-medium" onClick={() => { setShowSettings(true); }}>
-              <Settings className="mr-3 h-5 w-5" />
-              Settings
-            </Button>
+          <div className="flex-1 flex flex-col min-h-0">
             <Separator className="my-2 bg-border/50" />
             <div className="px-4 pt-4 pb-4 text-sm font-medium opacity-50">
               Chat History
             </div>
-            <div className="flex-1 overflow-y-auto max-h-[300px]">
+            <div className="flex-1 overflow-y-auto">
               {chatHistory.length > 0 ? (
                 <div className="space-y-2">
                   {Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
