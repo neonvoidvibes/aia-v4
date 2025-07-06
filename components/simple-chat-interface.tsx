@@ -113,21 +113,22 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/^\s*>\s(.*)/gm, '<blockquote>$1</blockquote>');
     html = html.replace(/(<\/blockquote>\n*<blockquote>)/g, '<br>'); // Join adjacent blockquotes
 
-    // Lists (unordered and ordered) - A simple approach
-    // Unordered
-    html = html.replace(/^\s*[\*-]\s(.*)/gm, '<li>$1</li>');
-    html = html.replace(/((<li>.*<\/li>(\n|$))+)/g, '<ul>$1</ul>\n');
-    
-    // Ordered
-    html = html.replace(/^\s*\d+\.\s(.*)/gm, '<li>$1</li>');
-    // Wrap groups of <li> that haven't been wrapped by <ul>
-    html = html.replace(/(?<!<ul>\s*)((<li>.*<\/li>\s*)+)(?!\s*<\/ul>)/g, '<ol>$1</ol>\n');
+    // Lists (unordered and ordered)
+    // Use temporary placeholders to distinguish list types before wrapping, which prevents incorrect nesting.
+    html = html.replace(/^\s*[\*-]\s(.*)/gm, '<temp-ul-li>$1</temp-ul-li>');
+    html = html.replace(/^\s*\d+\.\s(.*)/gm, '<temp-ol-li>$1</temp-ol-li>');
 
-    // Clean up adjacent list wrappers
-    html = html.replace(/<\/ul>\n<ul>/g, '');
-    html = html.replace(/<\/ol>\n<ol>/g, '');
-    html = html.replace(/<\/ul>\n<ol>/g, '</ul><ol>');
-    html = html.replace(/<\/ol>\n<ul>/g, '</ol><ul>');
+    // Wrap groups of the same list type
+    html = html.replace(/((<temp-ul-li>.*<\/temp-ul-li>\s*)+)/g, '<ul>\n$1</ul>');
+    html = html.replace(/((<temp-ol-li>.*<\/temp-ol-li>\s*)+)/g, '<ol>\n$1</ol>');
+
+    // Now replace the temporary tags with real <li> tags
+    html = html.replace(/<temp-ul-li>/g, '<li>').replace(/<\/temp-ul-li>/g, '</li>');
+    html = html.replace(/<temp-ol-li>/g, '<li>').replace(/<\/temp-ol-li>/g, '</li>');
+
+    // Clean up adjacent list wrappers of the same type
+    html = html.replace(/<\/ul>\s*<ul>/g, '');
+    html = html.replace(/<\/ol>\s*<ol>/g, '');
 
     // Code blocks with language identifier
     html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, codeContent) => {
