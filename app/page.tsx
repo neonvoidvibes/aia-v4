@@ -1329,7 +1329,7 @@ function HomeContent() {
               </TabsList>
               <div className="tab-content-wrapper flex-1 overflow-y-auto" ref={tabContentRef}>
                 <TabsContent value="settings" className="mt-0 tab-content-scrollable">
-                  <div className="space-y-6 tab-content-inner px-2 md:px-4 py-3">
+                  <div className="space-y-6 tab-content-inner px-2 md:px-4 py-3 md:leading-normal leading-relaxed">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="agent-selector">Agent</Label>
                       <Select value={pageAgentName || ''} onValueChange={handleAgentChange} disabled={allowedAgents.length <= 1}>

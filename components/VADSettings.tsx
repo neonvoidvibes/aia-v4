@@ -34,8 +34,8 @@ export function VADSettings({ aggressiveness, onAggressivenessChange }: VADSetti
         <ToggleGroupItem value="1" aria-label="Quiet" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
           {isMobile ? "Quiet" : "Quiet"}
         </ToggleGroupItem>
-        <ToggleGroupItem value="2" aria-label="Balanced" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-          {isMobile ? "Balanced" : "Balanced"}
+        <ToggleGroupItem value="2" aria-label="Mid" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+          {isMobile ? "Mid" : "Mid"}
         </ToggleGroupItem>
         <ToggleGroupItem value="3" aria-label="Noisy" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
           {isMobile ? "Noisy" : "Noisy"}
