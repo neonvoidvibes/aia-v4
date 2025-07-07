@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React, { useEffect } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner" // Import the Toaster
 import { predefinedThemes } from "@/lib/themes" // Import predefined themes
@@ -12,6 +12,14 @@ export default function ClientLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then(registration => console.log('scope is: ', registration.scope))
+    }
+  }, [])
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body>

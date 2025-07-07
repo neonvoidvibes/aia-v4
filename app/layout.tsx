@@ -9,7 +9,8 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "River AI",
   description: "Next-gen super-slick chat interface for an AI chat agent",
-    generator: 'v0.dev'
+  manifest: "/manifest.json",
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -19,6 +20,3 @@ export default function RootLayout({
 }>) {
   return <ClientLayout>{children}</ClientLayout>
 }
-
-
-import './globals.css'
