@@ -1441,6 +1441,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               filesForNextMessageRef.current = [];
               setSavedMessageIds(new Map());
               setConversationSaveMarkerMessageId(null);
+              setConversationMemoryId(null);
 
               setCurrentChatId(chatData.id);
               setChatTitle(chatData.title);
@@ -1456,14 +1457,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 setSavedMessageIds(newSavedMessages);
                 console.info("[Load Chat History] Loaded", newSavedMessages.size, "saved messages.");
               }
-              if (chatData.conversationMemoryId) {
-                setConversationMemoryId(chatData.conversationMemoryId);
-              }
-              if (isSaved && chatData.last_message_id_at_save) {
-                setConversationSaveMarkerMessageId(chatData.last_message_id_at_save);
-                console.info("[Load Chat History] Loaded conversation save marker at message ID:", chatData.last_message_id_at_save);
-              } else {
-                setConversationSaveMarkerMessageId(null);
+              
+              // Correctly handle the conversation saved state
+              if (isSaved) {
+                if (chatData.conversationMemoryId) {
+                  setConversationMemoryId(chatData.conversationMemoryId);
+                }
+                if (chatData.last_message_id_at_save) {
+                  setConversationSaveMarkerMessageId(chatData.last_message_id_at_save);
+                  console.info("[Load Chat History] Loaded conversation save marker at message ID:", chatData.last_message_id_at_save);
+                }
               }
 
             } catch (error) {
