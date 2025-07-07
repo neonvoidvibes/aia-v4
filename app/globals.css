@@ -2138,5 +2138,12 @@ button {
 
 /* Custom override for assistant message spacing */
 .assistant-message-container {
-  margin-bottom: 1.5rem !important;
+  margin-top: 0.125rem !important;
+  margin-bottom: 1.0rem !important;
+}
+
+/* Custom override for user message spacing */
+.user-message-container {
+  margin-top: 0.125rem !important;
+  margin-bottom: 0.125rem !important; /* 2px */
 }

@@ -1944,9 +1944,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.2, ease: "easeOut" }}
                             className={cn(
-                              "flex flex-col relative group mb-1",
-                              isUser ? "items-end" : isSystem ? "items-center" : "items-start",
-                              !isUser && !isSystem && !isError && "assistant-message-container"
+                              "flex flex-col relative group", // Removed mb-1 from here
+                              isUser ? "items-end user-message-container" : // Apply new class for user
+                              isSystem ? "items-center mb-1" : // Keep mb-1 for system
+                              isError ? "items-start mb-1" : // Keep mb-1 for error
+                              "items-start assistant-message-container" // Assistant class remains
                             )}
                             onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)}
                             onMouseLeave={() => !isMobile && setHoveredMessage(null)}
