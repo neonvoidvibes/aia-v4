@@ -688,9 +688,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             debugLog("[Doc Update] API call successful, appending confirmation message.");
             append({
+                id: `action-${Date.now()}`,
                 role: 'user',
-                content: `[ACTION_CONFIRMED] The user has approved the update to ${docUpdateRequest.doc_name}.`
-            });
+                content: `[ACTION_CONFIRMED] The user has approved the update to ${docUpdateRequest.doc_name}.`,
+                ui: 'hidden'
+            } as Message);
     
         } catch (error: any) {
             debugLog("[Doc Update] Error during execution:", error);
@@ -2012,6 +2014,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       const isLastUserMessage = isUser && index === lastUserMessageIndex;
                       const messageThoughtDuration = isUser ? thoughtDurations[message.id] : undefined;
                       
+                      // @ts-ignore - Check for our custom hidden property
+                      if (message.ui === 'hidden') {
+                        return null;
+                      }
+
                       return (
                         <React.Fragment key={message.id}>
                           <motion.div
