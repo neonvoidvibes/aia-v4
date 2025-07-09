@@ -451,6 +451,28 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     });
 
     useEffect(() => {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant' && !isLoading) {
+        const content = lastMessage.content;
+        const proposalPrefix = "[DOC_UPDATE_PROPOSAL]";
+        if (content.startsWith(proposalPrefix)) {
+          try {
+            const jsonString = content.substring(proposalPrefix.length);
+            const proposal = JSON.parse(jsonString);
+            if (proposal.doc_name && typeof proposal.content === 'string') {
+              setMessages(prev => prev.slice(0, -1));
+              setDocUpdateRequest({ doc_name: proposal.doc_name, content: proposal.content });
+            }
+          } catch (e) {
+            console.error("Failed to parse document update proposal:", e);
+            addErrorMessage("The agent proposed a memory update, but the format was invalid.");
+            setMessages(prev => prev.slice(0, -1));
+          }
+        }
+      }
+    }, [messages, isLoading, setMessages, addErrorMessage]);
+
+    useEffect(() => {
         if (agentName && isPageReady) {
             console.info(`[ChatInterface] Ready for agent: ${agentName}, event: ${eventId || 'N/A'}`);
         }
@@ -616,6 +638,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [messageToDelete, setMessageToDelete] = useState<UIMessage | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation' | 'forget-message' | 'forget-conversation'; message?: Message; memoryId?: string; } | null>(null);
+    const [docUpdateRequest, setDocUpdateRequest] = useState<{ doc_name: string; content: string; } | null>(null);
+    const [isUpdatingDoc, setIsUpdatingDoc] = useState(false);
     const isMobile = useMobile();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -625,6 +649,46 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [conversationMemoryId, setConversationMemoryId] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<string | null>(null);
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
+
+    const executeDocUpdate = useCallback(async () => {
+        if (!docUpdateRequest || !agentName) return;
+    
+        setIsUpdatingDoc(true);
+        setDocUpdateRequest(null);
+    
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) throw new Error("Authentication required.");
+    
+            const response = await fetch('/api/agent/docs/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    agent: agentName,
+                    doc_name: docUpdateRequest.doc_name,
+                    content: docUpdateRequest.content,
+                }),
+            });
+    
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || "Failed to update document.");
+            }
+    
+            append({
+                role: 'user',
+                content: `[ACTION_CONFIRMED] The user has approved the update to ${docUpdateRequest.doc_name}.`
+            });
+    
+        } catch (error: any) {
+            addErrorMessage(`Failed to update document: ${error.message}`);
+        } finally {
+            setIsUpdatingDoc(false);
+        }
+    }, [docUpdateRequest, agentName, supabase.auth, append, addErrorMessage]);
 
     const currentWelcomeMessageConfig = useMemo(() => {
       const activeThemeObject = predefinedThemes.find(t => t.className === theme);
@@ -2102,10 +2166,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           {/* Show live thinking indicator and loading states only for the last user message */}
                           {isLastUserMessage && (
                             <>
+                              {isUpdatingDoc && (
+                                <div className="flex self-start mb-1 mt-1">
+                                    <ThinkingIndicator text="Working" showTime={false} />
+                                </div>
+                              )}
                               {isThinking && selectedModel === 'gemini-2.5-pro' && (
                                 <ThinkingIndicator elapsedTime={thinkingTime} />
                               )}
-                              {isLoading && (!isThinking || selectedModel !== 'gemini-2.5-pro') && messageThoughtDuration === undefined && (() => {
+                              {isLoading && !isUpdatingDoc && (!isThinking || selectedModel !== 'gemini-2.5-pro') && messageThoughtDuration === undefined && (() => {
                                 // Hide thinking dot immediately when assistant starts responding
                                 const lastMessage = combinedMessages[combinedMessages.length - 1];
                                 const assistantIsResponding = lastMessage?.role === 'assistant' && isLoading;
@@ -2160,6 +2229,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => setMessageToDelete(null)}>Cancel</AlertDialogCancel>
                             <AlertDialogAction onClick={handleDeleteMessage}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <AlertDialog open={!!docUpdateRequest} onOpenChange={(open) => !open && setDocUpdateRequest(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Memory Update</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                The agent wants to create or update the document <code className="font-bold">{docUpdateRequest?.doc_name}</code> in its foundational memory. Please review the content below.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <div className="max-h-60 overflow-y-auto rounded-md border bg-muted p-4 my-4">
+                            <pre className="text-sm whitespace-pre-wrap">{docUpdateRequest?.content}</pre>
+                        </div>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setDocUpdateRequest(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={executeDocUpdate}>Confirm Change</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
