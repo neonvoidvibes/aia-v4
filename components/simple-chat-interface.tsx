@@ -686,13 +686,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 throw new Error(result.error || "Failed to update document.");
             }
             
-            debugLog("[Doc Update] API call successful, appending confirmation message.");
+            debugLog("[Doc Update] API call successful. Appending final confirmation message to UI.");
+            // Directly append the agent's final confirmation message to the UI.
             append({
-                id: `action-${Date.now()}`,
-                role: 'user',
-                content: `[ACTION_CONFIRMED] The user has approved the update to ${docUpdateRequest.doc_name}.`,
-                ui: 'hidden'
-            } as Message);
+                id: `asst-${Date.now()}`,
+                role: 'assistant',
+                content: `Done. I have updated the document named \`${docUpdateRequest.doc_name}\`.`
+            }, {
+                data: {
+                    // Ensure this message is also saved to history correctly
+                    agent: agentName,
+                    event: eventId || '0000',
+                }
+            });
     
         } catch (error: any) {
             debugLog("[Doc Update] Error during execution:", error);
