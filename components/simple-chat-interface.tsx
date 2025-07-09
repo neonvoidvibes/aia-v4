@@ -455,19 +455,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       if (lastMessage && lastMessage.role === 'assistant' && !isLoading) {
         const content = lastMessage.content;
         const proposalPrefix = "[DOC_UPDATE_PROPOSAL]";
-        if (content.startsWith(proposalPrefix)) {
+        const proposalIndex = content.indexOf(proposalPrefix);
+
+        if (proposalIndex !== -1) {
           try {
-            const jsonString = content.substring(proposalPrefix.length);
+            // Extract the JSON part of the string, which starts after the prefix
+            const jsonString = content.substring(proposalIndex + proposalPrefix.length);
             const proposal = JSON.parse(jsonString);
+            
             if (proposal.doc_name && typeof proposal.content === 'string') {
               debugLog("[Doc Update] Proposal detected:", proposal);
-              setMessages(prev => prev.slice(0, -1));
+              // Remove the message containing the proposal from the chat
+              setMessages(prev => prev.slice(0, -1)); 
+              // Set the state to trigger the confirmation dialog
               setDocUpdateRequest({ doc_name: proposal.doc_name, content: proposal.content });
             }
           } catch (e) {
             console.error("Failed to parse document update proposal:", e);
             addErrorMessage("The agent proposed a memory update, but the format was invalid.");
-            setMessages(prev => prev.slice(0, -1));
+            setMessages(prev => prev.slice(0, -1)); // Still remove the malformed message
           }
         }
       }
