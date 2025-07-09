@@ -460,6 +460,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             const jsonString = content.substring(proposalPrefix.length);
             const proposal = JSON.parse(jsonString);
             if (proposal.doc_name && typeof proposal.content === 'string') {
+              debugLog("[Doc Update] Proposal detected:", proposal);
               setMessages(prev => prev.slice(0, -1));
               setDocUpdateRequest({ doc_name: proposal.doc_name, content: proposal.content });
             }
@@ -653,6 +654,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const executeDocUpdate = useCallback(async () => {
         if (!docUpdateRequest || !agentName) return;
     
+        debugLog("[Doc Update] Executing update for:", docUpdateRequest.doc_name);
         setIsUpdatingDoc(true);
         setDocUpdateRequest(null);
     
@@ -677,15 +679,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (!response.ok) {
                 throw new Error(result.error || "Failed to update document.");
             }
-    
+            
+            debugLog("[Doc Update] API call successful, appending confirmation message.");
             append({
                 role: 'user',
                 content: `[ACTION_CONFIRMED] The user has approved the update to ${docUpdateRequest.doc_name}.`
             });
     
         } catch (error: any) {
+            debugLog("[Doc Update] Error during execution:", error);
             addErrorMessage(`Failed to update document: ${error.message}`);
         } finally {
+            debugLog("[Doc Update] Finalizing update process.");
             setIsUpdatingDoc(false);
         }
     }, [docUpdateRequest, agentName, supabase.auth, append, addErrorMessage]);
