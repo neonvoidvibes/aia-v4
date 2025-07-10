@@ -127,7 +127,7 @@ const formatAssistantMessage = (text: string): string => {
 
     // Blockquotes
     html = html.replace(/^\s*>\s(.*)/gm, '<blockquote>$1</blockquote>');
-    html = html.replace(/(<\/blockquote>\n*<blockquote>)/g, '<br>'); // Join adjacent blockquotes
+    html = html.replace(/(<\/blockquote>\n*<a>)/g, '<br>'); // Join adjacent blockquotes
 
     // Lists (unordered and ordered)
     // This regex handles multi-line list items by looking for subsequent lines that are indented.
@@ -295,10 +295,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
     const [eventId, setEventId] = useState<string | null>(null);
-    const [isPageReady, setIsPageReady] = useState(false); 
-    const lastAppendedErrorRef = useRef<string | null>(null);
-    const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
-    const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
+  const [isPageReady, setIsPageReady] = useState(false); 
+  const lastAppendedErrorRef = useRef<string | null>(null);
+  const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
+  const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
+  const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
+  const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
     
     // State for reasoning models
     const [isThinking, setIsThinking] = useState(false);
@@ -482,27 +484,50 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // This effect is responsible for detecting and handling document update proposals from the agent.
     useEffect(() => {
         const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-
-        // Conditions for processing: a last message exists, it's from the assistant,
-        // the chat is not loading, and the proposal hasn't been processed yet.
-        if (lastMessage && lastMessage.role === 'assistant' && !isLoading && !processedProposalIds.has(lastMessage.id)) {
+        if (!lastMessage) return;
+    
+        const proposalPrefix = "[DOC_UPDATE_PROPOSAL]";
+    
+        // Phase 1: Detect proposal start during the stream to show the "working" indicator.
+        if (isLoading && lastMessage.role === 'assistant' && !isGeneratingProposal) {
+            if (lastMessage.content.includes(proposalPrefix)) {
+                debugLog("[Doc Update] Proposal detected during stream for message:", lastMessage.id);
+                setIsGeneratingProposal(true);
+                setGeneratingProposalForMessageId(lastMessage.id);
+                // The render logic will now handle hiding the raw payload in real-time.
+            }
+        }
+    
+        // Phase 2: Process the completed proposal after the stream finishes.
+        if (!isLoading && lastMessage.role === 'assistant' && !processedProposalIds.has(lastMessage.id)) {
             const content = lastMessage.content;
-            const proposalPrefix = "[DOC_UPDATE_PROPOSAL]";
             const proposalIndex = content.indexOf(proposalPrefix);
-
+    
             if (proposalIndex !== -1) {
+                // End the "generating proposal" UI state
+                setIsGeneratingProposal(false);
+                setGeneratingProposalForMessageId(null);
+    
                 try {
+                    const conversationalText = content.substring(0, proposalIndex).trim();
                     const jsonString = content.substring(proposalIndex + proposalPrefix.length);
                     const proposal = JSON.parse(jsonString);
-
-                    // Validate the proposal structure
+    
                     if (proposal.doc_name && typeof proposal.content === 'string') {
-                        debugLog("[Doc Update] Valid proposal detected:", proposal);
-
-                        // Mark this proposal as processed to prevent re-triggering
+                        debugLog("[Doc Update] Post-stream: Valid proposal detected, cleaning UI and showing modal:", proposal);
+    
+                        // Permanently clean the message in the UI state now that the stream is complete
+                        setMessages(prevMessages => {
+                            const newMessages = [...prevMessages];
+                            const targetMessage = newMessages.find(m => m.id === lastMessage.id);
+                            if (targetMessage) {
+                                targetMessage.content = conversationalText;
+                            }
+                            return newMessages;
+                        });
+    
+                        // Mark as processed and trigger the modal
                         setProcessedProposalIds(prev => new Set(prev).add(lastMessage.id));
-
-                        // Set state to show the confirmation dialog to the user
                         setDocUpdateRequest({
                             doc_name: proposal.doc_name,
                             content: proposal.content,
@@ -510,14 +535,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         });
                     }
                 } catch (e) {
-                    console.error("Failed to parse document update proposal:", e);
+                    console.error("Failed to parse document update proposal post-stream:", e);
                     addErrorMessage("The agent proposed a memory update, but the format was invalid.");
-                    // Also mark this malformed proposal as processed to avoid a loop
                     setProcessedProposalIds(prev => new Set(prev).add(lastMessage.id));
                 }
             }
         }
-    }, [messages, isLoading, processedProposalIds, addErrorMessage]);
+    }, [messages, isLoading, processedProposalIds, isGeneratingProposal, setMessages, addErrorMessage]);
 
     useEffect(() => {
         if (agentName && isPageReady) {
@@ -2100,7 +2124,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       const messageAttachments = allAttachments.filter((file) => file.messageId === message.id);
                       const hasAttachments = messageAttachments.length > 0;
                       const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:");
-                      const displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content;
+                      
+                      // Check if a proposal is being generated for this message
+                      const isGeneratingForThisMessage = isGeneratingProposal && generatingProposalForMessageId === message.id;
+                      
+                      // Clean the content for display if a proposal is being generated
+                      let displayContent = isFromCanvas ? message.content.substring("🎨 From Canvas:".length).trim() : message.content;
+                      if (isGeneratingForThisMessage) {
+                          const proposalIndex = message.content.indexOf('[DOC_UPDATE_PROPOSAL]');
+                          if (proposalIndex !== -1) {
+                              displayContent = message.content.substring(0, proposalIndex).trim();
+                          }
+                      }
                       
                       // Find the last user message index
                       const lastUserMessageIndex = combinedMessages.map((msg, idx) => msg.role === 'user' ? idx : -1).filter(idx => idx !== -1).pop() ?? -1;
@@ -2298,6 +2333,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             )}
                           </motion.div>
                           
+                          {isGeneratingForThisMessage && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="flex self-start mb-1 mt-1 pl-2"
+                            >
+                              <ThinkingIndicator text="Working..." showTime={false} />
+                            </motion.div>
+                          )}
+                          
                           {/* Show "Thought for" message for ANY user message that has thinking duration */}
                           {isUser && messageThoughtDuration !== undefined && (
                             <motion.div
@@ -2323,7 +2369,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               {isThinking && selectedModel === 'gemini-2.5-pro' && (
                                 <ThinkingIndicator elapsedTime={thinkingTime} />
                               )}
-                              {isLoading && !isUpdatingDoc && (!isThinking || selectedModel !== 'gemini-2.5-pro') && messageThoughtDuration === undefined && (() => {
+                              {isLoading && !isUpdatingDoc && !isGeneratingProposal && (!isThinking || selectedModel !== 'gemini-2.5-pro') && messageThoughtDuration === undefined && (() => {
                                 // Hide thinking dot immediately when assistant starts responding
                                 const lastMessage = combinedMessages[combinedMessages.length - 1];
                                 const assistantIsResponding = lastMessage?.role === 'assistant' && isLoading;
