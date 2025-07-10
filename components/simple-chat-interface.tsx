@@ -35,6 +35,7 @@ import {
   Volume2,
   Check,
   ChevronDown,
+  ChevronUp,
   Loader2,
   AlertTriangle, // Added for error messages
   Upload, // Added for save to memory
@@ -678,9 +679,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
     const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
     const [messageToDelete, setMessageToDelete] = useState<UIMessage | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation' | 'forget-message' | 'forget-conversation'; message?: Message; memoryId?: string; } | null>(null);
-    const [docUpdateRequest, setDocUpdateRequest] = useState<{ doc_name: string; content: string; justification?: string; } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [collapsedMessages, setCollapsedMessages] = useState<Set<string>>(new Set());
+  const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation' | 'forget-message' | 'forget-conversation'; message?: Message; memoryId?: string; } | null>(null);
+  const [docUpdateRequest, setDocUpdateRequest] = useState<{ doc_name: string; content: string; justification?: string; } | null>(null);
     const [isUpdatingDoc, setIsUpdatingDoc] = useState(false);
     const isMobile = useMobile();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
@@ -1992,9 +1994,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [messageToDelete, currentChatId, supabase.auth, setMessages, isDeleting, conversationSaveMarkerMessageId, messages, errorMessages]);
 
-    const onSubmit = handleSubmitWithCanvasContext;
-    
-    useEffect(() => { 
+  const onSubmit = handleSubmitWithCanvasContext;
+
+  const toggleMessageCollapse = (messageId: string) => {
+    setCollapsedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+  
+  useEffect(() => { 
       const lKeyDown = (e: KeyboardEvent) => { 
         if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { 
           e.preventDefault(); 
@@ -2088,6 +2102,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       const lastUserMessageIndex = combinedMessages.map((msg, idx) => msg.role === 'user' ? idx : -1).filter(idx => idx !== -1).pop() ?? -1;
                       const isLastUserMessage = isUser && index === lastUserMessageIndex;
                       const messageThoughtDuration = isUser ? thoughtDurations[message.id] : undefined;
+                      const isCollapsed = collapsedMessages.has(message.id);
                       
                       // @ts-ignore - Check for our custom hidden property
                       if (message.ui === 'hidden') {
@@ -2128,35 +2143,72 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               </div>
                             ) : (
                               <>
-                                {isUser && hasAttachments && (
-                                  <div className="mb-2 file-attachment-wrapper self-end mr-1">
-                                    <FileAttachmentMinimal
-                                      files={messageAttachments}
-                                      onRemove={() => {}}
-                                      className="file-attachment-message"
-                                      maxVisible={1}
-                                      isSubmitted={true}
-                                      messageId={message.id}
-                                    />
-                                  </div>
-                                )}
-                                <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}>
-                                  {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>}
-                                  {isUser || isSystem ? (
-                                    <span
-                                      dangerouslySetInnerHTML={{
-                                        __html: displayContent.replace(/\n/g, "<br />"),
-                                      }}
-                                    />
-                                  ) : (
-                                    <span
-                                      dangerouslySetInnerHTML={{
-                                        __html: formatAssistantMessage(displayContent),
-                                      }}
-                                    />
+                                {/* Collapse/Expand chevron button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleMessageCollapse(message.id);
+                                  }}
+                                  className={cn(
+                                    "absolute top-2 z-10 p-1 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 transition-all duration-200",
+                                    "opacity-0 group-hover:opacity-100",
+                                    "hover:bg-accent hover:border-border",
+                                    isUser ? "right-2" : "left-2"
                                   )}
-                                </div>
-                                {!isSystem && (
+                                  aria-label={isCollapsed ? "Expand message" : "Collapse message"}
+                                >
+                                  {isCollapsed ? (
+                                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                                  )}
+                                </button>
+
+                                {isCollapsed ? (
+                                  // Collapsed state - show a single line with "Closed message" text
+                                  <div className={cn(
+                                    "rounded-2xl p-3 message-bubble cursor-pointer",
+                                    isUser ? "user-bubble opacity-60" : "ai-bubble opacity-60 pl-0"
+                                  )}
+                                  onClick={() => toggleMessageCollapse(message.id)}
+                                  >
+                                    <span className="text-sm opacity-75">
+                                      Closed message
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {isUser && hasAttachments && (
+                                      <div className="mb-2 file-attachment-wrapper self-end mr-1">
+                                        <FileAttachmentMinimal
+                                          files={messageAttachments}
+                                          onRemove={() => {}}
+                                          className="file-attachment-message"
+                                          maxVisible={1}
+                                          isSubmitted={true}
+                                          messageId={message.id}
+                                        />
+                                      </div>
+                                    )}
+                                    <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}>
+                                      {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>}
+                                      {isUser || isSystem ? (
+                                        <span
+                                          dangerouslySetInnerHTML={{
+                                            __html: displayContent.replace(/\n/g, "<br />"),
+                                          }}
+                                        />
+                                      ) : (
+                                        <span
+                                          dangerouslySetInnerHTML={{
+                                            __html: formatAssistantMessage(displayContent),
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+                                {!isSystem && !isCollapsed && (
                                   <div className={cn( "message-actions flex items-center", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-1 -mt-3" )} style={{ opacity: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? 1 : 0, visibility: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
                                     {isUser && (
                                       <div className="flex items-center">

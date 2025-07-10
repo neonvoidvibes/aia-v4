@@ -5,16 +5,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './sh
 import { useIsMobile } from './use-mobile';
 import { createClient } from '@/utils/supabase/client';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   MessageCircle,
   Settings,
   X,
@@ -60,112 +50,28 @@ interface SidebarProps {
   onNewChat?: () => void;
   onLoadChat?: (chatId: string, isSaved?: boolean) => void;
   currentChatId?: string;
-  historyNeedsRefresh?: boolean;
-  onHistoryRefreshed?: () => void;
+  chatHistory: ChatHistoryItem[];
+  isLoadingHistory: boolean;
+  onDeleteChat: (chatId: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, setCurrentView, setShowSettings, agentName, selectedModel, onNewChat, onLoadChat, currentChatId, historyNeedsRefresh, onHistoryRefreshed }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  isOpen,
+  onClose,
+  onOpen,
+  className,
+  setCurrentView,
+  setShowSettings,
+  agentName,
+  selectedModel,
+  onNewChat,
+  onLoadChat,
+  currentChatId,
+  chatHistory,
+  isLoadingHistory,
+  onDeleteChat
+}) => {
   const isMobile = useIsMobile();
-  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [chatIdToDelete, setChatIdToDelete] = useState<string | null>(null);
-  const supabase = createClient();
-
-  const fetchChatHistory = async () => {
-    if (!agentName) return;
-    
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
-
-      const response = await fetch(`/api/chat/history/list?agent=${encodeURIComponent(agentName)}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (response.ok) {
-        const history = await response.json();
-        setChatHistory(history);
-      }
-    } catch (error) {
-      console.error('Failed to fetch chat history:', error);
-    }
-  };
-
-  const handleDeleteInitiated = (chatId: string) => {
-    setChatIdToDelete(chatId);
-    setShowDeleteConfirmation(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!chatIdToDelete) return;
-
-    const originalChatHistory = [...chatHistory];
-    const chatToDelete = chatHistory.find(chat => chat.id === chatIdToDelete);
-    const isDeletingCurrentChat = chatIdToDelete === currentChatId;
-
-    // Optimistically remove the chat from the UI
-    setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
-    
-    // If the deleted chat is the currently active chat, start a new chat instantly
-    if (isDeletingCurrentChat && onNewChat) {
-        onNewChat();
-    }
-    setShowDeleteConfirmation(false);
-
-    try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-            throw new Error("Authentication error. Cannot delete chat.");
-        }
-
-        const response = await fetch(`/api/chat/history/delete`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ chatId: chatIdToDelete }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: "Failed to delete chat history" }));
-            throw new Error(errorData.error);
-        }
-
-        toast.success("Conversation deleted.");
-
-    } catch (error: any) {
-        console.error('Failed to delete chat history:', error);
-        toast.error(`Failed to delete conversation: ${error.message}. Restoring.`);
-        // Rollback UI on failure
-        setChatHistory(originalChatHistory);
-        // If deletion of the current chat fails, reload it.
-        if (isDeletingCurrentChat && onLoadChat && chatToDelete) {
-          onLoadChat(chatToDelete.id, chatToDelete.isConversationSaved);
-        }
-    } finally {
-        setChatIdToDelete(null);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen && agentName) {
-      fetchChatHistory();
-    }
-  }, [isOpen, agentName]);
-
-  useEffect(() => {
-    if (historyNeedsRefresh && agentName) {
-      fetchChatHistory().then(() => {
-        if (onHistoryRefreshed) {
-          onHistoryRefreshed();
-        }
-      });
-    }
-  }, [historyNeedsRefresh, agentName, onHistoryRefreshed]);
 
   const handleLoadChat = (chatId: string, isSaved?: boolean) => {
     if (onLoadChat) {
@@ -328,7 +234,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
                                 className="absolute h-8 w-8 opacity-0 group-hover:opacity-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteInitiated(chat.id);
+                                  onDeleteChat(chat.id);
                                 }}
                               >
                                 <X className="h-4 w-4" />
@@ -347,20 +253,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpen, className, s
               )}
             </div>
           </div>
-          <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete the chat history. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </SheetContent>
       </Sheet>
     </div>

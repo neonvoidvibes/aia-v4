@@ -50,6 +50,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
 
+interface ChatHistoryItem {
+  id: string;
+  title:string;
+  updatedAt: string;
+  agentId: string;
+  agentName: string;
+  hasSavedMessages?: boolean;
+  isConversationSaved?: boolean;
+}
+
 // Main content component that uses useSearchParams
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -156,6 +166,12 @@ function HomeContent() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isConversationSaved, setIsConversationSaved] = useState(false);
   const [historyNeedsRefresh, setHistoryNeedsRefresh] = useState(false);
+
+  // State for Chat History
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [chatIdToDelete, setChatIdToDelete] = useState<string | null>(null);
 
   // State to track S3 keys of files currently being processed (saved to memory or archived)
   const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
@@ -307,8 +323,11 @@ function HomeContent() {
                       }
                   })
                   .catch(error => {
-                      console.error(`[Cache Warmer] Error triggering pre-caching for agent '${agentParam}':`, error);
+                      console.error(`[Cache Warmer] Error triggering pre-caching for agent '${pageAgentName}':`, error);
                   });
+
+                  // Fetch chat history on successful authorization
+                  fetchChatHistory();
 
               } else {
                   console.warn(`Authorization Check: Access DENIED for agent '${agentParam}'. Allowed: [${fetchedAllowedAgents.join(', ')}]`);
@@ -333,6 +352,100 @@ function HomeContent() {
   const chatInterfaceRef = useRef<ChatInterfaceHandle>(null);
   const memoryTabRef = useRef<HTMLDivElement>(null);
   const isMobile = useMobile();
+
+  const fetchChatHistory = useCallback(async () => {
+    if (!pageAgentName) return;
+    
+    setIsLoadingHistory(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`/api/chat/history/list?agent=${encodeURIComponent(pageAgentName)}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const history = await response.json();
+        setChatHistory(history);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [pageAgentName, supabase.auth]);
+
+  useEffect(() => {
+    if (historyNeedsRefresh && pageAgentName) {
+      fetchChatHistory().then(() => {
+        setHistoryNeedsRefresh(false);
+      });
+    }
+  }, [historyNeedsRefresh, pageAgentName, fetchChatHistory]);
+
+  const handleDeleteInitiated = (chatId: string) => {
+    setChatIdToDelete(chatId);
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!chatIdToDelete) return;
+
+    const originalChatHistory = [...chatHistory];
+    const chatToDelete = chatHistory.find(chat => chat.id === chatIdToDelete);
+    const isDeletingCurrentChat = chatIdToDelete === currentChatId;
+
+    // Optimistically remove the chat from the UI
+    setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
+    
+    // If the deleted chat is the currently active chat, start a new chat instantly
+    if (isDeletingCurrentChat) {
+        handleNewChatFromSidebar();
+    }
+    setShowDeleteConfirmation(false);
+
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            throw new Error("Authentication error. Cannot delete chat.");
+        }
+
+        const response = await fetch(`/api/chat/history/delete`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ chatId: chatIdToDelete }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: "Failed to delete chat history" }));
+            throw new Error(errorData.error);
+        }
+
+        toast.success("Conversation deleted.");
+
+    } catch (error: any) {
+        console.error('Failed to delete chat history:', error);
+        toast.error(`Failed to delete conversation: ${error.message}. Restoring.`);
+        // Rollback UI on failure
+        setChatHistory(originalChatHistory);
+        // If deletion of the current chat fails, reload it.
+        if (isDeletingCurrentChat && chatToDelete) {
+          if (chatInterfaceRef.current) {
+            chatInterfaceRef.current.loadChatHistory(chatToDelete.id);
+            setCurrentChatId(chatToDelete.id);
+            setIsConversationSaved(chatToDelete.isConversationSaved || false);
+          }
+        }
+    } finally {
+        setChatIdToDelete(null);
+    }
+  };
 
   const fileEditorFileProp = useMemo(() => {
     if (!s3FileToView) return null; 
@@ -1193,8 +1306,9 @@ function HomeContent() {
           }
         }}
         currentChatId={currentChatId || undefined}
-        historyNeedsRefresh={historyNeedsRefresh}
-        onHistoryRefreshed={() => setHistoryNeedsRefresh(false)}
+        chatHistory={chatHistory}
+        isLoadingHistory={isLoadingHistory}
+        onDeleteChat={handleDeleteInitiated}
       />
       
       {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
@@ -1765,6 +1879,17 @@ function HomeContent() {
         confirmText="Start New"
         cancelText="Cancel"
         confirmVariant="default"
+      />
+
+      <AlertDialogConfirm
+        isOpen={showDeleteConfirmation}
+        onClose={() => setShowDeleteConfirmation(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Are you sure?"
+        message="This will permanently delete the chat history. This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="destructive"
       />
 
       <AlertDialogConfirm
