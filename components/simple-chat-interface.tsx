@@ -2143,38 +2143,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               </div>
                             ) : (
                               <>
-                                {/* Collapse/Expand chevron button */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleMessageCollapse(message.id);
-                                  }}
-                                  className={cn(
-                                    "absolute top-2 z-10 p-1 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 transition-all duration-200",
-                                    "opacity-0 group-hover:opacity-100",
-                                    "hover:bg-accent hover:border-border",
-                                    isUser ? "right-2" : "left-2"
-                                  )}
-                                  aria-label={isCollapsed ? "Expand message" : "Collapse message"}
-                                >
-                                  {isCollapsed ? (
-                                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                                  ) : (
-                                    <ChevronUp className="h-3 w-3 text-muted-foreground" />
-                                  )}
-                                </button>
-
                                 {isCollapsed ? (
-                                  // Collapsed state - show a single line with "Closed message" text
-                                  <div className={cn(
-                                    "rounded-2xl p-3 message-bubble cursor-pointer",
-                                    isUser ? "user-bubble opacity-60" : "ai-bubble opacity-60 pl-0"
-                                  )}
-                                  onClick={() => toggleMessageCollapse(message.id)}
+                                  // Collapsed state - show a clickable dimmed horizontal line
+                                  <div 
+                                    className="w-full cursor-pointer opacity-30 hover:opacity-50 transition-opacity"
+                                    onClick={() => toggleMessageCollapse(message.id)}
                                   >
-                                    <span className="text-sm opacity-75">
-                                      Closed message
-                                    </span>
+                                    <div className="h-px bg-current w-full"></div>
                                   </div>
                                 ) : (
                                   <>
@@ -2205,6 +2180,27 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                           }}
                                         />
                                       )}
+                                    </div>
+                                    
+                                    {/* Collapse chevron button - positioned under the message bubble */}
+                                    <div className={cn(
+                                      "flex",
+                                      isUser ? "justify-end mr-2" : "justify-start ml-1"
+                                    )}>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleMessageCollapse(message.id);
+                                        }}
+                                        className={cn(
+                                          "p-1 rounded-full transition-all duration-200",
+                                          "opacity-0 group-hover:opacity-100",
+                                          "hover:bg-accent text-muted-foreground hover:text-foreground"
+                                        )}
+                                        aria-label="Collapse message"
+                                      >
+                                        <ChevronUp className="h-3 w-3" />
+                                      </button>
                                     </div>
                                   </>
                                 )}
