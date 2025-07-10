@@ -36,6 +36,8 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   AlertTriangle, // Added for error messages
   Upload, // Added for save to memory
@@ -2144,12 +2146,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             ) : (
                               <>
                                 {isCollapsed ? (
-                                  // Collapsed state - show a clickable dimmed horizontal line with larger hit area
-                                  <div 
-                                    className="w-full cursor-pointer opacity-15 hover:opacity-30 transition-opacity py-2"
+                                  // Collapsed state - show a clickable chevron
+                                  <div
+                                    className={cn(
+                                      "w-full cursor-pointer opacity-15 hover:opacity-30 transition-opacity py-2 flex",
+                                      isUser ? "justify-end" : "justify-start"
+                                    )}
                                     onClick={() => toggleMessageCollapse(message.id)}
                                   >
-                                    <div className="h-px bg-current w-full"></div>
+                                    {isUser ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                   </div>
                                 ) : (
                                   <>
@@ -2185,17 +2190,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 )}
                                 {!isSystem && !isCollapsed && (
                                   <div className={cn( "message-actions flex items-center", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-1 -mt-3" )} style={{ opacity: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? 1 : 0, visibility: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
-                                    {/* Collapse chevron button - positioned as rightmost icon in the same icon set */}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleMessageCollapse(message.id);
-                                      }}
-                                      className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]"
-                                      aria-label="Collapse message"
-                                    >
-                                      <ChevronUp className="h-4 w-4" />
-                                    </button>
                                     {isUser && (
                                       <div className="flex items-center">
                                         {isMessageSaved ? (
@@ -2210,6 +2204,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               </button>
                                               <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
+                                              </button>
+                                              <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Collapse message">
+                                                <ChevronUp className="h-4 w-4" />
                                               </button>
                                             </div>
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 ml-2">
@@ -2233,6 +2230,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             </button>
                                             <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Collapse message">
+                                              <ChevronUp className="h-4 w-4" />
                                             </button>
                                           </>
                                         )}
@@ -2258,6 +2258,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                               </button>
+                                              <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Collapse message">
+                                                <ChevronUp className="h-4 w-4" />
+                                              </button>
                                               <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
                                             </div>
                                           </>
@@ -2276,6 +2279,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               </button>
                                               <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
+                                              </button>
+                                              <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Collapse message">
+                                                <ChevronUp className="h-4 w-4" />
                                               </button>
                                               </>
                                             )}
