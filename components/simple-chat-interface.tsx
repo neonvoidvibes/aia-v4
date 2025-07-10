@@ -9,6 +9,12 @@ interface ErrorMessage {
   role: 'error';
   content: string;
   createdAt?: Date;
+  canRetry?: boolean;
+  retryContext?: {
+    lastUserMessage: Message;
+    originalInput: string;
+    attachments: AttachmentFile[];
+  };
 }
 
 // Union type for all message types in the UI
@@ -34,6 +40,7 @@ import {
   Upload, // Added for save to memory
   Bookmark, // Added for save individual message
   Trash2, // Added for deleting messages
+  RotateCcw, // Added for retry functionality
 } from "lucide-react"
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -380,12 +387,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [searchParams, agentName]);
 
     // Helper function to add error messages
-    const addErrorMessage = useCallback((content: string) => {
+    const addErrorMessage = useCallback((content: string, canRetry: boolean = false, retryContext?: {
+        lastUserMessage: Message;
+        originalInput: string;
+        attachments: AttachmentFile[];
+    }) => {
         const errorMessage: ErrorMessage = {
             id: `err-${Date.now()}`,
             role: 'error',
             content,
             createdAt: new Date(),
+            canRetry,
+            retryContext,
         };
         // Prevent duplicate consecutive errors
         if (content !== lastAppendedErrorRef.current) {
@@ -441,7 +454,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             displayMessage = rawErrorMessage;
         }
         
-        addErrorMessage(displayMessage);
+        // Capture retry context for failed assistant messages
+        const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+        const canRetry = !!lastUserMessage && input.trim().length > 0;
+        
+        const retryContext = canRetry ? {
+            lastUserMessage,
+            originalInput: input,
+            attachments: [...attachedFiles]
+        } : undefined;
+        
+        addErrorMessage(displayMessage, canRetry, retryContext);
       },
       onFinish: async (message) => {
         // Auto-save chat after each assistant response
@@ -1892,6 +1915,26 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         console.info("[Read Aloud] Triggered.");
     }, []);
 
+    const handleRetryMessage = useCallback(async (errorMessage: ErrorMessage) => {
+        if (!errorMessage.retryContext) return;
+        
+        const { lastUserMessage, originalInput, attachments } = errorMessage.retryContext;
+        
+        // Remove the error message from the UI
+        setErrorMessages(prev => prev.filter(m => m.id !== errorMessage.id));
+        
+        // Restore the original input and attachments
+        handleInputChange({ target: { value: originalInput } } as React.ChangeEvent<HTMLInputElement>);
+        setAttachedFiles(attachments);
+        
+        // Automatically resubmit the message
+        setTimeout(() => {
+            handleSubmitWithCanvasContext(
+                { preventDefault: () => {}, stopPropagation: () => {} } as unknown as React.FormEvent<HTMLFormElement>
+            );
+        }, 100);
+    }, [handleInputChange, setAttachedFiles, handleSubmitWithCanvasContext]);
+
     const handleDeleteMessage = useCallback(async () => {
         if (!messageToDelete || !currentChatId || isDeleting) return;
 
@@ -2072,6 +2115,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <div className="error-bubble flex items-center gap-2">
                                 <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                                 <span>{message.content}</span>
+                                {(message as ErrorMessage).canRetry && (message as ErrorMessage).retryContext && (
+                                  <button
+                                    onClick={() => handleRetryMessage(message as ErrorMessage)}
+                                    className="ml-2 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center gap-1"
+                                    aria-label="Retry message"
+                                  >
+                                    <RotateCcw className="h-3 w-3" />
+                                    Retry
+                                  </button>
+                                )}
                               </div>
                             ) : (
                               <>
