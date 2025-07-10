@@ -698,24 +698,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 throw new Error(result.error || "Failed to update document.");
             }
             
-            debugLog("[Doc Update] API call successful. Appending final confirmation message to UI.");
-            // Directly append the agent's final confirmation message to the UI.
-            const confirmationMessageId = `asst-${Date.now()}`;
+            debugLog("[Doc Update] API call successful. Adding final confirmation message to UI.");
+            // Directly add the agent's final confirmation message to the messages state
+            const confirmationMessage = {
+                id: `asst-${Date.now()}`,
+                role: 'assistant' as const,
+                content: `Done. I have updated the document named \`${docUpdateRequest.doc_name}\`.`,
+                createdAt: new Date(),
+            };
             
-            // Mark this confirmation message as processed immediately to prevent any loops
-            setProcessedProposalIds(prev => new Set(prev).add(confirmationMessageId));
+            // Add the confirmation message directly to the messages state
+            setMessages(prev => [...prev, confirmationMessage]);
             
-            append({
-                id: confirmationMessageId,
-                role: 'assistant',
-                content: `Done. I have updated the document named \`${docUpdateRequest.doc_name}\`.`
-            }, {
-                data: {
-                    // Ensure this message is also saved to history correctly
-                    agent: agentName,
-                    event: eventId || '0000',
-                }
-            });
+            // Trigger auto-save manually for the updated messages
+            setTimeout(() => {
+                saveChatHistory();
+            }, 100);
     
         } catch (error: any) {
             debugLog("[Doc Update] Error during execution:", error);
@@ -2008,7 +2006,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     );
     const combinedMessages = useMemo(() => {
         const allMsgs: UIMessage[] = [...messages, ...errorMessages]
-            .filter(msg => !processedProposalIds.has(msg.id)); // Filter out processed proposals
+            .filter(msg => {
+                // Only filter out messages that contain actual proposals, not confirmation messages
+                if (processedProposalIds.has(msg.id)) {
+                    const content = msg.content || '';
+                    return !content.includes('[DOC_UPDATE_PROPOSAL]');
+                }
+                return true;
+            });
         
         return allMsgs.sort((a, b) => {
             const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
