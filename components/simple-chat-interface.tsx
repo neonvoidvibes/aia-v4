@@ -2144,9 +2144,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             ) : (
                               <>
                                 {isCollapsed ? (
-                                  // Collapsed state - show a clickable dimmed horizontal line
+                                  // Collapsed state - show a clickable dimmed horizontal line with larger hit area
                                   <div 
-                                    className="w-full cursor-pointer opacity-30 hover:opacity-50 transition-opacity"
+                                    className="w-full cursor-pointer opacity-15 hover:opacity-30 transition-opacity py-2"
                                     onClick={() => toggleMessageCollapse(message.id)}
                                   >
                                     <div className="h-px bg-current w-full"></div>
@@ -2181,31 +2181,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         />
                                       )}
                                     </div>
-                                    
-                                    {/* Collapse chevron button - positioned under the message bubble */}
-                                    <div className={cn(
-                                      "flex",
-                                      isUser ? "justify-end mr-2" : "justify-start ml-1"
-                                    )}>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleMessageCollapse(message.id);
-                                        }}
-                                        className={cn(
-                                          "p-1 rounded-full transition-all duration-200",
-                                          "opacity-0 group-hover:opacity-100",
-                                          "hover:bg-accent text-muted-foreground hover:text-foreground"
-                                        )}
-                                        aria-label="Collapse message"
-                                      >
-                                        <ChevronUp className="h-3 w-3" />
-                                      </button>
-                                    </div>
                                   </>
                                 )}
                                 {!isSystem && !isCollapsed && (
                                   <div className={cn( "message-actions flex items-center", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-1 -mt-3" )} style={{ opacity: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? 1 : 0, visibility: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
+                                    {/* Collapse chevron button - positioned as rightmost icon in the same icon set */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleMessageCollapse(message.id);
+                                      }}
+                                      className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]"
+                                      aria-label="Collapse message"
+                                    >
+                                      <ChevronUp className="h-4 w-4" />
+                                    </button>
                                     {isUser && (
                                       <div className="flex items-center">
                                         {isMessageSaved ? (
