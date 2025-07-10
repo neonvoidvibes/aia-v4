@@ -700,8 +700,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             debugLog("[Doc Update] API call successful. Appending final confirmation message to UI.");
             // Directly append the agent's final confirmation message to the UI.
+            const confirmationMessageId = `asst-${Date.now()}`;
+            
+            // Mark this confirmation message as processed immediately to prevent any loops
+            setProcessedProposalIds(prev => new Set(prev).add(confirmationMessageId));
+            
             append({
-                id: `asst-${Date.now()}`,
+                id: confirmationMessageId,
                 role: 'assistant',
                 content: `Done. I have updated the document named \`${docUpdateRequest.doc_name}\`.`
             }, {
