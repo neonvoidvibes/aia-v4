@@ -286,6 +286,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isPageReady, setIsPageReady] = useState(false); 
     const lastAppendedErrorRef = useRef<string | null>(null);
     const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
+    const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
     
     // State for reasoning models
     const [isThinking, setIsThinking] = useState(false);
@@ -450,34 +451,45 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       },
     });
 
+    // This effect is responsible for detecting and handling document update proposals from the agent.
     useEffect(() => {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant' && !isLoading) {
-        const content = lastMessage.content;
-        const proposalPrefix = "[DOC_UPDATE_PROPOSAL]";
-        const proposalIndex = content.indexOf(proposalPrefix);
+        const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
 
-        if (proposalIndex !== -1) {
-          try {
-            // Extract the JSON part of the string, which starts after the prefix
-            const jsonString = content.substring(proposalIndex + proposalPrefix.length);
-            const proposal = JSON.parse(jsonString);
-            
-            if (proposal.doc_name && typeof proposal.content === 'string') {
-              debugLog("[Doc Update] Proposal detected:", proposal);
-              // Remove the message containing the proposal from the chat
-              setMessages(prev => prev.slice(0, -1)); 
-              // Set the state to trigger the confirmation dialog
-              setDocUpdateRequest({ doc_name: proposal.doc_name, content: proposal.content });
+        // Conditions for processing: a last message exists, it's from the assistant,
+        // the chat is not loading, and the proposal hasn't been processed yet.
+        if (lastMessage && lastMessage.role === 'assistant' && !isLoading && !processedProposalIds.has(lastMessage.id)) {
+            const content = lastMessage.content;
+            const proposalPrefix = "[DOC_UPDATE_PROPOSAL]";
+            const proposalIndex = content.indexOf(proposalPrefix);
+
+            if (proposalIndex !== -1) {
+                try {
+                    const jsonString = content.substring(proposalIndex + proposalPrefix.length);
+                    const proposal = JSON.parse(jsonString);
+
+                    // Validate the proposal structure
+                    if (proposal.doc_name && typeof proposal.content === 'string') {
+                        debugLog("[Doc Update] Valid proposal detected:", proposal);
+
+                        // Mark this proposal as processed to prevent re-triggering
+                        setProcessedProposalIds(prev => new Set(prev).add(lastMessage.id));
+
+                        // Set state to show the confirmation dialog to the user
+                        setDocUpdateRequest({
+                            doc_name: proposal.doc_name,
+                            content: proposal.content,
+                            justification: proposal.justification || "The agent has proposed an update to its memory.",
+                        });
+                    }
+                } catch (e) {
+                    console.error("Failed to parse document update proposal:", e);
+                    addErrorMessage("The agent proposed a memory update, but the format was invalid.");
+                    // Also mark this malformed proposal as processed to avoid a loop
+                    setProcessedProposalIds(prev => new Set(prev).add(lastMessage.id));
+                }
             }
-          } catch (e) {
-            console.error("Failed to parse document update proposal:", e);
-            addErrorMessage("The agent proposed a memory update, but the format was invalid.");
-            setMessages(prev => prev.slice(0, -1)); // Still remove the malformed message
-          }
         }
-      }
-    }, [messages, isLoading, setMessages, addErrorMessage]);
+    }, [messages, isLoading, processedProposalIds, addErrorMessage]);
 
     useEffect(() => {
         if (agentName && isPageReady) {
@@ -645,7 +657,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [messageToDelete, setMessageToDelete] = useState<UIMessage | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation' | 'forget-message' | 'forget-conversation'; message?: Message; memoryId?: string; } | null>(null);
-    const [docUpdateRequest, setDocUpdateRequest] = useState<{ doc_name: string; content: string; } | null>(null);
+    const [docUpdateRequest, setDocUpdateRequest] = useState<{ doc_name: string; content: string; justification?: string; } | null>(null);
     const [isUpdatingDoc, setIsUpdatingDoc] = useState(false);
     const isMobile = useMobile();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
@@ -1475,6 +1487,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              setChatTitle(null);
              setConversationSaveMarkerMessageId(null);
              setConversationMemoryId(null);
+             setProcessedProposalIds(new Set()); // Reset processed proposals
              if (onHistoryRefreshNeeded) {
                 onHistoryRefreshNeeded();
              }
@@ -1525,6 +1538,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               setSavedMessageIds(new Map());
               setConversationSaveMarkerMessageId(null);
               setConversationMemoryId(null);
+              setProcessedProposalIds(new Set()); // Also reset proposals on load
 
               setCurrentChatId(chatData.id);
               setChatTitle(chatData.title);
@@ -1988,13 +2002,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         isBrowserRecording && isBrowserPaused && "paused" 
     );
     const combinedMessages = useMemo(() => {
-        const allMsgs: UIMessage[] = [...messages, ...errorMessages];
+        const allMsgs: UIMessage[] = [...messages, ...errorMessages]
+            .filter(msg => !processedProposalIds.has(msg.id)); // Filter out processed proposals
+        
         return allMsgs.sort((a, b) => {
             const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
             const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
             return timeA - timeB;
         });
-    }, [messages, errorMessages]);
+    }, [messages, errorMessages, processedProposalIds]);
     return (
         <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
             <div className="messages-container" ref={messagesContainerRef} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
@@ -2262,11 +2278,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         <AlertDialogHeader>
                             <AlertDialogTitle>Confirm Memory Update</AlertDialogTitle>
                             <AlertDialogDescription>
-                                The agent wants to create or update the document <code className="font-bold">{docUpdateRequest?.doc_name}</code> in its foundational memory. Please review the content below.
+                                {docUpdateRequest?.justification}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <div className="max-h-60 overflow-y-auto rounded-md border bg-muted p-4 my-4">
-                            <pre className="text-sm whitespace-pre-wrap">{docUpdateRequest?.content}</pre>
+                        <div className="mt-4">
+                            <p className="text-sm font-semibold mb-2">Proposed change for <code className="font-bold bg-muted px-1 py-0.5 rounded">{docUpdateRequest?.doc_name}</code>:</p>
+                            <div className="max-h-60 overflow-y-auto rounded-md border bg-muted p-4">
+                                <pre className="text-sm whitespace-pre-wrap">{docUpdateRequest?.content}</pre>
+                            </div>
                         </div>
                         <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => setDocUpdateRequest(null)}>Cancel</AlertDialogCancel>
