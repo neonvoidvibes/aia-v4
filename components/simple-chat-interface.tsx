@@ -39,6 +39,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
+  Minus,
   Loader2,
   AlertTriangle, // Added for error messages
   Upload, // Added for save to memory
@@ -2150,12 +2151,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   // Collapsed state - show a clickable ellipsis
                                   <div
                                     className={cn(
-                                      "w-full cursor-pointer opacity-25 hover:opacity-50 transition-opacity py-2 px-1.5 flex",
-                                      isUser ? "justify-end" : "justify-start"
+                                      "w-full cursor-pointer opacity-25 hover:opacity-50 transition-opacity py-2 flex",
+                                      isUser ? "justify-end pr-2 pl-1.5" : "justify-start pl-1.5 pr-1.5"
                                     )}
                                     onClick={() => toggleMessageCollapse(message.id)}
                                   >
-                                    <MoreHorizontal className="h-5 w-5" />
+                                    <Minus className="h-5 w-5 rotate-45" />
                                   </div>
                                 ) : (
                                   <>
