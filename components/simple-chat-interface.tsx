@@ -2149,12 +2149,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   // Collapsed state - show a clickable chevron
                                   <div
                                     className={cn(
-                                      "w-full cursor-pointer opacity-15 hover:opacity-30 transition-opacity py-2 flex",
+                                      "w-full cursor-pointer opacity-40 hover:opacity-60 transition-opacity py-2 flex",
                                       isUser ? "justify-end" : "justify-start"
                                     )}
                                     onClick={() => toggleMessageCollapse(message.id)}
                                   >
-                                    {isUser ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                    {isUser ? <ChevronLeft className="h-6 w-6" /> : <ChevronRight className="h-6 w-6" />}
                                   </div>
                                 ) : (
                                   <>
