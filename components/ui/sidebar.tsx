@@ -48,7 +48,7 @@ interface SidebarProps {
   agentName?: string;
   selectedModel?: string;
   onNewChat?: () => void;
-  onLoadChat?: (chatId: string, isSaved?: boolean) => void;
+  onLoadChat?: (chatId: string) => void;
   currentChatId?: string;
   chatHistory: ChatHistoryItem[];
   isLoadingHistory: boolean;
@@ -73,9 +73,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const isMobile = useIsMobile();
 
-  const handleLoadChat = (chatId: string, isSaved?: boolean) => {
+  const handleLoadChat = (chatId: string) => {
     if (onLoadChat) {
-      onLoadChat(chatId, isSaved);
+      onLoadChat(chatId);
       // Only close sidebar on mobile after selecting chat
       if (isMobile) {
         onClose();
@@ -205,10 +205,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <div className="space-y-0.5">
                         {chats.map((chat) => (
                           <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent/50 pr-2">
-                            <Button
+                              <Button
                               variant="ghost"
                               className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0"
-                              onClick={() => handleLoadChat(chat.id, chat.isConversationSaved)}
+                              onClick={() => handleLoadChat(chat.id)}
                             >
                               <div className="truncate">
                                 {chat.title}

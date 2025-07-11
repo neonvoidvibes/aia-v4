@@ -1563,8 +1563,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               { data: canvasContext }
             );
          },
-         loadChatHistory: async (chatId: string, isSaved?: boolean) => {
-            console.info("[Load Chat History] Loading chat:", chatId, "isSaved:", isSaved);
+         loadChatHistory: async (chatId: string) => {
+            console.info("[Load Chat History] Loading chat:", chatId);
             try {
               const { data: { session } } = await supabase.auth.getSession();
               if (!session?.access_token) {
@@ -1612,14 +1612,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 console.info("[Load Chat History] Loaded", newSavedMessages.size, "saved messages.");
               }
               
-              // Correctly handle the conversation saved state
-              if (isSaved) {
+              // Correctly handle the conversation saved state, removing the dependency on `isSaved`
+              if (chatData.last_message_id_at_save) {
+                setConversationSaveMarkerMessageId(chatData.last_message_id_at_save);
+                console.info("[Load Chat History] Loaded conversation save marker at message ID:", chatData.last_message_id_at_save);
                 if (chatData.conversationMemoryId) {
                   setConversationMemoryId(chatData.conversationMemoryId);
-                }
-                if (chatData.last_message_id_at_save) {
-                  setConversationSaveMarkerMessageId(chatData.last_message_id_at_save);
-                  console.info("[Load Chat History] Loaded conversation save marker at message ID:", chatData.last_message_id_at_save);
                 }
               }
 

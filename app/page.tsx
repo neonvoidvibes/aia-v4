@@ -1362,11 +1362,10 @@ function HomeContent() {
         agentName={pageAgentName || undefined}
         selectedModel={selectedModel}
         onNewChat={handleNewChatFromSidebar}
-        onLoadChat={(chatId: string, isSaved?: boolean) => {
+        onLoadChat={(chatId: string) => {
           if (chatInterfaceRef.current) {
             chatInterfaceRef.current.loadChatHistory(chatId);
             setCurrentChatId(chatId);
-            setIsConversationSaved(isSaved || false);
           }
         }}
         currentChatId={currentChatId || undefined}
