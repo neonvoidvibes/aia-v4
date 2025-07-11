@@ -2361,11 +2361,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           {/* Show live thinking indicator and loading states only for the last user message */}
                           {isLastUserMessage && (
                             <>
-                              {isUpdatingDoc && (
-                                <div className="flex self-start mb-1 mt-1">
-                                    <ThinkingIndicator text="Working" showTime={false} />
-                                </div>
-                              )}
+                              {/* 'isUpdatingDoc' indicator has been moved to the end of the message list for correct positioning */}
                               {isThinking && selectedModel === 'gemini-2.5-pro' && (
                                 <ThinkingIndicator elapsedTime={thinkingTime} />
                               )}
@@ -2401,6 +2397,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         </React.Fragment>
                       );
                     })}
+                    
+                    {/* Indicator for document updates, shown at the end of the chat flow */}
+                    {isUpdatingDoc && (
+                        <div className="flex self-start mb-1 mt-1">
+                            <ThinkingIndicator text="Working" showTime={false} />
+                        </div>
+                    )}
                   </div>
                 )}
                 <div ref={messagesEndRef} />
