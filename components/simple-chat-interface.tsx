@@ -2338,7 +2338,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               initial={{ opacity: 0, y: 5 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3 }}
-                              className="flex self-start mb-1 mt-1 pl-2"
+                              className="flex self-start mb-1 mt-1"
                             >
                               <ThinkingIndicator text="Working..." showTime={false} />
                             </motion.div>
