@@ -910,6 +910,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [
         input, 
+        messages, // Add messages to dependency array
         isLoading, 
         isPageReady, 
         stop, 
@@ -2020,7 +2021,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setMessages(originalMessages);
             setErrorMessages(originalErrorMessages);
         }
-    }, [messageToDelete, currentChatId, supabase.auth, setMessages, isDeleting, conversationSaveMarkerMessageId, messages, errorMessages]);
+    }, [messageToDelete, currentChatId, isDeleting, conversationSaveMarkerMessageId, messages, errorMessages, supabase.auth]);
 
   const onSubmit = handleSubmitWithCanvasContext;
 
