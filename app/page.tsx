@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } fr
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2 } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2
 import Sidebar from "@/components/ui/sidebar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { createClient } from '@/utils/supabase/client';
@@ -58,6 +59,64 @@ interface ChatHistoryItem {
   agentName: string;
   hasSavedMessages?: boolean;
   isConversationSaved?: boolean;
+}
+
+interface AgentSelectorProps {
+  allowedAgents: string[];
+  userName: string | null;
+}
+
+function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
+  const router = useRouter();
+  const [selectedAgent, setSelectedAgent] = useState('');
+
+  const handleContinue = () => {
+    if (selectedAgent) {
+      router.push(`/?agent=${selectedAgent}`);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl">Welcome, {userName || 'User'}</CardTitle>
+          <CardDescription>
+            Please select an agent to begin your session.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {allowedAgents.length > 0 ? (
+            <div className="grid gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="agent-select">Select Agent</Label>
+                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                  <SelectTrigger id="agent-select" className="w-full">
+                    <SelectValue placeholder="Choose an agent..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowedAgents.sort().map((agent) => (
+                      <SelectItem key={agent} value={agent}>
+                        {agent}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleContinue} disabled={!selectedAgent} className="w-full">
+                Continue
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground">
+              <p>You do not have access to any agents.</p>
+              <p className="text-sm">Please contact an administrator.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 // Main content component that uses useSearchParams
@@ -229,130 +288,6 @@ function HomeContent() {
   const supabase = createClient();
   const router = useRouter();
 
-  useEffect(() => {
-      const agentParam = searchParams.get('agent');
-      const eventParam = searchParams.get('event');
-
-      if (pageAgentName !== agentParam || pageEventId !== eventParam) {
-        setFetchedDataFlags({
-          transcriptions: false,
-          baseSystemPrompts: false,
-          agentSystemPrompts: false,
-          baseFrameworks: false,
-          agentPrimaryContext: false,
-          savedSummaries: false, // Add flag for summaries
-          rawSavedS3TranscriptsFetched: false, // Ensure this new flag is included in the reset
-          pineconeMemory: false,
-          objectiveFunctions: false,
-        });
-      }
-
-      setPageAgentName(agentParam);
-      setPageEventId(eventParam);
-
-      if (!agentParam) {
-          console.error("Authorization Check: Agent parameter missing from URL.");
-          setAuthError("Agent parameter is missing in the URL.");
-          setIsAuthorized(false); 
-          return;
-      }
-
-      const fetchPermissions = async () => {
-          setIsAuthorized(null); 
-          setAuthError(null);
-
-          try {
-              const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-              if (sessionError || !session) {
-                  console.error("Authorization Check: No active session found.", sessionError);
-                  setAuthError("Not authenticated.");
-                  router.push('/login'); 
-                  return;
-              }
-
-              const response = await fetch('/api/user/permissions', {
-                  headers: { 'Authorization': `Bearer ${session.access_token}` },
-              });
-
-              if (response.status === 401) {
-                   console.error("Authorization Check: Unauthorized fetching permissions.");
-                   setAuthError("Session expired or invalid. Please log in again.");
-                   await supabase.auth.signOut(); 
-                   router.push('/login');
-                   return;
-               }
-
-              if (!response.ok) {
-                  const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-                  throw new Error(errorData.error || `Failed to fetch permissions: ${response.statusText}`);
-              }
-
-              const data = await response.json();
-              const fetchedAllowedAgents: { name: string, capabilities: { pinecone_index_exists: boolean } }[] = data.allowedAgents || [];
-              setAllowedAgents(fetchedAllowedAgents.map(a => a.name));
-
-              const currentAgentData = fetchedAllowedAgents.find(a => a.name === agentParam);
-              if (currentAgentData) {
-                setAgentCapabilities(currentAgentData.capabilities);
-              }
-              
-              // Set user name
-              const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
-              setUserName(name);
-
-              if (fetchedAllowedAgents.map(a => a.name).includes(agentParam)) {
-                  console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
-                  setIsAuthorized(true);
-
-                  // Fire-and-forget call to warm up the backend cache
-                  console.log(`[Cache Warmer] Triggering pre-caching for agent '${agentParam}'...`);
-                  fetch('/api/agent/warm-up', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${session.access_token}`
-                    },
-                    body: JSON.stringify({ agent: agentParam, event: eventParam || '0000' })
-                  })
-                  .then(response => {
-                      if(response.ok) {
-                        console.log(`[Cache Warmer] Pre-caching for agent '${agentParam}' successfully initiated.`);
-                      } else {
-                        console.warn(`[Cache Warmer] Pre-caching request for agent '${agentParam}' failed with status: ${response.status}`);
-                      }
-                  })
-                  .catch(error => {
-                      console.error(`[Cache Warmer] Error triggering pre-caching for agent '${pageAgentName}':`, error);
-                  });
-
-                  // Fetch chat history on successful authorization
-                  fetchChatHistory();
-
-              } else {
-                  console.warn(`Authorization Check: Access DENIED for agent '${agentParam}'. Allowed: [${fetchedAllowedAgents.join(', ')}]`);
-                  setAuthError(`You do not have permission to access the agent specified in the URL ('${agentParam}').`);
-                  setIsAuthorized(false);
-              }
-          } catch (error) {
-              console.error("Authorization Check: Error fetching permissions:", error);
-              const message = error instanceof Error ? error.message : "An unknown error occurred while checking permissions.";
-              setAuthError(message);
-              setIsAuthorized(false);
-          }
-      };
-
-      fetchPermissions();
-
-  }, [searchParams, supabase.auth, router, pageAgentName, pageEventId]);
-
-
-  // Refs
-  const tabContentRef = useRef<HTMLDivElement>(null);
-  const chatInterfaceRef = useRef<ChatInterfaceHandle>(null);
-  const memoryTabRef = useRef<HTMLDivElement>(null);
-  const isMobile = useMobile();
-
   const fetchChatHistory = useCallback(async () => {
     if (!pageAgentName) return;
     
@@ -377,6 +312,113 @@ function HomeContent() {
       setIsLoadingHistory(false);
     }
   }, [pageAgentName, supabase.auth]);
+
+  useEffect(() => {
+    const agentParam = searchParams.get('agent');
+    const eventParam = searchParams.get('event');
+
+    if (pageAgentName !== agentParam || pageEventId !== eventParam) {
+      setFetchedDataFlags({
+        transcriptions: false,
+        baseSystemPrompts: false,
+        agentSystemPrompts: false,
+        baseFrameworks: false,
+        agentPrimaryContext: false,
+        savedSummaries: false,
+        rawSavedS3TranscriptsFetched: false,
+        pineconeMemory: false,
+        objectiveFunctions: false,
+      });
+    }
+
+    setPageAgentName(agentParam);
+    setPageEventId(eventParam);
+
+    const checkAuthAndPermissions = async () => {
+      setIsAuthorized(null);
+      setAuthError(null);
+
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError || !session) {
+          // This case should be handled by middleware, but as a fallback:
+          console.error("Authorization Check: No active session found.", sessionError);
+          setAuthError("Not authenticated.");
+          router.push('/login');
+          return;
+        }
+
+        const response = await fetch('/api/user/permissions', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        });
+
+        if (response.status === 401) {
+          console.error("Authorization Check: Unauthorized fetching permissions.");
+          setAuthError("Session expired or invalid. Please log in again.");
+          await supabase.auth.signOut();
+          router.push('/login');
+          return;
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+          throw new Error(errorData.error || `Failed to fetch permissions: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const fetchedAllowedAgents: { name: string, capabilities: { pinecone_index_exists: boolean } }[] = data.allowedAgents || [];
+        const agentNames = fetchedAllowedAgents.map(a => a.name);
+        setAllowedAgents(agentNames);
+
+        const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
+        setUserName(name);
+
+        if (agentParam) {
+          if (agentNames.includes(agentParam)) {
+            console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
+            const currentAgentData = fetchedAllowedAgents.find(a => a.name === agentParam);
+            if (currentAgentData) {
+              setAgentCapabilities(currentAgentData.capabilities);
+            }
+            setIsAuthorized(true);
+
+            console.log(`[Cache Warmer] Triggering pre-caching for agent '${agentParam}'...`);
+            fetch('/api/agent/warm-up', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+              body: JSON.stringify({ agent: agentParam, event: eventParam || '0000' })
+            });
+
+            fetchChatHistory();
+          } else {
+            console.warn(`Authorization Check: Access DENIED for agent '${agentParam}'.`);
+            setAuthError(`You do not have permission to access the agent specified in the URL ('${agentParam}').`);
+            setIsAuthorized(false);
+          }
+        } else {
+          // User is authenticated, but no agent is in the URL.
+          // This is the trigger to show the agent selector.
+          console.log("Authorization Check: User authenticated, no agent in URL. Will show selector.");
+          setIsAuthorized(true);
+        }
+      } catch (error) {
+        console.error("Authorization Check: Error during permission flow:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred while checking permissions.";
+        setAuthError(message);
+        setIsAuthorized(false);
+      }
+    };
+
+    checkAuthAndPermissions();
+  }, [searchParams, supabase.auth, router, pageAgentName, pageEventId, fetchChatHistory]);
+
+
+  // Refs
+  const tabContentRef = useRef<HTMLDivElement>(null);
+  const chatInterfaceRef = useRef<ChatInterfaceHandle>(null);
+  const memoryTabRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMobile();
 
   useEffect(() => {
     if (historyNeedsRefresh && pageAgentName) {
@@ -1285,6 +1327,11 @@ function HomeContent() {
       <Button onClick={() => router.push('/login')}>Go to Login</Button>
     </div>
   );
+
+  // If user is authorized but no agent is specified in the URL, show agent selector
+  if (isAuthorized && !pageAgentName) {
+    return <AgentSelector allowedAgents={allowedAgents} userName={userName} />;
+  }
 
   return (
     <div className={`min-h-dvh h-dvh flex flex-col ${isSidebarOpen ? 'sidebar-open' : ''}`}>
