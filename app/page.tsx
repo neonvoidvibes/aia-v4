@@ -289,15 +289,15 @@ function HomeContent() {
   const supabase = createClient();
   const router = useRouter();
 
-  const fetchChatHistory = useCallback(async () => {
-    if (!pageAgentName) return;
+  const fetchChatHistory = useCallback(async (agentToFetch: string) => {
+    if (!agentToFetch) return;
     
     setIsLoadingHistory(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      const response = await fetch(`/api/chat/history/list?agent=${encodeURIComponent(pageAgentName)}`, {
+      const response = await fetch(`/api/chat/history/list?agent=${encodeURIComponent(agentToFetch)}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
@@ -312,7 +312,7 @@ function HomeContent() {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [pageAgentName, supabase.auth]);
+  }, [supabase.auth]);
 
   useEffect(() => {
     const agentParam = searchParams.get('agent');
@@ -432,7 +432,7 @@ function HomeContent() {
 
   useEffect(() => {
     if (historyNeedsRefresh && pageAgentName) {
-      fetchChatHistory().then(() => {
+      fetchChatHistory(pageAgentName).then(() => {
         setHistoryNeedsRefresh(false);
       });
     }
