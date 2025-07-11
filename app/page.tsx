@@ -72,7 +72,7 @@ function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
 
   const handleContinue = () => {
     if (selectedAgent) {
-      router.push(`/?agent=${selectedAgent}`);
+      router.push(`/?agent=${selectedAgent}&event=0000`);
     }
   };
 
@@ -94,7 +94,7 @@ function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
                   <SelectTrigger id="agent-select" className="w-full">
                     <SelectValue placeholder="Choose an agent..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-72">
                     {allowedAgents.sort().map((agent) => (
                       <SelectItem key={agent} value={agent}>
                         {agent}
