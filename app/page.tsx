@@ -432,11 +432,18 @@ function HomeContent() {
 
   useEffect(() => {
     if (historyNeedsRefresh && pageAgentName) {
-      fetchChatHistory(pageAgentName).then(() => {
+      fetchChatHistory().then(() => {
         setHistoryNeedsRefresh(false);
       });
     }
   }, [historyNeedsRefresh, pageAgentName, fetchChatHistory]);
+
+  // This effect will re-fetch chat history when the sidebar is opened.
+  useEffect(() => {
+    if (isSidebarOpen) {
+      fetchChatHistory();
+    }
+  }, [isSidebarOpen, fetchChatHistory]);
 
   const handleDeleteInitiated = (chatId: string) => {
     setChatIdToDelete(chatId);
