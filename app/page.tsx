@@ -77,7 +77,7 @@ function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="w-full flex items-center justify-center min-h-screen bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome, {userName || 'User'}</CardTitle>
