@@ -756,7 +756,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             const confirmationMessage = {
                 id: `asst-${Date.now()}`,
                 role: 'assistant' as const,
-                content: `Done. I have updated the document named \`${docUpdateRequest.doc_name}\`.`,
+                content: `Done. Memory updated in \`${docUpdateRequest.doc_name}\`.`,
                 createdAt: new Date(),
             };
             
