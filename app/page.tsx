@@ -72,6 +72,7 @@ function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
 
   const handleContinue = () => {
     if (selectedAgent) {
+      localStorage.setItem('lastUsedAgent', selectedAgent);
       router.push(`/?agent=${selectedAgent}&event=0000`);
     }
   };
@@ -375,8 +376,10 @@ function HomeContent() {
         setUserName(name);
 
         if (agentParam) {
+          // Agent is in URL, validate it
           if (agentNames.includes(agentParam)) {
             console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
+            localStorage.setItem('lastUsedAgent', agentParam); // Save the successfully accessed agent
             const currentAgentData = fetchedAllowedAgents.find(a => a.name === agentParam);
             if (currentAgentData) {
               setAgentCapabilities(currentAgentData.capabilities);
@@ -397,10 +400,17 @@ function HomeContent() {
             setIsAuthorized(false);
           }
         } else {
-          // User is authenticated, but no agent is in the URL.
-          // This is the trigger to show the agent selector.
-          console.log("Authorization Check: User authenticated, no agent in URL. Will show selector.");
-          setIsAuthorized(true);
+          // No agent in URL, check localStorage for last used agent
+          const lastUsedAgent = localStorage.getItem('lastUsedAgent');
+          if (lastUsedAgent && agentNames.includes(lastUsedAgent)) {
+            console.log(`Redirecting to last used agent: ${lastUsedAgent}`);
+            router.push(`/?agent=${lastUsedAgent}&event=0000`);
+            // The component will re-render with the new URL, so we don't need to set isAuthorized here.
+          } else {
+            // No valid last used agent, show the selector
+            console.log("Authorization Check: User authenticated, no valid last agent. Will show selector.");
+            setIsAuthorized(true);
+          }
         }
       } catch (error) {
         console.error("Authorization Check: Error during permission flow:", error);
