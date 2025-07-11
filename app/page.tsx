@@ -393,7 +393,7 @@ function HomeContent() {
               body: JSON.stringify({ agent: agentParam, event: eventParam || '0000' })
             });
 
-            fetchChatHistory();
+            fetchChatHistory(agentParam);
           } else {
             console.warn(`Authorization Check: Access DENIED for agent '${agentParam}'.`);
             setAuthError(`You do not have permission to access the agent specified in the URL ('${agentParam}').`);
@@ -432,7 +432,7 @@ function HomeContent() {
 
   useEffect(() => {
     if (historyNeedsRefresh && pageAgentName) {
-      fetchChatHistory().then(() => {
+      fetchChatHistory(pageAgentName).then(() => {
         setHistoryNeedsRefresh(false);
       });
     }
@@ -440,10 +440,10 @@ function HomeContent() {
 
   // This effect will re-fetch chat history when the sidebar is opened.
   useEffect(() => {
-    if (isSidebarOpen) {
-      fetchChatHistory();
+    if (isSidebarOpen && pageAgentName) {
+      fetchChatHistory(pageAgentName);
     }
-  }, [isSidebarOpen, fetchChatHistory]);
+  }, [isSidebarOpen, pageAgentName, fetchChatHistory]);
 
   const handleDeleteInitiated = (chatId: string) => {
     setChatIdToDelete(chatId);
