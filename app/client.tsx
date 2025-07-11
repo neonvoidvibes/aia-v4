@@ -23,6 +23,7 @@ export default function ClientLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
