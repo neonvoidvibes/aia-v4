@@ -53,6 +53,7 @@ import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE, type WelcomeMessageConfig 
 import { createClient } from '@/utils/supabase/client'
 import ThinkingIndicator from "@/components/ui/ThinkingIndicator"
 import PressToTalkUI from "@/components/ui/press-to-talk-ui";
+import WaveformIcon from "@/components/ui/waveform-icon";
 import { cn } from "@/lib/utils"
 import { toast } from "sonner" // Import toast
 import { type VADAggressiveness } from "./VADSettings";
@@ -744,12 +745,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
 
         const result = await response.json();
-        const transcribedText = result.transcript;
+        let transcribedText = result.transcript;
 
         if (transcribedText) {
+          const parts = transcribedText.split('\n\n');
+          const content = parts.length > 1 ? parts.slice(1).join('\n\n') : transcribedText;
+          
           append({
             role: 'user',
-            content: transcribedText,
+            content: content,
           });
         }
       } catch (error) {
@@ -2724,7 +2728,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         ) : input.trim() || attachedFiles.length > 0 ? (
                           <ArrowUp size={24} />
                         ) : (
-                          <Waves size={24} />
+                          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))]">
+                            <WaveformIcon size={24} />
+                          </div>
                         )}
                       </button>
                     </div>
