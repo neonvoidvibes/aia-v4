@@ -808,23 +808,18 @@ body {
   box-sizing: border-box; /* Ensure padding is included in width calc */
 }
 
-/* Target the actual class used in the component */
-.bg-input-gray {
-  width: min(760px, calc(100% - 2rem)) !important; /* Never exceed container, but prefer 760px */
-  max-width: 760px !important; /* Hard limit */
-  margin: 16px auto !important; /* Ensure centering */
+/* New class for chat input layout to separate concerns from color */
+.chat-input-layout {
+  width: min(760px, calc(100% - 2rem)) !important;
+  max-width: 760px !important;
+  margin: 16px auto !important;
 }
 
-/* New class to override background color during recording without affecting layout */
-.recording-active-bg {
-  background-color: hsl(var(--primary)) !important;
-}
-
-/* When sidebar is open, use identical calculation for absolute zero resizing */
-.sidebar-open .bg-input-gray {
-  width: min(760px, calc(100% - 2rem)) !important; /* Identical = zero resizing */
-  max-width: 760px !important; /* Identical hard limit */
-  margin: 16px auto !important; /* Maintain centering */
+/* When sidebar is open, the layout should not change */
+.sidebar-open .chat-input-layout {
+  width: min(760px, calc(100% - 2rem)) !important;
+  max-width: 760px !important;
+  margin: 16px auto !important;
 }
 
 /* Mobile: Use viewport-based sizing with smaller margins */
@@ -834,25 +829,25 @@ body {
     margin: 8px 0; /* Adjust vertical margin, remove side margin */
   }
   
-  .bg-input-gray {
-    width: min(calc(100vw - 2rem), 800px) !important; /* Viewport-based for mobile */
-    margin: 8px auto !important; /* Center on mobile */
+  .chat-input-layout {
+    width: min(calc(100vw - 2rem), 800px) !important;
+    margin: 8px auto !important;
   }
   
   /* Desktop sidebar - only resize input on desktop */
   @media (min-width: 768px) {
-    .sidebar-open .bg-input-gray {
-      width: min(760px, calc(100% - 2rem)) !important; /* Identical = zero resizing */
-      max-width: 760px !important; /* Identical hard limit */
-      margin: 16px auto !important; /* Maintain centering */
+    .sidebar-open .chat-input-layout {
+      width: min(760px, calc(100% - 2rem)) !important;
+      max-width: 760px !important;
+      margin: 16px auto !important;
     }
   }
   
   /* Mobile sidebar - no input resizing, let it be pushed with content */
   @media (max-width: 767px) {
-    .sidebar-open .bg-input-gray {
-      width: min(calc(100vw - 2rem), 800px) !important; /* Same as normal mobile width */
-      margin: 8px auto !important; /* Same as normal mobile margin */
+    .sidebar-open .chat-input-layout {
+      width: min(calc(100vw - 2rem), 800px) !important;
+      margin: 8px auto !important;
     }
   }
 }
@@ -1825,7 +1820,7 @@ button {
 .light .chevron-rotate { color: black; }
 
 /* Ensure consistent background colors for UI elements */
-.bg-input-gray { background-color: hsl(var(--input-gray)) !important; }
+.bg-input-gray { background-color: hsl(var(--input-gray)); }
 
 /* User bubble should NOT have forced background - remove the unwanted background color */
 .user-bubble {

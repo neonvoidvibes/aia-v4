@@ -2634,7 +2634,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       recordingTime={pressToTalkTime}
                     />
                   ) : (
-                    <div className={cn("bg-input-gray rounded-full p-2 flex items-center")}>
+                    <div className={cn("chat-input-layout bg-input-gray rounded-full p-2 flex items-center")}>
                       <div className="relative" ref={plusMenuRef}>
                         <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
                           <Plus size={20} />
