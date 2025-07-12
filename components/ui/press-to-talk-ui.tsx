@@ -48,20 +48,20 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
   recordingTime,
 }) => {
   return (
-    <div className="bg-input-gray rounded-full p-2 flex items-center w-full">
-      <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-muted text-muted-foreground">
+    <div className={cn("bg-input-gray rounded-full p-2 flex items-center w-full", "recording-active-bg")}>
+      <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-primary-foreground text-primary">
         <Button
           variant="ghost"
           size="icon"
           onClick={onCancel}
-          className="h-full w-full rounded-full"
+          className="h-full w-full rounded-full hover:bg-primary/10"
           aria-label="Cancel recording"
         >
           <X className="h-5 w-5" />
         </Button>
       </div>
       <div className="flex-1 flex items-center justify-center px-4">
-        <span className="font-mono text-sm text-muted-foreground w-full text-center">
+        <span className="font-mono text-sm text-primary-foreground w-full text-center">
           {formatTime(recordingTime)}
         </span>
       </div>
@@ -71,7 +71,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
         className={cn(
           "transition-all duration-200 rounded-full flex items-center justify-center",
           "h-9 w-9 sm:h-10 sm:w-10",
-          "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90"
+          "bg-primary-foreground text-primary hover:opacity-90"
         )}
         aria-label="Submit recording"
       >

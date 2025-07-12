@@ -815,6 +815,11 @@ body {
   margin: 16px auto !important; /* Ensure centering */
 }
 
+/* New class to override background color during recording without affecting layout */
+.recording-active-bg {
+  background-color: hsl(var(--primary)) !important;
+}
+
 /* When sidebar is open, use identical calculation for absolute zero resizing */
 .sidebar-open .bg-input-gray {
   width: min(760px, calc(100% - 2rem)) !important; /* Identical = zero resizing */
