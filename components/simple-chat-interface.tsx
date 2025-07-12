@@ -727,8 +727,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const _transcribeAndSend = async (audioBlob: Blob) => {
       const formData = new FormData();
-      formData.append('file', audioBlob, 'voice_message.webm');
-      formData.append('transcription_language', 'any');
+      formData.append('audio_file', audioBlob, 'voice_message.webm');
+      if (agentName) {
+        formData.append('agent_name', agentName);
+      }
 
       try {
         const response = await fetch('/api/transcribe-audio', {
