@@ -253,35 +253,60 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
   }, [agentName]);
 
-  const handleStopRecording = useCallback((e?: React.MouseEvent, dueToError: boolean = false) => {
+  const handleStopRecording = useCallback(async (e?: React.MouseEvent, dueToError: boolean = false) => {
     e?.stopPropagation();
     const sessionId = currentSessionId;
     if (!sessionId || pendingActionRef.current === 'stop') {
+      debugLog(`[Stop Recording] Aborted. Session ID: ${sessionId}, Pending Action: ${pendingActionRef.current}`);
       return;
     }
 
     debugLog(`[Stop Recording] Initiated. Finalizing session: ${sessionId}`);
     setPendingAction('stop');
+    isStoppingRef.current = true;
 
-    // Fire-and-forget the stop command to the backend.
-    // The backend is responsible for finalizing the recording.
-    // We don't await this, so the client can clean up immediately.
-    callHttpRecordingApi('stop', { session_id: sessionId })
-      .then(result => {
-        if (result.success) {
-          toast.success("Recording saved successfully.");
-          fetchRecordings(); // Refresh the list in the background.
-        } else if (!dueToError) {
-          toast.error(`Server finalization failed: ${result.error || "Unknown error"}`);
-        }
-      });
+    // Stop client-side recording immediately
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => track.stop());
+      audioStreamRef.current = null;
+    }
+    stopTimer();
 
-    // Immediately reset all client-side states. This is the crucial part.
-    // It will stop timers, media recorder, and close the websocket.
-    resetRecordingStates();
-    setPendingAction(null); // Clear the pending action after the reset.
+    // Close WebSocket gracefully
+    if (webSocketRef.current) {
+      const ws = webSocketRef.current;
+      (ws as any).__intentionalClose = true;
+      if (ws.readyState === WebSocket.OPEN) {
+        // Optional: send a stop message if your backend uses it
+        // ws.send(JSON.stringify({ action: "stop_stream" }));
+        ws.close(1000, "Client stopped recording");
+      }
+      webSocketRef.current = null;
+    }
 
-  }, [callHttpRecordingApi, fetchRecordings, resetRecordingStates]);
+    // Notify backend to finalize and save the recording
+    const result = await callHttpRecordingApi('stop', { session_id: sessionId });
+    if (result.success) {
+      toast.success("Recording saved successfully.");
+      await fetchRecordings(); // Await to ensure list is updated before state change
+    } else if (!dueToError) {
+      toast.error(`Server finalization failed: ${result.error || "Unknown error"}`);
+    }
+
+    // Fully reset all states now that everything is done
+    setGlobalRecordingStatus({ type: null, isRecording: false });
+    setRecordingTime(0);
+    setIsPaused(false);
+    setCurrentSessionId(null);
+    setWsStatus('idle');
+    setPendingAction(null);
+    isStoppingRef.current = false;
+    debugLog("[Stop Recording] Completed.");
+
+  }, [currentSessionId, callHttpRecordingApi, fetchRecordings, setGlobalRecordingStatus, resetRecordingStates]);
 
   const startBrowserMediaRecording = useCallback(async () => {
     debugLog(`[MediaRecorder] Attempting start. WS state: ${webSocketRef.current?.readyState}`);

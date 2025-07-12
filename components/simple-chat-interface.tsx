@@ -813,8 +813,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           setPressToTalkState('transcribing');
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           _transcribeAndSend(audioBlob);
+          
+          // Clean up stream and recorder instance
           pressToTalkStreamRef.current?.getTracks().forEach((track: MediaStreamTrack) => track.stop());
           pressToTalkStreamRef.current = null;
+          pressToTalkMediaRecorderRef.current = null;
         };
 
         mediaRecorder.start();
@@ -830,7 +833,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const handleSubmitPressToTalk = () => {
       if (pressToTalkMediaRecorderRef.current && pressToTalkMediaRecorderRef.current.state === 'recording') {
-        pressToTalkMediaRecorderRef.current.stop();
+        pressToTalkMediaRecorderRef.current.stop(); // This will trigger the onstop handler for cleanup
       }
       if (pressToTalkTimerRef.current) {
         clearInterval(pressToTalkTimerRef.current);
@@ -843,8 +846,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         pressToTalkMediaRecorderRef.current.onstop = null; // Detach onstop to prevent transcription
         pressToTalkMediaRecorderRef.current.stop();
         
+        // Explicitly clean up resources on cancel
         pressToTalkStreamRef.current?.getTracks().forEach((track: MediaStreamTrack) => track.stop());
         pressToTalkStreamRef.current = null;
+        pressToTalkMediaRecorderRef.current = null;
       }
       if (pressToTalkTimerRef.current) {
         clearInterval(pressToTalkTimerRef.current);
@@ -2726,23 +2731,37 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       />
                       <button
                         type="button"
-                        onClick={input.trim() || attachedFiles.length > 0 ? (e) => onSubmit(e as any) : handleStartPressToTalk}
+                        onClick={(e) => {
+                          if (input.trim() || attachedFiles.length > 0) {
+                            onSubmit(e as any);
+                          } else {
+                            handleStartPressToTalk();
+                          }
+                        }}
                         className={cn(
                           "transition-all duration-200 rounded-full flex items-center justify-center",
                           "h-9 w-9 sm:h-10 sm:w-10",
+                          // Style for send button
                           isPageReady && (input.trim() || attachedFiles.length > 0) && !isLoading &&
                             "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
+                          // Style for mic button
                           isPageReady && !(input.trim() || attachedFiles.length > 0) && !isLoading &&
                             "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
-                          (globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && "cursor-not-allowed",
-                          pressToTalkState !== 'transcribing' && globalRecordingStatus.isRecording && "opacity-50",
+                          // Disabled states
+                          ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
                           (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
                         )}
                         style={isLoading ? {
                           backgroundColor: 'hsl(var(--button-submit-bg-stop))',
                           color: 'hsl(var(--button-submit-fg-stop))',
                         } : {}}
-                        disabled={!isPageReady || isLoading || !!pendingActionRef.current || globalRecordingStatus.isRecording || pressToTalkState === 'transcribing'}
+                        disabled={
+                          !isPageReady || 
+                          isLoading || 
+                          !!pendingActionRef.current || 
+                          pressToTalkState === 'transcribing' ||
+                          (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))
+                        }
                         aria-label={isLoading ? "Stop generating" : (input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message")}
                       >
                         {isLoading ? (
