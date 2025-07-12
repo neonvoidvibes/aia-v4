@@ -34,12 +34,11 @@ const debugLog = (...args: any[]) => {
   }
 };
 
+type RecordingType = 'long-form-note' | 'long-form-chat' | 'press-to-talk' | null;
+
 type GlobalRecordingStatus = {
-  type: 'transcript' | 'recording' | null;
   isRecording: boolean;
-  isPaused: boolean;
-  time: number;
-  sessionId: string | null;
+  type: RecordingType;
 };
 
 import { type VADAggressiveness } from './VADSettings';
@@ -80,6 +79,9 @@ const RecordView: React.FC<RecordViewProps> = ({
   const [wsStatus, setWsStatus] = useState<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [pendingAction, setPendingAction] = useState<'start' | 'stop' | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   // Refs to hold the latest state for use in closures like event handlers
   const pendingActionRef = useRef(pendingAction);
@@ -152,7 +154,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   const startTimer = () => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     timerIntervalRef.current = setInterval(() => {
-      setGlobalRecordingStatus(prev => ({ ...prev, time: prev.time + 1 }));
+      setRecordingTime(prev => prev + 1);
     }, 1000);
   };
 
@@ -168,7 +170,10 @@ const RecordView: React.FC<RecordViewProps> = ({
     isStoppingRef.current = true;
 
     stopTimer();
-    setGlobalRecordingStatus({ type: null, isRecording: false, isPaused: false, time: 0, sessionId: null });
+    setGlobalRecordingStatus({ type: null, isRecording: false });
+    setRecordingTime(0);
+    setIsPaused(false);
+    setCurrentSessionId(null);
     setWsStatus('idle');
     setIsReconnecting(false);
 
@@ -250,7 +255,7 @@ const RecordView: React.FC<RecordViewProps> = ({
 
   const handleStopRecording = useCallback((e?: React.MouseEvent, dueToError: boolean = false) => {
     e?.stopPropagation();
-    const { sessionId } = globalRecordingStatusRef.current;
+    const sessionId = currentSessionId;
     if (!sessionId || pendingActionRef.current === 'stop') {
       return;
     }
@@ -322,7 +327,8 @@ const RecordView: React.FC<RecordViewProps> = ({
 
       mediaRecorder.start(3000); // Send data every 3 seconds
       console.info("[MediaRecorder] Started.");
-      setGlobalRecordingStatus(prev => ({ ...prev, isRecording: true, isPaused: false }));
+      setGlobalRecordingStatus({ type: 'long-form-note', isRecording: true });
+      setIsPaused(false);
       startTimer();
       // The setPendingAction(null) is now handled by a useEffect watching globalRecordingStatus.isRecording
 
@@ -397,7 +403,7 @@ const RecordView: React.FC<RecordViewProps> = ({
         if (isReconnecting) {
           if (mediaRecorderRef.current?.state === "paused") {
             mediaRecorderRef.current.resume();
-            setGlobalRecordingStatus(prev => ({ ...prev, isPaused: false }));
+            setIsPaused(false);
           }
         } else {
           startBrowserMediaRecording();
@@ -445,7 +451,7 @@ const RecordView: React.FC<RecordViewProps> = ({
           debugLog("[WebSocket onclose] Unexpected disconnection. Attempting to reconnect.");
           if (mediaRecorderRef.current?.state === "recording") {
             mediaRecorderRef.current.pause();
-            setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
+            setIsPaused(true);
           }
           if (!isReconnecting) {
             setIsReconnecting(true);
@@ -471,7 +477,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     
     const delay = (RECONNECT_DELAY_BASE_MS * Math.pow(2, attempt - 1)) + (Math.random() * 1000);
     reconnectTimeoutRef.current = setTimeout(() => {
-      const sessionId = globalRecordingStatus.sessionId;
+      const sessionId = currentSessionId;
       if (sessionId) {
         connectWebSocket(sessionId);
       } else {
@@ -479,7 +485,7 @@ const RecordView: React.FC<RecordViewProps> = ({
         resetRecordingStates();
       }
     }, delay);
-  }, [resetRecordingStates, connectWebSocket, globalRecordingStatus.sessionId]);
+  }, [resetRecordingStates, connectWebSocket, currentSessionId]);
 
   useEffect(() => {
     tryReconnectRef.current = tryReconnect;
@@ -495,13 +501,14 @@ const RecordView: React.FC<RecordViewProps> = ({
     setPendingAction('start');
     resetRecordingStates(); // Ensure clean state before starting
 
-    const result = await callHttpRecordingApi('start', { 
+    const result = await callHttpRecordingApi('start', {
       transcriptionLanguage: 'any',
       vad_aggressiveness: vadAggressiveness
     });
     if (result.success && result.data?.session_id) {
       const sessionId = result.data.session_id;
-      setGlobalRecordingStatus({ type: 'recording', isRecording: false, isPaused: false, time: 0, sessionId });
+      setCurrentSessionId(sessionId);
+      setGlobalRecordingStatus({ type: 'long-form-note', isRecording: true });
       connectWebSocket(sessionId);
       toast.success("Recording session initiated.");
       fetchRecordings(); // Refresh the list
@@ -511,27 +518,27 @@ const RecordView: React.FC<RecordViewProps> = ({
   };
 
   const handlePauseRecording = async () => {
-    if (!globalRecordingStatus.isRecording || globalRecordingStatus.isPaused) return;
+    if (!globalRecordingStatus.isRecording || isPaused) return;
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.pause();
     }
     stopTimer();
-    setGlobalRecordingStatus(prev => ({ ...prev, isPaused: true }));
+    setIsPaused(true);
     toast.info("Recording paused.");
     // Optionally, notify backend about pause
-    // await callHttpRecordingApi('pause', { session_id: globalRecordingStatus.sessionId });
+    // await callHttpRecordingApi('pause', { session_id: currentSessionId });
   };
 
   const handleResumeRecording = async () => {
-    if (!globalRecordingStatus.isRecording || !globalRecordingStatus.isPaused) return;
+    if (!globalRecordingStatus.isRecording || !isPaused) return;
     if (mediaRecorderRef.current?.state === "paused") {
       mediaRecorderRef.current.resume();
     }
     startTimer();
-    setGlobalRecordingStatus(prev => ({ ...prev, isPaused: false }));
+    setIsPaused(false);
     toast.success("Recording resumed.");
     // Optionally, notify backend about resume
-    // await callHttpRecordingApi('resume', { session_id: globalRecordingStatus.sessionId });
+    // await callHttpRecordingApi('resume', { session_id: currentSessionId });
   };
 
 
@@ -611,15 +618,14 @@ const RecordView: React.FC<RecordViewProps> = ({
   const handlePlayPauseClick = () => {
     if (!globalRecordingStatus.isRecording) {
       handleStartRecording();
-    } else if (globalRecordingStatus.isPaused) {
+    } else if (isPaused) {
       handleResumeRecording();
     } else {
       handlePauseRecording();
     }
   };
 
-  const isRecording = globalRecordingStatus.type === 'recording' && globalRecordingStatus.isRecording;
-  const isPaused = isRecording && globalRecordingStatus.isPaused;
+  const isRecording = globalRecordingStatus.type === 'long-form-note' && globalRecordingStatus.isRecording;
   const isStopping = pendingAction === 'stop';
 
   return (

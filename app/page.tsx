@@ -185,20 +185,16 @@ function HomeContent() {
   });
 
   // New global state for recording status
+  type RecordingType = 'long-form-note' | 'long-form-chat' | 'press-to-talk' | null;
+
   type GlobalRecordingStatus = {
-    type: 'transcript' | 'recording' | null;
     isRecording: boolean;
-    isPaused: boolean;
-    time: number;
-    sessionId: string | null;
+    type: RecordingType;
   };
 
   const [globalRecordingStatus, setGlobalRecordingStatus] = useState<GlobalRecordingStatus>({
-    type: null,
     isRecording: false,
-    isPaused: false,
-    time: 0,
-    sessionId: null,
+    type: null,
   });
 
   // State for S3 file viewer
@@ -248,20 +244,14 @@ function HomeContent() {
     setRecordingState(newState);
     if (newState.isBrowserRecording) {
       setGlobalRecordingStatus({
-        type: 'transcript',
+        type: 'long-form-chat',
         isRecording: true,
-        isPaused: newState.isBrowserPaused,
-        time: newState.clientRecordingTime,
-        sessionId: null, // This will be managed by the chat interface
       });
     } else {
-      // Only reset if the current global recording is a transcript
-      setGlobalRecordingStatus(prev => prev.type === 'transcript' ? {
+      // Only reset if the current global recording is a long-form chat
+      setGlobalRecordingStatus(prev => prev.type === 'long-form-chat' ? {
         type: null,
         isRecording: false,
-        isPaused: false,
-        time: 0,
-        sessionId: null,
       } : prev);
     }
   }, []);
@@ -1375,16 +1365,16 @@ function HomeContent() {
       />
       
       {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
-      {isFullscreen && globalRecordingStatus.isRecording && (
+      {isFullscreen && recordingState.isBrowserRecording && (
         <div className="fixed top-[27px] right-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70">
           <span className={`inline-block w-2 h-2 rounded-full ${
-            globalRecordingStatus.isPaused ? 'bg-yellow-500' :
-            globalRecordingStatus.type === 'transcript' ? 'bg-blue-500 animate-pulse' :
+            recordingState.isBrowserPaused ? 'bg-yellow-500' :
+            globalRecordingStatus.type === 'long-form-chat' ? 'bg-blue-500 animate-pulse' :
             'bg-red-500 animate-pulse'
           }`}></span>
           <span className="font-mono">
-            {Math.floor(globalRecordingStatus.time / 60).toString().padStart(2, '0')}:
-            {(globalRecordingStatus.time % 60).toString().padStart(2, '0')}
+            {Math.floor(recordingState.clientRecordingTime / 60).toString().padStart(2, '0')}:
+            {(recordingState.clientRecordingTime % 60).toString().padStart(2, '0')}
           </span>
         </div>
       )}
@@ -1407,15 +1397,17 @@ function HomeContent() {
         <main className="flex-1 flex flex-col">
         {/* Keep SimpleChatInterface always mounted but hidden when not active to preserve state */}
         <div className={currentView === "chat" ? "flex flex-col flex-1" : "hidden"}>
-          <SimpleChatInterface 
-            ref={chatInterfaceRef} 
-            onAttachmentsUpdate={updateChatAttachments} 
+          <SimpleChatInterface
+            ref={chatInterfaceRef}
+            onAttachmentsUpdate={updateChatAttachments}
             isFullscreen={isFullscreen}
             selectedModel={selectedModel}
             temperature={temperature}
             onRecordingStateChange={handleRecordingStateChange}
-            isDedicatedRecordingActive={globalRecordingStatus.type === 'recording' && globalRecordingStatus.isRecording}
+            isDedicatedRecordingActive={globalRecordingStatus.type === 'long-form-note' && globalRecordingStatus.isRecording}
             vadAggressiveness={vadAggressiveness}
+            globalRecordingStatus={globalRecordingStatus}
+            setGlobalRecordingStatus={setGlobalRecordingStatus}
             getCanvasContext={() => ({
                 current_canvas_time_window_label: selectedTimeWindow,
                 active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
@@ -1439,7 +1431,7 @@ function HomeContent() {
             agentName={pageAgentName}
             globalRecordingStatus={globalRecordingStatus}
             setGlobalRecordingStatus={setGlobalRecordingStatus}
-            isTranscriptRecordingActive={globalRecordingStatus.type === 'transcript' && globalRecordingStatus.isRecording}
+            isTranscriptRecordingActive={globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording}
             agentCapabilities={agentCapabilities}
             vadAggressiveness={vadAggressiveness}
           />
