@@ -2731,33 +2731,34 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       />
                       <button
                         type="button"
-                        onClick={(e) => {
-                          if (input.trim() || attachedFiles.length > 0) {
-                            onSubmit(e as any);
-                          } else {
-                            handleStartPressToTalk();
-                          }
-                        }}
+                        onClick={
+                          isLoading 
+                            ? stop 
+                            : (e) => {
+                                if (input.trim() || attachedFiles.length > 0) {
+                                  onSubmit(e as any);
+                                } else {
+                                  handleStartPressToTalk();
+                                }
+                              }
+                        }
                         className={cn(
                           "transition-all duration-200 rounded-full flex items-center justify-center",
                           "h-9 w-9 sm:h-10 sm:w-10",
-                          // Style for send button
+                          // Style for send button (enabled)
                           isPageReady && (input.trim() || attachedFiles.length > 0) && !isLoading &&
                             "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
-                          // Style for mic button
+                          // Style for mic button (enabled)
                           isPageReady && !(input.trim() || attachedFiles.length > 0) && !isLoading &&
                             "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
+                          // Style for stop button (during loading)
+                          isLoading && "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90",
                           // Disabled states
                           ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
                           (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
                         )}
-                        style={isLoading ? {
-                          backgroundColor: 'hsl(var(--button-submit-bg-stop))',
-                          color: 'hsl(var(--button-submit-fg-stop))',
-                        } : {}}
                         disabled={
                           !isPageReady || 
-                          isLoading || 
                           !!pendingActionRef.current || 
                           pressToTalkState === 'transcribing' ||
                           (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))

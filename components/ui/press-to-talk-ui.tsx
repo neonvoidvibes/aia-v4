@@ -65,7 +65,8 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
           {formatTime(recordingTime)}
         </span>
       </div>
-      <Button
+      <button
+        type="button"
         onClick={onSubmit}
         className={cn(
           "transition-all duration-200 rounded-full flex items-center justify-center",
@@ -75,7 +76,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
         aria-label="Submit recording"
       >
         <ArrowUp size={24} />
-      </Button>
+      </button>
     </div>
   );
 };
