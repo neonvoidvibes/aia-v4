@@ -2729,56 +2729,63 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         disabled={!isPageReady || !!pendingAction || pressToTalkState !== 'idle'}
                         aria-label="Chat input"
                       />
-                      <button
-                        type="button"
-                        onClick={
-                          isLoading 
-                            ? stop 
-                            : (e) => {
-                                if (input.trim() || attachedFiles.length > 0) {
-                                  onSubmit(e as any);
-                                } else {
-                                  handleStartPressToTalk();
-                                }
-                              }
-                        }
-                        className={cn(
-                          "transition-all duration-200 rounded-full flex items-center justify-center",
-                          "h-9 w-9 sm:h-10 sm:w-10",
-                          // Style for send button (enabled)
-                          isPageReady && (input.trim() || attachedFiles.length > 0) && !isLoading &&
-                            "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
-                          // Style for mic button (enabled)
-                          isPageReady && !(input.trim() || attachedFiles.length > 0) && !isLoading &&
-                            "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
-                          // Style for stop button (during loading)
-                          isLoading && "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90",
-                          // Disabled states
-                          ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
-                          (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
-                        )}
-                        disabled={
-                          !isPageReady || 
-                          !!pendingActionRef.current || 
-                          pressToTalkState === 'transcribing' ||
-                          (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))
-                        }
-                        aria-label={isLoading ? "Stop generating" : (input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message")}
-                      >
-                        {isLoading ? (
+                      {isLoading ? (
+                        <button
+                          type="button"
+                          onClick={stop}
+                          className={cn(
+                            "transition-all duration-200 rounded-full flex items-center justify-center",
+                            "h-9 w-9 sm:h-10 sm:w-10",
+                            "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
+                          )}
+                          aria-label="Stop generating"
+                        >
                           <Square size={18} className="fill-current" />
-                        ) : pressToTalkState === 'transcribing' ? (
-                          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-primary/20 text-primary">
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          </div>
-                        ) : input.trim() || attachedFiles.length > 0 ? (
-                          <ArrowUp size={24} />
-                        ) : (
-                          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))]">
-                            <WaveformIcon size={24} />
-                          </div>
-                        )}
-                      </button>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            if (input.trim() || attachedFiles.length > 0) {
+                              onSubmit(e as any);
+                            } else {
+                              handleStartPressToTalk();
+                            }
+                          }}
+                          className={cn(
+                            "transition-all duration-200 rounded-full flex items-center justify-center",
+                            "h-9 w-9 sm:h-10 sm:w-10",
+                            // Style for send button (enabled)
+                            isPageReady && (input.trim() || attachedFiles.length > 0) &&
+                              "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
+                            // Style for mic button (enabled)
+                            isPageReady && !(input.trim() || attachedFiles.length > 0) &&
+                              "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
+                            // Disabled states
+                            ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
+                            (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
+                          )}
+                          disabled={
+                            !isPageReady || 
+                            !!pendingActionRef.current || 
+                            pressToTalkState === 'transcribing' ||
+                            (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))
+                          }
+                          aria-label={input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message"}
+                        >
+                          {pressToTalkState === 'transcribing' ? (
+                            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-primary/20 text-primary">
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            </div>
+                          ) : input.trim() || attachedFiles.length > 0 ? (
+                            <ArrowUp size={24} />
+                          ) : (
+                            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))]">
+                              <WaveformIcon size={24} />
+                            </div>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                   <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple accept=".txt,.md,.json,.pdf,.docx" />
