@@ -48,7 +48,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
   recordingTime,
 }) => {
   return (
-    <div className={cn("chat-input-layout bg-accent rounded-full p-2 flex items-center w-full")}>
+    <div className={cn("chat-input-layout bg-primary rounded-full p-2 flex items-center w-full")}>
       <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))]">
         <Button
           variant="ghost"
@@ -61,7 +61,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
         </Button>
       </div>
       <div className="flex-1 flex items-center justify-center px-4">
-        <span className="font-mono text-sm text-accent-foreground w-full text-center">
+        <span className="font-mono text-sm text-primary-foreground w-full text-center">
           {formatTime(recordingTime)}
         </span>
       </div>
