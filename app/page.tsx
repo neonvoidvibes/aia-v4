@@ -1408,6 +1408,7 @@ function HomeContent() {
             vadAggressiveness={vadAggressiveness}
             globalRecordingStatus={globalRecordingStatus}
             setGlobalRecordingStatus={setGlobalRecordingStatus}
+            transcriptListenMode={transcriptListenMode}
             getCanvasContext={() => ({
                 current_canvas_time_window_label: selectedTimeWindow,
                 active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),

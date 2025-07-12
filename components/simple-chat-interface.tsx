@@ -243,6 +243,7 @@ interface SimpleChatInterfaceProps {
   vadAggressiveness: VADAggressiveness;
   globalRecordingStatus: GlobalRecordingStatus;
   setGlobalRecordingStatus: React.Dispatch<React.SetStateAction<GlobalRecordingStatus>>;
+  transcriptListenMode: "none" | "latest" | "all";
   getCanvasContext?: () => { // New prop to fetch dynamic canvas context
     current_canvas_time_window_label?: string;
     active_canvas_insights?: string; // JSON string
@@ -297,7 +298,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -427,12 +428,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [currentChatId, onChatIdChange]);
 
+    const chatApiBody = useMemo(() => ({
+        agent: agentName,
+        event: eventId || '0000',
+        transcriptListenMode: transcriptListenMode,
+    }), [agentName, eventId, transcriptListenMode]);
+
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
       isLoading, stop, setMessages, append, reload,
     } = useChat({ 
       api: "/api/proxy-chat",
-      body: { agent: agentName, event: eventId || '0000' }, 
+      body: chatApiBody, 
       sendExtraMessageFields: true,
       onError: (error) => { 
         console.error("[ChatUI] useChat onError:", error);
@@ -749,12 +756,27 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         if (transcribedText) {
           const parts = transcribedText.split('\n\n');
-          const content = parts.length > 1 ? parts.slice(1).join('\n\n') : transcribedText;
+          let content = parts.length > 1 ? parts.slice(1).join('\n\n') : transcribedText;
           
+          // Remove the prepended mic emoji if it exists and trim whitespace.
+          content = content.replace(/^🎙️\s*/, '').trim();
+
+          const canvasContextData = getCanvasContext ? getCanvasContext() : {};
+          const augmentedBody = {
+              agent: agentName,
+              event: eventId || '0000',
+              model: selectedModel,
+              temperature: temperature,
+              ...canvasContextData,
+              transcriptListenMode: transcriptListenMode,
+              savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
+              transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any",
+          };
+
           append({
             role: 'user',
-            content: `🎙️ ${content}`,
-          });
+            content: content,
+          }, { data: augmentedBody });
         }
       } catch (error) {
         console.error("Transcription error:", error);
@@ -1005,7 +1027,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 model: selectedModel,
                 temperature: temperature,
                 ...canvasContextData,
-                transcriptListenMode: localStorage.getItem(`transcriptListenModeSetting_${agentName}`) || "latest",
+                transcriptListenMode: transcriptListenMode,
                 savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
                 transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any",
             };
@@ -1035,7 +1057,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setAttachedFiles,
         addErrorMessage,
         saveChatHistory,
-        localStorage.getItem(`transcriptListenModeSetting_${agentName}`)
+        transcriptListenMode
     ]);
 
     const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop', payload?: any): Promise<any> => {
@@ -2607,7 +2629,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       recordingTime={pressToTalkTime}
                     />
                   ) : (
-                    <div className={cn("bg-input-gray rounded-full p-2 flex items-center", pressToTalkState === 'transcribing' && "opacity-50")}>
+                    <div className={cn("bg-input-gray rounded-full p-2 flex items-center")}>
                       <div className="relative" ref={plusMenuRef}>
                         <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
                           <Plus size={20} />
@@ -2712,7 +2734,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
                           isPageReady && !(input.trim() || attachedFiles.length > 0) && !isLoading &&
                             "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
-                          (globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && "opacity-50 cursor-not-allowed",
+                          (globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && "cursor-not-allowed",
+                          pressToTalkState !== 'transcribing' && globalRecordingStatus.isRecording && "opacity-50",
                           (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
                         )}
                         style={isLoading ? {
