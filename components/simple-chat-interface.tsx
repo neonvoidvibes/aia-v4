@@ -753,7 +753,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           
           append({
             role: 'user',
-            content: content,
+            content: `🎙️ ${content}`,
           });
         }
       } catch (error) {
@@ -1034,7 +1034,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         temperature,
         setAttachedFiles,
         addErrorMessage,
-        saveChatHistory
+        saveChatHistory,
+        localStorage.getItem(`transcriptListenModeSetting_${agentName}`)
     ]);
 
     const callHttpRecordingApi = useCallback(async (action: 'start' | 'stop', payload?: any): Promise<any> => {
@@ -2724,7 +2725,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         {isLoading ? (
                           <Square size={18} className="fill-current" />
                         ) : pressToTalkState === 'transcribing' ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-primary/20 text-primary">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          </div>
                         ) : input.trim() || attachedFiles.length > 0 ? (
                           <ArrowUp size={24} />
                         ) : (

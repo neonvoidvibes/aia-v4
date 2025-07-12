@@ -49,18 +49,19 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
 }) => {
   return (
     <div className="bg-input-gray rounded-full p-2 flex items-center w-full">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onCancel}
-        className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/50"
-        aria-label="Cancel recording"
-      >
-        <X className="h-5 w-5" />
-      </Button>
+      <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-muted text-muted-foreground">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onCancel}
+          className="h-full w-full rounded-full"
+          aria-label="Cancel recording"
+        >
+          <X className="h-5 w-5" />
+        </Button>
+      </div>
       <div className="flex-1 flex items-center justify-center px-4">
-        <Waveform />
-        <span className="font-mono text-sm text-muted-foreground ml-4 w-12 text-right">
+        <span className="font-mono text-sm text-muted-foreground w-full text-center">
           {formatTime(recordingTime)}
         </span>
       </div>
