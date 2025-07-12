@@ -146,6 +146,7 @@ function HomeContent() {
   const [agentPrimaryContextS3Files, setAgentPrimaryContextS3Files] = useState<FetchedFile[]>([]); 
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
   const [savedTranscriptSummaries, setSavedTranscriptSummaries] = useState<FetchedFile[]>([]); // New state
+  const [agentDocuments, setAgentDocuments] = useState<FetchedFile[]>([]);
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
   // State for Canvas View enablement and general view state
@@ -268,6 +269,7 @@ function HomeContent() {
     rawSavedS3TranscriptsFetched: false, // New flag for raw saved transcripts
     pineconeMemory: false,
     objectiveFunctions: false,
+    agentDocuments: false,
   });
 
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
@@ -319,6 +321,7 @@ function HomeContent() {
         rawSavedS3TranscriptsFetched: false,
         pineconeMemory: false,
         objectiveFunctions: false,
+        agentDocuments: false,
       });
     }
 
@@ -934,6 +937,24 @@ function HomeContent() {
     }, "Raw Saved Transcripts");
   }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.rawSavedS3TranscriptsFetched, fetchS3Data]);
 
+  // Effect for Agent Documents
+  useEffect(() => {
+    if (!showSettings || !pageAgentName || isAuthorized !== true || fetchedDataFlags.agentDocuments) return;
+    const prefix = `organizations/river/agents/${pageAgentName}/docs/`;
+    fetchS3Data(prefix, (data) => {
+      // Filter out directory placeholders
+      const filesOnly = data.filter(f => !f.name.endsWith('/'));
+      // Sort by lastModified date in descending order (newest first)
+      const sortedData = [...filesOnly].sort((a, b) => {
+        const dateA = new Date(a.lastModified || 0).getTime();
+        const dateB = new Date(b.lastModified || 0).getTime();
+        return dateB - dateA;
+      });
+      setAgentDocuments(sortedData);
+      setFetchedDataFlags(prev => ({ ...prev, agentDocuments: true }));
+    }, "Agent Documents");
+  }, [showSettings, pageAgentName, isAuthorized, fetchedDataFlags.agentDocuments, fetchS3Data]);
+
   // Effect for Pinecone Memory
   useEffect(() => {
     const fetchPinecone = async () => {
@@ -1277,6 +1298,7 @@ function HomeContent() {
         rawSavedS3TranscriptsFetched: false,
         pineconeMemory: false,
         objectiveFunctions: false,
+        agentDocuments: false,
       });
 
     } catch (error: any) {
@@ -1832,6 +1854,24 @@ function HomeContent() {
                           <p className="text-sm text-muted-foreground text-center py-4">No saved memories for this agent.</p>
                         )}
                       </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Documents" defaultOpen={false}>
+                       <div className="pb-3 space-y-2 w-full">
+                         {agentDocuments.length > 0 ? (
+                           agentDocuments.map(docFile => (
+                             <FetchedFileListItem
+                               key={docFile.s3Key || docFile.name}
+                               file={docFile}
+                               onView={() => handleViewS3File({ s3Key: docFile.s3Key!, name: docFile.name, type: docFile.type || 'application/octet-stream' })}
+                               onDownload={() => handleDownloadS3File({ s3Key: docFile.s3Key!, name: docFile.name })}
+                               showViewIcon={true}
+                               showDownloadIcon={true}
+                             />
+                           ))
+                         ) : (
+                           <p className="text-sm text-muted-foreground">No documents found in S3.</p>
+                         )}
+                       </div>
                     </CollapsibleSection>
                     <CollapsibleSection title="Database" defaultOpen={false}>
                       <div className="document-upload-container">
