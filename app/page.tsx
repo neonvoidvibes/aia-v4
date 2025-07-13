@@ -122,8 +122,37 @@ function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
 
 // Main content component that uses useSearchParams
 function HomeContent() {
+  const mainLayoutRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const { theme, setTheme } = useTheme(); 
+
+  // --- START: Add this new useEffect hook ---
+  useEffect(() => {
+    // window.visualViewport is not available in all environments (e.g., SSR), so we check for it.
+    const visualViewport = window.visualViewport;
+    if (!visualViewport) {
+      return;
+    }
+
+    const handleResize = () => {
+      if (mainLayoutRef.current) {
+        // This is the core of the fix. We are explicitly setting the height
+        // of our main container to the height of the *visible* area.
+        // This forces older Safari to recalculate its layout correctly when the keyboard appears.
+        mainLayoutRef.current.style.height = `${visualViewport.height}px`;
+      }
+    };
+
+    // Add the event listener when the component mounts
+    visualViewport.addEventListener('resize', handleResize);
+
+    // Call it once initially to set the correct starting height
+    handleResize();
+
+    // Return a cleanup function to remove the listener when the component unmounts
+    return () => visualViewport.removeEventListener('resize', handleResize);
+  }, []); // The empty dependency array ensures this effect runs only once on mount.
+  // --- END: Add this new useEffect hook ---
 
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
@@ -1363,7 +1392,10 @@ function HomeContent() {
   }
 
   return (
-    <div className={`min-h-dvh h-dvh flex flex-col ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+    <div
+      ref={mainLayoutRef}
+      className={`min-h-dvh h-dvh flex flex-col ${isSidebarOpen ? 'sidebar-open' : ''}`}
+    >
       <Sidebar
         isOpen={isSidebarOpen}
         onOpen={() => setIsSidebarOpen(true)}
