@@ -127,6 +127,11 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/^\s*>\s(.*)/gm, '<blockquote>$1</blockquote>');
     html = html.replace(/(<\/blockquote>\n*<a>)/g, '<br>'); // Join adjacent blockquotes
 
+    // Checklists (must be processed before regular lists)
+    // Handle checked and unchecked checkboxes
+    html = html.replace(/^\s*[-*]\s*\[x\]\s+(.*(?:\n\s+.*)*)/gmi, '<temp-checklist-checked>$1</temp-checklist-checked>');
+    html = html.replace(/^\s*[-*]\s*\[\s*\]\s+(.*(?:\n\s+.*)*)/gmi, '<temp-checklist-unchecked>$1</temp-checklist-unchecked>');
+
     // Lists (unordered and ordered)
     // This regex handles multi-line list items by looking for subsequent lines that are indented.
     // It now correctly handles one or more spaces after the list marker.
@@ -139,33 +144,58 @@ const formatAssistantMessage = (text: string): string => {
     let processedLines = [];
     let inUl = false;
     let inOl = false;
+    let inChecklist = false;
 
     for (const line of lines) {
         const isUl = line.includes('<temp-ul-li>');
         const isOl = line.includes('<temp-ol-li>');
+        const isChecklistChecked = line.includes('<temp-checklist-checked>');
+        const isChecklistUnchecked = line.includes('<temp-checklist-unchecked>');
+        const isChecklist = isChecklistChecked || isChecklistUnchecked;
+
+        // Handle Checklists
+        if (isChecklist && !inChecklist) {
+            if (inUl) { // Close UL if it's open
+                processedLines.push('</ul>');
+                inUl = false;
+            }
+            if (inOl) { // Close OL if it's open
+                processedLines.push('</ol>');
+                inOl = false;
+            }
+            processedLines.push('<ul class="checklist">');
+            inChecklist = true;
+        } else if (!isChecklist && inChecklist) {
+            processedLines.push('</ul>');
+            inChecklist = false;
+        }
 
         // Handle Unordered Lists
-        if (isUl && !inUl) {
+        if (isUl && !inUl && !inChecklist) {
             if (inOl) { // Close OL if it's open
                 processedLines.push('</ol>');
                 inOl = false;
             }
             processedLines.push('<ul>');
             inUl = true;
-        } else if (!isUl && inUl) {
+        } else if (!isUl && inUl && !inChecklist) {
             processedLines.push('</ul>');
             inUl = false;
         }
 
         // Handle Ordered Lists
-        if (isOl && !inOl) {
+        if (isOl && !inOl && !inChecklist) {
             if (inUl) { // Close UL if it's open
                 processedLines.push('</ul>');
                 inUl = false;
             }
+            if (inChecklist) { // Close checklist if it's open
+                processedLines.push('</ul>');
+                inChecklist = false;
+            }
             processedLines.push('<ol>');
             inOl = true;
-        } else if (!isOl && inOl) {
+        } else if (!isOl && inOl && !inChecklist) {
             processedLines.push('</ol>');
             inOl = false;
         }
@@ -176,16 +206,22 @@ const formatAssistantMessage = (text: string): string => {
     // Close any remaining open lists at the end
     if (inUl) processedLines.push('</ul>');
     if (inOl) processedLines.push('</ol>');
+    if (inChecklist) processedLines.push('</ul>');
 
     html = processedLines.join('\n');
 
     // Now replace the temporary tags with real <li> tags
     html = html.replace(/<temp-ul-li>/g, '<li>').replace(/<\/temp-ul-li>/g, '</li>');
     html = html.replace(/<temp-ol-li>/g, '<li>').replace(/<\/temp-ol-li>/g, '</li>');
+    
+    // Replace checklist temporary tags with proper checkbox HTML
+    html = html.replace(/<temp-checklist-checked>/g, '<li class="checklist-item"><input type="checkbox" checked class="checklist-checkbox"><span class="checklist-content">').replace(/<\/temp-checklist-checked>/g, '</span></li>');
+    html = html.replace(/<temp-checklist-unchecked>/g, '<li class="checklist-item"><input type="checkbox" class="checklist-checkbox"><span class="checklist-content">').replace(/<\/temp-checklist-unchecked>/g, '</span></li>');
 
     // Clean up adjacent list wrappers of the same type
     html = html.replace(/<\/ul>\s*<ul>/g, '');
     html = html.replace(/<\/ol>\s*<ol>/g, '');
+    html = html.replace(/<\/ul>\s*<ul class="checklist">/g, '');
 
     // Code blocks with language identifier
     html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, codeContent) => {
@@ -2353,6 +2389,40 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         <span
                                           dangerouslySetInnerHTML={{
                                             __html: formatAssistantMessage(displayContent),
+                                          }}
+                                          onClick={(e) => {
+                                            // Handle checkbox clicks for checklists
+                                            const target = e.target as HTMLElement;
+                                            if (target.tagName === 'INPUT' && target.classList.contains('checklist-checkbox')) {
+                                              e.stopPropagation();
+                                              const checkbox = target as HTMLInputElement;
+                                              const listItem = checkbox.closest('.checklist-item');
+                                              const contentSpan = listItem?.querySelector('.checklist-content');
+                                              
+                                              if (contentSpan) {
+                                                const itemText = contentSpan.textContent || '';
+                                                const isChecked = checkbox.checked;
+                                                
+                                                // Update the message content
+                                                setMessages(prevMessages => {
+                                                  const newMessages = [...prevMessages];
+                                                  const targetMessage = newMessages.find(m => m.id === message.id);
+                                                  if (targetMessage) {
+                                                    // Replace the specific checklist item in the content
+                                                    const oldPattern = isChecked 
+                                                      ? new RegExp(`^(\\s*[-*]\\s*)\\[\\s*\\]\\s+(${itemText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gm')
+                                                      : new RegExp(`^(\\s*[-*]\\s*)\\[x\\]\\s+(${itemText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gmi');
+                                                    
+                                                    const replacement = isChecked 
+                                                      ? `$1[x] $2`
+                                                      : `$1[ ] $2`;
+                                                    
+                                                    targetMessage.content = targetMessage.content.replace(oldPattern, replacement);
+                                                  }
+                                                  return newMessages;
+                                                });
+                                              }
+                                            }
                                           }}
                                         />
                                       )}
