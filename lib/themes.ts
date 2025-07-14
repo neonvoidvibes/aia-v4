@@ -36,12 +36,6 @@ export const predefinedThemes: ColorTheme[] = [
     welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
   {
-    name: "Aurora Borealis",
-    className: "theme-aurora-borealis",
-    isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
-  },
-  {
     name: "Forest Deep",
     className: "theme-forest-deep",
     isDark: true,
@@ -52,10 +46,34 @@ export const predefinedThemes: ColorTheme[] = [
     },
   },
   {
+    name: "Pink Sunset",
+    className: "theme-pink-sunset",
+    isDark: false,
+    welcomeMessage: {
+      text: "Enjoy the glow.",
+      fontSize: "3rem",
+      fontWeight: 700,
+    },
+  },
+  {
+    name: "Cosmic Void",
+    className: "theme-cosmic-void",
+    isDark: true,
+    welcomeMessage: {
+      text: "Explore the cosmos.",
+      fontSize: "2.5rem",
+      fontWeight: 600,
+    },
+  },
+  {
     name: "Oceanic Calm",
     className: "theme-oceanic-calm",
     isDark: false,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
+    welcomeMessage: {
+      text: "Dive deep, dream.",
+      fontSize: "3rem",
+      fontWeight: "700",
+    },
   },
   {
     name: "Desert Mirage",

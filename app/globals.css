@@ -72,6 +72,76 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* Cosmic Void Theme (Gradient Corrected) */
+.theme-cosmic-void {
+  --background: 260 70% 8%;
+  --foreground: 230 50% 95%;
+  --input-gray: 250 50% 15%;
+  --status-bar: 250 40% 35%;
+  --placeholder-text: 250 40% 40%;
+  --text-primary: 230 60% 96%;
+  --text-secondary: 230 40% 85%;
+  --text-muted: 230 30% 70%;
+
+  /* Shadcn variables */
+  --card: 255 50% 12%;
+  --popover: 255 50% 12%;
+  --primary: 190 80% 60%;
+  --primary-foreground: 260 70% 5%;
+  --secondary: 240 40% 18%;
+  --secondary-foreground: 230 50% 90%;
+  --muted: 240 40% 15%;
+  --accent: 190 80% 50%;
+  --accent-foreground: 230 60% 96%;
+  --destructive: 0 90% 65%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 40% 25%;
+  --input: 240 40% 25%;
+  --ring: 190 80% 60%;
+}
+
+body.theme-cosmic-void {
+  background: linear-gradient(145deg, hsl(260, 70%, 8%), hsl(230, 50%, 15%));
+  background-attachment: fixed;
+  color: hsl(var(--foreground));
+}
+
+/* Pink Sunset Theme (Redesigned) */
+.theme-pink-sunset {
+  --background: 25 95% 55%; /* Fallback single color (orange) */
+  --foreground: 20 50% 20%; /* Dark, warm brown text */
+  --input-gray: 350 80% 94%; /* Light, warm pink for inputs/bubbles */
+  --status-bar: 20 30% 60%;
+  --placeholder-text: 20 30% 65%;
+  --text-primary: 15 70% 25%;
+  --text-secondary: 20 50% 40%;
+  --text-muted: 20 40% 55%;
+
+  /* Shadcn variables */
+  --card: 0 0% 100%;
+  --popover: 0 0% 100%;
+  --primary: 335 90% 58%; /* Happy, vibrant pink */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 15 60% 94%;
+  --secondary-foreground: 335 80% 30%;
+  --muted: 15 60% 94%;
+  --accent: 335 90% 58%; /* Use primary pink as accent color */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 80% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 15 40% 88%;
+  --input: 15 40% 88%;
+  --ring: 335 90% 58%;
+}
+
+/* --- Correct Gradient Implementation --- */
+/* Target the body when the theme class is on the html element */
+body.theme-pink-sunset {
+  background: linear-gradient(145deg, hsl(5, 90%, 60%), hsl(25, 95%, 55%));
+  background-attachment: fixed;
+  color: hsl(var(--foreground));
+}
+
 /* --- Light Theme Overrides --- */
 .light {
   /* Base colors */
@@ -340,109 +410,7 @@
   --assistant-message-text-color: var(--foreground);
 }
 
-/* Solar Flare Theme */
-.theme-solar-flare {
-  --background: 45 100% 96%; /* Very light warm yellow/off-white */
-  --foreground: 30 50% 20%; /* Dark warm brown */
-  --input-gray: 40 60% 90%; /* Light sandy yellow for inputs/bubbles */
-  --status-bar: 35 40% 65%;
-  --placeholder-text: 35 40% 60%;
-  --text-primary: 30 60% 15%;
-  --text-secondary: 30 40% 30%;
-  --text-muted: 30 30% 50%;
 
-  /* Shadcn variables */
-  --card: 40 80% 98%; /* Very light sand */
-  --popover: 40 80% 98%;
-  --primary: 15 100% 55%; /* Bright Orange-Red */
-  --primary-foreground: 0 0% 100%; /* White */
-  --secondary: 40 50% 92%;
-  --secondary-foreground: 25 50% 25%;
-  --muted: 40 60% 92%; /* For TabList background */
-  --accent: 40 50% 90%;
-  --accent-foreground: 15 90% 45%;
-  --destructive: 0 80% 60%; /* Strong Red */
-  --destructive-foreground: 0 0% 100%;
-  --border: 35 40% 80%;
-  --input: 35 40% 80%;
-  --ring: 15 100% 55%;
-
-  /* Custom Semantic Variables */
-  --button-submit-bg-active: 15 100% 50%; /* Bright Orange-Red BG */
-  --button-submit-fg-active: 0 0% 100%;   /* White FG */
-  --button-submit-bg-inactive: 40 50% 85%; /* Light sand BG */
-  --button-submit-fg-inactive: 30 40% 55%;   /* Muted brown FG */
-  --button-submit-bg-stop: 35 50% 60%; /* Themed sandy for stop button */
-  --button-submit-fg-stop: 0 0% 100%; /* White for stop button */
-  
-  --icon-primary: 25 50% 25%;
-  --icon-secondary: 30 40% 45%;
-  --icon-active: 50 100% 50%; /* Bright Yellow for recording active */
-  --icon-inactive: 35 30% 60%;
-  --icon-destructive: 0 80% 60%;
-  --save-memory-color: 195 70% 60%; /* Added: For saved memory highlights */
-
-  /* Overrides for specific components if needed for this theme */
-  --button-active: 25 60% 20%;
-  --button-inactive: 30 30% 55%;
-
-  /* NEW: Text color variables for chat interface elements - Solar Flare Theme */
-  --input-field-text-color: var(--foreground);
-  --user-message-text-color: var(--foreground);
-  --assistant-message-text-color: var(--foreground);
-}
-
-/* Aurora Borealis Theme */
-.theme-aurora-borealis {
-  --background: 260 70% 8%; /* Deep night sky blue/purple */
-  --foreground: 180 50% 90%; /* Pale icy green/blue text */
-  --input-gray: 250 60% 12%; /* Darker indigo/purple for inputs/bubbles */
-  --status-bar: 250 40% 35%;
-  --placeholder-text: 250 40% 40%;
-  --text-primary: 170 60% 92%;
-  --text-secondary: 180 40% 80%;
-  --text-muted: 200 30% 70%;
-
-  /* Shadcn variables */
-  --card: 255 65% 10%;
-  --popover: 255 65% 10%;
-  --primary: 170 80% 45%; /* Vibrant Teal/Green */
-  --primary-foreground: 260 70% 5%; /* Darkest purple for contrast on primary */
-  --secondary: 250 50% 18%; /* Darker, muted purple */
-  --secondary-foreground: 180 50% 88%;
-  --muted: 250 60% 15%; /* For TabList background */
-  --accent: 250 50% 20%;
-  --accent-foreground: 300 80% 75%; /* Electric Pink/Purple for accent text */
-  --destructive: 0 90% 65%; /* Bright, slightly desaturated red */
-  --destructive-foreground: 0 0% 100%; /* White */
-  --border: 250 50% 28%; /* Dark purple border */
-  --input: 250 50% 28%;
-  --ring: 170 80% 45%; /* Ring color matches primary */
-
-  /* Custom Semantic Variables */
-  --button-submit-bg-active: 170 80% 40%; /* Vibrant Teal/Green BG */
-  --button-submit-fg-active: 260 70% 5%;   /* Darkest purple FG */
-  --button-submit-bg-inactive: 250 55% 16%; /* Darker night sky BG */
-  --button-submit-fg-inactive: 180 40% 70%;   /* Muted icy green FG */
-  --button-submit-bg-stop: 250 50% 25%; /* Themed dark purple for stop button */
-  --button-submit-fg-stop: 180 50% 85%; /* Light icy green for stop button */
-  
-  --icon-primary: 170 50% 88%;
-  --icon-secondary: 180 40% 75%;
-  --icon-active: 150 100% 60%; /* Bright Lime Green for recording active */
-  --icon-inactive: 200 30% 60%;
-  --icon-destructive: 0 90% 65%;
-  --save-memory-color: 275 80% 80%; /* Added: For saved memory highlights */
-
-  /* Overrides for specific components if needed for this theme */
-  --button-active: 170 60% 90%;
-  --button-inactive: 180 30% 65%;
-
-  /* NEW: Text color variables for chat interface elements - Aurora Borealis Theme */
-  --input-field-text-color: var(--foreground);
-  --user-message-text-color: var(--foreground);
-  --assistant-message-text-color: var(--foreground);
-}
 
 /* Desert Mirage Theme */
 .theme-desert-mirage {
