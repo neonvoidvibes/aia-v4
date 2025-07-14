@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2 } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2
+import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2, SquarePen } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2, SquarePen
 import Sidebar from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
@@ -1418,6 +1418,16 @@ function HomeContent() {
         onDeleteChat={handleDeleteInitiated}
       />
       
+      {/* New Chat icon positioned right of sidebar */}
+      <button
+        onClick={handleNewChatRequest}
+        className="absolute top-[17px] left-[52px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
+        aria-label="Start new chat"
+        title="Start new chat"
+      >
+        <SquarePen size={20} />
+      </button>
+      
       {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
       {isFullscreen && recordingState.isBrowserRecording && (
         <div className="fixed top-[27px] right-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70">
@@ -1435,16 +1445,28 @@ function HomeContent() {
       <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto">
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
           <div className="flex items-center justify-center h-full">
-          {!isFullscreen && (
-            <ViewSwitcher 
-              currentView={currentView} 
-              onViewChange={(newView) => setCurrentView(newView)}
-              agentName={pageAgentName} 
-              isCanvasEnabled={isCanvasViewEnabled} 
-              className="flex-grow justify-center max-w-[calc(100%-7rem)] sm:max-w-sm" // Adjusted: 7rem leaves 3.5rem each side
-            />
-          )}
+            {/* Center: Agent name (desktop) or ViewSwitcher fallback */}
+            {!isMobile && pageAgentName && (
+              <span className="text-sm font-medium text-foreground opacity-50 truncate">
+                {pageAgentName}
+              </span>
+            )}
+            {!isMobile && !pageAgentName && (
+              <ViewSwitcher 
+                currentView={currentView} 
+                onViewChange={(newView) => setCurrentView(newView)}
+                agentName={pageAgentName} 
+                isCanvasEnabled={isCanvasViewEnabled} 
+                className="max-w-sm"
+              />
+            )}
 
+            {/* Right side: Agent name (mobile) */}
+            {isMobile && pageAgentName && (
+              <span className="absolute right-4 text-sm font-medium text-foreground opacity-50 truncate">
+                {pageAgentName}
+              </span>
+            )}
           </div>
         </header>
         
