@@ -129,8 +129,14 @@ const formatAssistantMessage = (text: string): string => {
 
     // Checklists (must be processed before regular lists)
     // Handle checked and unchecked checkboxes
-    html = html.replace(/^\s*[-*]\s*\[x\]\s+(.*(?:\n\s+.*)*)/gmi, '<temp-checklist-checked>$1</temp-checklist-checked>');
-    html = html.replace(/^\s*[-*]\s*\[\s*\]\s+(.*(?:\n\s+.*)*)/gmi, '<temp-checklist-unchecked>$1</temp-checklist-unchecked>');
+    html = html.replace(/^\s*[-*]\s*\[x\]\s+(.*(?:\n\s+.*)*)/gmi, (match, rawContent) => {
+        const encoded = rawContent.replace(/"/g, '"');
+        return `<temp-checklist-checked data-raw-content="${encoded}">${rawContent}</temp-checklist-checked>`;
+    });
+    html = html.replace(/^\s*[-*]\s*\[\s*\]\s+(.*(?:\n\s+.*)*)/gmi, (match, rawContent) => {
+        const encoded = rawContent.replace(/"/g, '"');
+        return `<temp-checklist-unchecked data-raw-content="${encoded}">${rawContent}</temp-checklist-unchecked>`;
+    });
 
     // Lists (unordered and ordered)
     // This regex handles multi-line list items by looking for subsequent lines that are indented.
@@ -215,8 +221,8 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/<temp-ol-li>/g, '<li>').replace(/<\/temp-ol-li>/g, '</li>');
     
     // Replace checklist temporary tags with proper checkbox HTML
-    html = html.replace(/<temp-checklist-checked>/g, '<li class="checklist-item"><input type="checkbox" checked class="checklist-checkbox"><span class="checklist-content">').replace(/<\/temp-checklist-checked>/g, '</span></li>');
-    html = html.replace(/<temp-checklist-unchecked>/g, '<li class="checklist-item"><input type="checkbox" class="checklist-checkbox"><span class="checklist-content">').replace(/<\/temp-checklist-unchecked>/g, '</span></li>');
+    html = html.replace(/<temp-checklist-checked data-raw-content="([^"]*)">/g, '<li class="checklist-item" data-raw-content="$1"><input type="checkbox" checked class="checklist-checkbox"><span class="checklist-content">').replace(/<\/temp-checklist-checked>/g, '</span></li>');
+    html = html.replace(/<temp-checklist-unchecked data-raw-content="([^"]*)">/g, '<li class="checklist-item" data-raw-content="$1"><input type="checkbox" class="checklist-checkbox"><span class="checklist-content">').replace(/<\/temp-checklist-unchecked>/g, '</span></li>');
 
     // Clean up adjacent list wrappers of the same type
     html = html.replace(/<\/ul>\s*<ul>/g, '');
@@ -2396,28 +2402,63 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             if (target.tagName === 'INPUT' && target.classList.contains('checklist-checkbox')) {
                                               e.stopPropagation();
                                               const checkbox = target as HTMLInputElement;
-                                              const listItem = checkbox.closest('.checklist-item');
-                                              const contentSpan = listItem?.querySelector('.checklist-content');
+                                              const listItem = checkbox.closest<HTMLElement>('.checklist-item');
+                                              const rawContent = listItem?.dataset.rawContent;
                                               
-                                              if (contentSpan) {
-                                                const itemText = contentSpan.textContent || '';
+                                              if (listItem && rawContent) {
+                                                const itemText = rawContent;
                                                 const isChecked = checkbox.checked;
+                                                
+                                                // Find the index of this specific checklist item
+                                                const allChecklistItems = Array.from(listItem.parentElement?.querySelectorAll('.checklist-item') || []);
+                                                const itemIndex = allChecklistItems.indexOf(listItem);
                                                 
                                                 // Update the message content
                                                 setMessages(prevMessages => {
                                                   const newMessages = [...prevMessages];
                                                   const targetMessage = newMessages.find(m => m.id === message.id);
                                                   if (targetMessage) {
-                                                    // Replace the specific checklist item in the content
-                                                    const oldPattern = isChecked 
-                                                      ? new RegExp(`^(\\s*[-*]\\s*)\\[\\s*\\]\\s+(${itemText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gm')
-                                                      : new RegExp(`^(\\s*[-*]\\s*)\\[x\\]\\s+(${itemText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gmi');
+                                                    // Split content into lines and find checklist items
+                                                    const lines = targetMessage.content.split('\n');
+                                                    let checklistItemCount = 0;
+                                                    let targetLineIndex = -1;
                                                     
-                                                    const replacement = isChecked 
-                                                      ? `$1[x] $2`
-                                                      : `$1[ ] $2`;
+                                                    // Find the specific line for this checklist item
+                                                    for (let i = 0; i < lines.length; i++) {
+                                                      const line = lines[i];
+                                                      const checklistMatch = line.match(/^\s*[-*]\s*\[(x|\s*)\]\s+(.+)/i);
+                                                      if (checklistMatch) {
+                                                        if (checklistItemCount === itemIndex) {
+                                                          targetLineIndex = i;
+                                                          break;
+                                                        }
+                                                        checklistItemCount++;
+                                                      }
+                                                    }
                                                     
-                                                    targetMessage.content = targetMessage.content.replace(oldPattern, replacement);
+                                                    if (targetLineIndex !== -1) {
+                                                      const line = lines[targetLineIndex];
+                                                      const checklistMatch = line.match(/^(\s*[-*]\s*)\[(x|\s*)\](\s+.+)/i);
+                                                      if (checklistMatch) {
+                                                        const [, prefix, currentState, suffix] = checklistMatch;
+                                                        const newState = isChecked ? 'x' : ' ';
+                                                        lines[targetLineIndex] = `${prefix}[${newState}]${suffix}`;
+                                                        targetMessage.content = lines.join('\n');
+                                                      } else {
+                                                        console.warn("Checklist update failed: could not parse line format.", {
+                                                          line,
+                                                          targetLineIndex
+                                                        });
+                                                        checkbox.checked = !isChecked;
+                                                      }
+                                                    } else {
+                                                      console.warn("Checklist update failed: could not find target line.", {
+                                                        itemIndex,
+                                                        checklistItemCount,
+                                                        itemText
+                                                      });
+                                                      checkbox.checked = !isChecked;
+                                                    }
                                                   }
                                                   return newMessages;
                                                 });
