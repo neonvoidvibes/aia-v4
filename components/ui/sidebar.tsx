@@ -125,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <div className={className}>
       {!isOpen && (
-        <Button onClick={onOpen} variant="ghost" className="p-2">
+        <Button onClick={onOpen} variant="ghost" className="p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors">
           {isMobile ? (
             <ChevronRight className="!h-6 !w-6" />
           ) : (
