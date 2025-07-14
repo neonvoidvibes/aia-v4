@@ -217,7 +217,12 @@ export async function POST(req: NextRequest) {
                            } else if (jsonData.error) { // If the backend sent an error
                                console.error(`${logPrefix} Error from backend stream (event data):`, jsonData.error);
                                controller.enqueue(encoder.encode(formatErrorChunk(jsonData.error))); // Forward formatted error
-                           } // Ignore 'done' messages or other types if necessary
+                           } else if (jsonData.done) { // If it's the final 'done' message
+                                // The Vercel AI SDK expects a specific format for the final chunk with data.
+                                // We will append our custom data here.
+                                const finalChunk = `8:${JSON.stringify({ done: true, retrieved_doc_ids: jsonData.retrieved_doc_ids || [] })}\n`;
+                                controller.enqueue(encoder.encode(finalChunk));
+                           }
                         } else {
                              console.log(`${logPrefix} Empty data content after 'data: '`);
                          }
