@@ -218,9 +218,33 @@ export async function POST(req: NextRequest) {
                                console.error(`${logPrefix} Error from backend stream (event data):`, jsonData.error);
                                controller.enqueue(encoder.encode(formatErrorChunk(jsonData.error))); // Forward formatted error
                            } else if (jsonData.done) { // If it's the final 'done' message
-                                // The Vercel AI SDK expects a specific format for the final chunk with data.
-                                // We will append our custom data here.
-                                const finalChunk = `8:${JSON.stringify({ done: true, retrieved_doc_ids: jsonData.retrieved_doc_ids || [] })}\n`;
+                                const docIds = jsonData.retrieved_doc_ids || [];
+                                if (docIds.length > 0) {
+                                    console.log(`[Proxy Reinforcement] Received ${docIds.length} doc IDs to reinforce. Triggering backend call.`);
+                                    // This is a fire-and-forget call. We don't want to block the chat response.
+                                    fetch(`${activeBackendUrl}/api/memory/reinforce`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': backendHeaders['Authorization'] || ''
+                                        },
+                                        body: JSON.stringify({
+                                            agent: agent,
+                                            doc_ids: docIds
+                                        })
+                                    }).then(async (reinforceRes) => {
+                                        if (!reinforceRes.ok) {
+                                            const errorBody = await reinforceRes.json().catch(() => ({}));
+                                            console.error(`[Proxy Reinforcement] Backend reinforcement call failed with status ${reinforceRes.status}:`, errorBody);
+                                        } else {
+                                            console.log("[Proxy Reinforcement] Backend reinforcement call successful.");
+                                        }
+                                    }).catch(err => {
+                                        console.error("[Proxy Reinforcement] Error during fire-and-forget reinforcement fetch:", err);
+                                    });
+                                }
+                                // We no longer need to forward the doc IDs to the client.
+                                const finalChunk = `8:${JSON.stringify({ done: true })}\n`;
                                 controller.enqueue(encoder.encode(finalChunk));
                            }
                         } else {

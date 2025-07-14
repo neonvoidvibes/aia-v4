@@ -523,40 +523,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (agentName) {
           await saveChatHistory();
         }
-        
-        // After the stream is finished, check for retrieved doc IDs to reinforce
-        const lastData = message.data as { retrieved_doc_ids?: string[] };
-        if (lastData?.retrieved_doc_ids && lastData.retrieved_doc_ids.length > 0) {
-          debugLog("[Reinforcement] Found doc IDs to reinforce:", lastData.retrieved_doc_ids);
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-              console.warn("[Reinforcement] No session, cannot reinforce memories.");
-              return;
-            }
-            
-            const response = await fetch('/api/memory/reinforce', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                agent: agentName,
-                doc_ids: lastData.retrieved_doc_ids,
-              }),
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json();
-              console.error("[Reinforcement] Failed to reinforce memories:", errorData.error);
-            } else {
-              debugLog("[Reinforcement] Successfully sent reinforcement request.");
-            }
-          } catch (error) {
-            console.error("[Reinforcement] Error sending reinforcement request:", error);
-          }
-        }
       },
     });
 
