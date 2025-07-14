@@ -1447,7 +1447,7 @@ function HomeContent() {
           <div className="flex items-center justify-center h-full">
             {/* Center: Agent name (desktop) or ViewSwitcher fallback */}
             {!isMobile && pageAgentName && (
-              <span className="text-sm font-medium text-foreground opacity-50 truncate" style={{ marginTop: '3px' }}>
+              <span className="text-sm font-medium text-foreground opacity-50 truncate" style={{ marginTop: '4px' }}>
                 {pageAgentName}
               </span>
             )}
@@ -1463,7 +1463,7 @@ function HomeContent() {
 
             {/* Right side: Agent name (mobile) */}
             {isMobile && pageAgentName && (
-              <span className="absolute right-10 text-sm font-medium text-foreground opacity-50 truncate" style={{ marginTop: '3px' }}>
+              <span className="absolute right-6 text-sm font-medium text-foreground opacity-50 truncate" style={{ marginTop: '4px' }}>
                 {pageAgentName}
               </span>
             )}
