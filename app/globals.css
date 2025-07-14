@@ -2165,10 +2165,10 @@ button {
 }
 
 .ai-bubble .checklist-checkbox {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   margin: 0;
-  margin-top: 0.125rem; /* Slight vertical alignment adjustment */
+  margin-top: 0.25rem; /* Increased from 0.125rem to move checkbox down 2px */
   flex-shrink: 0;
   cursor: pointer;
   accent-color: hsl(var(--primary));
