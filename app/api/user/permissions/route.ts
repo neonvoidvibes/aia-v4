@@ -75,7 +75,7 @@ export async function GET(request: Request) {
     const agentsWithCapabilities = allowedAgentNames.map(name => ({
         name: name,
         capabilities: {
-            pinecone_index_exists: pineconeIndexes.includes(name)
+            pinecone_index_exists: pineconeIndexes.includes('river')
         }
     }));
 
