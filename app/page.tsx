@@ -1463,7 +1463,7 @@ function HomeContent() {
 
             {/* Right side: Agent name (mobile) */}
             {isMobile && pageAgentName && (
-              <span className="absolute right-6 text-sm font-medium text-foreground opacity-50 truncate" style={{ marginTop: '4px' }}>
+              <span className="absolute right-8 text-sm font-medium text-foreground opacity-50 truncate" style={{ marginTop: '4px' }}>
                 {pageAgentName}
               </span>
             )}
