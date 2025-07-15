@@ -1428,9 +1428,14 @@ function HomeContent() {
         <SquarePen size={20} />
       </button>
       
-      {/* Fullscreen recording timer - positioned at very far right, outside chat container */}
+      {/* 
+        NOTE: The 'Simple' view is the standard/default view for the application,
+        and any other views should be considered deprecated. This timer is part of that
+        standard view and is displayed for recordings initiated from any tab (Chat, Record Note).
+        It is positioned top-center on mobile and top-right on desktop.
+      */}
       {isFullscreen && recordingState.isBrowserRecording && (
-        <div className="fixed top-[27px] right-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70">
+        <div className="fixed top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0">
           <span className={`inline-block w-2 h-2 rounded-full ${
             recordingState.isBrowserPaused ? 'bg-yellow-500' :
             globalRecordingStatus.type === 'long-form-chat' ? 'bg-blue-500 animate-pulse' :

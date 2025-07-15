@@ -744,6 +744,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const recordControlsTimerDisplayRef = useRef<HTMLSpanElement>(null); 
     const pendingActionRef = useRef<string | null>(null); 
 
+    // NOTE: The 'Simple' view is the standard/default view for the application.
+    // All primary UI elements, including the recording timer, are handled in the parent `page.tsx` component.
+    // This component manages the chat and recording state logic.
     const [showPlusMenu, setShowPlusMenu] = useState(false);
     const [showRecordUI, setShowRecordUI] = useState(false); 
     const [recordUIVisible, setRecordUIVisible] = useState(true); 

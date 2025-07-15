@@ -83,6 +83,9 @@ const RecordView: React.FC<RecordViewProps> = ({
   const [isPaused, setIsPaused] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
+  // NOTE: The 'Simple' view is the standard/default view for the application.
+  // All primary UI elements, including the recording timer, are handled in the parent `page.tsx` component.
+  // This component manages the recording state logic for the dedicated 'Record Note' tab.
   // Refs to hold the latest state for use in closures like event handlers
   const pendingActionRef = useRef(pendingAction);
   useEffect(() => {
