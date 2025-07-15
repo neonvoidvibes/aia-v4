@@ -243,9 +243,9 @@ export async function POST(req: NextRequest) {
                                         console.error("[Proxy Reinforcement] Error during fire-and-forget reinforcement fetch:", err);
                                     });
                                 }
-                                // We no longer need to forward the doc IDs to the client.
-                                const finalChunk = `8:${JSON.stringify({ done: true })}\n`;
-                                controller.enqueue(encoder.encode(finalChunk));
+                                // We no longer need to forward the doc IDs to the client. The stream closing is the 'done' signal.
+                                // const finalChunk = `8:${JSON.stringify({ done: true })}\n`;
+                                // controller.enqueue(encoder.encode(finalChunk));
                            }
                         } else {
                              console.log(`${logPrefix} Empty data content after 'data: '`);
