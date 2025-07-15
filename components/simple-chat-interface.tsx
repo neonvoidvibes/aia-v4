@@ -1721,7 +1721,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 console.info("[New Chat] Active recording detected, stopping it first.");
                 await handleStopRecording(undefined, false); 
              }
-             setMessages([]); 
+             setMessages([]);
+             setErrorMessages([]); // Clear error messages
+             lastAppendedErrorRef.current = null; // Reset last error ref
              setAttachedFiles([]); 
              setAllAttachments([]); 
              filesForNextMessageRef.current = [];
@@ -1734,7 +1736,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              if (onHistoryRefreshNeeded) {
                 onHistoryRefreshNeeded();
              }
-             console.info("[New Chat] Client states (messages, attachments, chat ID, memory) reset.");
+             console.info("[New Chat] Client states (messages, errors, attachments, chat ID, memory) reset.");
           },
          getMessagesCount: () => messages.length,
          scrollToTop: () => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); userHasScrolledRef.current = false; setShowScrollToBottom(false); },
