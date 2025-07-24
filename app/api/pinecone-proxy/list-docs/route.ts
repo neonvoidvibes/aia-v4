@@ -34,8 +34,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Backend route is /api/index/<string:index_name>/namespace/<string:namespace_name>/list_docs
-    // Assuming index_name is the same as agentName for this use case
-    const targetUrl = `${activeBackendUrl}/api/index/${agentName}/namespace/${namespace}/list_docs`;
+    const targetUrl = `${activeBackendUrl}/api/index/river/namespace/${namespace}/list_docs`;
     console.log(`[Pinecone Proxy ListDocs] Forwarding GET to ${targetUrl}`);
 
     const { data: { session } } = await supabase.auth.getSession();
