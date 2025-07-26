@@ -16,9 +16,21 @@ export default function ClientLayout({
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then(registration => console.log('scope is: ', registration.scope))
+        .then(registration => console.log('scope is: ', registration.scope));
     }
-  }, [])
+
+    const lockOrientation = async () => {
+      if (window.screen.orientation && window.screen.orientation.lock) {
+        try {
+          await window.screen.orientation.lock('portrait-primary');
+        } catch (error) {
+          console.error('Failed to lock screen orientation:', error);
+        }
+      }
+    };
+
+    lockOrientation();
+  }, []);
 
   return (
     <html lang="en" suppressHydrationWarning>
