@@ -60,7 +60,7 @@ import { toast } from "sonner" // Import toast
 import { type VADAggressiveness } from "./VADSettings";
 
 // Voice ID for ElevenLabs TTS.
-const ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // "Rachel"
+const ELEVENLABS_VOICE_ID = "aSLKtNoVBZlxQEMsnGL2"; // "Sanna Hartfield"
 
 // Utility for development-only logging
 const debugLog = (...args: any[]) => {
