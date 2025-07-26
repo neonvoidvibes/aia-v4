@@ -6,14 +6,18 @@ const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 
 export const maxDuration = 60; // Allow up to 60 seconds for TTS generation
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
+    // Auth check can be lighter for GET requests if needed, but we'll keep it for now
     const userSession = await getSupabaseUser(req);
     if (!userSession) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-    const { text, voiceId } = await req.json();
+    const { searchParams } = new URL(req.url);
+    const text = searchParams.get('text');
+    const voiceId = searchParams.get('voiceId');
+
     if (!text) {
       return new NextResponse(JSON.stringify({ error: 'Text is required' }), { status: 400 });
     }
@@ -50,7 +54,6 @@ export async function POST(req: NextRequest) {
     }
 
     // The response body is a direct audio stream. We can pipe it to our client.
-    // NextResponse.json() is not needed here; we return a Response with the stream.
     return new Response(response.body, {
       headers: {
         'Content-Type': 'audio/mpeg',

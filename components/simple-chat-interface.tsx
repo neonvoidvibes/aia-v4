@@ -487,11 +487,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       api: "/api/proxy-chat",
       body: chatApiBody, 
       sendExtraMessageFields: true,
+      onFinish: async (message) => {
+        // Auto-save chat after each assistant response
+        if (agentName) {
+          await saveChatHistory();
+        }
+      },
       onError: (error) => { 
         console.error("[ChatUI] useChat onError:", error);
         let rawErrorMessage = error.message || "An error occurred.";
         
-        // Attempt to parse JSON error from the backend
         try {
             const parsedError = JSON.parse(rawErrorMessage);
             rawErrorMessage = parsedError.error || parsedError.message || rawErrorMessage;
@@ -516,17 +521,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             displayMessage = rawErrorMessage;
         }
         
-        // Capture retry context for failed assistant messages
         const lastUserMessage = messages.filter(m => m.role === 'user').pop();
         const canRetry = !!lastUserMessage;
         
         addErrorMessage(displayMessage, canRetry);
-      },
-      onFinish: async (message) => {
-        // Auto-save chat after each assistant response
-        if (agentName) {
-          await saveChatHistory();
-        }
       },
     });
 
@@ -2164,15 +2162,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const editMessage = useCallback((id: string) => console.info("[Edit Message] Triggered for ID:", id), []);
     
     const readAloud = useCallback(async (message: Message) => {
-      // If another message is already playing, stop it first.
       if (ttsPlayback.audio) {
         ttsPlayback.audio.pause();
-        if (ttsPlayback.audioUrl) {
-          URL.revokeObjectURL(ttsPlayback.audioUrl);
-        }
       }
 
-      // If the user clicks the same message that is playing, treat it as a stop action.
       if (ttsPlayback.isPlaying && ttsPlayback.messageId === message.id) {
         setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
         return;
@@ -2182,19 +2175,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       toast.loading("Generating audio...", { id: toastId });
 
       try {
-        const response = await fetch('/api/tts-proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: message.content, voiceId: ELEVENLABS_VOICE_ID }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to generate audio.");
-        }
-
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
+        const audioUrl = `/api/tts-proxy?text=${encodeURIComponent(message.content)}&voiceId=${ELEVENLABS_VOICE_ID}`;
         const audio = new Audio(audioUrl);
 
         audio.onplay = () => {
@@ -2204,14 +2185,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         audio.onended = () => {
           setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
-          URL.revokeObjectURL(audioUrl); // Clean up blob URL
         };
         
         audio.onerror = () => {
           toast.error("Error playing audio.", { id: toastId });
           setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
-          URL.revokeObjectURL(audioUrl);
-        }
+        };
 
         audio.play();
 
@@ -2225,9 +2204,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const handleStopTts = () => {
       if (ttsPlayback.audio) {
         ttsPlayback.audio.pause();
-        if (ttsPlayback.audioUrl) {
-          URL.revokeObjectURL(ttsPlayback.audioUrl);
-        }
         setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
       }
     };
