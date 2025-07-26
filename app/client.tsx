@@ -46,7 +46,10 @@ export default function ClientLayout({
           enableSystem={true} // Enable system theme
           themes={allThemeNames} // Provide all available theme names
         >
-          {children}
+          <div id="app-content">{children}</div>
+          <div id="orientation-lock-overlay">
+            <p>Please rotate your device to portrait mode.</p>
+          </div>
           <Toaster position="top-right" />
         </ThemeProvider>
       </body>
