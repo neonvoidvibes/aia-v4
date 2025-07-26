@@ -2163,10 +2163,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const editMessage = useCallback((id: string) => console.info("[Edit Message] Triggered for ID:", id), []);
     
     const readAloud = useCallback(async (message: Message) => {
+      // 1. Stop any currently playing audio and clean up listeners
       if (ttsPlayback.audio) {
         ttsPlayback.audio.pause();
+        ttsPlayback.audio.onplaying = null;
+        ttsPlayback.audio.onended = null;
+        ttsPlayback.audio.onerror = null;
       }
 
+      // 2. If the user clicks the same message again, treat it as a stop action
       if (ttsPlayback.isPlaying && ttsPlayback.messageId === message.id) {
         setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
         setIsTtsLoading(false);
@@ -2174,6 +2179,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       }
 
       const toastId = `tts-${message.id}`;
+      
+      // 3. Set UI to loading state immediately
       setIsTtsLoading(true);
       setTtsPlayback({ isPlaying: true, messageId: message.id, audio: null, audioUrl: null });
 
@@ -2181,10 +2188,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const audioUrl = `/api/tts-proxy?text=${encodeURIComponent(message.content)}&voiceId=${ELEVENLABS_VOICE_ID}`;
         const audio = new Audio();
         
-        audio.onplay = () => {
-          debugLog("[TTS] Audio playback started.");
-          toast.success("Playing audio.", { id: toastId });
-          setIsTtsLoading(false); // Stop loading only when playback begins
+        // 4. Set up event handlers
+        audio.onplaying = () => {
+          debugLog("[TTS] Audio playback has started (onplaying event).");
+          // This is the key: set loading to false only when playback *actually* starts.
+          setIsTtsLoading(false); 
           setTtsPlayback(prev => ({ ...prev, audio, audioUrl, isPlaying: true }));
         };
 
@@ -2201,17 +2209,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           setIsTtsLoading(false);
         };
 
-        // Set src and play
+        // 5. Set the source and trigger playback
         audio.src = audioUrl;
+        audio.load(); // Explicitly call load() for better cross-browser compatibility
         audio.play().catch(e => {
-            console.error("[TTS] audio.play() failed:", e);
+            console.error("[TTS] audio.play() was rejected:", e);
             toast.error("Could not start audio playback.", { id: toastId });
             setIsTtsLoading(false);
             setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
         });
 
       } catch (error) {
-        console.error("TTS Error:", error);
+        console.error("TTS Setup Error:", error);
         toast.error((error as Error).message, { id: toastId });
         setIsTtsLoading(false);
         setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
