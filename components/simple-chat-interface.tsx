@@ -2169,35 +2169,46 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
       if (ttsPlayback.isPlaying && ttsPlayback.messageId === message.id) {
         setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
+        setIsTtsLoading(false);
         return;
       }
 
       const toastId = `tts-${message.id}`;
       setIsTtsLoading(true);
-      setTtsPlayback({ isPlaying: true, messageId: message.id, audio: null, audioUrl: null }); // Show UI immediately
+      setTtsPlayback({ isPlaying: true, messageId: message.id, audio: null, audioUrl: null });
 
       try {
         const audioUrl = `/api/tts-proxy?text=${encodeURIComponent(message.content)}&voiceId=${ELEVENLABS_VOICE_ID}`;
-        const audio = new Audio(audioUrl);
-
+        const audio = new Audio();
+        
         audio.onplay = () => {
+          debugLog("[TTS] Audio playback started.");
           toast.success("Playing audio.", { id: toastId });
-          setIsTtsLoading(false);
-          setTtsPlayback({ isPlaying: true, messageId: message.id, audio, audioUrl });
+          setIsTtsLoading(false); // Stop loading only when playback begins
+          setTtsPlayback(prev => ({ ...prev, audio, audioUrl, isPlaying: true }));
         };
 
         audio.onended = () => {
-          setIsTtsLoading(false);
+          debugLog("[TTS] Audio playback ended.");
           setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
+          setIsTtsLoading(false);
         };
         
-        audio.onerror = () => {
+        audio.onerror = (e) => {
+          console.error("[TTS] Audio element error:", e);
           toast.error("Error playing audio.", { id: toastId });
-          setIsTtsLoading(false);
           setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
+          setIsTtsLoading(false);
         };
 
-        audio.play();
+        // Set src and play
+        audio.src = audioUrl;
+        audio.play().catch(e => {
+            console.error("[TTS] audio.play() failed:", e);
+            toast.error("Could not start audio playback.", { id: toastId });
+            setIsTtsLoading(false);
+            setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
+        });
 
       } catch (error) {
         console.error("TTS Error:", error);
