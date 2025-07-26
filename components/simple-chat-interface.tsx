@@ -780,6 +780,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }>({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
     const [ttsPlaybackTime, setTtsPlaybackTime] = useState(0);
     const ttsTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const [isTtsLoading, setIsTtsLoading] = useState(false);
 
     useEffect(() => {
       if (ttsPlayback.isPlaying && ttsPlayback.audio) {
@@ -2172,7 +2173,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       }
 
       const toastId = `tts-${message.id}`;
-      toast.loading("Generating audio...", { id: toastId });
+      setIsTtsLoading(true);
+      setTtsPlayback({ isPlaying: true, messageId: message.id, audio: null, audioUrl: null }); // Show UI immediately
 
       try {
         const audioUrl = `/api/tts-proxy?text=${encodeURIComponent(message.content)}&voiceId=${ELEVENLABS_VOICE_ID}`;
@@ -2180,15 +2182,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         audio.onplay = () => {
           toast.success("Playing audio.", { id: toastId });
+          setIsTtsLoading(false);
           setTtsPlayback({ isPlaying: true, messageId: message.id, audio, audioUrl });
         };
 
         audio.onended = () => {
+          setIsTtsLoading(false);
           setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
         };
         
         audio.onerror = () => {
           toast.error("Error playing audio.", { id: toastId });
+          setIsTtsLoading(false);
           setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
         };
 
@@ -2197,6 +2202,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       } catch (error) {
         console.error("TTS Error:", error);
         toast.error((error as Error).message, { id: toastId });
+        setIsTtsLoading(false);
         setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
       }
     }, [ttsPlayback]);
@@ -2830,7 +2836,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                   </div>
                 )}
                 {ttsPlayback.isPlaying ? (
-                  <TTSPlaybackUI onStop={handleStopTts} playbackTime={ttsPlaybackTime} />
+                  <TTSPlaybackUI onStop={handleStopTts} playbackTime={ttsPlaybackTime} isLoading={isTtsLoading} />
                 ) : (
                   <form onSubmit={onSubmit} className="relative">
                     {pressToTalkState === 'recording' ? (
