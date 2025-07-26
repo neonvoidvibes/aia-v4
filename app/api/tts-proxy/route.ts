@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getSupabaseUser } from '../proxyUtils';
 
-// Voice ID for "Sanna Hartfield" on ElevenLabs
-const SANNA_HARTFIELD_VOICE_ID = "p957PC9emIVa8s9tGz2A";
+// Default Voice ID for "Rachel" on ElevenLabs - a known good fallback.
+const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 
 export const maxDuration = 60; // Allow up to 60 seconds for TTS generation
 
@@ -13,17 +13,19 @@ export async function POST(req: NextRequest) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-    const { text } = await req.json();
+    const { text, voiceId } = await req.json();
     if (!text) {
       return new NextResponse(JSON.stringify({ error: 'Text is required' }), { status: 400 });
     }
+
+    const selectedVoiceId = voiceId || DEFAULT_VOICE_ID;
 
     const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
     if (!elevenLabsApiKey) {
       return new NextResponse(JSON.stringify({ error: 'TTS service is not configured' }), { status: 500 });
     }
 
-    const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${SANNA_HARTFIELD_VOICE_ID}/stream`;
+    const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}/stream`;
 
     const response = await fetch(ttsUrl, {
       method: 'POST',

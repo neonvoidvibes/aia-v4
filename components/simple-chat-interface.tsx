@@ -59,6 +59,9 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner" // Import toast
 import { type VADAggressiveness } from "./VADSettings";
 
+// Voice ID for ElevenLabs TTS.
+const ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"; // "Rachel"
+
 // Utility for development-only logging
 const debugLog = (...args: any[]) => {
   if (process.env.NODE_ENV === 'development') {
@@ -2157,7 +2160,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const response = await fetch('/api/tts-proxy', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: message.content }),
+          body: JSON.stringify({ text: message.content, voiceId: ELEVENLABS_VOICE_ID }),
         });
 
         if (!response.ok) {
