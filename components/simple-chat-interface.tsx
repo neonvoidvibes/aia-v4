@@ -53,6 +53,7 @@ import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE, type WelcomeMessageConfig 
 import { createClient } from '@/utils/supabase/client'
 import ThinkingIndicator from "@/components/ui/ThinkingIndicator"
 import PressToTalkUI from "@/components/ui/press-to-talk-ui";
+import TTSPlaybackUI from "@/components/ui/tts-playback-ui";
 import WaveformIcon from "@/components/ui/waveform-icon";
 import { cn } from "@/lib/utils"
 import { toast } from "sonner" // Import toast
@@ -769,6 +770,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [conversationMemoryId, setConversationMemoryId] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<string | null>(null);
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
+
+    const [ttsPlayback, setTtsPlayback] = useState<{
+      isPlaying: boolean;
+      messageId: string | null;
+      audio: HTMLAudioElement | null;
+    }>({ isPlaying: false, messageId: null, audio: null });
 
     // New state for the "Press to Talk" feature
     const [pressToTalkState, setPressToTalkState] = useState<'idle' | 'recording' | 'transcribing'>('idle');
@@ -2131,9 +2138,67 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     
     const editMessage = useCallback((id: string) => console.info("[Edit Message] Triggered for ID:", id), []);
     
-    const readAloud = useCallback((text: string) => {
-        console.info("[Read Aloud] Triggered.");
-    }, []);
+    const readAloud = useCallback(async (message: Message) => {
+      // If another message is already playing, stop it first.
+      if (ttsPlayback.audio) {
+        ttsPlayback.audio.pause();
+      }
+
+      // If the user clicks the same message that is playing, treat it as a stop action.
+      if (ttsPlayback.isPlaying && ttsPlayback.messageId === message.id) {
+        setTtsPlayback({ isPlaying: false, messageId: null, audio: null });
+        return;
+      }
+
+      const toastId = `tts-${message.id}`;
+      toast.loading("Generating audio...", { id: toastId });
+
+      try {
+        const response = await fetch('/api/tts-proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: message.content }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to generate audio.");
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+
+        audio.onplay = () => {
+          toast.success("Playing audio.", { id: toastId });
+          setTtsPlayback({ isPlaying: true, messageId: message.id, audio });
+        };
+
+        audio.onended = () => {
+          setTtsPlayback({ isPlaying: false, messageId: null, audio: null });
+          URL.revokeObjectURL(audioUrl); // Clean up blob URL
+        };
+        
+        audio.onerror = () => {
+          toast.error("Error playing audio.", { id: toastId });
+          setTtsPlayback({ isPlaying: false, messageId: null, audio: null });
+          URL.revokeObjectURL(audioUrl);
+        }
+
+        audio.play();
+
+      } catch (error) {
+        console.error("TTS Error:", error);
+        toast.error((error as Error).message, { id: toastId });
+        setTtsPlayback({ isPlaying: false, messageId: null, audio: null });
+      }
+    }, [ttsPlayback]);
+
+    const handleStopTts = () => {
+      if (ttsPlayback.audio) {
+        ttsPlayback.audio.pause(); // This will trigger the 'onended' event handler
+      }
+    };
 
     const handleRetryMessage = useCallback(async (errorMessage: ErrorMessage) => {
         if (!errorMessage.canRetry) return;
@@ -2539,7 +2604,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                                 {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                               </button>
-                                              <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
+                                              <button
+                                                onClick={() => readAloud(message as Message)}
+                                                className={cn(
+                                                    "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
+                                                    ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
+                                                )}
+                                                aria-label="Read message aloud"
+                                              >
                                                 <Volume2 className="h-4 w-4" />
                                               </button>
                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
@@ -2556,9 +2628,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                               {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                             </button>
-                                            <button onClick={() => readAloud(message.content)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Read message aloud">
-                                                <Volume2 className="h-4 w-4" />
-                                              </button>
+                                            <button
+                                              onClick={() => readAloud(message as Message)}
+                                              className={cn(
+                                                  "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
+                                                  ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
+                                              )}
+                                              aria-label="Read message aloud"
+                                            >
+                                              <Volume2 className="h-4 w-4" />
+                                            </button>
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                               <>
                                               <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
@@ -2742,9 +2821,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     <FileAttachmentMinimal files={attachedFiles} onRemove={removeFile} className="max-w-[50%] file-attachment-container" maxVisible={1} />
                   </div>
                 )}
-                <form onSubmit={onSubmit} className="relative">
-                  {pressToTalkState === 'recording' ? (
-                    <PressToTalkUI
+                {ttsPlayback.isPlaying ? (
+                  <TTSPlaybackUI onStop={handleStopTts} />
+                ) : (
+                  <form onSubmit={onSubmit} className="relative">
+                    {pressToTalkState === 'recording' ? (
+                      <PressToTalkUI
                       onCancel={handleCancelPressToTalk}
                       onSubmit={handleSubmitPressToTalk}
                       recordingTime={pressToTalkTime}
@@ -2903,9 +2985,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         </button>
                       )}
                     </div>
-                  )}
-                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple accept=".txt,.md,.json,.pdf,.docx" />
-                </form>
+                    )}
+                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple accept=".txt,.md,.json,.pdf,.docx" />
+                  </form>
+                )}
                 {/* Status Bar */}
                 {!isFullscreen && (
                     <div className={cn("text-center text-[hsl(var(--status-bar-text-color))] text-xs pt-4 pb-2 font-light status-bar", pendingActionRef.current && "opacity-50")}>
