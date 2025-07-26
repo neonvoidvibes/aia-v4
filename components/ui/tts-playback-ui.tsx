@@ -1,17 +1,27 @@
 import React from 'react';
 import { Square } from 'lucide-react';
-import WaveformIcon from './waveform-icon'; // Reuse existing waveform
+import WaveformIcon from './waveform-icon';
 import { cn } from '../../lib/utils';
 
 interface TTSPlaybackUIProps {
   onStop: () => void;
+  playbackTime: number;
 }
 
-const TTSPlaybackUI: React.FC<TTSPlaybackUIProps> = ({ onStop }) => {
+const formatTime = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+const TTSPlaybackUI: React.FC<TTSPlaybackUIProps> = ({ onStop, playbackTime }) => {
   return (
-    <div className={cn("chat-input-layout bg-accent rounded-full p-2 flex items-center w-full")}>
+    <div className={cn("chat-input-layout bg-primary rounded-full p-2 flex items-center w-full")}>
+      <div className="h-9 w-9 sm:h-10 sm:w-10" />
       <div className="flex-1 flex items-center justify-center px-4">
-        <WaveformIcon className="h-6 w-10 text-accent-foreground" />
+        <span className="font-mono text-sm text-primary-foreground w-full text-center">
+          {formatTime(playbackTime)}
+        </span>
       </div>
       <button
         type="button"

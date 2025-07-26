@@ -778,7 +778,29 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       isPlaying: boolean;
       messageId: string | null;
       audio: HTMLAudioElement | null;
-    }>({ isPlaying: false, messageId: null, audio: null });
+      audioUrl: string | null;
+    }>({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
+    const [ttsPlaybackTime, setTtsPlaybackTime] = useState(0);
+    const ttsTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+      if (ttsPlayback.isPlaying && ttsPlayback.audio) {
+        setTtsPlaybackTime(0);
+        ttsTimerRef.current = setInterval(() => {
+          setTtsPlaybackTime(prevTime => prevTime + 1);
+        }, 1000);
+      } else {
+        if (ttsTimerRef.current) {
+          clearInterval(ttsTimerRef.current);
+          ttsTimerRef.current = null;
+        }
+      }
+      return () => {
+        if (ttsTimerRef.current) {
+          clearInterval(ttsTimerRef.current);
+        }
+      };
+    }, [ttsPlayback.isPlaying, ttsPlayback.audio]);
 
     // New state for the "Press to Talk" feature
     const [pressToTalkState, setPressToTalkState] = useState<'idle' | 'recording' | 'transcribing'>('idle');
@@ -2145,11 +2167,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       // If another message is already playing, stop it first.
       if (ttsPlayback.audio) {
         ttsPlayback.audio.pause();
+        if (ttsPlayback.audioUrl) {
+          URL.revokeObjectURL(ttsPlayback.audioUrl);
+        }
       }
 
       // If the user clicks the same message that is playing, treat it as a stop action.
       if (ttsPlayback.isPlaying && ttsPlayback.messageId === message.id) {
-        setTtsPlayback({ isPlaying: false, messageId: null, audio: null });
+        setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
         return;
       }
 
@@ -2174,17 +2199,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         audio.onplay = () => {
           toast.success("Playing audio.", { id: toastId });
-          setTtsPlayback({ isPlaying: true, messageId: message.id, audio });
+          setTtsPlayback({ isPlaying: true, messageId: message.id, audio, audioUrl });
         };
 
         audio.onended = () => {
-          setTtsPlayback({ isPlaying: false, messageId: null, audio: null });
+          setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
           URL.revokeObjectURL(audioUrl); // Clean up blob URL
         };
         
         audio.onerror = () => {
           toast.error("Error playing audio.", { id: toastId });
-          setTtsPlayback({ isPlaying: false, messageId: null, audio: null });
+          setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
           URL.revokeObjectURL(audioUrl);
         }
 
@@ -2193,13 +2218,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       } catch (error) {
         console.error("TTS Error:", error);
         toast.error((error as Error).message, { id: toastId });
-        setTtsPlayback({ isPlaying: false, messageId: null, audio: null });
+        setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
       }
     }, [ttsPlayback]);
 
     const handleStopTts = () => {
       if (ttsPlayback.audio) {
-        ttsPlayback.audio.pause(); // This will trigger the 'onended' event handler
+        ttsPlayback.audio.pause();
+        if (ttsPlayback.audioUrl) {
+          URL.revokeObjectURL(ttsPlayback.audioUrl);
+        }
+        setTtsPlayback({ isPlaying: false, messageId: null, audio: null, audioUrl: null });
       }
     };
 
@@ -2825,7 +2854,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                   </div>
                 )}
                 {ttsPlayback.isPlaying ? (
-                  <TTSPlaybackUI onStop={handleStopTts} />
+                  <TTSPlaybackUI onStop={handleStopTts} playbackTime={ttsPlaybackTime} />
                 ) : (
                   <form onSubmit={onSubmit} className="relative">
                     {pressToTalkState === 'recording' ? (
