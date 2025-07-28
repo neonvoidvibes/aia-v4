@@ -4,6 +4,10 @@ import { createServerActionClient } from '@/utils/supabase/server'
 // import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 // import type { Database } from '@/types/supabase' // Comment out or remove if types not generated
+import { findActiveBackend } from '@/app/api/proxyUtils'; // Import the backend finder
+
+const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
+const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
 
 export const dynamic = 'force-dynamic' // Ensure fresh data on each request
 
@@ -12,12 +16,13 @@ export async function GET(request: Request) {
   const supabase = await createServerActionClient() // Use the correct helper, add await
   try {
     // Get the current user session
-    const { data: { user }, error: sessionError } = await supabase.auth.getUser()
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-    if (sessionError || !user) {
+    if (sessionError || !session || !session.user) {
       console.warn('Permissions API: Unauthorized access attempt.');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const user = session.user;
 
     console.log(`Permissions API: Fetching permissions for user ${user.id}`);
 
@@ -51,25 +56,30 @@ export async function GET(request: Request) {
     console.log(`Permissions API: User ${user.id} has access to agents:`, allowedAgentNames);
 
     // --- Check for Pinecone namespace existence for each agent ---
-    const host = request.headers.get('host') || 'localhost:3000';
-    const protocol = host.startsWith('localhost') ? 'http' : 'https';
+    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
 
     const agentsWithCapabilities = await Promise.all(
       allowedAgentNames.map(async (name) => {
         let hasNamespace = false;
-        try {
-          const namespaceCheckUrl = `${protocol}://${host}/api/internal/pinecone/namespace-exists?indexName=river&namespace=${name}`;
-          const namespaceResponse = await fetch(namespaceCheckUrl, {
-            headers: {
-              'Cookie': request.headers.get('Cookie') || '',
-            },
-          });
-          if (namespaceResponse.ok) {
-            const namespaceData = await namespaceResponse.json();
-            hasNamespace = namespaceData.exists;
+        if (activeBackendUrl) {
+          try {
+            const namespaceCheckUrl = `${activeBackendUrl}/api/index/river/namespace/${name}/exists`;
+            const namespaceResponse = await fetch(namespaceCheckUrl, {
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+            });
+            if (namespaceResponse.ok) {
+              const namespaceData = await namespaceResponse.json();
+              hasNamespace = namespaceData.exists;
+            } else {
+              console.warn(`Permissions API: Namespace check for '${name}' failed with status ${namespaceResponse.status}`);
+            }
+          } catch (e) {
+            console.error(`Permissions API: Error checking namespace for agent ${name}:`, e);
           }
-        } catch (e) {
-          console.error(`Permissions API: Error checking namespace for agent ${name}:`, e);
+        } else {
+          console.error("Permissions API: No active backend found to check Pinecone namespaces.");
         }
         return {
           name: name,
