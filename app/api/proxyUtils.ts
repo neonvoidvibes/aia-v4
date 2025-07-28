@@ -29,9 +29,9 @@ export async function getSupabaseUser(request: Request) {
  */
 export async function findActiveBackend(urls: string[]): Promise<string | null> {
     if (!urls || urls.length === 0) {
-        // This case implies that the `POTENTIAL_BACKEND_URLS` array, formed from `process.env.NEXT_PUBLIC_BACKEND_API_URLS`,
+        // This case implies that the `POTENTIAL_BACKEND_URLS` array, formed from `process.env.BACKEND_API_URLS`,
         // was empty *after* splitting, trimming, and filtering. This strongly suggests the env var is missing or misconfigured.
-        console.error("[Proxy Util] CRITICAL: No backend URLs were provided to findActiveBackend. This usually means NEXT_PUBLIC_BACKEND_API_URLS is missing, empty, or contains only whitespace in the environment configuration. Cannot proceed to find an active backend.");
+        console.error("[Proxy Util] CRITICAL: No backend URLs were provided to findActiveBackend. This usually means BACKEND_API_URLS is missing, empty, or contains only whitespace in the environment configuration. Cannot proceed to find an active backend.");
         return null; // Explicitly return null, no fallback to localhost.
     }
     console.log("[Proxy Util] Checking potential backend URLs concurrently:", urls);
@@ -97,6 +97,6 @@ export function formatErrorChunk(errorMsg: string): string {
 
 // A new function to get the backend URL
 export async function getBackendUrl(): Promise<string | null> {
-    const backendUrls = (process.env.NEXT_PUBLIC_BACKEND_API_URLS || '').split(',').map(url => url.trim()).filter(Boolean);
+    const backendUrls = (process.env.BACKEND_API_URLS || '').split(',').map(url => url.trim()).filter(Boolean);
     return findActiveBackend(backendUrls);
 }
