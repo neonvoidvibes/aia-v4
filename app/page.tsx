@@ -50,6 +50,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
+import AgentSelectorMenu from "@/components/ui/agent-selector";
 
 interface ChatHistoryItem {
   id: string;
@@ -1452,9 +1453,7 @@ function HomeContent() {
           <div className="flex items-center justify-center h-full">
             {/* Center: Agent name (desktop) or ViewSwitcher fallback */}
             {!isMobile && pageAgentName && (
-              <span className="text-sm font-medium text-foreground opacity-50 truncate" style={{ marginTop: '4px' }}>
-                {pageAgentName}
-              </span>
+              <AgentSelectorMenu allowedAgents={allowedAgents} currentAgent={pageAgentName} />
             )}
             {!isMobile && !pageAgentName && (
               <ViewSwitcher 
@@ -1468,9 +1467,9 @@ function HomeContent() {
 
             {/* Right side: Agent name (mobile) */}
             {isMobile && pageAgentName && (
-              <span className="absolute right-8 text-sm font-medium text-foreground opacity-50 truncate" style={{ marginTop: '4px' }}>
-                {pageAgentName}
-              </span>
+              <div className="absolute right-8" style={{ marginTop: '2px' }}>
+                <AgentSelectorMenu allowedAgents={allowedAgents} currentAgent={pageAgentName} />
+              </div>
             )}
           </div>
         </header>
