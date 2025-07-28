@@ -215,6 +215,8 @@ function HomeContent() {
     isReconnecting: false
   });
 
+  const [noteRecordingTime, setNoteRecordingTime] = useState(0);
+
   // New global state for recording status
   type RecordingType = 'long-form-note' | 'long-form-chat' | 'press-to-talk' | null;
 
@@ -1435,16 +1437,16 @@ function HomeContent() {
         standard view and is displayed for recordings initiated from any tab (Chat, Record Note).
         It is positioned top-center on mobile and top-right on desktop.
       */}
-      {isFullscreen && recordingState.isBrowserRecording && (
+      {isFullscreen && globalRecordingStatus.isRecording && (
         <div className="fixed top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0">
           <span className={`inline-block w-2 h-2 rounded-full ${
-            recordingState.isBrowserPaused ? 'bg-yellow-500' :
+            (globalRecordingStatus.type === 'long-form-chat' && recordingState.isBrowserPaused) || (globalRecordingStatus.type === 'long-form-note' && noteRecordingTime > 0 && recordingState.isBrowserPaused) ? 'bg-yellow-500' :
             globalRecordingStatus.type === 'long-form-chat' ? 'bg-blue-500 animate-pulse' :
             'bg-red-500 animate-pulse'
           }`}></span>
           <span className="font-mono">
-            {Math.floor(recordingState.clientRecordingTime / 60).toString().padStart(2, '0')}:
-            {(recordingState.clientRecordingTime % 60).toString().padStart(2, '0')}
+            {Math.floor((globalRecordingStatus.type === 'long-form-chat' ? recordingState.clientRecordingTime : noteRecordingTime) / 60).toString().padStart(2, '0')}:
+            {((globalRecordingStatus.type === 'long-form-chat' ? recordingState.clientRecordingTime : noteRecordingTime) % 60).toString().padStart(2, '0')}
           </span>
         </div>
       )}
@@ -1498,7 +1500,7 @@ function HomeContent() {
             onHistoryRefreshNeeded={() => setHistoryNeedsRefresh(true)}
           />
         </div>
-        {currentView === "transcribe" && (
+        <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
             <div className="messages-container" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
               <div className="space-y-1 pt-8 pb-4">
@@ -1506,8 +1508,8 @@ function HomeContent() {
               </div>
             </div>
           </div>
-        )}
-        {currentView === "record" && (
+        </div>
+        <div className={currentView === "record" ? "flex flex-col flex-1" : "hidden"}>
           <RecordView
             agentName={pageAgentName}
             globalRecordingStatus={globalRecordingStatus}
@@ -1515,8 +1517,9 @@ function HomeContent() {
             isTranscriptRecordingActive={globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording}
             agentCapabilities={agentCapabilities}
             vadAggressiveness={vadAggressiveness}
+            setRecordingTime={setNoteRecordingTime}
           />
-        )}
+        </div>
         {currentView === "canvas" && isCanvasViewEnabled && (
           <CanvasView 
             agentName={pageAgentName} 

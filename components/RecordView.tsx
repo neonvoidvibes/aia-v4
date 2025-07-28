@@ -50,6 +50,7 @@ interface RecordViewProps {
   isTranscriptRecordingActive: boolean;
   agentCapabilities: { pinecone_index_exists: boolean };
   vadAggressiveness: VADAggressiveness;
+  setRecordingTime: React.Dispatch<React.SetStateAction<number>>;
 }
 
 interface FinishedRecording {
@@ -66,6 +67,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   isTranscriptRecordingActive,
   agentCapabilities,
   vadAggressiveness,
+  setRecordingTime,
 }) => {
   const [finishedRecordings, setFinishedRecordings] = useState<FinishedRecording[]>([]);
   const [isEmbedding, setIsEmbedding] = useState<Record<string, boolean>>({});
@@ -79,7 +81,6 @@ const RecordView: React.FC<RecordViewProps> = ({
   const [wsStatus, setWsStatus] = useState<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [pendingAction, setPendingAction] = useState<'start' | 'stop' | null>(null);
-  const [recordingTime, setRecordingTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
