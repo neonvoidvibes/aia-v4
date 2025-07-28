@@ -24,6 +24,12 @@ export const G_DEFAULT_WELCOME_MESSAGE: WelcomeMessageConfig = {
 
 export const predefinedThemes: ColorTheme[] = [
   {
+    name: "White",
+    className: "theme-white",
+    isDark: false,
+    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
+  },
+  {
     name: "Midnight Mono",
     className: "theme-midnight-monochrome",
     isDark: true,
