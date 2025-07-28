@@ -284,7 +284,7 @@ interface SimpleChatInterfaceProps {
     isBrowserPaused: boolean;
     clientRecordingTime: number;
     isReconnecting: boolean;
-  }) => void;
+  }, type: RecordingType) => void;
   isDedicatedRecordingActive?: boolean;
   vadAggressiveness: VADAggressiveness;
   globalRecordingStatus: GlobalRecordingStatus;
@@ -1056,7 +1056,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 isBrowserPaused,
                 clientRecordingTime,
                 isReconnecting
-            });
+            }, 'long-form-chat');
         }
     }, [onRecordingStateChange, isBrowserRecording, isBrowserPaused, clientRecordingTime, isReconnecting]);
 
