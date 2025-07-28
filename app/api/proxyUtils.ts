@@ -100,3 +100,46 @@ export async function getBackendUrl(): Promise<string | null> {
     const backendUrls = (process.env.BACKEND_API_URLS || '').split(',').map(url => url.trim()).filter(Boolean);
     return findActiveBackend(backendUrls);
 }
+
+interface ProxyApiRouteRequestParams {
+  request: Request;
+  targetUrl: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  body?: any;
+}
+
+export async function proxyApiRouteRequest({
+  request,
+  targetUrl,
+  method = 'POST',
+  body,
+}: ProxyApiRouteRequestParams): Promise<NextResponse> {
+  try {
+    const userSession = await getSupabaseUser(request);
+    if (!userSession) {
+      return formatErrorResponse('Authentication failed', 401);
+    }
+
+    const requestBody = body ?? (await request.json().catch(() => ({})));
+
+    const response = await fetch(targetUrl, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userSession.token}`,
+      },
+      body: method !== 'GET' ? JSON.stringify(requestBody) : undefined,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return formatErrorResponse(data.error || data.message || 'An error occurred', response.status);
+    }
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return formatErrorResponse(errorMessage, 500);
+  }
+}
