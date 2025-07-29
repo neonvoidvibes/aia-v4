@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo } from "react"
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo, ChangeEvent } from "react"
 import { useChat, type Message } from "@ai-sdk/react"
 
 // Error message type for UI-specific error handling
@@ -298,6 +298,7 @@ interface SimpleChatInterfaceProps {
   onChatIdChange?: (chatId: string | null) => void; // New prop to notify parent of chat ID changes
   onHistoryRefreshNeeded?: () => void;
   isConversationSaved?: boolean;
+
 }
 
 export interface ChatInterfaceHandle {
@@ -352,6 +353,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   const [isPageReady, setIsPageReady] = useState(false); 
   const lastAppendedErrorRef = useRef<string | null>(null);
   const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
   const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
@@ -2245,6 +2247,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [reload, setErrorMessages]);
 
     const handleDeleteMessage = useCallback(async () => {
+        if (!messageToDelete) return; // Add this check
+        const isError = messageToDelete.role === 'error';
+        
+        // If it's just a UI-side error message, just remove it from local state.
+        if (isError) {
+            setErrorMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
+            setMessageToDelete(null);
+            return;
+        }
+        
+        // If it's a real message from the DB...
+        if (!currentChatId || isDeleting) return;
+
+
+
         if (!messageToDelete || !currentChatId || isDeleting) return;
 
         const originalMessages = [...messages];
@@ -2302,6 +2319,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [messageToDelete, currentChatId, isDeleting, conversationSaveMarkerMessageId, messages, errorMessages, supabase.auth]);
 
   const onSubmit = handleSubmitWithCanvasContext;
+
+  const handleTextAreaInput = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    handleInputChange(e);
+    const textarea = e.target;
+    // Temporarily shrink to calculate the true scrollHeight
+    textarea.style.height = 'auto';
+    // The +2 is a small buffer to prevent scrollbar flicker on some browsers
+    const scrollHeight = textarea.scrollHeight + 2;
+
+    // Max height for approx 7 lines (line-height is 1.5, font-size is ~16-19px, so ~24-28px per line)
+    // 7 * 28 = 196. Let's use 200px as a generous max-height.
+    const maxHeight = 200; 
+    textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+    // Enable scrolling if we've hit the max height
+    textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+  };
 
   const toggleMessageCollapse = (messageId: string) => {
     setCollapsedMessages(prev => {
@@ -2864,159 +2897,165 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       onSubmit={handleSubmitPressToTalk}
                       recordingTime={pressToTalkTime}
                     />
-                  ) : (
-                    <div className={cn("chat-input-layout bg-input-gray rounded-full p-2 flex items-center")}>
-                      <div className="relative" ref={plusMenuRef}>
-                        <button type="button" className={cn("p-2 pl-3 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
-                          <SlidersIcon />
-                        </button>
-                        {showPlusMenu && (
-                          <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
-                            <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} title="Attach file">
-                              <Paperclip size={20} />
-                            </button>
-                            <button
-                              type="button"
-                              className={cn(
-                                "p-2 plus-menu-item",
-                                conversationSaveMarkerMessageId
-                                  ? "text-[hsl(var(--save-memory-color))]"
-                                  : "text-[hsl(var(--icon-secondary))]",
-                                (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading)
-                                  ? "opacity-50 cursor-not-allowed"
-                                  : !conversationSaveMarkerMessageId ? "hover:text-[hsl(var(--icon-primary))]" : ""
-                              )}
-                              onClick={handleSaveChatToMemory}
-                              title="Save chat to memory"
-                              disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
-                            >
-                              <Bookmark
-                                size={20}
-                                className={cn(
-                                  conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
-                                )}
-                              />
-                            </button>
-                            <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Download chat">
-                              <Download size={20} />
-                            </button>
-                            <button
-                              type="button"
-                              className={cn(
-                                micButtonClass,
-                                "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
-                                isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
-                                globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
-                              )}
-                              onClick={showAndPrepareRecordingControls}
-                              title={
-                                globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'
-                                  ? "Another recording is active"
-                                  : isBrowserRecording
-                                  ? isBrowserPaused
-                                    ? "Recording Paused"
-                                    : "Recording Live"
-                                  : "Start recording"
-                              }
-                              disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
-                            >
-                              <Mic size={20} />
-                            </button>
-                          </motion.div>
-                        )}
-                      </div>
-                      <div className="relative" ref={recordUIRef}>
-                        {showRecordUI && isBrowserRecording && (
-                          <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.3 }} className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" onMouseMove={handleRecordUIMouseMove} onClick={(e) => e.stopPropagation()}>
-                            <button type="button" className={cn("p-1 record-ui-button", (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait")} onClick={handlePlayPauseMicClick} disabled={!!pendingActionRef.current} aria-label={isBrowserPaused ? "Resume recording" : "Pause recording"}>
-                              {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream')
-                                ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))]" />
-                                : (isBrowserPaused
-                                  ? <Play size={20} className="text-yellow-500 dark:text-yellow-400" />
-                                  : <Pause size={20} className="text-[hsl(var(--icon-destructive))]" />
-                                )
-                              }
-                            </button>
-                            <button type="button" className={cn("p-1 record-ui-button", pendingActionRef.current === 'stop' && "opacity-50 cursor-wait")} onClick={handleStopRecording} disabled={!!pendingActionRef.current} aria-label="Stop recording">
-                              {pendingActionRef.current === 'stop'
-                                ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))]" />
-                                : <StopCircle size={20} className="text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]"/>
-                              }
-                            </button>
-                            <span ref={recordControlsTimerDisplayRef} className="text-sm font-medium text-[hsl(var(--text-secondary))] ml-1">{formatTime(clientRecordingTime)}</span>
-                          </motion.div>
-                        )}
-                      </div>
-                      <input
-                        ref={inputRef}
-                        data-testid="chat-input-field"
+                  ) : ( // Regular input view
+                    <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] py-3 px-3 flex flex-col")}>
+                      <textarea
+                        ref={textareaRef}
                         value={input}
-                        onChange={handleInputChange}
+                        onChange={handleTextAreaInput}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            if (input.trim() || attachedFiles.length > 0) {
+                                onSubmit(e as any);
+                            }
+                          }
+                        }}
                         placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : "Ask anything")}
-                        className={cn(
-                          "flex-1 px-3 py-1 bg-transparent border-none outline-none placeholder:text-[var(--placeholder-text-color)] dark:placeholder:text-zink-500"
-                        )}
+                        className="chat-textarea w-full bg-transparent px-2 outline-none resize-none placeholder:text-[hsl(var(--placeholder-text-color))] dark:placeholder:text-zink-500"
                         disabled={!isPageReady || !!pendingAction || pressToTalkState !== 'idle'}
                         aria-label="Chat input"
+                        rows={1}
+                        style={{ height: 'auto', overflowY: 'hidden' }}
                       />
-                      {isLoading ? (
-                        <button
-                          type="button"
-                          onClick={stop}
-                          className={cn(
-                            "transition-all duration-200 rounded-full flex items-center justify-center",
-                            "h-9 w-9 sm:h-10 sm:w-10",
-                            "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
+                      <div className="flex items-center justify-between w-full mt-1">
+                        <div className="relative" ref={plusMenuRef}>
+                          <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
+                            <SlidersIcon size={20} />
+                          </button>
+                        {showPlusMenu && (
+                            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
+                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} title="Attach file">
+                                <Paperclip size={17} />
+                              </button>
+                              <button
+                                type="button"
+                                className={cn(
+                                  "p-2 plus-menu-item",
+                                  conversationSaveMarkerMessageId
+                                    ? "text-[hsl(var(--save-memory-color))]"
+                                    : "text-[hsl(var(--icon-secondary))]",
+                                  (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading)
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : !conversationSaveMarkerMessageId ? "hover:text-[hsl(var(--icon-primary))]" : ""
+                                )}
+                                onClick={handleSaveChatToMemory}
+                                title="Save chat to memory"
+                                disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
+                              >
+                               <Bookmark
+                                  size={17}
+                                  className={cn(
+                                    conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
+                                  )}
+                                />
+                              </button>
+                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Download chat">
+                                <Download size={17} />
+                              </button>
+                              <button
+                                type="button"
+                                className={cn(
+                                  micButtonClass,
+                                  "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
+                                  isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
+                                  isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
+                                  globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
+                                )}
+                                onClick={showAndPrepareRecordingControls}
+                                title={
+                                  globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'
+                                    ? "Another recording is active"
+                                    : isBrowserRecording
+                                    ? isBrowserPaused
+                                      ? "Recording Paused"
+                                      : "Recording Live"
+                                    : "Start recording"
+                                }
+                                disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
+                              >
+                                <Mic size={17} />
+                              </button>
+                            </motion.div>
                           )}
-                          aria-label="Stop generating"
-                        >
-                          <Square size={18} className="fill-current" />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            if (input.trim() || attachedFiles.length > 0) {
-                              onSubmit(e as any);
-                            } else {
-                              handleStartPressToTalk();
+                        </div>
+                        <div className="relative" ref={recordUIRef}>
+                          {showRecordUI && isBrowserRecording && (
+                            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.3 }} className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" onMouseMove={handleRecordUIMouseMove} onClick={(e) => e.stopPropagation()}>
+                              <button type="button" className={cn("p-1 record-ui-button", (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait")} onClick={handlePlayPauseMicClick} disabled={!!pendingActionRef.current} aria-label={isBrowserPaused ? "Resume recording" : "Pause recording"}>
+                                {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream')
+                                  ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))]" />
+                                  : (isBrowserPaused
+                                    ? <Play size={20} className="text-yellow-500 dark:text-yellow-400" />
+                                    : <Pause size={20} className="text-[hsl(var(--icon-destructive))]" />
+                                  )
+                                }
+                              </button>
+                              <button type="button" className={cn("p-1 record-ui-button", pendingActionRef.current === 'stop' && "opacity-50 cursor-wait")} onClick={handleStopRecording} disabled={!!pendingActionRef.current} aria-label="Stop recording">
+                                {pendingActionRef.current === 'stop'
+                                  ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))]" />
+                                  : <StopCircle size={20} className="text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]"/>
+                                }
+                              </button>
+                              <span ref={recordControlsTimerDisplayRef} className="text-sm font-medium text-[hsl(var(--text-secondary))] ml-1">{formatTime(clientRecordingTime)}</span>
+                            </motion.div>
+                          )}
+                        </div>
+                        {isLoading ? (
+                          <button
+                            type="button"
+                            onClick={stop}
+                            className={cn(
+                              "transition-all duration-200 rounded-full flex items-center justify-center",
+                              "h-8 w-8",
+                              "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
+                            )}
+                            aria-label="Stop generating"
+                          >
+                            <Square size={16} className="fill-current" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              if (input.trim() || attachedFiles.length > 0) {
+                                onSubmit(e as any);
+                              } else {
+                                handleStartPressToTalk();
+                              }
+                            }}
+                            className={cn(
+                              "transition-all duration-200 rounded-full flex items-center justify-center",
+                              "h-8 w-8",
+                              isPageReady && (input.trim() || attachedFiles.length > 0) &&
+                                "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
+                              isPageReady && !(input.trim() || attachedFiles.length > 0) &&
+                                "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
+                              ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
+                              (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
+                            )}
+                            disabled={
+                              !isPageReady || 
+                              !!pendingActionRef.current || 
+                              pressToTalkState === 'transcribing' ||
+                              (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))
                             }
-                          }}
-                          className={cn(
-                            "transition-all duration-200 rounded-full flex items-center justify-center",
-                            "h-9 w-9 sm:h-10 sm:w-10",
-                            // Style for send button (enabled)
-                            isPageReady && (input.trim() || attachedFiles.length > 0) &&
-                              "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
-                            // Style for mic button (enabled)
-                            isPageReady && !(input.trim() || attachedFiles.length > 0) &&
-                              "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
-                            // Disabled states
-                            ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
-                            (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
-                          )}
-                          disabled={
-                            !isPageReady || 
-                            !!pendingActionRef.current || 
-                            pressToTalkState === 'transcribing' ||
-                            (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))
-                          }
-                          aria-label={input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message"}
-                        >
-                          {pressToTalkState === 'transcribing' ? (
-                            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-primary/20 text-primary">
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                            </div>
-                          ) : input.trim() || attachedFiles.length > 0 ? (
-                            <ArrowUp size={24} />
-                          ) : (
-                            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))]">
-                              <WaveformIcon size={24} />
-                            </div>
-                          )}
-                        </button>
-                      )}
+                            aria-label={input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message"}
+                          >
+                            {pressToTalkState === 'transcribing' ? (
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/20 text-primary">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                              </div>
+                            ) : input.trim() || attachedFiles.length > 0 ? (
+                              <ArrowUp size={20} />
+                            ) : (
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))]">
+                                <WaveformIcon size={20} />
+                              </div>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                     )}
                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple accept=".txt,.md,.json,.pdf,.docx" />

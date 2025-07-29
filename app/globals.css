@@ -738,7 +738,8 @@ body {
   background-color: transparent;
   z-index: 10;
   position: relative;
-  height: var(--input-area-height); /* Fixed height */
+  min-height: var(--input-area-height); /* Minimum height */
+  height: auto; /* Allow it to grow */
   padding: 0; /* Remove padding here, let children manage it */
   justify-content: flex-end; /* Align content to bottom */
 }
@@ -750,19 +751,6 @@ body {
 }
 
 
-.input-container {
-  background-color: hsl(var(--input-gray));
-  border-radius: 9999px;
-  padding: 8px 16px; /* Keep internal padding */
-  display: flex;
-  align-items: center;
-  /* Desktop styles - account for sidebar state */
-  margin: 16px auto;
-  width: min(calc(100vw - 4rem), 800px); /* Default when sidebar closed */
-  max-width: 800px; /* Fixed maximum width */
-  position: relative;
-  box-sizing: border-box; /* Ensure padding is included in width calc */
-}
 
 /* New class for chat input layout to separate concerns from color */
 .chat-input-layout {
@@ -780,11 +768,6 @@ body {
 
 /* Mobile: Use viewport-based sizing with smaller margins */
 @media (max-width: 640px) {
-  .input-container {
-    width: min(calc(100vw - 2rem), 800px); /* Viewport-based for mobile */
-    margin: 8px 0; /* Adjust vertical margin, remove side margin */
-  }
-  
   .chat-input-layout {
     width: min(calc(100vw - 2rem), 800px) !important;
     margin: 8px auto !important;
@@ -879,16 +862,21 @@ body {
 }
 
 
-/* Input field inherits text color */
-.input-container input {
-  color: hsl(var(--input-field-text-color)); /* Use hsl() wrapper for consistency */
-  background-color: transparent; /* Ensure transparent background */
-  border: none;
-  outline: none;
-  flex: 1;
-  padding: 0 8px; /* Adjust padding as needed */
-  font-size: inherit; /* Ensure input inherits body font size */
+/* New styles for the resizable textarea */
+.chat-textarea {
+    color: hsl(var(--input-field-text-color));
+    background-color: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+    padding: 4px 8px; /* Add some padding */
+    font-size: inherit;
+    line-height: 1.5; /* Control line height for row calculation */
+    resize: none;
+    /* Hide scrollbar */
+    scrollbar-width: none; /* Firefox */
 }
+.chat-textarea::-webkit-scrollbar { display: none; /* Safari, Chrome */ }
 
 
 
@@ -898,24 +886,23 @@ body {
 } */
 
 /* Force input text color for Folkhemmet theme with highest specificity */
-.theme-folkhemmet .input-container input,
-.theme-folkhemmet .input-container input[type="text"],
-.theme-folkhemmet input[data-testid="chat-input-field"] {
+.theme-folkhemmet .chat-input-layout textarea,
+.theme-folkhemmet .chat-textarea {
   color: hsl(51 95% 51%) !important; /* Force IKEA Yellow */
   -webkit-text-fill-color: hsl(51 95% 51%) !important; /* Override webkit autofill */
 }
 
 /* Ensure Folkhemmet placeholder text uses correct color despite high-specificity input text rules */
-.theme-folkhemmet .input-container input::placeholder,
-.theme-folkhemmet .input-container input[type="text"]::placeholder,
-.theme-folkhemmet input[data-testid="chat-input-field"]::placeholder {
+.theme-folkhemmet .chat-input-layout textarea::placeholder,
+.theme-folkhemmet .chat-textarea::placeholder {
   color: hsl(204 80% 64%) !important; /* Force Folkhemmet blue-tinted placeholder */
   -webkit-text-fill-color: hsl(204 80% 64%) !important; /* Override webkit */
 }
 
 /* Ensure placeholder colors work correctly for all themes */
-.input-container input::placeholder {
+.chat-textarea::placeholder {
   color: hsl(var(--placeholder-text-color)) !important; /* Use theme-defined placeholder color */
+  opacity: 0.5;
 }
 
 /* --- Message Bubbles --- */
