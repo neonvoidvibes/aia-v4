@@ -1117,6 +1117,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
             originalHandleSubmit(e as React.FormEvent<HTMLFormElement>, { data: augmentedBody });
             
+            // Reset textarea height after submission
+            if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto';
+                textareaRef.current.style.overflowY = 'hidden';
+            }
+
             // Auto-save after user message is sent
             setTimeout(() => {
                 saveChatHistory();
