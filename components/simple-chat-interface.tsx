@@ -58,6 +58,14 @@ import WaveformIcon from "@/components/ui/waveform-icon";
 import { cn } from "@/lib/utils"
 import { toast } from "sonner" // Import toast
 import { type VADAggressiveness } from "./VADSettings";
+import { MODEL_DISPLAY_NAMES, AVAILABLE_MODELS } from "@/lib/model-map";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Voice ID for ElevenLabs TTS.
 const ELEVENLABS_VOICE_ID = "aSLKtNoVBZlxQEMsnGL2"; // "Sanna Hartfield"
@@ -279,6 +287,7 @@ interface SimpleChatInterfaceProps {
   isFullscreen?: boolean;
   selectedModel: string;
   temperature: number;
+  onModelChange?: (model: string) => void;
   onRecordingStateChange?: (state: {
     isBrowserRecording: boolean;
     isBrowserPaused: boolean;
@@ -345,7 +354,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -3012,6 +3021,30 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             </motion.div>
                           )}
                         </div>
+                        
+                        {/* Model Picker */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="text-xs opacity-50 hover:opacity-75 transition-opacity flex items-center gap-1 px-1 py-1 rounded-md hover:bg-muted/50"
+                              disabled={!isPageReady || !!pendingAction}
+                            >
+                              <span className="whitespace-nowrap">{MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}</span>
+                              <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => onModelChange?.(value)}>
+                              {AVAILABLE_MODELS.map((model) => (
+                                <DropdownMenuRadioItem key={model} value={model}>
+                                  {MODEL_DISPLAY_NAMES[model] || model}
+                                </DropdownMenuRadioItem>
+                              ))}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
                         {isLoading ? (
                           <button
                             type="button"

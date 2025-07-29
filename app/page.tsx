@@ -1479,26 +1479,27 @@ function HomeContent() {
         <main className="flex-1 flex flex-col">
         {/* Keep SimpleChatInterface always mounted but hidden when not active to preserve state */}
         <div className={currentView === "chat" ? "flex flex-col flex-1" : "hidden"}>
-          <SimpleChatInterface
-            ref={chatInterfaceRef}
-            onAttachmentsUpdate={updateChatAttachments}
-            isFullscreen={isFullscreen}
-            selectedModel={selectedModel}
-            temperature={temperature}
-            onRecordingStateChange={handleRecordingStateChange}
-            isDedicatedRecordingActive={globalRecordingStatus.type === 'long-form-note' && globalRecordingStatus.isRecording}
-            vadAggressiveness={vadAggressiveness}
-            globalRecordingStatus={globalRecordingStatus}
-            setGlobalRecordingStatus={setGlobalRecordingStatus}
-            transcriptListenMode={transcriptListenMode}
-            getCanvasContext={() => ({
-                current_canvas_time_window_label: selectedTimeWindow,
-                active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
-                pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
-            })}
-            onChatIdChange={setCurrentChatId}
-            onHistoryRefreshNeeded={() => setHistoryNeedsRefresh(true)}
-          />
+            <SimpleChatInterface
+              ref={chatInterfaceRef}
+              onAttachmentsUpdate={updateChatAttachments}
+              isFullscreen={isFullscreen}
+              selectedModel={selectedModel}
+              temperature={temperature}
+              onModelChange={handleModelChange}
+              onRecordingStateChange={handleRecordingStateChange}
+              isDedicatedRecordingActive={globalRecordingStatus.type === 'long-form-note' && globalRecordingStatus.isRecording}
+              vadAggressiveness={vadAggressiveness}
+              globalRecordingStatus={globalRecordingStatus}
+              setGlobalRecordingStatus={setGlobalRecordingStatus}
+              transcriptListenMode={transcriptListenMode}
+              getCanvasContext={() => ({
+                  current_canvas_time_window_label: selectedTimeWindow,
+                  active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
+                  pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
+              })}
+              onChatIdChange={setCurrentChatId}
+              onHistoryRefreshNeeded={() => setHistoryNeedsRefresh(true)}
+            />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
