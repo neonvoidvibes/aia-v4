@@ -907,7 +907,7 @@ body {
 /* Ensure placeholder colors work correctly for all themes */
   .chat-textarea::placeholder {
     color: hsl(var(--placeholder-text-color));
-    opacity: 1;
+    opacity: 0.5;
   }
 
 
