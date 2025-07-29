@@ -49,7 +49,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
 }) => {
   return (
     <div className={cn("chat-input-layout bg-primary rounded-[1.8rem] py-3 px-3 flex flex-col")}>
-      <div className="w-full flex items-center justify-center h-8">
+      <div className="w-full flex items-center justify-center h-12">
         <Waveform />
       </div>
       <div className="w-full flex items-center justify-between mt-1">
