@@ -18,30 +18,6 @@ const formatTime = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
-// A simple, visually pleasing simulated waveform
-const Waveform = () => {
-  const bars = Array.from({ length: 40 });
-  return (
-    <div className="flex items-center justify-center gap-0.5 h-8">
-      {bars.map((_, i) => (
-        <motion.div
-          key={i}
-          className="w-0.5 bg-primary/70"
-          initial={{ scaleY: 0.1 }}
-          animate={{ scaleY: [0.2, 0.8, 0.2] }}
-          transition={{
-            duration: 0.8,
-            repeat: Infinity,
-            repeatType: 'mirror',
-            delay: i * 0.05,
-            ease: 'easeInOut',
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
 const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
   onCancel,
   onSubmit,
@@ -50,7 +26,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
   return (
     <div className={cn("chat-input-layout bg-primary rounded-[1.8rem] py-3 px-3 flex flex-col")}>
       <div className="w-full flex items-center justify-center h-12">
-        <Waveform />
+        {/* Waveform removed as per request */}
       </div>
       <div className="w-full flex items-center justify-between mt-1">
         <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))]">

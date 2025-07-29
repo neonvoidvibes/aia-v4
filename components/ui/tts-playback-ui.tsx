@@ -22,7 +22,7 @@ const TTSPlaybackUI: React.FC<TTSPlaybackUIProps> = ({ onStop, playbackTime, isL
         {isLoading ? (
           <Loader2 className="h-5 w-5 text-primary-foreground animate-spin" />
         ) : (
-          <WaveformIcon size={24} className="text-primary-foreground" />
+          <div />
         )}
       </div>
       <div className="w-full flex items-center justify-between mt-1">

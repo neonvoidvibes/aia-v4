@@ -2894,7 +2894,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                   <TTSPlaybackUI onStop={handleStopTts} playbackTime={ttsPlaybackTime} isLoading={isTtsLoading} />
                 ) : (
                   <form onSubmit={onSubmit} className="relative">
-                    {pressToTalkState === 'recording' ? (
+                    {pressToTalkState === 'recording' && !ttsPlayback.isPlaying ? (
                       <PressToTalkUI
                       onCancel={handleCancelPressToTalk}
                       onSubmit={handleSubmitPressToTalk}
