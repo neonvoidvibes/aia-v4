@@ -41,7 +41,7 @@ export async function findActiveBackend(urls: string[]): Promise<string | null> 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
             controller.abort();
-        }, 1500); // Reduced timeout to 1.5s for faster failure detection
+        }, 30000); // Increased timeout to 30s to allow for cold starts on services like Render
 
         return fetch(healthUrl, { method: 'GET', signal: controller.signal })
             .finally(() => clearTimeout(timeoutId));
