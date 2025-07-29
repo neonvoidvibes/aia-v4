@@ -2104,6 +2104,11 @@ button {
 .sidebar-bg .text-sm {
   font-size: 17px; /* Slightly smaller than mobile body */
   }
+
+  /* Increase margin between model picker and submit button on mobile */
+  .model-picker-container {
+    right: 48px !important; /* Increased from 40px to 48px */
+  }
 }
 
 /* Custom override for assistant message spacing */

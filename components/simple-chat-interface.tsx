@@ -3025,7 +3025,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         </div>
                         <div className="relative w-full h-8 flex items-center">
                           {/* Model Picker - chevron anchored 8px from submit button, text extends left */}
-                          <div className="absolute" style={{ right: '40px' }}>
+                          <div className="absolute model-picker-container" style={{ right: '40px' }}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
