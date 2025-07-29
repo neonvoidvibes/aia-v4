@@ -757,6 +757,10 @@ body {
   width: min(760px, calc(100% - 2rem)) !important;
   max-width: 760px !important;
   margin: 16px auto !important;
+  min-height: 56px !important; /* Ensure consistent minimum height */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important; /* Center content vertically */
 }
 
 /* When sidebar is open, the layout should not change */
@@ -869,10 +873,11 @@ body {
     border: none;
     outline: none;
     width: 100%;
-    padding: 4px 8px; /* Add some padding */
+    padding: 8px 8px; /* Increased top/bottom padding for consistent height */
     font-size: inherit;
     line-height: 1.5; /* Control line height for row calculation */
     resize: none;
+    min-height: 24px; /* Ensure consistent minimum height */
     /* Hide scrollbar */
     scrollbar-width: none; /* Firefox */
 }
@@ -1176,34 +1181,54 @@ body {
 }
 
 /* --- Submit Button Styling --- */
-/* Detailed active/inactive state styling is handled via conditional */
-/* Tailwind classes in simple-chat-interface.tsx to avoid CSS conflicts. */
-/* Base layout */
+/* Ensure all submit buttons have consistent sizing across all input components */
+.chat-input-layout button[type="button"],
+.chat-input-layout button[type="submit"],
 .input-container button[type="submit"] {
   border-radius: 9999px;
-  padding: 4px;
-  height: 28px;
-  width: 28px;
+  padding: 0;
+  height: 32px !important; /* Consistent height for all buttons */
+  width: 32px !important; /* Consistent width for all buttons */
+  min-height: 32px !important;
+  min-width: 32px !important;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s, color 0.2s;
   border: none;
   cursor: pointer;
+  flex-shrink: 0; /* Prevent button from shrinking */
 }
-/* Base SVG uses currentColor */
+
+/* Ensure SVG icons are properly sized within buttons */
+.chat-input-layout button[type="button"] svg,
+.chat-input-layout button[type="submit"] svg,
 .input-container button[type="submit"] svg {
   color: currentColor;
   stroke: currentColor;
   fill: none;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
+
 /* Base Square fill uses currentColor */
+.chat-input-layout button .fill-current,
 .input-container button[type="submit"] .fill-current {
   fill: currentColor;
 }
+
 /* Disabled cursor */
+.chat-input-layout button:disabled,
 .input-container button[type="submit"]:disabled {
     cursor: not-allowed;
+}
+
+/* Ensure button containers have consistent bottom row alignment */
+.chat-input-layout > div:last-child {
+  display: flex;
+  align-items: center;
+  min-height: 32px; /* Match button height */
 }
 /* --- End Submit Button Styling --- */
 
