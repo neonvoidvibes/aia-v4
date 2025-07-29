@@ -48,12 +48,12 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
   recordingTime,
 }) => {
   return (
-    <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] py-3 px-3 flex flex-col")}>
-      <div className="w-full flex items-center justify-center">
+    <div className={cn("chat-input-layout bg-primary rounded-[1.8rem] py-2 px-3 flex flex-col")}>
+      <div className="w-full flex items-center justify-center h-8">
         <Waveform />
       </div>
       <div className="w-full flex items-center justify-between mt-1">
-        <div className="h-8 w-8 rounded-full flex items-center justify-center bg-background/50 text-foreground">
+        <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))]">
           <Button
             variant="ghost"
             size="icon"
@@ -65,7 +65,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
           </Button>
         </div>
         <div className="flex-1 flex items-center justify-center px-4">
-          <span className="font-mono text-sm text-foreground w-full text-center">
+          <span className="font-mono text-sm text-primary-foreground w-full text-center">
             {formatTime(recordingTime)}
           </span>
         </div>
@@ -75,7 +75,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
           className={cn(
             "transition-all duration-200 rounded-full flex items-center justify-center",
             "h-8 w-8",
-            "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90"
+            "bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))] hover:opacity-90"
           )}
           aria-label="Submit recording"
         >

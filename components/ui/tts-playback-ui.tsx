@@ -17,14 +17,18 @@ const formatTime = (seconds: number): string => {
 
 const TTSPlaybackUI: React.FC<TTSPlaybackUIProps> = ({ onStop, playbackTime, isLoading }) => {
   return (
-    <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] py-3 px-3 flex flex-col")}>
+    <div className={cn("chat-input-layout bg-primary rounded-[1.8rem] py-2 px-3 flex flex-col")}>
       <div className="w-full flex items-center justify-center h-8">
-        {isLoading && <Loader2 className="h-5 w-5 text-foreground animate-spin" />}
+        {isLoading ? (
+          <Loader2 className="h-5 w-5 text-primary-foreground animate-spin" />
+        ) : (
+          <WaveformIcon size={24} className="text-primary-foreground" />
+        )}
       </div>
       <div className="w-full flex items-center justify-between mt-1">
-        <div className="w-8" /> 
+        <div className="w-8" />
         <div className="flex-1 flex items-center justify-center px-4">
-          <span className="font-mono text-sm text-foreground w-full text-center">
+          <span className="font-mono text-sm text-primary-foreground w-full text-center">
             {formatTime(playbackTime)}
           </span>
         </div>
