@@ -900,10 +900,11 @@ body {
 }
 
 /* Ensure placeholder colors work correctly for all themes */
-.chat-textarea::placeholder {
-  color: hsl(var(--placeholder-text-color)) !important; /* Use theme-defined placeholder color */
-  opacity: 0.5;
-}
+  .chat-textarea::placeholder {
+    color: hsl(var(--placeholder-text-color));
+    opacity: 1;
+  }
+
 
 /* --- Message Bubbles --- */
 .message-bubble {

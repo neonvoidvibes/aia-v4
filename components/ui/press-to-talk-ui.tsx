@@ -48,7 +48,7 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
   recordingTime,
 }) => {
   return (
-    <div className={cn("chat-input-layout bg-primary rounded-[1.8rem] py-2 px-3 flex flex-col")}>
+    <div className={cn("chat-input-layout bg-primary rounded-[1.8rem] py-3 px-3 flex flex-col")}>
       <div className="w-full flex items-center justify-center h-8">
         <Waveform />
       </div>
