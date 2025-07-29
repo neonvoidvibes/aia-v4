@@ -3021,84 +3021,102 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             </motion.div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          {/* Model Picker */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                        <div className="relative w-full h-8 flex items-center">
+                          {/* Model Picker - chevron anchored 8px from submit button, text extends left */}
+                          <div className="absolute" style={{ right: '40px' }}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="text-xs opacity-50 hover:opacity-75 transition-opacity px-1 py-1 rounded-md hover:bg-muted/50 focus:outline-none focus:ring-0"
+                                  disabled={!isPageReady || !!pendingAction}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    flexDirection: 'row',
+                                    whiteSpace: 'nowrap',
+                                    justifyContent: 'flex-end'
+                                  }}
+                                >
+                                  <span 
+                                    style={{
+                                      marginRight: '4px'
+                                    }}
+                                  >
+                                    {MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}
+                                  </span>
+                                  <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => onModelChange?.(value)}>
+                                  {AVAILABLE_MODELS.map((model) => (
+                                    <DropdownMenuRadioItem key={model} value={model}>
+                                      {MODEL_DISPLAY_NAMES[model] || model}
+                                    </DropdownMenuRadioItem>
+                                  ))}
+                                </DropdownMenuRadioGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {/* Submit Button - absolutely positioned at right edge */}
+                          <div className="absolute right-0">
+                            {isLoading ? (
                               <button
                                 type="button"
-                                className="text-xs opacity-50 hover:opacity-75 transition-opacity flex items-center gap-1 px-1 py-1 rounded-md hover:bg-muted/50"
-                                disabled={!isPageReady || !!pendingAction}
+                                onClick={stop}
+                                className={cn(
+                                  "transition-all duration-200 rounded-full flex items-center justify-center",
+                                  "h-8 w-8",
+                                  "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
+                                )}
+                                aria-label="Stop generating"
                               >
-                                <span className="whitespace-nowrap">{MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}</span>
-                                <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                                <Square size={16} className="fill-current" />
                               </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => onModelChange?.(value)}>
-                                {AVAILABLE_MODELS.map((model) => (
-                                  <DropdownMenuRadioItem key={model} value={model}>
-                                    {MODEL_DISPLAY_NAMES[model] || model}
-                                  </DropdownMenuRadioItem>
-                                ))}
-                              </DropdownMenuRadioGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-
-                          {isLoading ? (
-                            <button
-                              type="button"
-                              onClick={stop}
-                              className={cn(
-                                "transition-all duration-200 rounded-full flex items-center justify-center",
-                                "h-8 w-8",
-                                "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
-                              )}
-                              aria-label="Stop generating"
-                            >
-                              <Square size={16} className="fill-current" />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                if (input.trim() || attachedFiles.length > 0) {
-                                  onSubmit(e as any);
-                                } else {
-                                  handleStartPressToTalk();
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  if (input.trim() || attachedFiles.length > 0) {
+                                    onSubmit(e as any);
+                                  } else {
+                                    handleStartPressToTalk();
+                                  }
+                                }}
+                                className={cn(
+                                  "transition-all duration-200 rounded-full flex items-center justify-center",
+                                  "h-8 w-8",
+                                  isPageReady && (input.trim() || attachedFiles.length > 0) &&
+                                    "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
+                                  isPageReady && !(input.trim() || attachedFiles.length > 0) &&
+                                    "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
+                                  ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
+                                  (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
+                                )}
+                                disabled={
+                                  !isPageReady || 
+                                  !!pendingActionRef.current || 
+                                  pressToTalkState === 'transcribing' ||
+                                  (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))
                                 }
-                              }}
-                              className={cn(
-                                "transition-all duration-200 rounded-full flex items-center justify-center",
-                                "h-8 w-8",
-                                isPageReady && (input.trim() || attachedFiles.length > 0) &&
-                                  "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
-                                isPageReady && !(input.trim() || attachedFiles.length > 0) &&
-                                  "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
-                                ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
-                                (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
-                              )}
-                              disabled={
-                                !isPageReady || 
-                                !!pendingActionRef.current || 
-                                pressToTalkState === 'transcribing' ||
-                                (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))
-                              }
-                              aria-label={input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message"}
-                            >
-                              {pressToTalkState === 'transcribing' ? (
-                                <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/20 text-primary">
-                                  <Loader2 className="h-5 w-5 animate-spin" />
-                                </div>
-                              ) : input.trim() || attachedFiles.length > 0 ? (
-                                <ArrowUp size={20} />
-                              ) : (
-                                <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))]">
-                                  <WaveformIcon size={20} />
-                                </div>
-                              )}
-                            </button>
-                          )}
+                                aria-label={input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message"}
+                              >
+                                {pressToTalkState === 'transcribing' ? (
+                                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/20 text-primary">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                  </div>
+                                ) : input.trim() || attachedFiles.length > 0 ? (
+                                  <ArrowUp size={20} />
+                                ) : (
+                                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))]">
+                                    <WaveformIcon size={20} />
+                                  </div>
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
