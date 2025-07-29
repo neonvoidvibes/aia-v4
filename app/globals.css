@@ -1423,7 +1423,7 @@ body {
 /* Scroll to bottom button */
 .scroll-to-bottom-button {
   position: absolute;
-  bottom: 110px; /* Moved down closer to input field */
+  bottom: 150px; /* Moved up to avoid overlaying input area */
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(128, 128, 128, 0.3); /* Fallback transparent background */
@@ -1439,14 +1439,14 @@ body {
   z-index: 20;
   transition: all 0.2s ease;
   animation: fadeIn 0.3s ease;
-  backdrop-filter: blur(2px); /* Reduced blur for more visibility */
-  -webkit-backdrop-filter: blur(2px); /* Safari support */
+  backdrop-filter: blur(1px); /* Reduced blur for more visibility */
+  -webkit-backdrop-filter: blur(1px); /* Safari support */
 }
 
 /* Mobile positioning for scroll button */
 @media (max-width: 640px) {
   .scroll-to-bottom-button {
-    bottom: 90px; /* Even closer to input field on mobile */
+    bottom: 135px; /* Moved up to avoid overlaying input area on mobile */
   }
 }
 /* Light mode scroll button styling */
