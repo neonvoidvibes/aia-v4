@@ -3065,18 +3065,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           {/* Submit Button - absolutely positioned at right edge */}
                           <div className="absolute right-0">
                             {isLoading ? (
-                              <button
-                                type="button"
+                              <div 
                                 onClick={stop}
                                 className={cn(
-                                  "transition-all duration-200 rounded-full flex items-center justify-center mobile-submit-button",
-                                  "h-8 w-8",
+                                  "h-8 w-8 rounded-full flex items-center justify-center mobile-submit-button cursor-pointer transition-all duration-200",
                                   "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
                                 )}
+                                role="button"
                                 aria-label="Stop generating"
                               >
-                                <Square size={16} className="fill-current mobile-icon" />
-                              </button>
+                                <Square size={20} className="fill-current" />
+                              </div>
                             ) : (
                               <button
                                 type="button"
@@ -3110,7 +3109,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     <Loader2 className="h-5 w-5 animate-spin mobile-spinner" />
                                   </div>
                                 ) : input.trim() || attachedFiles.length > 0 ? (
-                                  <ArrowUp size={20} className="mobile-icon" />
+                                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] mobile-submit-button">
+                                    <ArrowUp size={20} className="mobile-icon" />
+                                  </div>
                                 ) : (
                                   <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] mobile-submit-button">
                                     <WaveformIcon size={20} className="mobile-waveform" />
