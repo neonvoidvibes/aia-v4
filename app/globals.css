@@ -1027,7 +1027,7 @@ body {
 }
 
 .plus-menu {
-  left: 0;
+  left: 8px;
   padding: 8px 0;
   flex-direction: column; /* Stack icons vertically */
   min-width: 48px; /* Ensure adequate width on desktop */
@@ -1036,7 +1036,7 @@ body {
 /* Desktop: Position plus menu closer to plus icon */
 @media (min-width: 768px) {
   .plus-menu {
-    left: -8px; /* Move closer to plus icon */
+    left: 0px; /* Move closer to slider icon */
     min-width: 48px; /* Adequate width, not minimal */
   }
 }
@@ -1044,7 +1044,7 @@ body {
 /* Mobile: Prevent plus menu from stretching full width */
 @media (max-width: 767px) {
   .plus-menu {
-    left: 0 !important;
+    left: 0;
     width: auto !important; /* Don't stretch to full width */
     max-width: 60px !important; /* Constrain width */
     right: auto !important; /* Prevent stretching to right */
