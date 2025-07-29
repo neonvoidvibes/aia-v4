@@ -2111,6 +2111,19 @@ button {
   }
 }
 
+/* Chat sliders icon - make more white in dark theme like submit button */
+.dark .chat-sliders-icon {
+  color: hsl(0 0% 98%) !important; /* More white in dark theme */
+}
+
+/* Chat sliders icon - increase size on desktop only (mobile has its own scaling) */
+@media (min-width: 769px) {
+  .chat-sliders-icon {
+    width: 24px !important;
+    height: 24px !important;
+  }
+}
+
 /* Custom override for assistant message spacing */
 .assistant-message-container {
   margin-top: 0.125rem !important;
