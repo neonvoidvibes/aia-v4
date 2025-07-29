@@ -15,7 +15,6 @@ interface ErrorMessage {
 // Union type for all message types in the UI
 type UIMessage = Message | ErrorMessage;
 import {
-  Plus,
   ArrowUp,
   ArrowDown,
   Square,
@@ -43,6 +42,7 @@ import {
   RotateCcw, // Added for retry functionality
   Waves,
 } from "lucide-react"
+import { SlidersIcon } from "@/components/ui/sliders-icon";
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useMobile } from "@/hooks/use-mobile"
@@ -2867,11 +2867,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                   ) : (
                     <div className={cn("chat-input-layout bg-input-gray rounded-full p-2 flex items-center")}>
                       <div className="relative" ref={plusMenuRef}>
-                        <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
-                          <Plus size={20} />
+                        <button type="button" className={cn("p-2 pl-3 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
+                          <SlidersIcon />
                         </button>
                         {showPlusMenu && (
-                          <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-0 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
+                          <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
                             <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} title="Attach file">
                               <Paperclip size={20} />
                             </button>
