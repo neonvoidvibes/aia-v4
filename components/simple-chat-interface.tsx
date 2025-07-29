@@ -467,6 +467,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
     const [chatTitle, setChatTitle] = useState<string | null>(null);
 
+    const isSavingRef = useRef(false); // Add a ref to act as a lock
+
     // Notify parent when chat ID changes
     useEffect(() => {
         if (onChatIdChange) {
@@ -670,16 +672,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // Auto-save chat history function - saves complete conversation
     const saveChatHistory = useCallback(async (messagesToSave?: Message[]) => {
-        const currentMessages = messagesToSave || messages;
+        if (isSavingRef.current) {
+            console.warn('[Auto-save] Save already in progress. Skipping.');
+            return;
+        }
+        const currentMessages = messagesToSave || messagesRef.current;
         if (!agentName || currentMessages.length === 0) return;
 
-        console.info('[Auto-save] Saving chat with', currentMessages.length, 'messages');
+        isSavingRef.current = true;
+        console.info('[Auto-save] Saving chat with', currentMessages.length, 'messages. Chat ID:', currentChatId);
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) {
                 console.warn('[Auto-save] No session available for auto-save');
-                return;
+                return; // finally block will still run
             }
 
             const response = await fetch('/api/chat/history/save', {
@@ -713,22 +720,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
         } catch (error) {
             console.error('[Auto-save] Error saving chat:', error);
+        } finally {
+            isSavingRef.current = false;
         }
-    }, [agentName, messages, currentChatId, chatTitle, supabase.auth]);
+    }, [agentName, currentChatId, chatTitle, supabase.auth]);
 
     const messagesRef = useRef<Message[]>(messages);
     useEffect(() => { messagesRef.current = messages; }, [messages]);
 
-    // Auto-save whenever messages change (with debouncing)
-    useEffect(() => {
-        if (messages.length > 0 && agentName) {
-            const timeoutId = setTimeout(() => {
-                saveChatHistory();
-            }, 500); // Debounce to avoid too frequent saves
-            
-            return () => clearTimeout(timeoutId);
-        }
-    }, [messages, agentName, saveChatHistory]);
     
     const plusMenuRef = useRef<HTMLDivElement>(null);
     const recordUIRef = useRef<HTMLDivElement>(null);
