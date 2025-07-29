@@ -37,7 +37,7 @@ const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={cn("flex self-start mb-1 mt-1 pl-2 items-center gap-3", className)}
+      className={cn("flex self-start mb-4 mt-1 pl-2 items-center gap-3", className)}
     >
       <div className="flex items-center text-muted-foreground">
         {text.split("").map((char, i) => (

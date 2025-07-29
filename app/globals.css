@@ -2079,6 +2079,28 @@ button {
   }
 }
 
+/* Enhanced spacing between messages and input field */
+.messages-container {
+  /* Additional bottom padding to ensure proper spacing from input */
+  padding-bottom: 2rem !important; /* 32px base spacing */
+}
+
+/* Enhanced margin for thinking indicators near input field */
+.thinking-indicator {
+  margin-bottom: 1.5rem; /* 24px spacing from input */
+}
+
+/* Mobile-specific spacing adjustments */
+@media (max-width: 640px) {
+  .messages-container {
+    padding-bottom: 2.5rem !important; /* 40px on mobile for better touch spacing */
+  }
+  
+  .thinking-indicator {
+    margin-bottom: 2rem; /* 32px on mobile for better touch spacing */
+  }
+}
+
 /* Fullscreen Mode Styles */
 .fullscreen-header {
   /* In fullscreen mode, the header should be minimal */
