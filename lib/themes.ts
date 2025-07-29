@@ -95,5 +95,15 @@ export const predefinedThemes: ColorTheme[] = [
       fontWeight: "600",
     },
   },
+  {
+    name: "Splash",
+    className: "theme-splash",
+    isDark: false,
+    welcomeMessage: {
+      text: "Make a splash!",
+      fontSize: "3rem",
+      fontWeight: "700",
+    },
+  },
   // Add more predefined themes here
 ];

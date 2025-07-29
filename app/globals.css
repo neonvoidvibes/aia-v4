@@ -628,6 +628,58 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* Splash Theme */
+.theme-splash {
+  --background: 55 100% 85%; /* Bright golden yellow background */
+  --foreground: 0 0% 10%; /* Dark text for contrast */
+  --input-gray: 0 0% 85%; /* Light gray input fields and user bubbles */
+  --status-bar: 0 0% 70%; /* Gray status bar */
+  --placeholder-text: 0 0% 40%; /* Gray placeholder text */
+  --text-primary: 0 0% 8%;
+  --text-secondary: 0 0% 25%;
+  --text-muted: 0 0% 45%;
+
+  /* Shadcn variables */
+  --card: 55 90% 92%; /* Light yellow card */
+  --popover: 55 90% 92%;
+  --primary: 180 100% 50%; /* Turquoise primary for submit button */
+  --primary-foreground: 0 0% 10%; /* Dark text on turquoise */
+  --secondary: 0 0% 80%; /* Light gray secondary */
+  --secondary-foreground: 0 0% 10%; /* Dark text */
+  --muted: 55 70% 88%; /* Light yellow muted */
+  --accent: 180 100% 50%; /* Turquoise accent (was coral) */
+  --accent-foreground: 0 0% 10%; /* Dark text on turquoise */
+  --destructive: 0 84% 60%; /* Red destructive */
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 75%; /* Gray border */
+  --input: 0 0% 85%; /* Light gray input background */
+  --ring: 180 100% 50%; /* Turquoise focus ring */
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 180 100% 50%; /* Turquoise submit button */
+  --button-submit-fg-active: 0 0% 10%; /* Dark text on turquoise */
+  --button-submit-bg-inactive: 0 0% 75%; /* Gray inactive submit */
+  --button-submit-fg-inactive: 0 0% 30%; /* Dark text */
+  --button-submit-bg-stop: 180 80% 40%; /* Darker turquoise stop button */
+  --button-submit-fg-stop: 0 0% 10%; /* Dark text on turquoise */
+
+  --icon-primary: 0 0% 50%; /* Gray main chat icons */
+  --icon-secondary: 0 0% 60%; /* Light gray secondary icons */
+  --icon-active: 180 100% 50%; /* Turquoise active icons (was coral) */
+  --icon-inactive: 0 0% 70%; /* Light gray inactive icons */
+  --icon-destructive: 0 84% 60%; /* Red destructive icons */
+  --save-memory-color: 180 80% 70%; /* Turquoise saved memory highlights (was coral) */
+
+  /* Overrides for specific components */
+  --button-active: 0 0% 50%; /* Gray active buttons for main chat */
+  --button-inactive: 0 0% 70%; /* Light gray inactive buttons */
+
+  /* Text color variables for chat interface elements */
+  --input-field-text-color: 0 0% 15%; /* Dark text in gray input fields */
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
+}
+
 /* Styles for Canvas-originated user messages */
 .user-bubble.from-canvas {
   background-color: hsl(var(--accent) / 0.2) !important; /* Use !important to ensure override if needed */
