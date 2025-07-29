@@ -2902,7 +2902,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     />
                   ) : ( // Regular input view
                     <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] py-3 px-3 flex flex-col")}>
-                      <div className="w-full flex items-center" style={{ minHeight: '52px' }}>
+                      <div className="w-full flex items-center h-12">
                         <textarea
                           ref={textareaRef}
                           value={input}
