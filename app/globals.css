@@ -2210,3 +2210,137 @@ button {
     display: flex;
   }
 }
+
+/* Mobile-specific scaling for chat input icons and buttons - 25% larger */
+@media (max-width: 768px) {
+  :root {
+    --mobile-button-size: 2.5rem; /* 32px -> 40px (25% larger) */
+  }
+  
+  /* Main submit button and TTS/STT buttons */
+  .mobile-submit-button {
+    height: 2.5rem !important; /* 32px -> 40px (25% larger) */
+    width: 2.5rem !important;  /* 32px -> 40px (25% larger) */
+    min-height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    max-height: 2.5rem !important;
+    max-width: 2.5rem !important;
+  }
+  
+  /* Force override for nested elements and Button components */
+  .mobile-submit-button *,
+  .mobile-submit-button .lucide {
+    height: inherit !important;
+    width: inherit !important;
+  }
+  
+  /* Specific override for Button component from shadcn */
+  .mobile-submit-button button {
+    height: 2.5rem !important;
+    width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    min-width: 2.5rem !important;
+  }
+  
+  
+  /* Plus menu button */
+  .mobile-plus-button {
+    padding: 0.625rem !important; /* 8px -> 10px (25% larger) */
+  }
+  
+  /* Plus menu items */
+  .mobile-plus-menu-item {
+    padding: 0.625rem !important; /* 8px -> 10px (25% larger) */
+  }
+  
+  /* Recording control buttons */
+  .mobile-record-button {
+    padding: 0.3125rem !important; /* 4px -> 5px (25% larger) */
+  }
+  
+  /* Model picker chevron - keep positioning but scale icon */
+  .mobile-chevron {
+    height: 0.9375rem !important; /* 12px -> 15px (25% larger) */
+    width: 0.9375rem !important;  /* 12px -> 15px (25% larger) */
+  }
+  
+  /* General icon scaling */
+  .mobile-icon {
+    height: 1.5625rem !important; /* 20px -> 25px (25% larger) */
+    width: 1.5625rem !important;  /* 20px -> 25px (25% larger) */
+  }
+  
+  /* Smaller icons (17px -> ~21px) */
+  .mobile-icon-small {
+    height: 1.3125rem !important; /* 17px -> 21.25px (25% larger) */
+    width: 1.3125rem !important;  /* 17px -> 21.25px (25% larger) */
+  }
+  
+  /* Loading spinner scaling */
+  .mobile-spinner {
+    height: 1.5625rem !important; /* 20px -> 25px (25% larger) */
+    width: 1.5625rem !important;  /* 20px -> 25px (25% larger) */
+  }
+  
+  /* Waveform icon scaling */
+  .mobile-waveform {
+    height: 1.5625rem !important; /* 20px -> 25px (25% larger) */
+    width: 1.5625rem !important;  /* 20px -> 25px (25% larger) */
+  }
+  
+  /* TTS/STT buttons should match main submit button exactly */
+  .mobile-tts-button {
+    height: 2.5rem !important;
+    width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    max-height: 2.5rem !important;
+    max-width: 2.5rem !important;
+  }
+  
+  .mobile-stt-button {
+    height: 2.5rem !important;
+    width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    max-height: 2.5rem !important;
+    max-width: 2.5rem !important;
+  }
+  
+  /* Override shadcn Button component */
+  .mobile-stt-button button,
+  .mobile-stt-button .mobile-stt-button {
+    height: 2.5rem !important;
+    width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    max-height: 2.5rem !important;
+    max-width: 2.5rem !important;
+  }
+  
+  /* Specific override for submit button */
+  .chat-input-layout button.mobile-stt-button[aria-label="Submit recording"] {
+    height: 2.5rem !important;
+    width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    max-height: 2.5rem !important;
+    max-width: 2.5rem !important;
+  }
+  
+  /* Scale TTS/STT icons proportionally while preserving stroke */
+  .mobile-tts-icon {
+    height: 1.25rem !important; /* 16px -> 20px (25% larger) */
+    width: 1.25rem !important;
+  }
+  
+  .mobile-stt-icon {
+    height: 1.5625rem !important; /* 20px -> 25px (25% larger) */
+    width: 1.5625rem !important;
+  }
+  
+  .mobile-stt-cancel-icon {
+    height: 1.5625rem !important; /* 20px -> 25px (25% larger) */  
+    width: 1.5625rem !important;
+  }
+}

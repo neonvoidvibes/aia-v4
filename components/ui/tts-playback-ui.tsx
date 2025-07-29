@@ -36,13 +36,13 @@ const TTSPlaybackUI: React.FC<TTSPlaybackUIProps> = ({ onStop, playbackTime, isL
           type="button"
           onClick={onStop}
           className={cn(
-            "transition-all duration-200 rounded-full flex items-center justify-center",
+            "transition-all duration-200 rounded-full flex items-center justify-center mobile-tts-button",
             "h-8 w-8",
             "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
           )}
           aria-label="Stop playback"
         >
-          <Square size={16} className="fill-current" />
+          <Square className="fill-current mobile-tts-icon" />
         </button>
       </div>
     </div>

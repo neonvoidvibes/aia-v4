@@ -2940,18 +2940,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       </div>
                       <div className="flex items-center justify-between w-full mt-1">
                         <div className="relative" ref={plusMenuRef}>
-                          <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
-                            <SlidersIcon size={20} />
+                          <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-button", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
+                            <SlidersIcon size={20} className="mobile-icon" />
                           </button>
                         {showPlusMenu && (
                             <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
-                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} title="Attach file">
-                                <Paperclip size={17} />
+                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item" onClick={attachDocument} title="Attach file">
+                                <Paperclip size={17} className="mobile-icon-small" />
                               </button>
                               <button
                                 type="button"
                                 className={cn(
-                                  "p-2 plus-menu-item",
+                                  "p-2 plus-menu-item mobile-plus-menu-item",
                                   conversationSaveMarkerMessageId
                                     ? "text-[hsl(var(--save-memory-color))]"
                                     : "text-[hsl(var(--icon-secondary))]",
@@ -2966,17 +2966,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                <Bookmark
                                   size={17}
                                   className={cn(
+                                    "mobile-icon-small",
                                     conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
                                   )}
                                 />
                               </button>
-                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={saveChat} title="Download chat">
-                                <Download size={17} />
+                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item" onClick={saveChat} title="Download chat">
+                                <Download size={17} className="mobile-icon-small" />
                               </button>
                               <button
                                 type="button"
                                 className={cn(
                                   micButtonClass,
+                                  "mobile-plus-menu-item",
                                   "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
                                   isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
                                   isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
@@ -2994,7 +2996,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 }
                                 disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
                               >
-                                <Mic size={17} />
+                                <Mic size={17} className="mobile-icon-small" />
                               </button>
                             </motion.div>
                           )}
@@ -3002,19 +3004,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         <div className="relative" ref={recordUIRef}>
                           {showRecordUI && isBrowserRecording && (
                             <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.3 }} className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" onMouseMove={handleRecordUIMouseMove} onClick={(e) => e.stopPropagation()}>
-                              <button type="button" className={cn("p-1 record-ui-button", (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait")} onClick={handlePlayPauseMicClick} disabled={!!pendingActionRef.current} aria-label={isBrowserPaused ? "Resume recording" : "Pause recording"}>
+                              <button type="button" className={cn("p-1 record-ui-button mobile-record-button", (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait")} onClick={handlePlayPauseMicClick} disabled={!!pendingActionRef.current} aria-label={isBrowserPaused ? "Resume recording" : "Pause recording"}>
                                 {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream')
-                                  ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))]" />
+                                  ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))] mobile-spinner" />
                                   : (isBrowserPaused
-                                    ? <Play size={20} className="text-yellow-500 dark:text-yellow-400" />
-                                    : <Pause size={20} className="text-[hsl(var(--icon-destructive))]" />
+                                    ? <Play size={20} className="text-yellow-500 dark:text-yellow-400 mobile-icon" />
+                                    : <Pause size={20} className="text-[hsl(var(--icon-destructive))] mobile-icon" />
                                   )
                                 }
                               </button>
-                              <button type="button" className={cn("p-1 record-ui-button", pendingActionRef.current === 'stop' && "opacity-50 cursor-wait")} onClick={handleStopRecording} disabled={!!pendingActionRef.current} aria-label="Stop recording">
+                              <button type="button" className={cn("p-1 record-ui-button mobile-record-button", pendingActionRef.current === 'stop' && "opacity-50 cursor-wait")} onClick={handleStopRecording} disabled={!!pendingActionRef.current} aria-label="Stop recording">
                                 {pendingActionRef.current === 'stop'
-                                  ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))]" />
-                                  : <StopCircle size={20} className="text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]"/>
+                                  ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))] mobile-spinner" />
+                                  : <StopCircle size={20} className="text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-icon"/>
                                 }
                               </button>
                               <span ref={recordControlsTimerDisplayRef} className="text-sm font-medium text-[hsl(var(--text-secondary))] ml-1">{formatTime(clientRecordingTime)}</span>
@@ -3045,7 +3047,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   >
                                     {MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}
                                   </span>
-                                  <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                                  <ChevronDown className="h-3 w-3 flex-shrink-0 mobile-chevron" />
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
@@ -3067,13 +3069,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 type="button"
                                 onClick={stop}
                                 className={cn(
-                                  "transition-all duration-200 rounded-full flex items-center justify-center",
+                                  "transition-all duration-200 rounded-full flex items-center justify-center mobile-submit-button",
                                   "h-8 w-8",
                                   "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
                                 )}
                                 aria-label="Stop generating"
                               >
-                                <Square size={16} className="fill-current" />
+                                <Square size={16} className="fill-current mobile-icon" />
                               </button>
                             ) : (
                               <button
@@ -3086,7 +3088,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   }
                                 }}
                                 className={cn(
-                                  "transition-all duration-200 rounded-full flex items-center justify-center",
+                                  "transition-all duration-200 rounded-full flex items-center justify-center mobile-submit-button",
                                   "h-8 w-8",
                                   isPageReady && (input.trim() || attachedFiles.length > 0) &&
                                     "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
@@ -3104,14 +3106,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 aria-label={input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message"}
                               >
                                 {pressToTalkState === 'transcribing' ? (
-                                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/20 text-primary">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/20 text-primary mobile-submit-button">
+                                    <Loader2 className="h-5 w-5 animate-spin mobile-spinner" />
                                   </div>
                                 ) : input.trim() || attachedFiles.length > 0 ? (
-                                  <ArrowUp size={20} />
+                                  <ArrowUp size={20} className="mobile-icon" />
                                 ) : (
-                                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))]">
-                                    <WaveformIcon size={20} />
+                                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] mobile-submit-button">
+                                    <WaveformIcon size={20} className="mobile-waveform" />
                                   </div>
                                 )}
                               </button>

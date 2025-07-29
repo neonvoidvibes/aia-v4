@@ -29,15 +29,15 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
         {/* Waveform removed as per request */}
       </div>
       <div className="w-full flex items-center justify-between mt-1">
-        <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))]">
+        <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))] mobile-stt-button">
           <Button
             variant="ghost"
             size="icon"
             onClick={onCancel}
-            className="h-full w-full rounded-full hover:opacity-90"
+            className="h-full w-full rounded-full hover:opacity-90 mobile-stt-button"
             aria-label="Cancel recording"
           >
-            <X className="h-5 w-5" />
+            <X className="mobile-stt-cancel-icon" />
           </Button>
         </div>
         <div className="flex-1 flex items-center justify-center px-4">
@@ -49,13 +49,13 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
           type="button"
           onClick={onSubmit}
           className={cn(
-            "transition-all duration-200 rounded-full flex items-center justify-center",
+            "transition-all duration-200 rounded-full flex items-center justify-center mobile-stt-button",
             "h-8 w-8",
             "bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))] hover:opacity-90"
           )}
           aria-label="Submit recording"
         >
-          <ArrowUp size={20} />
+          <ArrowUp className="mobile-stt-icon" />
         </button>
       </div>
     </div>
