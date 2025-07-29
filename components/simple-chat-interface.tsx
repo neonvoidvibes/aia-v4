@@ -2323,15 +2323,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   const handleTextAreaInput = (e: ChangeEvent<HTMLTextAreaElement>) => {
     handleInputChange(e);
     const textarea = e.target;
-    // Temporarily shrink to calculate the true scrollHeight
+    
+    // Reset height to auto to calculate the new scrollHeight
     textarea.style.height = 'auto';
-    // The +2 is a small buffer to prevent scrollbar flicker on some browsers
+    // The +2 is a small buffer to prevent scrollbar flicker
     const scrollHeight = textarea.scrollHeight + 2;
 
-    // Max height for approx 7 lines (line-height is 1.5, font-size is ~16-19px, so ~24-28px per line)
-    // 7 * 28 = 196. Let's use 200px as a generous max-height.
+    // Max height for approx 7 lines.
     const maxHeight = 200; 
+    
+    // Set the new height, respecting the min-height set in the style attribute
     textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+    
     // Enable scrolling if we've hit the max height
     textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
   };
@@ -2899,25 +2902,27 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     />
                   ) : ( // Regular input view
                     <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] py-3 px-3 flex flex-col")}>
-                      <textarea
-                        ref={textareaRef}
-                        value={input}
-                        onChange={handleTextAreaInput}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            if (input.trim() || attachedFiles.length > 0) {
-                                onSubmit(e as any);
+                      <div className="w-full flex items-center" style={{ minHeight: '52px' }}>
+                        <textarea
+                          ref={textareaRef}
+                          value={input}
+                          onChange={handleTextAreaInput}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              if (input.trim() || attachedFiles.length > 0) {
+                                  onSubmit(e as any);
+                              }
                             }
-                          }
-                        }}
-                        placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : "Share or ask anything")}
-                        className="chat-textarea w-full bg-transparent px-2 outline-none resize-none placeholder:text-[hsl(var(--placeholder-text-color))] dark:placeholder:text-zink-500"
-                        disabled={!isPageReady || !!pendingAction || pressToTalkState !== 'idle'}
-                        aria-label="Chat input"
-                        rows={1}
-                        style={{ height: 'auto', overflowY: 'hidden' }}
-                      />
+                          }}
+                          placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : "Share or ask anything")}
+                          className="chat-textarea w-full bg-transparent px-2 outline-none resize-none placeholder:text-[hsl(var(--placeholder-text-color))] dark:placeholder:text-zink-500"
+                          disabled={!isPageReady || !!pendingAction || pressToTalkState !== 'idle'}
+                          aria-label="Chat input"
+                          rows={1}
+                          style={{ height: 'auto', overflowY: 'hidden' }}
+                        />
+                      </div>
                       <div className="flex items-center justify-between w-full mt-1">
                         <div className="relative" ref={plusMenuRef}>
                           <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
