@@ -2318,8 +2318,18 @@ button {
     max-width: 2.5rem !important;
   }
   
-  /* Specific override for submit button */
+  /* Specific override for STT submit button */
   .chat-input-layout button.mobile-stt-button[aria-label="Submit recording"] {
+    height: 2.5rem !important;
+    width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    max-height: 2.5rem !important;
+    max-width: 2.5rem !important;
+  }
+  
+  /* Specific override for TTS stop button */
+  .chat-input-layout button.mobile-tts-button[aria-label="Stop playback"] {
     height: 2.5rem !important;
     width: 2.5rem !important;
     min-height: 2.5rem !important;
