@@ -2911,7 +2911,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             }
                           }
                         }}
-                        placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : "Ask anything")}
+                        placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : "Ask or share anything")}
                         className="chat-textarea w-full bg-transparent px-2 outline-none resize-none placeholder:text-[hsl(var(--placeholder-text-color))] dark:placeholder:text-zink-500"
                         disabled={!isPageReady || !!pendingAction || pressToTalkState !== 'idle'}
                         aria-label="Chat input"

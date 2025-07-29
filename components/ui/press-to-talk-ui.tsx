@@ -48,35 +48,40 @@ const PressToTalkUI: React.FC<PressToTalkUIProps> = ({
   recordingTime,
 }) => {
   return (
-    <div className={cn("chat-input-layout bg-primary rounded-full p-2 flex items-center w-full")}>
-      <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))]">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onCancel}
-          className="h-full w-full rounded-full hover:opacity-90"
-          aria-label="Cancel recording"
+    <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] py-3 px-3 flex flex-col")}>
+      <div className="w-full flex items-center justify-center">
+        <Waveform />
+      </div>
+      <div className="w-full flex items-center justify-between mt-1">
+        <div className="h-8 w-8 rounded-full flex items-center justify-center bg-background/50 text-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCancel}
+            className="h-full w-full rounded-full hover:opacity-90"
+            aria-label="Cancel recording"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="flex-1 flex items-center justify-center px-4">
+          <span className="font-mono text-sm text-foreground w-full text-center">
+            {formatTime(recordingTime)}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onSubmit}
+          className={cn(
+            "transition-all duration-200 rounded-full flex items-center justify-center",
+            "h-8 w-8",
+            "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90"
+          )}
+          aria-label="Submit recording"
         >
-          <X className="h-5 w-5" />
-        </Button>
+          <ArrowUp size={20} />
+        </button>
       </div>
-      <div className="flex-1 flex items-center justify-center px-4">
-        <span className="font-mono text-sm text-primary-foreground w-full text-center">
-          {formatTime(recordingTime)}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={onSubmit}
-        className={cn(
-          "transition-all duration-200 rounded-full flex items-center justify-center",
-          "h-9 w-9 sm:h-10 sm:w-10",
-          "bg-[hsl(var(--button-submit-fg-active))] text-[hsl(var(--button-submit-bg-active))] hover:opacity-90"
-        )}
-        aria-label="Submit recording"
-      >
-        <ArrowUp size={24} />
-      </button>
     </div>
   );
 };
