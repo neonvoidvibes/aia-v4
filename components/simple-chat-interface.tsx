@@ -2040,20 +2040,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
             
             if (isMobileDevice) {
-                // All mobile devices: Use scrollIntoView with CSS scroll-margin for precise positioning
+                // Mobile: Force scroll to exact position where message appears at container top
                 const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
                 if (lastUserMessage) {
-                    // Temporarily set scroll margin to position at top
-                    lastUserMessage.style.scrollMarginTop = '0px';
-                    lastUserMessage.scrollIntoView({ 
-                        behavior: 'auto', 
-                        block: 'start',
-                        inline: 'nearest'
-                    });
-                    // Reset scroll margin after scroll
-                    setTimeout(() => {
-                        lastUserMessage.style.scrollMarginTop = '';
-                    }, 100);
+                    // Calculate exact scroll position to put message at container top
+                    const containerRect = container.getBoundingClientRect();
+                    const messageRect = lastUserMessage.getBoundingClientRect();
+                    const currentScroll = container.scrollTop;
+                    const targetScroll = currentScroll + (messageRect.top - containerRect.top);
+                    
+                    container.scrollTop = targetScroll;
                 }
             } else {
                 container.scrollTo({
