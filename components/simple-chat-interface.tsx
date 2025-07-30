@@ -2030,7 +2030,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             const idealScrollTop = messageOffsetTop - topPadding;
             const targetScrollTop = Math.max(0, idealScrollTop);
             
-            console.log('Screen height:', vh, 'Container height:', containerHeight, 'Message offsetTop:', messageOffsetTop, 'Target scroll:', targetScrollTop, 'ScrollHeight:', container.scrollHeight);
+            console.log('iOS Safari Debug - Screen height:', vh, 'Container height:', containerHeight, 'Message offsetTop:', messageOffsetTop, 'Target scroll:', targetScrollTop, 'ScrollHeight:', container.scrollHeight, 'Current scrollTop:', container.scrollTop, 'TopPadding:', topPadding, 'isSafariMobile:', isSafariMobile);
             
             // console.log('[Scroll Debug] Message offsetTop:', messageOffsetTop, 'Target scrollTop:', targetScrollTop, 'Current scrollTop:', container.scrollTop);
             // Don't scroll during assistant responses - double-check for iOS Safari
@@ -2040,11 +2040,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             if (isSafariMobile) {
                 // Try multiple approaches for Safari Mobile
+                console.log('iOS Safari: Before scroll - scrollTop:', container.scrollTop);
                 container.scrollTop = targetScrollTop;
+                console.log('iOS Safari: After scrollTop assignment - scrollTop:', container.scrollTop);
+                
                 // Also try scrollIntoView as fallback
                 const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
                 if (lastUserMessage) {
                     lastUserMessage.scrollIntoView({ behavior: 'auto', block: 'start' });
+                    console.log('iOS Safari: After scrollIntoView - scrollTop:', container.scrollTop);
                 }
             } else {
                 container.scrollTo({
