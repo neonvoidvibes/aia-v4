@@ -1998,15 +1998,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             // Calculate how much to scroll to put message at top of viewport
             const containerHeight = container.clientHeight;
             
-            // Simplified positioning with iOS Safari-specific values
+            // Mobile vs Desktop positioning
+            const isMobileDevice = /iPad|iPhone|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
             let topPadding;
             
-            if (isSafariMobile) {
-                // Extremely minimal padding for iOS Safari - aim for actual top
+            if (isMobileDevice) {
+                // All mobile devices get minimal padding for top positioning
                 topPadding = 0;
             } else {
-                // Desktop/other mobile - use piecewise function
+                // Desktop only - use piecewise function
                 if (containerHeight >= 500) {
                     const base1 = 15;
                     const scale1 = 6000;
@@ -2038,8 +2039,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 return;
             }
             
-            if (isSafariMobile) {
-                // iOS Safari: Use scrollIntoView with CSS scroll-margin for precise positioning
+            if (isMobileDevice) {
+                // All mobile devices: Use scrollIntoView with CSS scroll-margin for precise positioning
                 const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
                 if (lastUserMessage) {
                     // Temporarily set scroll margin to position at top
