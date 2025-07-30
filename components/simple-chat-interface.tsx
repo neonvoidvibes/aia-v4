@@ -2020,6 +2020,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 topPadding = base3 + (scale3 / Math.pow(containerHeight, power3));
             }
             topPadding = Math.max(12, topPadding);
+            
+            // iOS Safari adjustment - reduce padding further due to different rendering
+            const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            if (isSafariMobile) {
+                topPadding = Math.max(5, topPadding * 0.6); // Reduce by 40%
+            }
+            
             // Calculate target scroll position without constraints
             const idealScrollTop = messageOffsetTop - topPadding;
             const targetScrollTop = Math.max(0, idealScrollTop);
