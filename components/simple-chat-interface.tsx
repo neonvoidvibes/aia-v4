@@ -1172,6 +1172,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             };
             
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
+            
+            // Clear system messages immediately upon new user submit
+            setMessages(prevMessages => prevMessages.filter(msg => msg.role !== "system"));
+            
             originalHandleSubmit(e as React.FormEvent<HTMLFormElement>, { data: augmentedBody });
             
             // Reset textarea height after submission
@@ -1887,8 +1891,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               setChatTitle(chatData.title);
 
               if (chatData.messages && Array.isArray(chatData.messages)) {
-                setMessages(chatData.messages);
-                console.info("[Load Chat History] Loaded", chatData.messages.length, "messages for chat:", chatData.id);
+                // Clear system messages immediately when loading chat history
+                const filteredMessages = chatData.messages.filter(msg => msg.role !== "system");
+                setMessages(filteredMessages);
+                console.info("[Load Chat History] Loaded", filteredMessages.length, "messages for chat:", chatData.id, "(system messages cleared)");
               }
 
               // Populate saved states from the loaded data
@@ -2585,7 +2591,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         />
                                       </div>
                                     )}
-                                    <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm italic text-center max-w-[90%]` : "bg-transparent ai-bubble pl-0" )}>
+                                    <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm text-center max-w-[90%] opacity-50 pb-6` : "bg-transparent ai-bubble pl-0" )} data-role={isSystem ? "system" : undefined}>
                                       {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>}
                                       {isUser || isSystem ? (
                                         <span

@@ -1023,11 +1023,12 @@ body {
     background-color: transparent;
     color: hsl(var(--muted-foreground));
     font-size: 0.875rem; /* text-sm */
-    font-style: italic;
+    font-style: normal; /* Remove italic */
     text-align: center;
     max-width: 90%;
     align-self: center;
-    padding: 8px 16px;
+    padding: 8px 16px 24px 16px; /* Add more bottom padding */
+    opacity: 0.5; /* Add 0.5 opacity */
 }
 
 /* NEW: Error message styling */
