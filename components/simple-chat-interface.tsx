@@ -1945,12 +1945,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         effectiveScrollHeight = lastMessageBottom + paddingTop + 50; // Add some buffer
       }
       
-      const atBottomThresholdForLogic = 2;
+      // More generous threshold for iOS Safari to account for scroll calculation inconsistencies
+      const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const atBottomThresholdForLogic = isSafariMobile ? 10 : 2;
       const atBottomThresholdForButtonVisibility = 180;
       const isScrollable = effectiveScrollHeight > ch;
       const isAtBottomForLogic = (effectiveScrollHeight - st - ch) < atBottomThresholdForLogic;
-      if (st < prevScrollTopRef.current && !isAtBottomForLogic && !userHasScrolledRef.current) userHasScrolledRef.current = true;
-      else if (userHasScrolledRef.current && isAtBottomForLogic) userHasScrolledRef.current = false;
+      
+      // Only mark as user-scrolled if there's a significant upward scroll movement AND not at bottom
+      const scrollUpDistance = prevScrollTopRef.current - st;
+      const significantScrollUp = scrollUpDistance > (isSafariMobile ? 20 : 10);
+      
+      if (significantScrollUp && !isAtBottomForLogic && !userHasScrolledRef.current) {
+        userHasScrolledRef.current = true;
+      } else if (userHasScrolledRef.current && isAtBottomForLogic) {
+        userHasScrolledRef.current = false;
+      }
+      
       prevScrollTopRef.current = st;
       const isAtBottomForButton = (effectiveScrollHeight - st - ch) < atBottomThresholdForButtonVisibility;
       setShowScrollToBottom(isScrollable && !isAtBottomForButton);
@@ -2643,7 +2654,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [messages, errorMessages, processedProposalIds]);
     return (
         <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
-            <div className="messages-container" ref={messagesContainerRef} style={{ paddingLeft: '8px', paddingRight: '8px', overflow: 'auto' }}>
+            <div className="messages-container" ref={messagesContainerRef} style={{ 
+                paddingLeft: '8px', 
+                paddingRight: '8px', 
+                overflow: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                transform: 'translateZ(0)',
+                willChange: 'scroll-position'
+            }}>
                 {combinedMessages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {combinedMessages.length === 0 && isPageReady &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10 px-8"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
                 {combinedMessages.length > 0 && (
