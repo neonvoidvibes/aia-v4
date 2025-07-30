@@ -1985,15 +1985,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 const power1 = 0.7;
                 topPadding = base1 + (scale1 / Math.pow(containerHeight, power1));
             } else if (containerHeight >= 300) {
-                // Medium containers: steeper curve
-                const base2 = 25;
-                const scale2 = 8000;
+                // Medium containers: reduce padding to push message up
+                const base2 = 20;
+                const scale2 = 7000;
                 const power2 = 0.8;
                 topPadding = base2 + (scale2 / Math.pow(containerHeight, power2));
             } else {
-                // Small containers: very steep curve
-                const base3 = 35;
-                const scale3 = 10000;
+                // Small containers: reduce padding to push message up
+                const base3 = 15;
+                const scale3 = 7000;
                 const power3 = 0.9;
                 topPadding = base3 + (scale3 / Math.pow(containerHeight, power3));
             }
