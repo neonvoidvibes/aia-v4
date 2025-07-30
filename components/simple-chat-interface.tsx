@@ -818,8 +818,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const pressToTalkMediaRecorderRef = useRef<MediaRecorder | null>(null);
     const pressToTalkTimerRef = useRef<NodeJS.Timeout | null>(null);
     const pressToTalkStreamRef = useRef<MediaStream | null>(null);
+    const transcriptionRequestIdRef = useRef<string | null>(null);
 
     const _transcribeAndSend = async (audioBlob: Blob) => {
+      // Generate unique request ID to prevent duplicate processing
+      const requestId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
+      transcriptionRequestIdRef.current = requestId;
+
       const formData = new FormData();
       formData.append('audio_file', audioBlob, 'voice_message.webm');
       if (agentName) {
@@ -831,6 +836,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           method: 'POST',
           body: formData,
         });
+
+        // Check if this request is still the current one (prevents race conditions)
+        if (transcriptionRequestIdRef.current !== requestId) {
+          console.log('Ignoring outdated transcription request');
+          return;
+        }
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -866,19 +877,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }, { data: augmentedBody });
           } catch (appendError) {
             console.error("Error sending transcribed message:", appendError);
-            // Don't show toast error for append failures since the transcription was successful
+            toast.error("Failed to send message");
           }
         } else {
           // Only show error if transcription actually failed (empty result)
           toast.error("No speech detected in the recording");
         }
       } catch (error) {
-        console.error("Transcription error:", error);
-        // Only show toast error for actual transcription failures
-        toast.error((error as Error).message);
+        // Only show error if this is still the current request
+        if (transcriptionRequestIdRef.current === requestId) {
+          console.error("Transcription error:", error);
+          toast.error((error as Error).message);
+        }
       } finally {
-        setPressToTalkState('idle');
-        setGlobalRecordingStatus({ isRecording: false, type: null });
+        // Only update state if this is still the current request
+        if (transcriptionRequestIdRef.current === requestId) {
+          setPressToTalkState('idle');
+          setGlobalRecordingStatus({ isRecording: false, type: null });
+          transcriptionRequestIdRef.current = null;
+        }
       }
     };
 
@@ -933,6 +950,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     };
 
     const handleSubmitPressToTalk = () => {
+      // Prevent duplicate submissions
+      if (pressToTalkState === 'transcribing') {
+        return;
+      }
+
       // Reset timer immediately when submit is pressed
       if (pressToTalkTimerRef.current) {
         clearInterval(pressToTalkTimerRef.current);
@@ -951,6 +973,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     };
 
     const handleCancelPressToTalk = () => {
+      // Cancel any pending transcription request
+      transcriptionRequestIdRef.current = null;
+      
       if (pressToTalkMediaRecorderRef.current && pressToTalkMediaRecorderRef.current.state === 'recording') {
         pressToTalkMediaRecorderRef.current.onstop = null; // Detach onstop to prevent transcription
         pressToTalkMediaRecorderRef.current.stop();
