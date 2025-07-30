@@ -1423,7 +1423,7 @@ body {
 /* Scroll to bottom button */
 .scroll-to-bottom-button {
   position: absolute;
-  bottom: 150px; /* Moved up to avoid overlaying input area */
+  bottom: 180px; /* Moved up from 150px to 180px */
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(128, 128, 128, 0.3); /* Fallback transparent background */
@@ -1446,7 +1446,7 @@ body {
 /* Mobile positioning for scroll button */
 @media (max-width: 640px) {
   .scroll-to-bottom-button {
-    bottom: 135px; /* Moved up to avoid overlaying input area on mobile */
+    bottom: 165px; /* Moved up from 135px to 165px on mobile */
   }
 }
 /* Light mode scroll button styling */
@@ -2082,22 +2082,22 @@ button {
 /* Enhanced spacing between messages and input field */
 .messages-container {
   /* Additional bottom padding to ensure proper spacing from input */
-  padding-bottom: 2rem !important; /* 32px base spacing */
+  padding-bottom: 3rem !important; /* Increased from 32px to 48px base spacing */
 }
 
 /* Enhanced margin for thinking indicators near input field */
 .thinking-indicator {
-  margin-bottom: 1.5rem; /* 24px spacing from input */
+  margin-bottom: 2.5rem; /* Increased from 24px to 40px spacing from input */
 }
 
 /* Mobile-specific spacing adjustments */
 @media (max-width: 640px) {
   .messages-container {
-    padding-bottom: 2.5rem !important; /* 40px on mobile for better touch spacing */
+    padding-bottom: 3.5rem !important; /* Increased from 40px to 56px on mobile for better touch spacing */
   }
   
   .thinking-indicator {
-    margin-bottom: 2rem; /* 32px on mobile for better touch spacing */
+    margin-bottom: 3rem; /* Increased from 32px to 48px on mobile for better touch spacing */
   }
 }
 
