@@ -2034,8 +2034,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.log('Screen height:', vh, 'Container height:', containerHeight, 'Message offsetTop:', messageOffsetTop, 'Target scroll:', targetScrollTop, 'ScrollHeight:', container.scrollHeight);
             
             // console.log('[Scroll Debug] Message offsetTop:', messageOffsetTop, 'Target scrollTop:', targetScrollTop, 'Current scrollTop:', container.scrollTop);
-            
-            const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
             if (isSafariMobile) {
                 // Try multiple approaches for Safari Mobile
                 container.scrollTop = targetScrollTop;
