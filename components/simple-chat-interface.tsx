@@ -1945,16 +1945,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         effectiveScrollHeight = lastMessageBottom + paddingTop + 50; // Add some buffer
       }
       
-      // More generous threshold for iOS Safari to account for scroll calculation inconsistencies
+      // Much more generous threshold for iOS Safari to prevent false detection
       const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const atBottomThresholdForLogic = isSafariMobile ? 10 : 2;
+      const atBottomThresholdForLogic = isSafariMobile ? 30 : 2;
       const atBottomThresholdForButtonVisibility = 180;
       const isScrollable = effectiveScrollHeight > ch;
       const isAtBottomForLogic = (effectiveScrollHeight - st - ch) < atBottomThresholdForLogic;
       
-      // Only mark as user-scrolled if there's a significant upward scroll movement AND not at bottom
+      // Require much larger scroll movements on iOS Safari to avoid false positives
       const scrollUpDistance = prevScrollTopRef.current - st;
-      const significantScrollUp = scrollUpDistance > (isSafariMobile ? 20 : 10);
+      const significantScrollUp = scrollUpDistance > (isSafariMobile ? 40 : 10);
       
       if (significantScrollUp && !isAtBottomForLogic && !userHasScrolledRef.current) {
         userHasScrolledRef.current = true;
@@ -1998,33 +1998,32 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             // Calculate how much to scroll to put message at top of viewport
             const containerHeight = container.clientHeight;
             
-            // Piecewise function with different curves for different size ranges
-            let topPadding;
-            if (containerHeight >= 500) {
-                // Large containers: gentle curve
-                const base1 = 15;
-                const scale1 = 6000;
-                const power1 = 0.7;
-                topPadding = base1 + (scale1 / Math.pow(containerHeight, power1));
-            } else if (containerHeight >= 300) {
-                // Medium containers: reduce padding to push message up
-                const base2 = 20;
-                const scale2 = 7000;
-                const power2 = 0.8;
-                topPadding = base2 + (scale2 / Math.pow(containerHeight, power2));
-            } else {
-                // Small containers: reduce padding to push message up
-                const base3 = 15;
-                const scale3 = 7000;
-                const power3 = 0.9;
-                topPadding = base3 + (scale3 / Math.pow(containerHeight, power3));
-            }
-            topPadding = Math.max(12, topPadding);
-            
-            // iOS Safari adjustment - reduce padding further due to different rendering
+            // Simplified positioning with iOS Safari-specific values
             const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            let topPadding;
+            
             if (isSafariMobile) {
-                topPadding = Math.max(5, topPadding * 0.6); // Reduce by 40%
+                // Extremely minimal padding for iOS Safari - aim for actual top
+                topPadding = 0;
+            } else {
+                // Desktop/other mobile - use piecewise function
+                if (containerHeight >= 500) {
+                    const base1 = 15;
+                    const scale1 = 6000;
+                    const power1 = 0.7;
+                    topPadding = base1 + (scale1 / Math.pow(containerHeight, power1));
+                } else if (containerHeight >= 300) {
+                    const base2 = 20;
+                    const scale2 = 7000;
+                    const power2 = 0.8;
+                    topPadding = base2 + (scale2 / Math.pow(containerHeight, power2));
+                } else {
+                    const base3 = 15;
+                    const scale3 = 7000;
+                    const power3 = 0.9;
+                    topPadding = base3 + (scale3 / Math.pow(containerHeight, power3));
+                }
+                topPadding = Math.max(12, topPadding);
             }
             
             // Calculate target scroll position without constraints
