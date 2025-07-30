@@ -2039,16 +2039,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
             
             if (isSafariMobile) {
-                // Try multiple approaches for Safari Mobile
-                console.log('iOS Safari: Before scroll - scrollTop:', container.scrollTop);
-                container.scrollTop = targetScrollTop;
-                console.log('iOS Safari: After scrollTop assignment - scrollTop:', container.scrollTop);
-                
-                // Also try scrollIntoView as fallback
+                // iOS Safari: Use scrollIntoView with CSS scroll-margin for precise positioning
                 const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
                 if (lastUserMessage) {
-                    lastUserMessage.scrollIntoView({ behavior: 'auto', block: 'start' });
-                    console.log('iOS Safari: After scrollIntoView - scrollTop:', container.scrollTop);
+                    // Temporarily set scroll margin to position at top
+                    lastUserMessage.style.scrollMarginTop = '0px';
+                    lastUserMessage.scrollIntoView({ 
+                        behavior: 'auto', 
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                    // Reset scroll margin after scroll
+                    setTimeout(() => {
+                        lastUserMessage.style.scrollMarginTop = '';
+                    }, 100);
                 }
             } else {
                 container.scrollTo({
