@@ -918,13 +918,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     };
 
     const handleSubmitPressToTalk = () => {
+      // Reset timer immediately when submit is pressed
+      if (pressToTalkTimerRef.current) {
+        clearInterval(pressToTalkTimerRef.current);
+        pressToTalkTimerRef.current = null;
+      }
+      setPressToTalkTime(0);
+      
       if (pressToTalkMediaRecorderRef.current && pressToTalkMediaRecorderRef.current.state === 'recording') {
         pressToTalkMediaRecorderRef.current.stop(); // This will trigger the onstop handler for cleanup
       }
-      if (pressToTalkTimerRef.current) {
-        clearInterval(pressToTalkTimerRef.current);
-      }
-      setPressToTalkTime(0);
     };
 
     const handleCancelPressToTalk = () => {
