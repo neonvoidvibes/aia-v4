@@ -1960,8 +1960,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Find the last actual message instead of scrolling to padding
         const allMessages = document.querySelectorAll('[data-role]');
         const lastMessage = allMessages[allMessages.length - 1] as HTMLElement;
-        if (lastMessage) {
-            lastMessage.scrollIntoView({ behavior: b, block: 'end' });
+        if (lastMessage && messagesContainerRef.current) {
+            // Scroll to last message with extra padding
+            const container = messagesContainerRef.current;
+            const messageRect = lastMessage.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const targetScroll = container.scrollTop + (messageRect.bottom - containerRect.top) + 50; // Add 50px extra
+            container.scrollTo({ top: targetScroll, behavior: b });
         } else if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: b });
         }
@@ -2019,13 +2024,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
             if (isSafariMobile) {
-                // Try multiple approaches for Safari Mobile
-                container.scrollTop = targetScrollTop;
-                // Also try scrollIntoView as fallback
-                const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
-                if (lastUserMessage) {
-                    lastUserMessage.scrollIntoView({ behavior: 'auto', block: 'start' });
-                }
+                // Force multiple scroll attempts for Safari Mobile
+                setTimeout(() => {
+                    container.scrollTop = targetScrollTop;
+                    const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
+                    if (lastUserMessage) {
+                        lastUserMessage.scrollIntoView({ behavior: 'auto', block: 'start' });
+                        // Force one more time
+                        setTimeout(() => container.scrollTop = targetScrollTop, 100);
+                    }
+                }, 50);
             } else {
                 container.scrollTo({
                     top: targetScrollTop,
