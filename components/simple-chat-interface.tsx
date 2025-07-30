@@ -1956,7 +1956,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       setShowScrollToBottom(isScrollable && !isAtBottomForButton);
     }, []);
 
-    const scrollToBottom = useCallback((b: ScrollBehavior = "smooth") => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: b }); userHasScrolledRef.current = false; setShowScrollToBottom(false); }, []);
+    const scrollToBottom = useCallback((b: ScrollBehavior = "smooth") => { 
+        // Find the last actual message instead of scrolling to padding
+        const allMessages = document.querySelectorAll('[data-role]');
+        const lastMessage = allMessages[allMessages.length - 1] as HTMLElement;
+        if (lastMessage) {
+            lastMessage.scrollIntoView({ behavior: b, block: 'end' });
+        } else if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: b });
+        }
+        userHasScrolledRef.current = false; 
+        setShowScrollToBottom(false); 
+    }, []);
     
     const scrollToShowUserMessageAtTop = useCallback(() => {
         // console.log('[Scroll Debug] scrollToShowUserMessageAtTop called');
@@ -2008,8 +2019,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
             if (isSafariMobile) {
-                // Force scroll on Safari Mobile by setting scrollTop directly
+                // Try multiple approaches for Safari Mobile
                 container.scrollTop = targetScrollTop;
+                // Also try scrollIntoView as fallback
+                const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
+                if (lastUserMessage) {
+                    lastUserMessage.scrollIntoView({ behavior: 'auto', block: 'start' });
+                }
             } else {
                 container.scrollTo({
                     top: targetScrollTop,
