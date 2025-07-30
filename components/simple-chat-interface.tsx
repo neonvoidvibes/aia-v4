@@ -925,6 +925,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       }
       setPressToTalkTime(0);
       
+      // IMMEDIATELY stop audio stream tracks to prevent background recording
+      if (pressToTalkStreamRef.current) {
+        pressToTalkStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      }
+      
       if (pressToTalkMediaRecorderRef.current && pressToTalkMediaRecorderRef.current.state === 'recording') {
         pressToTalkMediaRecorderRef.current.stop(); // This will trigger the onstop handler for cleanup
       }
