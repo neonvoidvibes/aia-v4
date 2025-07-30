@@ -1960,13 +1960,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Find the last actual message instead of scrolling to padding
         const allMessages = document.querySelectorAll('[data-role]');
         const lastMessage = allMessages[allMessages.length - 1] as HTMLElement;
-        if (lastMessage && messagesContainerRef.current) {
-            // Scroll to last message with extra padding
-            const container = messagesContainerRef.current;
-            const messageRect = lastMessage.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-            const targetScroll = container.scrollTop + (messageRect.bottom - containerRect.top) + 50; // Add 50px extra
-            container.scrollTo({ top: targetScroll, behavior: b });
+        if (lastMessage) {
+            lastMessage.scrollIntoView({ behavior: b, block: 'end' });
         } else if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: b });
         }
@@ -2024,16 +2019,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
             if (isSafariMobile) {
-                // Force multiple scroll attempts for Safari Mobile
-                setTimeout(() => {
-                    container.scrollTop = targetScrollTop;
-                    const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
-                    if (lastUserMessage) {
-                        lastUserMessage.scrollIntoView({ behavior: 'auto', block: 'start' });
-                        // Force one more time
-                        setTimeout(() => container.scrollTop = targetScrollTop, 100);
-                    }
-                }, 50);
+                // Try multiple approaches for Safari Mobile
+                container.scrollTop = targetScrollTop;
+                // Also try scrollIntoView as fallback
+                const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
+                if (lastUserMessage) {
+                    lastUserMessage.scrollIntoView({ behavior: 'auto', block: 'start' });
+                }
             } else {
                 container.scrollTo({
                     top: targetScrollTop,
@@ -2651,7 +2643,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [messages, errorMessages, processedProposalIds]);
     return (
         <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
-            <div className="messages-container" ref={messagesContainerRef} style={{ paddingLeft: '8px', paddingRight: '8px' }}>
+            <div className="messages-container" ref={messagesContainerRef} style={{ paddingLeft: '8px', paddingRight: '8px', overflow: 'auto' }}>
                 {combinedMessages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {combinedMessages.length === 0 && isPageReady &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10 px-8"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
                 {combinedMessages.length > 0 && (
