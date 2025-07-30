@@ -2034,6 +2034,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.log('Screen height:', vh, 'Container height:', containerHeight, 'Message offsetTop:', messageOffsetTop, 'Target scroll:', targetScrollTop, 'ScrollHeight:', container.scrollHeight);
             
             // console.log('[Scroll Debug] Message offsetTop:', messageOffsetTop, 'Target scrollTop:', targetScrollTop, 'Current scrollTop:', container.scrollTop);
+            // Don't scroll during assistant responses - double-check for iOS Safari
+            if (isLoading || isThinking) {
+                return;
+            }
+            
             if (isSafariMobile) {
                 // Try multiple approaches for Safari Mobile
                 container.scrollTop = targetScrollTop;
