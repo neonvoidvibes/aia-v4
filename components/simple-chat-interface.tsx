@@ -847,25 +847,34 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           // Remove the prepended mic emoji if it exists and trim whitespace.
           content = content.replace(/^🎙️\s*/, '').trim();
 
-          const canvasContextData = getCanvasContext ? getCanvasContext() : {};
-          const augmentedBody = {
-              agent: agentName,
-              event: eventId || '0000',
-              model: selectedModel,
-              temperature: temperature,
-              ...canvasContextData,
-              transcriptListenMode: transcriptListenMode,
-              savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
-              transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any",
-          };
+          try {
+            const canvasContextData = getCanvasContext ? getCanvasContext() : {};
+            const augmentedBody = {
+                agent: agentName,
+                event: eventId || '0000',
+                model: selectedModel,
+                temperature: temperature,
+                ...canvasContextData,
+                transcriptListenMode: transcriptListenMode,
+                savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
+                transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any",
+            };
 
-          append({
-            role: 'user',
-            content: content,
-          }, { data: augmentedBody });
+            append({
+              role: 'user',
+              content: content,
+            }, { data: augmentedBody });
+          } catch (appendError) {
+            console.error("Error sending transcribed message:", appendError);
+            // Don't show toast error for append failures since the transcription was successful
+          }
+        } else {
+          // Only show error if transcription actually failed (empty result)
+          toast.error("No speech detected in the recording");
         }
       } catch (error) {
         console.error("Transcription error:", error);
+        // Only show toast error for actual transcription failures
         toast.error((error as Error).message);
       } finally {
         setPressToTalkState('idle');
@@ -900,9 +909,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           _transcribeAndSend(audioBlob);
           
-          // Clean up stream and recorder instance
-          pressToTalkStreamRef.current?.getTracks().forEach((track: MediaStreamTrack) => track.stop());
-          pressToTalkStreamRef.current = null;
+          // Clean up stream and recorder instance (check if stream still exists)
+          if (pressToTalkStreamRef.current) {
+            pressToTalkStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => {
+              if (track.readyState !== 'ended') {
+                track.stop();
+              }
+            });
+            pressToTalkStreamRef.current = null;
+          }
           pressToTalkMediaRecorderRef.current = null;
         };
 
