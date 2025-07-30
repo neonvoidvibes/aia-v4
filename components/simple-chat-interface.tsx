@@ -2006,9 +2006,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             // console.log('[Scroll Debug] Message offsetTop:', messageOffsetTop, 'Target scrollTop:', targetScrollTop, 'Current scrollTop:', container.scrollTop);
             
+            const isSafariMobile = /iPad|iPhone|iPod/.test(navigator.userAgent);
             container.scrollTo({
                 top: targetScrollTop,
-                behavior: 'auto'
+                behavior: isSafariMobile ? 'auto' : 'smooth'
             });
             userHasScrolledRef.current = false;
             setShowScrollToBottom(false);
