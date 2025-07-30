@@ -2008,7 +2008,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             container.scrollTo({
                 top: targetScrollTop,
-                behavior: 'smooth'
+                behavior: 'auto'
             });
             userHasScrolledRef.current = false;
             setShowScrollToBottom(false);
