@@ -2309,6 +2309,11 @@ button {
     --mobile-button-size: 2.5rem; /* 32px -> 40px (25% larger) */
   }
   
+  /* Reduce height of TTS + STT top edge on mobile only */
+  .chat-input-layout .h-12 {
+    height: 2.5rem !important; /* reduced */
+  }
+  
   /* Main submit button and TTS/STT buttons */
   .mobile-submit-button {
     height: 2.5rem !important; /* 32px -> 40px (25% larger) */
