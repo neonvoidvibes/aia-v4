@@ -2031,9 +2031,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             lastUserMessageCountRef.current = currentUserMessageCount;
             // Scroll to show user message at top
             const id = requestAnimationFrame(() => {
+                const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent);
+                const delay = isMobile ? 500 : 200; // Longer delay for mobile devices
                 setTimeout(() => {
                     scrollToShowUserMessageAtTop();
-                }, 200); // Increased delay to ensure DOM is updated
+                }, delay);
             });
             return () => cancelAnimationFrame(id);
         }
