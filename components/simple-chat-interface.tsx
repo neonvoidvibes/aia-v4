@@ -750,6 +750,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const userHasScrolledRef = useRef(false);
+    const lastUserMessageCountRef = useRef(0);
+    
+    // Initialize the user message count
+    useEffect(() => {
+        lastUserMessageCountRef.current = messages.filter(m => m.role === 'user').length;
+    }, []); // Only run once on mount
     const prevScrollTopRef = useRef<number>(0);
     const filesForNextMessageRef = useRef<AttachmentFile[]>([]);
     const timerDisplayRef = useRef<HTMLSpanElement>(null); 
@@ -1146,6 +1152,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             } else {
                 filesForNextMessageRef.current = [];
             }
+            // Flag that we just submitted a user message - the count will be updated by the useEffect
             userHasScrolledRef.current = false;
             setShowScrollToBottom(false);
             lastAppendedErrorRef.current = null;
@@ -1892,7 +1899,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
               if (chatData.messages && Array.isArray(chatData.messages)) {
                 // Clear system messages immediately when loading chat history
-                const filteredMessages = chatData.messages.filter(msg => msg.role !== "system");
+                const filteredMessages = chatData.messages.filter((msg: Message) => msg.role !== "system");
                 setMessages(filteredMessages);
                 console.info("[Load Chat History] Loaded", filteredMessages.length, "messages for chat:", chatData.id, "(system messages cleared)");
               }
@@ -1925,19 +1932,139 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       const c = messagesContainerRef.current;
       if (!c) return;
       const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = c;
+      
+      // Find the last actual message element to determine real content height
+      const messageElements = c.querySelectorAll('[data-role]');
+      const lastMessageElement = messageElements[messageElements.length - 1] as HTMLElement;
+      
+      let effectiveScrollHeight = sh;
+      if (lastMessageElement) {
+        // Calculate content height based on the last message position + its height
+        const lastMessageBottom = lastMessageElement.offsetTop + lastMessageElement.offsetHeight;
+        const paddingTop = 32; // pt-8 = 32px
+        effectiveScrollHeight = lastMessageBottom + paddingTop + 50; // Add some buffer
+      }
+      
       const atBottomThresholdForLogic = 2;
       const atBottomThresholdForButtonVisibility = 180;
-      const isScrollable = sh > ch;
-      const isAtBottomForLogic = (sh - st - ch) < atBottomThresholdForLogic;
+      const isScrollable = effectiveScrollHeight > ch;
+      const isAtBottomForLogic = (effectiveScrollHeight - st - ch) < atBottomThresholdForLogic;
       if (st < prevScrollTopRef.current && !isAtBottomForLogic && !userHasScrolledRef.current) userHasScrolledRef.current = true;
       else if (userHasScrolledRef.current && isAtBottomForLogic) userHasScrolledRef.current = false;
       prevScrollTopRef.current = st;
-      const isAtBottomForButton = (sh - st - ch) < atBottomThresholdForButtonVisibility;
+      const isAtBottomForButton = (effectiveScrollHeight - st - ch) < atBottomThresholdForButtonVisibility;
       setShowScrollToBottom(isScrollable && !isAtBottomForButton);
     }, []);
 
     const scrollToBottom = useCallback((b: ScrollBehavior = "smooth") => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: b }); userHasScrolledRef.current = false; setShowScrollToBottom(false); }, []);
-    useEffect(() => { if (!userHasScrolledRef.current) { const id = requestAnimationFrame(() => { setTimeout(() => { scrollToBottom('smooth'); }, 50); }); return () => cancelAnimationFrame(id); } else if (!isLoading && userHasScrolledRef.current) checkScroll(); }, [messages, isLoading, scrollToBottom, checkScroll]);
+    
+    const scrollToShowUserMessageAtTop = useCallback(() => {
+        // console.log('[Scroll Debug] scrollToShowUserMessageAtTop called');
+        // Find the last user message element
+        const userMessages = document.querySelectorAll('[data-role="user"]');
+        // console.log('[Scroll Debug] Found user messages:', userMessages.length);
+        const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
+        
+        if (lastUserMessage && messagesContainerRef.current) {
+            // console.log('[Scroll Debug] Last user message found, scrolling to position at top');
+            // Scroll to position the user message at the top of the view
+            const container = messagesContainerRef.current;
+            // Use offsetTop for more reliable positioning
+            const messageOffsetTop = lastUserMessage.offsetTop;
+            // Adjust scroll position based on screen height
+            const vh = window.innerHeight;
+            // Calculate how much to scroll to put message at top of viewport
+            const containerHeight = container.clientHeight;
+            
+            // Piecewise function with different curves for different size ranges
+            let topPadding;
+            if (containerHeight >= 500) {
+                // Large containers: gentle curve
+                const base1 = 15;
+                const scale1 = 6000;
+                const power1 = 0.7;
+                topPadding = base1 + (scale1 / Math.pow(containerHeight, power1));
+            } else if (containerHeight >= 300) {
+                // Medium containers: steeper curve
+                const base2 = 25;
+                const scale2 = 8000;
+                const power2 = 0.8;
+                topPadding = base2 + (scale2 / Math.pow(containerHeight, power2));
+            } else {
+                // Small containers: very steep curve
+                const base3 = 35;
+                const scale3 = 10000;
+                const power3 = 0.9;
+                topPadding = base3 + (scale3 / Math.pow(containerHeight, power3));
+            }
+            topPadding = Math.max(12, topPadding);
+            // Calculate target scroll position without constraints
+            const idealScrollTop = messageOffsetTop - topPadding;
+            const targetScrollTop = Math.max(0, idealScrollTop);
+            
+            console.log('Screen height:', vh, 'Container height:', containerHeight, 'Message offsetTop:', messageOffsetTop, 'Target scroll:', targetScrollTop, 'ScrollHeight:', container.scrollHeight);
+            
+            // console.log('[Scroll Debug] Message offsetTop:', messageOffsetTop, 'Target scrollTop:', targetScrollTop, 'Current scrollTop:', container.scrollTop);
+            
+            container.scrollTo({
+                top: targetScrollTop,
+                behavior: 'smooth'
+            });
+            userHasScrolledRef.current = false;
+            setShowScrollToBottom(false);
+        } else {
+            // console.log('[Scroll Debug] Could not find user message or container');
+        }
+    }, []);
+    useEffect(() => {
+        // Check if we just submitted a user message by comparing message counts
+        const currentUserMessageCount = messages.filter(m => m.role === 'user').length;
+        const lastMessage = messages[messages.length - 1];
+        const isNewUserMessage = currentUserMessageCount > lastUserMessageCountRef.current && lastMessage?.role === 'user';
+        
+        // console.log('[Scroll Debug] Messages:', messages.length, 'User count:', currentUserMessageCount, 'Last count:', lastUserMessageCountRef.current, 'isNewUserMessage:', isNewUserMessage, 'isLoading:', isLoading, 'isThinking:', isThinking, 'lastMessage role:', lastMessage?.role);
+        
+        if (isNewUserMessage) {
+            // console.log('[Scroll Debug] Triggering user message scroll to top');
+            // Update the count immediately
+            lastUserMessageCountRef.current = currentUserMessageCount;
+            // Scroll to show user message at top
+            const id = requestAnimationFrame(() => {
+                setTimeout(() => {
+                    scrollToShowUserMessageAtTop();
+                }, 200); // Increased delay to ensure DOM is updated
+            });
+            return () => cancelAnimationFrame(id);
+        }
+        
+        // Update count for any user message changes
+        if (currentUserMessageCount !== lastUserMessageCountRef.current) {
+            lastUserMessageCountRef.current = currentUserMessageCount;
+        }
+        
+        // Don't auto-scroll during ANY part of assistant response cycle (loading, thinking, or streaming)
+        if (isLoading || isThinking) {
+            // console.log('[Scroll Debug] Skipping auto-scroll because isLoading=', isLoading, 'isThinking=', isThinking);
+            return;
+        }
+        
+        // Only auto-scroll to bottom when assistant response is completely finished
+        // and only if user hasn't manually scrolled
+        // Disabled auto-scroll to bottom for assistant messages
+        // if (!userHasScrolledRef.current && !isNewUserMessage && !isLoading && !isThinking) {
+        //     const isAssistantMessage = lastMessage?.role === 'assistant';
+        //     if (isAssistantMessage) {
+        //         console.log('[Scroll Debug] Auto-scrolling to bottom for completed assistant message');
+        //         const id = requestAnimationFrame(() => {
+        //             setTimeout(() => { scrollToBottom('smooth'); }, 50);
+        //         });
+        //         return () => cancelAnimationFrame(id);
+        //     }
+        // }
+        if (!isLoading && !isThinking && userHasScrolledRef.current) {
+            checkScroll();
+        }
+    }, [messages, isLoading, isThinking, scrollToBottom, scrollToShowUserMessageAtTop, checkScroll]);
     useEffect(() => { const c = messagesContainerRef.current; if (c) { c.addEventListener("scroll", checkScroll, { passive: true }); return () => c.removeEventListener("scroll", checkScroll); } }, [checkScroll]);
 
     useEffect(() => { 
@@ -2496,7 +2623,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 {combinedMessages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
                 {combinedMessages.length === 0 && isPageReady &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10 px-8"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
                 {combinedMessages.length > 0 && (
-                  <div className="space-y-1 pt-8 pb-8">
+                  <div className="space-y-1" style={{ 
+                    paddingTop: window.innerHeight <= 600 ? '24px' : '32px',
+                    paddingBottom: (() => {
+                    const vh = window.innerHeight;
+                    const vw = window.innerWidth;
+                    const isMobile = vw <= 768;
+                    
+                    // More aggressive scaling for shorter screens
+                    if (vh <= 400) return '100px';
+                    if (vh <= 500) return '120px';
+                    if (vh <= 600) return '150px';
+                    if (isMobile) return Math.max(300, vh * 0.6) + 'px';
+                    return Math.min(600, vh * 0.8 - 160) + 'px';
+                  })() }}>
                     {combinedMessages.map((message: UIMessage, index: number) => {
                       const isUser = message.role === "user";
                       const isSystem = message.role === "system";
@@ -2545,6 +2685,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               isError ? "items-start mb-1" : // Keep mb-1 for error
                               "items-start assistant-message-container" // Assistant class remains
                             )}
+                            data-role={isUser ? "user" : isSystem ? "system" : isError ? "error" : "assistant"}
                             onMouseEnter={() => !isMobile && !isSystem && !isError && setHoveredMessage(message.id)}
                             onMouseLeave={() => !isMobile && setHoveredMessage(null)}
                             onClick={() => !isSystem && !isError && handleMessageInteraction(message.id)}
