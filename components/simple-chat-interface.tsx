@@ -1984,28 +1984,27 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const mobileScrollFix = useCallback((container: HTMLElement, target: number) => {
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        // Behåll den enkla, smidiga scrollningen för desktop.
+        // Use standard smooth scroll for desktop.
         if (!isMobile) {
             container.scrollTo({ top: target, behavior: 'smooth' });
             return;
         }
 
-        // --- Den beprövade "Flykt och Uthållighet"-strategin, förfinad ---
-        // Denna logik körs nu för ALLA mobila scrolls för att garantera konsistens.
+        // --- "Invisible Reset & Persistent Correction" ---
 
-        // 1. Flykten: Ett omedelbart, osynligt hopp till en neutral position nära målet.
-        // Detta bryter webbläsarens scroll-ankare. `target * 0.9` är en mer subtil
-        // men fortfarande avgörande flykt än 0.75.
+        // 1. Invisible Reset: A flicker-free jump to break the browser's scroll anchor.
+        // This happens in two steps before the next screen paint, appearing as a single movement.
         const neutralPosition = Math.max(100, target * 0.9);
         container.scrollTo({ top: neutralPosition, behavior: 'auto' });
+        requestAnimationFrame(() => {
+            container.scrollTo({ top: target, behavior: 'auto' });
+        });
 
-        // 2. Uthålligheten: Flera fördröjda, "blinda" försök att landa på den exakta målpositionen.
-        // Denna upprepning övervinner webbläsarens återställningsmekanism.
+        // 2. Persistent Correction: Timed retries to ensure the final position sticks.
         const landAtTarget = () => container.scrollTo({ top: target, behavior: 'auto' });
-
         setTimeout(landAtTarget, 50);
         setTimeout(landAtTarget, 100);
-        setTimeout(landAtTarget, 150); // Sista försöket har sista ordet.
+        setTimeout(landAtTarget, 150);
 
     }, []);
 
