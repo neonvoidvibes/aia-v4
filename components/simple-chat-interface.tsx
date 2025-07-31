@@ -1980,7 +1980,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setShowScrollToBottom(false); 
     }, []);
     
-    // ChatGPT o3 solution: Mobile scroll fix with anchor zone detection
+    // ChatGPT o3 solution refined by Gemini: Mobile scroll fix with anchor zone detection
     const mobileScrollFix = useCallback((container: HTMLElement, target: number) => {
         const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = container;
         const anchor = 200;
@@ -3354,7 +3354,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 role="button"
                                 aria-label="Stop generating"
                               >
-                                <Square className="fill-current mobile-tts-icon" />
+                                <Square size={16} className="mobile-tts-icon" />
                               </div>
                             ) : (
                               <button
