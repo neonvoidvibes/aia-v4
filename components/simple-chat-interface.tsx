@@ -756,18 +756,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => {
         lastUserMessageCountRef.current = messages.filter(m => m.role === 'user').length;
     }, []); // Only run once on mount
-    
-    // Grok 3 solution: Disable browser scroll restoration
-    useEffect(() => {
-        if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
-            window.history.scrollRestoration = 'manual';
-            
-            // Restore on unmount
-            return () => {
-                window.history.scrollRestoration = 'auto';
-            };
-        }
-    }, []);
     const prevScrollTopRef = useRef<number>(0);
     const filesForNextMessageRef = useRef<AttachmentFile[]>([]);
     const timerDisplayRef = useRef<HTMLSpanElement>(null); 
@@ -1992,6 +1980,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setShowScrollToBottom(false); 
     }, []);
     
+    // ChatGPT O3 solution: Mobile scroll fix with anchor zone detection
+    const mobileScrollFix = useCallback((container: HTMLElement, target: number) => {
+        const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = container;
+        const anchor = 200;
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (!isMobile || (st >= anchor && sh - st - ch >= anchor)) {
+            container.scrollTo({ top: target, behavior: 'smooth' });
+            return;
+        }
+
+        const neutral = Math.max(100, target * 0.75);
+        container.scrollTo({ top: neutral, behavior: 'auto' });
+        [50, 100, 150].forEach(d =>
+            setTimeout(() => container.scrollTo({ top: target, behavior: 'auto' }), d)
+        );
+    }, []);
+
     const scrollToShowUserMessageAtTop = useCallback(() => {
         // console.log('[Scroll Debug] scrollToShowUserMessageAtTop called');
         // Find the last user message element
@@ -2046,29 +2052,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.log('iOS Safari Debug - Screen height:', vh, 'Container height:', containerHeight, 'Message offsetTop:', messageOffsetTop, 'Target scroll:', targetScrollTop, 'ScrollHeight:', container.scrollHeight, 'Current scrollTop:', container.scrollTop, 'TopPadding:', topPadding, 'isSafariMobile:', isSafariMobile);
             
             // console.log('[Scroll Debug] Message offsetTop:', messageOffsetTop, 'Target scrollTop:', targetScrollTop, 'Current scrollTop:', container.scrollTop);
-            // Don't scroll during assistant responses - double-check for iOS Safari
+            // Don't scroll during assistant responses
             if (isLoading || isThinking) {
                 return;
             }
             
-            if (isMobileDevice) {
-                // Mobile: Force scroll to exact position where message appears at container top
-                const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
-                if (lastUserMessage) {
-                    // Calculate exact scroll position to put message at container top
-                    const containerRect = container.getBoundingClientRect();
-                    const messageRect = lastUserMessage.getBoundingClientRect();
-                    const currentScroll = container.scrollTop;
-                    const targetScroll = currentScroll + (messageRect.top - containerRect.top);
-                    
-                    container.scrollTop = targetScroll;
-                }
-            } else {
-                container.scrollTo({
-                    top: targetScrollTop,
-                    behavior: 'smooth'
-                });
-            }
+            // ChatGPT O3 solution: Use mobileScrollFix for all platforms
+            mobileScrollFix(container, targetScrollTop);
             userHasScrolledRef.current = false;
             setShowScrollToBottom(false);
         } else {
@@ -2087,34 +2077,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             // console.log('[Scroll Debug] Triggering user message scroll to top');
             // Update the count immediately
             lastUserMessageCountRef.current = currentUserMessageCount;
-            // Grok 3 solution: Use scrollIntoView with manual restoration control
-            const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent);
-            
-            if (isMobile) {
-                // For mobile, use direct scrollIntoView after a delay to avoid restoration conflicts
-                const id = requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        const userMessages = document.querySelectorAll('[data-role="user"]');
-                        const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
-                        if (lastUserMessage) {
-                            lastUserMessage.scrollIntoView({ 
-                                behavior: 'smooth',
-                                block: 'start',
-                                inline: 'nearest'
-                            });
-                        }
-                    }, 100); // Shorter delay since restoration is disabled
-                });
-                return () => cancelAnimationFrame(id);
-            } else {
-                // Desktop uses existing logic
-                const id = requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        scrollToShowUserMessageAtTop();
-                    }, 200);
-                });
-                return () => cancelAnimationFrame(id);
-            }
+            // Scroll to show user message at top
+            const id = requestAnimationFrame(() => {
+                const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent);
+                const delay = isMobile ? 500 : 200; // Longer delay for mobile devices
+                setTimeout(() => {
+                    scrollToShowUserMessageAtTop();
+                }, delay);
+            });
+            return () => cancelAnimationFrame(id);
         }
         
         // Update count for any user message changes
