@@ -1980,7 +1980,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         setShowScrollToBottom(false); 
     }, []);
     
-    // ChatGPT O3 solution: Mobile scroll fix with anchor zone detection
+    // ChatGPT o3 solution: Mobile scroll fix with anchor zone detection
     const mobileScrollFix = useCallback((container: HTMLElement, target: number) => {
         const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = container;
         const anchor = 200;
@@ -1991,14 +1991,38 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             return;
         }
 
-        const neutral = st + (target - st) / 2;
-        container.scrollTo({ top: neutral, behavior: 'auto' });
-        requestAnimationFrame(() => {
-            container.scrollTo({ top: target, behavior: 'auto' });
-            setTimeout(() => {
-              if (Math.abs(container.scrollTop - target) > 10) { container.scrollTo({ top: target, behavior: 'auto' }); }
-            }, 100);
-        });
+        // --- A More Robust "Escape and Persist" Routine ---
+
+        // 1. Controlled Escape (Builds on your successful principle)
+        // Instead of a large jump, we make a minimal, precise jump just
+        // outside the browser's aggressive anchor zone.
+        let escapePosition = target;
+        const inBottomZone = sh - st - ch < anchor;
+        const inTopZone = st < anchor;
+
+        if (inBottomZone) {
+            escapePosition = sh - ch - anchor - 5; // Jump 5px outside the bottom zone
+        } else if (inTopZone) {
+            escapePosition = anchor + 5; // Jump 5px outside the top zone
+        }
+        
+        container.scrollTo({ top: escapePosition, behavior: 'auto' });
+
+        // 2. Intelligent Persistence (Builds on your successful principle)
+        // We make multiple attempts, but each one first CHECKS if it's needed.
+        // This is more efficient and reliable than blind retries.
+        const retryScroll = () => {
+            // Only scroll if the browser has overridden our position.
+            if (Math.abs(container.scrollTop - target) > 5) {
+                container.scrollTo({ top: target, behavior: 'auto' });
+            }
+        };
+
+        // Schedule the attempts, giving the browser time to interfere between them.
+        setTimeout(retryScroll, 50);
+        setTimeout(retryScroll, 100);
+        setTimeout(retryScroll, 150);
+
     }, []);
 
     const scrollToShowUserMessageAtTop = useCallback(() => {
