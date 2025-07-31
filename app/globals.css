@@ -135,11 +135,11 @@
 /* White Theme */
 .theme-white {
   /* Base colors */
-  --background: 0 0% 100%; /* White */
-  --foreground: 0 0% 10%; /* Dark foreground */
+  --background: 0 0% 200%;
+  --foreground: 260 60% 20%; /* Deep indigo/purple for welcome text */
 
   /* UI elements */
-  --input-gray: 0 0% 95%; /* Very light gray for input/bubbles */
+  --input-gray: 0 0% 88%; /* More gray for input/bubbles */
   --status-bar: 0 0% 50%;
   --placeholder-text: 0 0% 69%;
 
@@ -151,7 +151,7 @@
   /* Shadcn Component Variables (Light Overrides) */
   --card: 0 0% 100%; /* Default white card */
   --popover: 0 0% 100%;
-  --primary: 0 0% 9%; /* Black */
+  --primary: 260 60% 20%; /* Deep indigo/purple for submit button */
   --primary-foreground: 0 0% 98%; /* White */
   --secondary: 0 0% 96.1%;
   --secondary-foreground: 0 0% 9%;
@@ -170,12 +170,12 @@
   --button-inactive: 0 0% 65%; /* Lighter gray */
 
   /* New Semantic CSS Variables for Light Theme */
-  --button-submit-bg-active: 0 0% 20%;   /* Dark gray BG for light mode active submit */
-  --button-submit-fg-active: 0 0% 98%;   /* White fg for light mode active submit */
-  --button-submit-bg-inactive: 0 0% 80%; /* Lighter gray BG for light mode inactive submit */
-  --button-submit-fg-inactive: 0 0% 50%; /* Mid gray fg for light mode inactive submit */
-  --button-submit-bg-stop: 0 0% 35%;     /* Themed gray for light mode stop button BG */
-  --button-submit-fg-stop: 0 0% 95%;     /* White fg for light mode stop button */
+  --button-submit-bg-active: 260 60% 20%;   /* Deep indigo/purple BG for active submit */
+  --button-submit-fg-active: 0 0% 98%;   /* White fg for active submit */
+  --button-submit-bg-inactive: 260 30% 70%; /* Lighter indigo/purple BG for inactive submit */
+  --button-submit-fg-inactive: 260 10% 30%; /* Darker fg for inactive submit */
+  --button-submit-bg-stop: 260 40% 40%;     /* Themed indigo/purple for stop button BG */
+  --button-submit-fg-stop: 0 0% 95%;     /* White fg for stop button */
 
   --icon-primary: 0 0% 20%;    /* Primary icon color for light mode */
   --icon-secondary: 0 0% 40%;  /* Secondary icon color for light mode */
