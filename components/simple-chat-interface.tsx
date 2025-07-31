@@ -1991,11 +1991,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             return;
         }
 
-        const neutral = Math.max(100, target * 0.75);
+        const neutral = st + (target - st) / 2;
         container.scrollTo({ top: neutral, behavior: 'auto' });
-        [50, 100, 150].forEach(d =>
-            setTimeout(() => container.scrollTo({ top: target, behavior: 'auto' }), d)
-        );
+        requestAnimationFrame(() => {
+            container.scrollTo({ top: target, behavior: 'auto' });
+            setTimeout(() => {
+              if (Math.abs(container.scrollTop - target) > 10) { container.scrollTo({ top: target, behavior: 'auto' }); }
+            }, 100);
+        });
     }, []);
 
     const scrollToShowUserMessageAtTop = useCallback(() => {
