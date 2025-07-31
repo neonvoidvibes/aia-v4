@@ -1983,7 +1983,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // ChatGPT o3 solution refined by Gemini: Mobile scroll fix with anchor zone detection
     const mobileScrollFix = useCallback((container: HTMLElement, target: number) => {
         const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = container;
-        const anchor = 200;
+        const anchor = 200; // The px buffer zone at top and bottom
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         // This path for desktop and non-anchored mobile scrolls remains the same.
@@ -1992,27 +1992,40 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             return;
         }
 
-        // --- "Over-scroll and Settle" Routine for Anchor Zones ---
+        // --- "Guaranteed Escape & Intelligent Persistence" Routine ---
 
-        // 1. The Over-scroll: An instant jump slightly PAST our intended target.
-        // This is a forceful but invisible "escape" from the browser's anchor.
-        const overscrollTarget = target + 40; // A small, 40px over-scroll
-        container.scrollTo({ top: overscrollTarget, behavior: 'auto' });
+        // 1. Guaranteed Escape (The key refinement)
+        // If we are in an anchor zone, perform a single, instant scroll to a
+        // fixed point just outside of it. This is a strong, undeniable signal
+        // to the browser to break its anchor lock.
+        const inTopZone = st < anchor;
+        const inBottomZone = sh - st - ch < anchor;
 
-        // 2. The Settle: In the very next animation frame, correct to the actual target.
-        // This happens before the browser can paint, making the two-step process appear as one.
-        requestAnimationFrame(() => {
-            container.scrollTo({ top: target, behavior: 'auto' });
+        if (inTopZone || inBottomZone) {
+            // This scroll happens first, immediately.
+            const escapePosition = inBottomZone ? (sh - ch - anchor - 5) : (anchor + 5);
+            container.scrollTo({ top: escapePosition, behavior: 'auto' });
+        }
 
-            // 3. The Final Correction (Our proven safety net):
-            // After a brief moment, we ensure the browser didn't make a last-ditch effort to override us.
-            setTimeout(() => {
-                if (Math.abs(container.scrollTop - target) > 10) {
-                   console.log(`[mobileScrollFix] Final correction needed. Is: ${container.scrollTop}, Should be: ${target}`);
-                   container.scrollTo({ top: target, behavior: 'auto' });
-                }
-            }, 100);
-        });
+        // 2. Intelligent Persistence (Your successful principle, made smarter)
+        // We will make several attempts to land at the target, but each attempt
+        // will first check if it's necessary before acting.
+        const attemptScrollToTarget = (attempt: number) => {
+            // Check if the scroll position is already correct.
+            if (Math.abs(container.scrollTop - target) > 5) {
+                console.log(`[mobileScrollFix] Attempt #${attempt}: Correcting scroll. Is: ${container.scrollTop}, Should be: ${target}`);
+                container.scrollTo({ top: target, behavior: 'auto' });
+            } else {
+                console.log(`[mobileScrollFix] Attempt #${attempt}: Scroll is correct. No action needed.`);
+            }
+        };
+
+        // Schedule the attempts. The delays give the browser's restoration
+        // mechanism time to act, so our later attempts can correct it.
+        setTimeout(() => attemptScrollToTarget(1), 50);
+        setTimeout(() => attemptScrollToTarget(2), 150);
+        setTimeout(() => attemptScrollToTarget(3), 300); // A final check for stubborn cases.
+
     }, []);
 
     const scrollToShowUserMessageAtTop = useCallback(() => {
@@ -3344,7 +3357,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 role="button"
                                 aria-label="Stop generating"
                               >
-                                <Square className="h-3 w-3 md:h-4 md:w-4 mobile-tts-icon" />
+                                <Square className="mobile-stop-icon" />
                               </div>
                             ) : (
                               <button

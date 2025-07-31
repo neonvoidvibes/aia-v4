@@ -2440,6 +2440,12 @@ button {
     height: 1.25rem !important; /* 16px -> 20px (25% larger) */
     width: 1.25rem !important;
   }
+
+  /* New, specific rule for the stop icon to override the aggressive global rule */
+  .mobile-submit-button .mobile-stop-icon {
+    height: 0.875rem !important; /* 14px */
+    width: 0.875rem !important; /* 14px */
+  }
   
   .mobile-stt-icon {
     height: 1.5625rem !important; /* 20px -> 25px (25% larger) */
