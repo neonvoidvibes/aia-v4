@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ChatGPT Deep Research Solution: Disable scroll anchoring to prevent mobile scroll interference */
+.messages-container {
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+}
+
+.messages-container * {
+  overflow-anchor: none;
+}
+
+/* Dummy anchor element for proper scroll behavior */
+.scroll-anchor {
+  overflow-anchor: auto;
+}
+
 @font-face {
   font-family: "Avenir Next";
   src: url("https://fonts.cdnfonts.com/css/avenir-next-lt-pro") format("woff2");

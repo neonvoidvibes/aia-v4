@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect, useLayoutEffect, forwardRef, useImperativeHandle, useCallback, useMemo, ChangeEvent } from "react"
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo, ChangeEvent } from "react"
 import { useChat, type Message } from "@ai-sdk/react"
 
 // Error message type for UI-specific error handling
@@ -366,9 +366,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
   const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
-  
-  // Gemini solution: Track new user message submissions
-  const newUserMessageSubmitted = useRef(false);
     
     // State for reasoning models
     const [isThinking, setIsThinking] = useState(false);
@@ -1182,13 +1179,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             };
             
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
-            
-            // Gemini solution: Set flag for new user message and blur input on mobile
-            newUserMessageSubmitted.current = true;
-            const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent);
-            if (isMobile && textareaRef.current) {
-                textareaRef.current.blur();
-            }
             
             // Clear system messages immediately upon new user submit
             setMessages(prevMessages => prevMessages.filter(msg => msg.role !== "system"));
@@ -2073,45 +2063,57 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             // console.log('[Scroll Debug] Could not find user message or container');
         }
     }, []);
-    // Gemini solution: Use useLayoutEffect for precise scroll timing
-    useLayoutEffect(() => {
-        // Condition 1: A new user message was just submitted
-        if (newUserMessageSubmitted.current) {
-            const container = messagesContainerRef.current;
-            const userMessages = container?.querySelectorAll('[data-role="user"]');
-            
-            if (container && userMessages && userMessages.length > 0) {
-                const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
-
-                // Calculate the target position to place the message at the top
-                // The -35 offset provides comfortable padding
-                const topPadding = -35; 
-                const targetScrollTop = lastUserMessage.offsetTop + topPadding;
-
-                // Execute the scroll immediately and instantly
-                // 'instant' behavior is better here to avoid a jarring 'smooth' scroll
-                // that fights with the browser's own rendering
-                container.scrollTo({
-                    top: targetScrollTop,
-                    behavior: 'instant' 
-                });
-            }
-            // Reset the flag after we're done
-            newUserMessageSubmitted.current = false;
-        } 
-        // Condition 2: An assistant message is finished and user hasn't scrolled
-        else if (!isLoading && !userHasScrolledRef.current) {
-            const lastMessage = messages[messages.length - 1];
-            if (lastMessage?.role === 'assistant') {
-                scrollToBottom('smooth');
-            }
+    useEffect(() => {
+        // Check if we just submitted a user message by comparing message counts
+        const currentUserMessageCount = messages.filter(m => m.role === 'user').length;
+        const lastMessage = messages[messages.length - 1];
+        const isNewUserMessage = currentUserMessageCount > lastUserMessageCountRef.current && lastMessage?.role === 'user';
+        
+        // console.log('[Scroll Debug] Messages:', messages.length, 'User count:', currentUserMessageCount, 'Last count:', lastUserMessageCountRef.current, 'isNewUserMessage:', isNewUserMessage, 'isLoading:', isLoading, 'isThinking:', isThinking, 'lastMessage role:', lastMessage?.role);
+        
+        if (isNewUserMessage) {
+            // console.log('[Scroll Debug] Triggering user message scroll to top');
+            // Update the count immediately
+            lastUserMessageCountRef.current = currentUserMessageCount;
+            // Scroll to show user message at top
+            const id = requestAnimationFrame(() => {
+                const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent);
+                const delay = isMobile ? 500 : 200; // Longer delay for mobile devices
+                setTimeout(() => {
+                    scrollToShowUserMessageAtTop();
+                }, delay);
+            });
+            return () => cancelAnimationFrame(id);
         }
-
-        // Update scroll button visibility if user has scrolled
+        
+        // Update count for any user message changes
+        if (currentUserMessageCount !== lastUserMessageCountRef.current) {
+            lastUserMessageCountRef.current = currentUserMessageCount;
+        }
+        
+        // Don't auto-scroll during ANY part of assistant response cycle (loading, thinking, or streaming)
+        if (isLoading || isThinking) {
+            // console.log('[Scroll Debug] Skipping auto-scroll because isLoading=', isLoading, 'isThinking=', isThinking);
+            return;
+        }
+        
+        // Only auto-scroll to bottom when assistant response is completely finished
+        // and only if user hasn't manually scrolled
+        // Disabled auto-scroll to bottom for assistant messages
+        // if (!userHasScrolledRef.current && !isNewUserMessage && !isLoading && !isThinking) {
+        //     const isAssistantMessage = lastMessage?.role === 'assistant';
+        //     if (isAssistantMessage) {
+        //         console.log('[Scroll Debug] Auto-scrolling to bottom for completed assistant message');
+        //         const id = requestAnimationFrame(() => {
+        //             setTimeout(() => { scrollToBottom('smooth'); }, 50);
+        //         });
+        //         return () => cancelAnimationFrame(id);
+        //     }
+        // }
         if (!isLoading && !isThinking && userHasScrolledRef.current) {
             checkScroll();
         }
-    }, [messages, isLoading, isThinking, scrollToBottom, checkScroll]);
+    }, [messages, isLoading, isThinking, scrollToBottom, scrollToShowUserMessageAtTop, checkScroll]);
     useEffect(() => { const c = messagesContainerRef.current; if (c) { c.addEventListener("scroll", checkScroll, { passive: true }); return () => c.removeEventListener("scroll", checkScroll); } }, [checkScroll]);
 
     useEffect(() => { 
@@ -3068,7 +3070,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     )}
                   </div>
                 )}
-                <div ref={messagesEndRef} />
+                <div ref={messagesEndRef} className="scroll-anchor" />
             </div>
 
             {showScrollToBottom && (
