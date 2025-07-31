@@ -1991,32 +1991,38 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             return;
         }
 
-        // --- The "Pre-emptive Reset" Routine ---
+        // --- Den slutgiltiga lösningen: "Dynamiskt Säkert Hopp & Intelligent Uthållighet" ---
 
+        // 1. Dynamiskt Flykthopp: Ett kraftfullt men osynligt hopp för att garanterat bryta webbläsarens ankar-låsning.
+        // Vi hoppar ungefär en skärmhöjd i motsatt riktning från den ankarzon vi är i.
+        const inTopZone = st < anchor;
         const inBottomZone = sh - st - ch < anchor;
+        
+        // Hoppet sker först. Eftersom nästa scroll sker i nästa animation frame, är detta osynligt.
+        if (inTopZone) {
+            // Om vi är nära toppen, hoppa ner en skärmhöjd för att bryta ankar-låsningen.
+            container.scrollTo({ top: st + ch, behavior: 'auto' });
+        } else if (inBottomZone) {
+            // Om vi är nära botten, hoppa upp en skärmhöjd.
+            container.scrollTo({ top: st - ch, behavior: 'auto' });
+        }
 
-        // 1. The Reset: A flicker-free, instant jump to the opposite end and back.
-        // This is a maximal-leverage maneuver to force the browser to completely
-        // discard its scroll anchor memory before we make our final move.
-        // Because both scrolls happen in the same execution block before the next
-        // paint, the intermediate jump is invisible to the user.
-        const oppositeEnd = inBottomZone ? 0 : sh;
-        container.scrollTo({ top: oppositeEnd, behavior: 'auto' });
-        container.scrollTo({ top: target, behavior: 'auto' });
+        // 2. Omedelbar Landning: I nästa renderingscykel, gå direkt till den korrekta målpositionen.
+        requestAnimationFrame(() => {
+            container.scrollTo({ top: target, behavior: 'auto' });
 
-        // 2. Intelligent Persistence: Our proven safety net.
-        // We schedule checks to correct any final, delayed interference from the browser.
-        const retryScroll = (attempt: number) => {
-            if (Math.abs(container.scrollTop - target) > 5) {
-                console.log(`[mobileScrollFix] Attempt #${attempt}: Correcting scroll. Is: ${container.scrollTop}, Should be: ${target}`);
-                container.scrollTo({ top: target, behavior: 'auto' });
-            }
-        };
+            // 3. Intelligent Uthållighet (Ditt beprövade säkerhetsnät):
+            // Vi schemalägger kontroller för att korrigera eventuella sena störningar från webbläsaren.
+            const retryScroll = (attempt: number) => {
+                if (Math.abs(container.scrollTop - target) > 5) {
+                    console.log(`[mobileScrollFix] Försök #${attempt}: Korrigerar scroll. Är: ${container.scrollTop}, Ska vara: ${target}`);
+                    container.scrollTo({ top: target, behavior: 'auto' });
+                }
+            };
 
-        setTimeout(() => retryScroll(1), 50);
-        setTimeout(() => retryScroll(2), 150);
-        setTimeout(() => retryScroll(3), 300);
-
+            setTimeout(() => retryScroll(1), 100);
+            setTimeout(() => retryScroll(2), 250); // Lite längre fördröjning för sista kontrollen.
+        });
     }, []);
 
     const scrollToShowUserMessageAtTop = useCallback(() => {
