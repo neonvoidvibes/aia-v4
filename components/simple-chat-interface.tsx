@@ -1982,47 +1982,31 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     
     // ChatGPT o3 solution refined by Gemini: Mobile scroll fix with anchor zone detection
     const mobileScrollFix = useCallback((container: HTMLElement, target: number) => {
-        const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = container;
-        const anchor = 200;
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        if (!isMobile || (st >= anchor && sh - st - ch >= anchor)) {
+        // Behåll den enkla, smidiga scrollningen för desktop.
+        if (!isMobile) {
             container.scrollTo({ top: target, behavior: 'smooth' });
             return;
         }
 
-        // --- Den slutgiltiga lösningen: "Dynamiskt Säkert Hopp & Intelligent Uthållighet" ---
+        // --- Den beprövade "Flykt och Uthållighet"-strategin, förfinad ---
+        // Denna logik körs nu för ALLA mobila scrolls för att garantera konsistens.
 
-        // 1. Dynamiskt Flykthopp: Ett kraftfullt men osynligt hopp för att garanterat bryta webbläsarens ankar-låsning.
-        // Vi hoppar ungefär en skärmhöjd i motsatt riktning från den ankarzon vi är i.
-        const inTopZone = st < anchor;
-        const inBottomZone = sh - st - ch < anchor;
-        
-        // Hoppet sker först. Eftersom nästa scroll sker i nästa animation frame, är detta osynligt.
-        if (inTopZone) {
-            // Om vi är nära toppen, hoppa ner en skärmhöjd för att bryta ankar-låsningen.
-            container.scrollTo({ top: st + ch, behavior: 'auto' });
-        } else if (inBottomZone) {
-            // Om vi är nära botten, hoppa upp en skärmhöjd.
-            container.scrollTo({ top: st - ch, behavior: 'auto' });
-        }
+        // 1. Flykten: Ett omedelbart, osynligt hopp till en neutral position nära målet.
+        // Detta bryter webbläsarens scroll-ankare. `target * 0.9` är en mer subtil
+        // men fortfarande avgörande flykt än 0.75.
+        const neutralPosition = Math.max(100, target * 0.9);
+        container.scrollTo({ top: neutralPosition, behavior: 'auto' });
 
-        // 2. Omedelbar Landning: I nästa renderingscykel, gå direkt till den korrekta målpositionen.
-        requestAnimationFrame(() => {
-            container.scrollTo({ top: target, behavior: 'auto' });
+        // 2. Uthålligheten: Flera fördröjda, "blinda" försök att landa på den exakta målpositionen.
+        // Denna upprepning övervinner webbläsarens återställningsmekanism.
+        const landAtTarget = () => container.scrollTo({ top: target, behavior: 'auto' });
 
-            // 3. Intelligent Uthållighet (Ditt beprövade säkerhetsnät):
-            // Vi schemalägger kontroller för att korrigera eventuella sena störningar från webbläsaren.
-            const retryScroll = (attempt: number) => {
-                if (Math.abs(container.scrollTop - target) > 5) {
-                    console.log(`[mobileScrollFix] Försök #${attempt}: Korrigerar scroll. Är: ${container.scrollTop}, Ska vara: ${target}`);
-                    container.scrollTo({ top: target, behavior: 'auto' });
-                }
-            };
+        setTimeout(landAtTarget, 50);
+        setTimeout(landAtTarget, 100);
+        setTimeout(landAtTarget, 150); // Sista försöket har sista ordet.
 
-            setTimeout(() => retryScroll(1), 100);
-            setTimeout(() => retryScroll(2), 250); // Lite längre fördröjning för sista kontrollen.
-        });
     }, []);
 
     const scrollToShowUserMessageAtTop = useCallback(() => {
