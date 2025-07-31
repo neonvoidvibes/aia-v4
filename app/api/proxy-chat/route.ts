@@ -3,6 +3,8 @@ import { StreamingTextResponse } from 'ai';
 import { findActiveBackend, formatErrorChunk } from '../proxyUtils'; // Use shared util
 // Import our specific server client helper
 import { createServerActionClient } from '@/utils/supabase/server'
+import { createRequestLogger, sanitizeForLogging } from '@/lib/logger';
+import { randomUUID } from 'crypto';
 // We don't need cookies() import directly here anymore if using the helper
 // import { cookies } from 'next/headers'
 // import type { Database } from '@/types/supabase' // Comment out or remove if types not generated
@@ -19,7 +21,10 @@ function formatTextChunk(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  console.log("[Proxy] Received POST request to /api/proxy-chat");
+  const requestId = randomUUID();
+  const log = createRequestLogger(requestId);
+  
+  log.info("Proxy-chat request received");
   // Instantiate client using our helper (handles cookies internally)
   const supabase = await createServerActionClient() // Use the correct helper, add await
 
@@ -27,7 +32,7 @@ export async function POST(req: NextRequest) {
     // --- Authenticate User ---
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-        console.warn("[Proxy] Chat request auth error:", authError?.message);
+        log.warn("Chat request auth error", { error: authError?.message });
         // Differentiate between a network error and a real auth error.
         if (authError?.message.includes("fetch failed")) {
             return NextResponse.json({ error: "Network error: Could not contact authentication server." }, { status: 503 });
@@ -35,7 +40,7 @@ export async function POST(req: NextRequest) {
         // For other auth errors, treat as Unauthorized.
         return NextResponse.json({ error: "Unauthorized: Invalid session." }, { status: 401 });
     }
-    console.log(`[Proxy] Authenticated user: ${user.id}`);
+    log.info("User authenticated", { userId: user.id });
     // --- End Authentication ---
 
     // --- Find Active Backend URL ---
@@ -43,14 +48,17 @@ export async function POST(req: NextRequest) {
 
     if (!activeBackendUrl) {
         const errorMsg = `Could not connect to any configured backend: ${POTENTIAL_BACKEND_URLS.join(', ')}. Please ensure the backend server is running and accessible.`;
-        console.error(`[Proxy] Fatal Error: ${errorMsg}`);
+        log.error("No active backend found", { 
+          configuredBackends: POTENTIAL_BACKEND_URLS,
+          error: errorMsg 
+        });
         // Also return a standard JSON error response here.
         return NextResponse.json({ error: errorMsg }, { status: 503 });
     }
     // --- Use activeBackendUrl from now on ---
 
     const body = await req.json();
-    console.log("[Proxy] Parsed request body:", body); // Log parsed body
+    log.debug("Request body parsed", sanitizeForLogging(body));
     // Filter out system messages added by the onError handler before proxying
     const userMessages = body.messages?.filter((msg: { role: string }) => msg.role === 'user' || msg.role === 'assistant') || [];
     // Prioritize settings from body.data if they exist, as simple-chat-interface places them there.
@@ -72,11 +80,23 @@ export async function POST(req: NextRequest) {
 
 
     // Basic validation for essential fields
-    if (!userMessages || userMessages.length === 0) return new Response(JSON.stringify({ error: 'Missing user/assistant messages' }), { status: 400 });
-    if (!agent) return new Response(JSON.stringify({ error: 'Missing agent' }), { status: 400 });
+    if (!userMessages || userMessages.length === 0) {
+      log.warn("Missing user/assistant messages in request");
+      return new Response(JSON.stringify({ error: 'Missing user/assistant messages' }), { status: 400 });
+    }
+    if (!agent) {
+      log.warn("Missing agent in request");
+      return new Response(JSON.stringify({ error: 'Missing agent' }), { status: 400 });
+    }
 
-    console.log(`[Proxy] Chat request for Agent: ${agent}, Event: ${event || '0000'}`);
-    console.log(`[Proxy] Effective settings for backend - Listen: ${transcriptListenModeSetting}, Memory: ${savedTranscriptMemoryModeSetting}, Language: ${transcriptionLanguageSetting}`);
+    log.info("Chat request validated", { 
+      agent, 
+      event: event || '0000',
+      messageCount: userMessages.length,
+      transcriptListenMode: transcriptListenModeSetting,
+      savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
+      transcriptionLanguage: transcriptionLanguageSetting
+    });
 
     // Construct the specific API endpoint using the active base URL
     const backendChatUrl = `${activeBackendUrl}/api/chat`;
@@ -94,7 +114,10 @@ export async function POST(req: NextRequest) {
     };
     const requestBody = JSON.stringify(requestBodyPayload);
     // Log the final payload being sent to Python backend
-    console.log(`[Proxy] Fetching backend: ${backendChatUrl} with final payload:`, requestBodyPayload);
+    log.info("Proxying to backend", { 
+      backendUrl: backendChatUrl,
+      payload: sanitizeForLogging(requestBodyPayload)
+    });
 
     // --- Main fetch call to the selected backend ---
     // Get the access token from the server-side session we just validated
@@ -103,10 +126,11 @@ export async function POST(req: NextRequest) {
 
     if (session?.access_token) {
       backendHeaders['Authorization'] = `Bearer ${session.access_token}`;
-      console.log("[Proxy] Adding server-side session token to backend request header.");
+      backendHeaders['X-Request-ID'] = requestId;
+      log.debug("Added auth token and request ID to backend headers");
     } else {
         // This indicates an issue with the session validation or token availability server-side
-        console.error("[Proxy] Critical: Server-side session valid but access token missing. Aborting backend call.");
+        log.error("Server-side session valid but access token missing");
         const errorStreamChunk = formatErrorChunk("Internal Server Error: Failed to retrieve auth token");
         const errorStream = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(errorStreamChunk)); controller.close(); }});
         return new StreamingTextResponse(errorStream, { status: 500 });
@@ -119,7 +143,10 @@ export async function POST(req: NextRequest) {
     });
 
     // Log raw status immediately
-    console.log(`[Proxy] Raw backend response status: ${backendResponse.status} ${backendResponse.statusText}`);
+    log.info("Backend response received", { 
+      status: backendResponse.status, 
+      statusText: backendResponse.statusText 
+    });
 
     // Check if the backend responded successfully
     if (!backendResponse.ok) {
@@ -127,22 +154,26 @@ export async function POST(req: NextRequest) {
        try {
            errorBody = await backendResponse.json();
        } catch (readError) {
-           console.error("[Proxy] Failed to read or parse JSON error body from backend response:", readError);
+           log.error("Failed to parse backend error response", { error: readError });
        }
-       console.error(`[Proxy] Backend fetch failed: ${backendResponse.status} ${backendResponse.statusText}. Body:`, errorBody);
+       log.error("Backend request failed", { 
+         status: backendResponse.status, 
+         statusText: backendResponse.statusText,
+         errorBody 
+       });
        // Return a standard JSON error response. The UI will handle this.
        return NextResponse.json(errorBody, { status: backendResponse.status });
     }
 
     // Check if the backend response body exists
     if (!backendResponse.body) {
-        console.error(`[Proxy] Backend response OK (${backendResponse.status}) but body is null.`);
+        log.error("Backend response missing body", { status: backendResponse.status });
         // Return a standard JSON error response
         return NextResponse.json({ error: "Backend returned an empty response." }, { status: 500 });
     }
     // --- End Main Fetch Handling ---
 
-    console.log("[Proxy] Backend response OK and has body. Passing stream through directly...");
+    log.info("Backend response OK, starting stream processing");
 
     // --- Stream Translation Layer ---
     // The Python backend sends SSE. The Vercel AI SDK frontend expects its own format.
@@ -186,38 +217,39 @@ export async function POST(req: NextRequest) {
                       // Handle reinforcement and then we're done.
                       const docIds = data.retrieved_doc_ids || [];
                       if (docIds.length > 0 && agent) {
-                        console.log(`[Proxy Reinforcement] Received ${docIds.length} doc IDs. Triggering reinforcement.`);
+                        log.info("Triggering memory reinforcement", { docCount: docIds.length, agent });
                         // Fire-and-forget reinforcement call
                         fetch(`${activeBackendUrl}/api/memory/reinforce`, {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': backendHeaders['Authorization'] || ''
+                            'Authorization': backendHeaders['Authorization'] || '',
+                            'X-Request-ID': requestId
                           },
                           body: JSON.stringify({
                             agent: agent,
                             doc_ids: docIds
                           })
-                        }).catch(err => console.error("[Proxy Reinforcement] Fire-and-forget reinforcement call failed:", err));
+                        }).catch(err => log.error("Memory reinforcement failed", { error: err }));
                       }
                       // We don't forward the 'done' message. The stream closing is the signal.
                     } else if (data.error) {
                         // Forward error from backend stream
-                        console.error("[Proxy] Error message received in stream from backend:", data.error);
+                        log.error("Error in backend stream", { error: data.error });
                         pushToClient(formatErrorChunk(data.error));
                     }
                   } catch (e) {
-                    console.error("[Proxy] Failed to parse JSON from backend stream line:", jsonStr, e);
+                    log.error("Failed to parse backend stream JSON", { jsonStr, error: e });
                   }
                 }
               }
             }
           }
         } catch (error) {
-          console.error("[Proxy] Error reading from backend stream:", error);
+          log.error("Error reading from backend stream", { error });
           pushToClient(formatErrorChunk("Error reading from backend service."));
         } finally {
-          console.log("[Proxy] Closing client stream controller.");
+          log.debug("Closing client stream controller");
           controller.close();
         }
       }
@@ -235,7 +267,11 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     // Catch top-level errors (e.g., JSON parsing error in request, initial backend find failure)
-    console.error("[Proxy] Error in top-level POST handler:", error);
+    log.error("Top-level error in proxy handler", { 
+      error: error.message,
+      cause: error.cause,
+      stack: error.stack 
+    });
     let errorMessage = error.message || 'An internal server error occurred';
     // Provide more specific error for connection timeout during health check (might be caught here if findActiveBackend throws)
     if (error.message?.includes("Could not connect to any configured backend")) {
@@ -246,7 +282,6 @@ export async function POST(req: NextRequest) {
     } else if (error.cause) {
         errorMessage += ` (Cause: ${error.cause.code || error.cause.message})`;
     }
-    console.error("[Proxy] Error Details:", error.cause || error); // Log full cause or error object
 
     // Return a standard JSON error response, which `useChat`'s onError can handle
     return NextResponse.json({ error: errorMessage }, { status: 500 });

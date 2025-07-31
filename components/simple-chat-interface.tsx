@@ -431,12 +431,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     const currentAgentData = data.allowedAgents.find((a: any) => a.name === agent);
                     if (currentAgentData) {
                         setAgentCapabilities(currentAgentData.capabilities);
-                        console.info(`[Agent Init] Capabilities for ${agent}:`, currentAgentData.capabilities);
+                        debugLog(`[Agent Init] Capabilities for ${agent}:`, currentAgentData.capabilities);
                     } else {
                         setAgentCapabilities({ pinecone_index_exists: false }); // Default if agent not in list
                     }
                 } else {
-                     console.warn(`[Agent Init] Failed to fetch agent capabilities.`);
+                     debugLog(`[Agent Init] Failed to fetch agent capabilities.`);
                      setAgentCapabilities({ pinecone_index_exists: false });
                 }
             } catch (error) {
@@ -445,7 +445,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
 
             setIsPageReady(true);
-            console.info(`[InitEffect] Page is NOW ready. Agent: ${agent}, Event: ${eventParam}`);
+            debugLog(`[InitEffect] Page is NOW ready. Agent: ${agent}, Event: ${eventParam}`);
         };
 
         if (agentParam) {
@@ -453,7 +453,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 initializeAgent(agentParam);
             }
         } else {
-            console.warn("[InitEffect] Chat Interface Waiting: Agent parameter missing from URL.");
+            debugLog("[InitEffect] Chat Interface Waiting: Agent parameter missing from URL.");
             setIsPageReady(false);
         }
     }, [searchParams, agentName]);
