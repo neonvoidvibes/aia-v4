@@ -86,10 +86,11 @@ export function formatErrorResponse(message: string, status: number): NextRespon
 /**
  * Formats an error message for the Vercel AI SDK stream protocol.
  * @param errorMsg The error message string.
- * @returns A string formatted as '2:"error message"\n'.
+ * @returns A string formatted for Vercel AI SDK v3 error handling.
  */
 export function formatErrorChunk(errorMsg: string): string {
-     return `2:${JSON.stringify(errorMsg)}\n`;
+     // The AI SDK v3 expects an error chunk to be prefixed with '1:'
+     return `1:${JSON.stringify({ error: errorMsg })}\n`;
  }
 
 // Add formatTextChunk if needed by other proxy routes, though it's chat-specific

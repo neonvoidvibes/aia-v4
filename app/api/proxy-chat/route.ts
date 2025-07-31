@@ -142,155 +142,96 @@ export async function POST(req: NextRequest) {
     }
     // --- End Main Fetch Handling ---
 
-    console.log("[Proxy] Backend response OK and has body. Creating ReadableStream for proxying...");
+    console.log("[Proxy] Backend response OK and has body. Passing stream through directly...");
 
-    // --- Manual ReadableStream Creation for Proxying Backend Stream ---
-    const backendStream = backendResponse.body;
-    const textDecoder = new TextDecoder();
-    let buffer = '';
-    const eventSeparator = '\n\n'; // Python backend uses double newline for SSE
-    const encoder = new TextEncoder(); // Needed to encode formatted chunks
-
-    const readableStream = new ReadableStream({
+    // --- Stream Translation Layer ---
+    // The Python backend sends SSE. The Vercel AI SDK frontend expects its own format.
+    // This new ReadableStream will read the backend's SSE and translate it on the fly.
+    const transformStream = new ReadableStream({
       async start(controller) {
-        console.log("[Proxy] Manual ReadableStream start() entered.");
-        const reader = backendStream.getReader();
-        let chunkCounter = 0; // Count chunks for logging
+        const reader = backendResponse.body!.getReader();
+        const decoder = new TextDecoder();
+        const encoder = new TextEncoder();
+        let buffer = "";
+
+        function pushToClient(chunk: string) {
+          controller.enqueue(encoder.encode(chunk));
+        }
 
         try {
           while (true) {
-            const logPrefix = `[Proxy Chunk ${++chunkCounter}]`;
-            // console.log(`${logPrefix} Reading from backend stream...`); // Reduce log noise
             const { value, done } = await reader.read();
-
             if (done) {
-              console.log(`${logPrefix} Backend stream finished (reader.read done=true).`);
-              // Process any final content remaining in the buffer
-              if (buffer.length > 0) {
-                  console.log(`${logPrefix} Processing final buffer content: '${buffer.substring(0,100)}...'`);
-                   const lines = buffer.split('\n'); // Process potentially partial lines
-                   for (const line of lines) {
-                       if (line.startsWith('data: ')) {
-                           try {
-                               const content = line.slice(6).trim();
-                               if(content) {
-                                   const jsonData = JSON.parse(content);
-                                   if (jsonData.delta) { // Check for text delta
-                                       const formattedChunk = formatTextChunk(jsonData.delta);
-                                       controller.enqueue(encoder.encode(formattedChunk));
-                                   } // Ignore other final JSON messages like 'done' if needed
-                               }
-                           } catch(e) { console.error(`${logPrefix} Error parsing final buffer JSON:`, e, buffer);}
-                       }
-                   }
-                   buffer = ''; // Clear buffer after final processing
-               }
-              console.log(`${logPrefix} Closing controller.`);
-              controller.close(); // Signal the end of our stream
-              break; // Exit the read loop
+              break;
             }
+            buffer += decoder.decode(value, { stream: true });
 
-             if (value) {
-                // console.log(`${logPrefix} Received ${value.byteLength} bytes. Decoding...`); // Reduce log noise
-                buffer += textDecoder.decode(value, { stream: true }); // Decode and append to buffer
-                // console.log(`${logPrefix} Buffer state (first 100): '${buffer.substring(0,100)}'`); // Reduce log noise
-                let eventIndex = buffer.indexOf(eventSeparator); // Find the SSE separator
-                // console.log(`${logPrefix} Found event separator at index: ${eventIndex}`); // Reduce log noise
+            // Process buffer line by line for SSE messages
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep the last (potentially incomplete) line
 
-                // Process complete events found in the buffer
-                while (eventIndex !== -1) {
-                  const eventData = buffer.substring(0, eventIndex); // Extract the event data
-                  buffer = buffer.substring(eventIndex + eventSeparator.length); // Remove event and separator from buffer
-                  // console.log(`${logPrefix} Processing complete event data: '${eventData}'`); // Reduce log noise
-                  // console.log(`${logPrefix} Remaining buffer (first 100): '${buffer.substring(0,100)}'`); // Reduce log noise
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const jsonStr = line.substring(6);
+                if (jsonStr.trim()) {
+                  try {
+                    const data = JSON.parse(jsonStr);
 
-                  const lines = eventData.split('\n'); // Process lines within the event
-                  for (const line of lines) {
-                    if (line.startsWith('data: ')) { // Check for SSE data line
-                      try {
-                        const content = line.slice(6).trim(); // Extract JSON content
-                        if (content) { // Ensure content is not empty
-                           const jsonData = JSON.parse(content);
-                           if (jsonData.delta) { // If it's a text chunk
-                               const formattedChunk = formatTextChunk(jsonData.delta);
-                               controller.enqueue(encoder.encode(formattedChunk)); // Enqueue formatted chunk
-                           } else if (jsonData.error) { // If the backend sent an error
-                               console.error(`${logPrefix} Error from backend stream (event data):`, jsonData.error);
-                               controller.enqueue(encoder.encode(formatErrorChunk(jsonData.error))); // Forward formatted error
-                           } else if (jsonData.done) { // If it's the final 'done' message
-                                const docIds = jsonData.retrieved_doc_ids || [];
-                                if (docIds.length > 0) {
-                                    console.log(`[Proxy Reinforcement] Received ${docIds.length} doc IDs to reinforce. Triggering backend call.`);
-                                    // This is a fire-and-forget call. We don't want to block the chat response.
-                                    fetch(`${activeBackendUrl}/api/memory/reinforce`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'Authorization': backendHeaders['Authorization'] || ''
-                                        },
-                                        body: JSON.stringify({
-                                            agent: agent,
-                                            doc_ids: docIds
-                                        })
-                                    }).then(async (reinforceRes) => {
-                                        if (!reinforceRes.ok) {
-                                            const errorBody = await reinforceRes.json().catch(() => ({}));
-                                            console.error(`[Proxy Reinforcement] Backend reinforcement call failed with status ${reinforceRes.status}:`, errorBody);
-                                        } else {
-                                            console.log("[Proxy Reinforcement] Backend reinforcement call successful.");
-                                        }
-                                    }).catch(err => {
-                                        console.error("[Proxy Reinforcement] Error during fire-and-forget reinforcement fetch:", err);
-                                    });
-                                }
-                                // We no longer need to forward the doc IDs to the client. The stream closing is the 'done' signal.
-                                // const finalChunk = `8:${JSON.stringify({ done: true })}\n`;
-                                // controller.enqueue(encoder.encode(finalChunk));
-                           }
-                        } else {
-                             console.log(`${logPrefix} Empty data content after 'data: '`);
-                         }
-                      } catch (e) {
-                        console.error(`${logPrefix} Error parsing backend JSON:`, e, 'Line:', line);
+                    if (data.delta) {
+                      // This is a text chunk. Translate to AI SDK format.
+                      // The format is `0:"<text_chunk>"\n`
+                      pushToClient(`0:${JSON.stringify(data.delta)}\n`);
+                    } else if (data.done) {
+                      // This is the final message from the backend.
+                      // Handle reinforcement and then we're done.
+                      const docIds = data.retrieved_doc_ids || [];
+                      if (docIds.length > 0 && agent) {
+                        console.log(`[Proxy Reinforcement] Received ${docIds.length} doc IDs. Triggering reinforcement.`);
+                        // Fire-and-forget reinforcement call
+                        fetch(`${activeBackendUrl}/api/memory/reinforce`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': backendHeaders['Authorization'] || ''
+                          },
+                          body: JSON.stringify({
+                            agent: agent,
+                            doc_ids: docIds
+                          })
+                        }).catch(err => console.error("[Proxy Reinforcement] Fire-and-forget reinforcement call failed:", err));
                       }
-                    } else if (line.trim() !== '') { // Log unexpected lines within an event
-                         console.warn(`${logPrefix} Received non-data line within event:`, line);
-                     }
+                      // We don't forward the 'done' message. The stream closing is the signal.
+                    } else if (data.error) {
+                        // Forward error from backend stream
+                        console.error("[Proxy] Error message received in stream from backend:", data.error);
+                        pushToClient(formatErrorChunk(data.error));
+                    }
+                  } catch (e) {
+                    console.error("[Proxy] Failed to parse JSON from backend stream line:", jsonStr, e);
                   }
-                  eventIndex = buffer.indexOf(eventSeparator); // Check for more events in the updated buffer
-                  // console.log(`${logPrefix} Found next event separator at index: ${eventIndex}`); // Reduce log noise
-                } // end while(eventIndex !== -1)
-             } else {
-                 console.log(`${logPrefix} Received empty chunk value.`); // Should not happen if done=false
-             }
-          } // end while(true) reader loop
-        } catch (error: any) {
+                }
+              }
+            }
+          }
+        } catch (error) {
           console.error("[Proxy] Error reading from backend stream:", error);
-          // Attempt to send an error message through the stream
-          try {
-              const errorChunk = formatErrorChunk(`Stream read error: ${error.message || error}`);
-              controller.enqueue(encoder.encode(errorChunk));
-              controller.error(error); // Propagate error to our stream's consumer
-          } catch (e) {
-               console.error("[Proxy] Error enqueuing/closing controller after read error:", e);
-           }
+          pushToClient(formatErrorChunk("Error reading from backend service."));
         } finally {
-           // Ensure controller is closed if not already
-           try { controller.close(); } catch (e) {}
-           console.log("[Proxy] Manual ReadableStream finally block executed.");
+          console.log("[Proxy] Closing client stream controller.");
+          controller.close();
         }
-      },
-      cancel(reason) {
-         // Log if the stream consumer cancels
-         console.log("[Proxy] Manual ReadableStream cancelled:", reason);
       }
     });
-    // --- End Manual ReadableStream Creation ---
 
-    // Use StreamingTextResponse (requires import 'ai')
-    // Pass the manually created and formatted stream
-    console.log("[Proxy] Returning StreamingTextResponse.");
-    return new StreamingTextResponse(readableStream);
+    return new Response(transformStream, {
+      status: backendResponse.status,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8', // The AI SDK expects text/plain
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      }
+    });
 
   } catch (error: any) {
     // Catch top-level errors (e.g., JSON parsing error in request, initial backend find failure)
