@@ -3327,7 +3327,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 role="button"
                                 aria-label="Stop generating"
                               >
-                                <Square size={20} className="fill-current" />
+                                <Square className="fill-current mobile-tts-icon" />
                               </div>
                             ) : (
                               <button

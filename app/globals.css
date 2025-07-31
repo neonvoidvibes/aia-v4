@@ -2332,12 +2332,6 @@ button {
     width: inherit !important;
   }
   
-  /* Fix stop button icon sizing - smaller to fit properly */
-  .mobile-submit-button[aria-label="Stop generating"] * {
-    height: 1.25rem !important; /* 20px - fits well in 40px button */
-    width: 1.25rem !important;
-  }
-  
   /* Specific override for Button component from shadcn */
   .mobile-submit-button button {
     height: 2.5rem !important;
@@ -2345,13 +2339,6 @@ button {
     min-height: 2.5rem !important;
     min-width: 2.5rem !important;
   }
-
-  /* Fix stop button icon sizing - smaller to fit properly */
-  .mobile-submit-button[aria-label="Stop generating"] * {
-    height: 1.25rem !important; /* 20px - fits well in 40px button */
-    width: 1.25rem !important;
-  }
-  
   
   /* Plus menu button */
   .mobile-plus-button {
