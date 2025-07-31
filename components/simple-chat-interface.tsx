@@ -1986,43 +1986,33 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const anchor = 200;
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+        // This path for desktop and non-anchored mobile scrolls remains the same.
         if (!isMobile || (st >= anchor && sh - st - ch >= anchor)) {
             container.scrollTo({ top: target, behavior: 'smooth' });
             return;
         }
 
-        // --- A More Robust "Escape and Persist" Routine ---
+        // --- "Over-scroll and Settle" Routine for Anchor Zones ---
 
-        // 1. Controlled Escape (Builds on your successful principle)
-        // Instead of a large jump, we make a minimal, precise jump just
-        // outside the browser's aggressive anchor zone.
-        let escapePosition = target;
-        const inBottomZone = sh - st - ch < anchor;
-        const inTopZone = st < anchor;
+        // 1. The Over-scroll: An instant jump slightly PAST our intended target.
+        // This is a forceful but invisible "escape" from the browser's anchor.
+        const overscrollTarget = target + 40; // A small, 40px over-scroll
+        container.scrollTo({ top: overscrollTarget, behavior: 'auto' });
 
-        if (inBottomZone) {
-            escapePosition = sh - ch - anchor - 5; // Jump 5px outside the bottom zone
-        } else if (inTopZone) {
-            escapePosition = anchor + 5; // Jump 5px outside the top zone
-        }
-        
-        container.scrollTo({ top: escapePosition, behavior: 'auto' });
+        // 2. The Settle: In the very next animation frame, correct to the actual target.
+        // This happens before the browser can paint, making the two-step process appear as one.
+        requestAnimationFrame(() => {
+            container.scrollTo({ top: target, behavior: 'auto' });
 
-        // 2. Intelligent Persistence (Builds on your successful principle)
-        // We make multiple attempts, but each one first CHECKS if it's needed.
-        // This is more efficient and reliable than blind retries.
-        const retryScroll = () => {
-            // Only scroll if the browser has overridden our position.
-            if (Math.abs(container.scrollTop - target) > 5) {
-                container.scrollTo({ top: target, behavior: 'auto' });
-            }
-        };
-
-        // Schedule the attempts, giving the browser time to interfere between them.
-        setTimeout(retryScroll, 50);
-        setTimeout(retryScroll, 100);
-        setTimeout(retryScroll, 150);
-
+            // 3. The Final Correction (Our proven safety net):
+            // After a brief moment, we ensure the browser didn't make a last-ditch effort to override us.
+            setTimeout(() => {
+                if (Math.abs(container.scrollTop - target) > 10) {
+                   console.log(`[mobileScrollFix] Final correction needed. Is: ${container.scrollTop}, Should be: ${target}`);
+                   container.scrollTo({ top: target, behavior: 'auto' });
+                }
+            }, 100);
+        });
     }, []);
 
     const scrollToShowUserMessageAtTop = useCallback(() => {
