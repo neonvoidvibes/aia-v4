@@ -1983,48 +1983,39 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // ChatGPT o3 solution refined by Gemini: Mobile scroll fix with anchor zone detection
     const mobileScrollFix = useCallback((container: HTMLElement, target: number) => {
         const { scrollTop: st, scrollHeight: sh, clientHeight: ch } = container;
-        const anchor = 200; // The px buffer zone at top and bottom
+        const anchor = 200;
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        // This path for desktop and non-anchored mobile scrolls remains the same.
         if (!isMobile || (st >= anchor && sh - st - ch >= anchor)) {
             container.scrollTo({ top: target, behavior: 'smooth' });
             return;
         }
 
-        // --- "Guaranteed Escape & Intelligent Persistence" Routine ---
+        // --- The "Pre-emptive Reset" Routine ---
 
-        // 1. Guaranteed Escape (The key refinement)
-        // If we are in an anchor zone, perform a single, instant scroll to a
-        // fixed point just outside of it. This is a strong, undeniable signal
-        // to the browser to break its anchor lock.
-        const inTopZone = st < anchor;
         const inBottomZone = sh - st - ch < anchor;
 
-        if (inTopZone || inBottomZone) {
-            // This scroll happens first, immediately.
-            const escapePosition = inBottomZone ? (sh - ch - anchor - 5) : (anchor + 5);
-            container.scrollTo({ top: escapePosition, behavior: 'auto' });
-        }
+        // 1. The Reset: A flicker-free, instant jump to the opposite end and back.
+        // This is a maximal-leverage maneuver to force the browser to completely
+        // discard its scroll anchor memory before we make our final move.
+        // Because both scrolls happen in the same execution block before the next
+        // paint, the intermediate jump is invisible to the user.
+        const oppositeEnd = inBottomZone ? 0 : sh;
+        container.scrollTo({ top: oppositeEnd, behavior: 'auto' });
+        container.scrollTo({ top: target, behavior: 'auto' });
 
-        // 2. Intelligent Persistence (Your successful principle, made smarter)
-        // We will make several attempts to land at the target, but each attempt
-        // will first check if it's necessary before acting.
-        const attemptScrollToTarget = (attempt: number) => {
-            // Check if the scroll position is already correct.
+        // 2. Intelligent Persistence: Our proven safety net.
+        // We schedule checks to correct any final, delayed interference from the browser.
+        const retryScroll = (attempt: number) => {
             if (Math.abs(container.scrollTop - target) > 5) {
                 console.log(`[mobileScrollFix] Attempt #${attempt}: Correcting scroll. Is: ${container.scrollTop}, Should be: ${target}`);
                 container.scrollTo({ top: target, behavior: 'auto' });
-            } else {
-                console.log(`[mobileScrollFix] Attempt #${attempt}: Scroll is correct. No action needed.`);
             }
         };
 
-        // Schedule the attempts. The delays give the browser's restoration
-        // mechanism time to act, so our later attempts can correct it.
-        setTimeout(() => attemptScrollToTarget(1), 50);
-        setTimeout(() => attemptScrollToTarget(2), 150);
-        setTimeout(() => attemptScrollToTarget(3), 300); // A final check for stubborn cases.
+        setTimeout(() => retryScroll(1), 50);
+        setTimeout(() => retryScroll(2), 150);
+        setTimeout(() => retryScroll(3), 300);
 
     }, []);
 
