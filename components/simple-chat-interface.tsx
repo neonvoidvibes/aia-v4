@@ -756,6 +756,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => {
         lastUserMessageCountRef.current = messages.filter(m => m.role === 'user').length;
     }, []); // Only run once on mount
+    
+    // Grok 3 solution: Disable browser scroll restoration
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+            window.history.scrollRestoration = 'manual';
+            
+            // Restore on unmount
+            return () => {
+                window.history.scrollRestoration = 'auto';
+            };
+        }
+    }, []);
     const prevScrollTopRef = useRef<number>(0);
     const filesForNextMessageRef = useRef<AttachmentFile[]>([]);
     const timerDisplayRef = useRef<HTMLSpanElement>(null); 
@@ -2075,15 +2087,34 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             // console.log('[Scroll Debug] Triggering user message scroll to top');
             // Update the count immediately
             lastUserMessageCountRef.current = currentUserMessageCount;
-            // Scroll to show user message at top
-            const id = requestAnimationFrame(() => {
-                const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent);
-                const delay = isMobile ? 500 : 200; // Longer delay for mobile devices
-                setTimeout(() => {
-                    scrollToShowUserMessageAtTop();
-                }, delay);
-            });
-            return () => cancelAnimationFrame(id);
+            // Grok 3 solution: Use scrollIntoView with manual restoration control
+            const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // For mobile, use direct scrollIntoView after a delay to avoid restoration conflicts
+                const id = requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        const userMessages = document.querySelectorAll('[data-role="user"]');
+                        const lastUserMessage = userMessages[userMessages.length - 1] as HTMLElement;
+                        if (lastUserMessage) {
+                            lastUserMessage.scrollIntoView({ 
+                                behavior: 'smooth',
+                                block: 'start',
+                                inline: 'nearest'
+                            });
+                        }
+                    }, 100); // Shorter delay since restoration is disabled
+                });
+                return () => cancelAnimationFrame(id);
+            } else {
+                // Desktop uses existing logic
+                const id = requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        scrollToShowUserMessageAtTop();
+                    }, 200);
+                });
+                return () => cancelAnimationFrame(id);
+            }
         }
         
         // Update count for any user message changes
@@ -3070,7 +3101,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     )}
                   </div>
                 )}
-                <div ref={messagesEndRef} className="scroll-anchor" />
+                <div ref={messagesEndRef} />
             </div>
 
             {showScrollToBottom && (
