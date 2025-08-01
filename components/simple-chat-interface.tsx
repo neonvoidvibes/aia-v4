@@ -2706,19 +2706,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         // Tiered approach for different mobile screen sizes
                         if (vh <= 667) {
                             // Small phones (iPhone Mini, SE)
-                            return '160px';
+                            return '126px';
                         } else if (vh <= 750) {
                             // Medium-small phones
-                            return '180px';
+                            return '280px';
                         } else if (vh <= 850) {
                             // Standard phones (most iPhones, Galaxy S series)
-                            return '200px';
+                            return '300px';
                         } else if (vh <= 950) {
                             // Large phones (Pro Max, Ultra)
-                            return '220px';
+                            return '320px';
                         } else {
                             // Extra large phones/tablets in portrait
-                            return '240px';
+                            return '340px';
                         }
                     }
                     return Math.min(600, vh * 0.8 - 160) + 'px';
