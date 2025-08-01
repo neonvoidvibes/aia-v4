@@ -1994,13 +1994,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [assistantResponseComplete]);
 
     const scrollToBottom = useCallback((b: ScrollBehavior = "smooth") => { 
-        // Find the last actual message instead of scrolling to padding
-        const allMessages = document.querySelectorAll('[data-role]');
-        const lastMessage = allMessages[allMessages.length - 1] as HTMLElement;
-        if (lastMessage) {
-            lastMessage.scrollIntoView({ behavior: b, block: 'end' });
-        } else if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: b });
+        // Simple scroll to bottom of container - no complex positioning needed with minimal padding system
+        const container = messagesContainerRef.current;
+        if (container) {
+            container.scrollTo({ 
+                top: container.scrollHeight, 
+                behavior: b 
+            });
         }
         userHasScrolledRef.current = false; 
         setShowScrollToBottom(false); 
