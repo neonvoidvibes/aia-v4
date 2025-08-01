@@ -2149,12 +2149,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         //     }
         // }
         // Always allow checkScroll to run to maintain scroll-to-bottom button functionality
-        // Only limit to when userHasScrolled is true during assistant responses
+        // Only limit when userHasScrolled is true during assistant responses to prevent auto-scroll
         // BUT don't run checkScroll immediately after assistant finishes to prevent jumping
         if (!isLoading && !isThinking && userHasScrolledRef.current && !assistantJustFinishedRef.current) {
             checkScroll();
         } else if ((isLoading || isThinking) && userHasScrolledRef.current) {
             // During assistant responses, still update scroll button visibility
+            checkScroll();
+        } else if ((isLoading || isThinking) && !userHasScrolledRef.current) {
+            // Also run checkScroll during assistant responses when user hasn't scrolled to maintain button visibility
             checkScroll();
         }
     }, [messages, isLoading, isThinking, scrollToBottom, scrollToShowUserMessageAtTop, checkScroll]);
@@ -2726,9 +2729,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                   <div className="space-y-1" style={{ 
                     paddingTop: window.innerHeight <= 600 ? '24px' : '32px',
                     paddingBottom: (() => {
-                    // Use minimal padding ONLY when user actively explored history by scrolling up and down
-                    if (assistantResponseComplete) {
-                        return '20px'; // Minimal padding only when user actively scrolled
+                    // Use minimal padding when:
+                    // 1. User actively explored history by scrolling up and down
+                    // 2. Loading old conversations that end with assistant message
+                    const lastMessage = combinedMessages.length > 0 ? combinedMessages[combinedMessages.length - 1] : null;
+                    const lastMessageIsAssistant = lastMessage?.role === 'assistant';
+                    const userJustSubmitted = combinedMessages.length > 0 && combinedMessages[combinedMessages.length - 1]?.role === 'user';
+                    const assistantIsActive = isLoading || isThinking;
+                    const isOldConversation = lastMessageIsAssistant && !userJustSubmitted && !assistantIsActive && !assistantJustFinishedRef.current;
+                    
+                    if (assistantResponseComplete || isOldConversation) {
+                        return '20px'; // Minimal padding
                     }
                     
                     const vh = window.innerHeight;
@@ -3141,7 +3152,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             </div>
 
             {showScrollToBottom && (
-              <button onClick={() => scrollToBottom()} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
+              <button onClick={() => {
+                // When down-arrow is clicked, activate minimal padding if assistant just finished for better UX
+                if (assistantJustFinishedRef.current && !assistantResponseComplete) {
+                  setAssistantResponseComplete(true);
+                }
+                scrollToBottom();
+              }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
                 <ArrowDown size={24} />
               </button>
             )}
