@@ -2702,7 +2702,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     if (vh <= 400) return '100px';
                     if (vh <= 500) return '120px';
                     if (vh <= 600) return '150px';
-                    if (isMobile) return Math.max(120, vh * 0.2) + 'px';
+                    if (isMobile) {
+                        // Tiered approach for different mobile screen sizes
+                        if (vh <= 667) {
+                            // Small phones (iPhone Mini, SE)
+                            return '160px';
+                        } else if (vh <= 750) {
+                            // Medium-small phones
+                            return '180px';
+                        } else if (vh <= 850) {
+                            // Standard phones (most iPhones, Galaxy S series)
+                            return '200px';
+                        } else if (vh <= 950) {
+                            // Large phones (Pro Max, Ultra)
+                            return '220px';
+                        } else {
+                            // Extra large phones/tablets in portrait
+                            return '240px';
+                        }
+                    }
                     return Math.min(600, vh * 0.8 - 160) + 'px';
                   })() }}>
                     {combinedMessages.map((message: UIMessage, index: number) => {
