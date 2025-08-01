@@ -2702,7 +2702,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     if (vh <= 400) return '100px';
                     if (vh <= 500) return '120px';
                     if (vh <= 600) return '150px';
-                    if (isMobile) return Math.max(300, vh * 0.6) + 'px';
+                    if (isMobile) return Math.max(1, vh * 0.6) + 'px';
                     return Math.min(600, vh * 0.8 - 160) + 'px';
                   })() }}>
                     {combinedMessages.map((message: UIMessage, index: number) => {
