@@ -377,7 +377,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     
     // State to track when user has scrolled after assistant response is complete
     const [assistantResponseComplete, setAssistantResponseComplete] = useState(false);
-    const [userScrolledAfterResponse, setUserScrolledAfterResponse] = useState(false);
     const assistantJustFinishedRef = useRef(false);
 
     const [agentCapabilities, setAgentCapabilities] = useState({ pinecone_index_exists: false });
@@ -691,12 +690,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (isAssistantResponseFinished && !assistantJustFinishedRef.current) {
             // Assistant response just completed, set flag to track this state
             assistantJustFinishedRef.current = true;
-            setUserScrolledAfterResponse(false); // Reset scroll tracking
         } else if ((isLoading || isThinking) && assistantJustFinishedRef.current) {
             // New assistant activity started, reset all flags
             assistantJustFinishedRef.current = false;
             setAssistantResponseComplete(false);
-            setUserScrolledAfterResponse(false);
         }
     }, [isLoading, isThinking, messages]);
 
@@ -1180,7 +1177,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             lastAppendedErrorRef.current = null;
             // Reset all assistant response tracking flags when new message is submitted
             setAssistantResponseComplete(false);
-            setUserScrolledAfterResponse(false);
             assistantJustFinishedRef.current = false;
             
             let canvasContextData = chatRequestOptions?.data || {};
@@ -1984,22 +1980,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       
       if (significantScrollUp && !isAtBottomForLogic && !userHasScrolledRef.current) {
         userHasScrolledRef.current = true;
-        // Mark that user scrolled up after assistant response finished
-        if (assistantJustFinishedRef.current && !userScrolledAfterResponse) {
-          setUserScrolledAfterResponse(true);
+        // Immediately activate minimal padding when user scrolls up after assistant response finished
+        if (assistantJustFinishedRef.current && !assistantResponseComplete) {
+          setAssistantResponseComplete(true);
         }
       } else if (userHasScrolledRef.current && isAtBottomForLogic) {
         userHasScrolledRef.current = false;
-        // If user scrolled up after response and now scrolled back down, activate minimal padding
-        if (assistantJustFinishedRef.current && userScrolledAfterResponse && !assistantResponseComplete) {
-          setAssistantResponseComplete(true);
-        }
       }
       
       prevScrollTopRef.current = st;
       const isAtBottomForButton = (effectiveScrollHeight - st - ch) < atBottomThresholdForButtonVisibility;
       setShowScrollToBottom(isScrollable && !isAtBottomForButton);
-    }, [userScrolledAfterResponse, assistantResponseComplete]);
+    }, [assistantResponseComplete]);
 
     const scrollToBottom = useCallback((b: ScrollBehavior = "smooth") => { 
         // Find the last actual message instead of scrolling to padding
