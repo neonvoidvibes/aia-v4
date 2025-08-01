@@ -2706,7 +2706,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         // Tiered approach for different mobile screen sizes
                         if (vh <= 667) {
                             // Small phones (iPhone Mini, SE)
-                            return '126px';
+                            return '260px';
                         } else if (vh <= 750) {
                             // Medium-small phones
                             return '280px';
