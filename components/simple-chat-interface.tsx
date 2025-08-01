@@ -2705,20 +2705,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     if (isMobile) {
                         // Tiered approach for different mobile screen sizes
                         if (vh <= 667) {
-                            // Small phones (iPhone Mini, SE) - 260px perfect for iPhone 12 Mini
+                            // Small phones (iPhone Mini, SE)
                             return '260px';
                         } else if (vh <= 750) {
-                            // Medium-small phones (iPhone 13/14/15) - 292px (39% of 750px)
-                            return '280px';
+                            // Medium-small phones (iPhone 13/14/15)
+                            return '325px';
                         } else if (vh <= 850) {
-                            // Standard phones (most iPhones, Galaxy S series) - 331px (39% of 850px)
-                            return '300px';
+                            // Standard phones (most iPhones, Galaxy S series)
+                            return '390px';
                         } else if (vh <= 950) {
-                            // Large phones (Pro Max, Ultra) - 370px (39% of 950px)
-                            return '320px';
+                            // Large phones (Pro Max, Ultra)
+                            return '455px';
                         } else {
                             // Extra large phones/tablets in portrait - maintain reasonable cap
-                            return '350px';
+                            return '520px';
                         }
                     }
                     return Math.min(600, vh * 0.8 - 160) + 'px';
