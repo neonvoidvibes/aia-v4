@@ -77,61 +77,6 @@ const debugLog = (...args: any[]) => {
   }
 };
 
-// Enhanced logging utility for race condition debugging
-const raceConditionLog = {
-  saves: [] as Array<{requestId: string, timestamp: number, action: string, chatId: string | null, messageCount: number}>,
-  
-  logSave: (requestId: string, action: string, chatId: string | null, messageCount: number) => {
-    const entry = {
-      requestId,
-      timestamp: Date.now(),
-      action,
-      chatId,
-      messageCount
-    };
-    raceConditionLog.saves.push(entry);
-    
-    // Keep only last 20 entries to avoid memory issues
-    if (raceConditionLog.saves.length > 20) {
-      raceConditionLog.saves = raceConditionLog.saves.slice(-20);
-    }
-    
-    console.log(`[Race Debug] ${action}:`, entry);
-  },
-  
-  analyzeTiming: () => {
-    const recent = raceConditionLog.saves.slice(-10);
-    const overlapping = recent.filter((save, i) => {
-      const next = recent[i + 1];
-      return next && (next.timestamp - save.timestamp < 500); // Within 500ms
-    });
-    
-    if (overlapping.length > 0) {
-      console.warn('[Race Debug] POTENTIAL RACE CONDITIONS detected:', overlapping);
-    }
-    
-    return { totalSaves: raceConditionLog.saves.length, recentOverlapping: overlapping.length };
-  },
-  
-  // Debug helper for console inspection
-  debug: () => {
-    console.group('[Race Debug] Full Analysis');
-    console.log('All saves:', raceConditionLog.saves);
-    console.log('Timing analysis:', raceConditionLog.analyzeTiming());
-    
-    const chatCreations = raceConditionLog.saves.filter(s => s.action === 'NEW_CHAT_CREATED');
-    const stateUpdates = raceConditionLog.saves.filter(s => s.action === 'EXISTING_CHAT_UPDATED');
-    const mismatches = raceConditionLog.saves.filter(s => s.action === 'STATE_MISMATCH');
-    
-    console.log(`Summary: ${chatCreations.length} new chats, ${stateUpdates.length} updates, ${mismatches.length} mismatches`);
-    
-    if (mismatches.length > 0) {
-      console.warn('State mismatches detected:', mismatches);
-    }
-    
-    console.groupEnd();
-  }
-};
 
 /**
  * A simple markdown to HTML converter.
@@ -781,101 +726,44 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Capture the current chat ID at the start of the save operation to prevent race conditions
         const chatIdAtStartOfSave = currentChatId;
         
-        // Generate a unique request ID to help identify and prevent duplicate requests
-        const requestId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
-        
-        // Log detailed state for debugging
-        console.log(`[Auto-save] STARTING save operation:`, {
-            requestId,
-            chatIdAtStartOfSave,
-            currentChatId,
-            messageCount: currentMessages.length,
-            agentName,
-            chatTitle,
-            timestamp: new Date().toISOString(),
-            messageIds: currentMessages.map(m => m.id).slice(-3), // Last 3 message IDs
-            isSavingBefore: isSavingRef.current
-        });
-        
-        // Track for race condition analysis
-        raceConditionLog.logSave(requestId, 'SAVE_START', chatIdAtStartOfSave, currentMessages.length);
-        
         isSavingRef.current = true;
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) {
-                console.warn(`[Auto-save] ${requestId}: No session available for auto-save`);
-                return; // finally block will still run
+                return;
             }
 
-            console.log(`[Auto-save] ${requestId}: Making API call...`);
             const response = await fetch('/api/chat/history/save', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.access_token}`,
-                    'X-Request-ID': requestId, // Add request ID to help with debugging
                 },
                 body: JSON.stringify({
                     agent: agentName,
-                    messages: currentMessages, // Always save the complete conversation
-                    chatId: chatIdAtStartOfSave, // Use the captured chat ID to prevent race conditions
+                    messages: currentMessages,
+                    chatId: chatIdAtStartOfSave,
                     title: chatTitle,
-                    requestId: requestId, // Include in payload for backend tracking
                 }),
             });
 
-            const responseTime = Date.now() - startTime;
-            console.log(`[Auto-save] ${requestId}: API response received in ${responseTime}ms, status: ${response.status}`);
-
             if (response.ok) {
                 const result = await response.json();
-                console.log(`[Auto-save] ${requestId}: Response data:`, result);
                 
                 if (result.success) {
-                    // Log state comparison for debugging
-                    console.log(`[Auto-save] ${requestId}: State comparison:`, {
-                        chatIdAtStartOfSave,
-                        currentChatIdNow: currentChatId,
-                        resultChatId: result.chatId,
-                        willUpdateState: (!chatIdAtStartOfSave && currentChatId === null)
-                    });
-                    
                     // CRITICAL FIX: Always update state if we created a new chat, regardless of timing
                     // This prevents race conditions where the second save starts before state updates
                     if (!chatIdAtStartOfSave && result.chatId) {
-                        console.info(`[Auto-save] ${requestId}: NEW CHAT CREATED - Immediately updating state to prevent race conditions`);
                         setCurrentChatId(result.chatId);
                         setChatTitle(result.title);
-                        console.info(`[Auto-save] ${requestId}: STATE UPDATED - ID: ${result.chatId}, Title: ${result.title}`);
-                        raceConditionLog.logSave(requestId, 'NEW_CHAT_CREATED', result.chatId, currentMessages.length);
-                    } else if (chatIdAtStartOfSave) {
-                        console.info(`[Auto-save] ${requestId}: EXISTING CHAT UPDATED - ID: ${result.chatId}, Messages: ${currentMessages.length}`);
-                        raceConditionLog.logSave(requestId, 'EXISTING_CHAT_UPDATED', result.chatId, currentMessages.length);
-                    } else {
-                        console.warn(`[Auto-save] ${requestId}: UNEXPECTED STATE - chatIdAtStart: ${chatIdAtStartOfSave}, resultChatId: ${result.chatId}`);
-                        raceConditionLog.logSave(requestId, 'UNEXPECTED_STATE', result.chatId, currentMessages.length);
                     }
                 }
-            } else {
-                const errorText = await response.text().catch(() => 'Unknown error');
-                console.error(`[Auto-save] ${requestId}: API ERROR - Status: ${response.status}, Response: ${errorText}`);
             }
         } catch (error) {
-            const errorTime = Date.now() - startTime;
-            console.error(`[Auto-save] ${requestId}: EXCEPTION after ${errorTime}ms:`, error);
+            console.error('[Auto-save] Save operation failed:', error);
         } finally {
-            const totalTime = Date.now() - startTime;
             isSavingRef.current = false;
-            raceConditionLog.logSave(requestId, 'SAVE_COMPLETED', chatIdAtStartOfSave, currentMessages.length);
-            console.log(`[Auto-save] ${requestId}: COMPLETED in ${totalTime}ms, isSaving reset to false`);
-            
-            // Analyze race conditions periodically
-            const analysis = raceConditionLog.analyzeTiming();
-            if (analysis.recentOverlapping > 0) {
-                console.warn(`[Auto-save] ${requestId}: RACE CONDITION ANALYSIS - Found ${analysis.recentOverlapping} potentially overlapping saves in recent history!`);
-            }
         }
     }, [agentName, currentChatId, chatTitle, supabase.auth]);
 
