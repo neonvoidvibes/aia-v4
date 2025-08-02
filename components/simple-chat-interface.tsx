@@ -709,8 +709,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const currentMessages = messagesToSave || messagesRef.current;
         if (!agentName || currentMessages.length === 0) return;
 
+        // Capture the current chat ID at the start of the save operation to prevent race conditions
+        const chatIdAtStartOfSave = currentChatId;
+        
         isSavingRef.current = true;
-        console.info('[Auto-save] Saving chat with', currentMessages.length, 'messages. Chat ID:', currentChatId);
+        console.info('[Auto-save] Saving chat with', currentMessages.length, 'messages. Chat ID at start:', chatIdAtStartOfSave);
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -728,7 +731,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 body: JSON.stringify({
                     agent: agentName,
                     messages: currentMessages, // Always save the complete conversation
-                    chatId: currentChatId,
+                    chatId: chatIdAtStartOfSave, // Use the captured chat ID to prevent race conditions
                     title: chatTitle,
                 }),
             });
@@ -736,13 +739,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
-                    // Only update chat ID and title if we don't have them yet
-                    if (!currentChatId) {
+                    // Only update chat ID and title if we don't have them yet AND
+                    // the current state still matches what we started with (no new chat started)
+                    if (!chatIdAtStartOfSave && currentChatId === null) {
                         setCurrentChatId(result.chatId);
                         setChatTitle(result.title);
                         console.info('[Auto-save] New chat created:', result.chatId, result.title);
-                    } else {
+                    } else if (chatIdAtStartOfSave) {
                         console.info('[Auto-save] Chat updated with all messages:', result.chatId, 'Total messages saved:', currentMessages.length);
+                    } else {
+                        console.info('[Auto-save] Save completed but chat state changed during save (new chat likely started). Not updating state.');
                     }
                 }
             } else {
@@ -1852,6 +1858,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 console.info("[New Chat] Active recording detected, stopping it first.");
                 await handleStopRecording(undefined, false); 
              }
+             
+             // Wait for any pending save operations to complete before resetting state
+             console.info("[New Chat] Waiting for any pending save operations to complete...");
+             while (isSavingRef.current) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+             }
+             console.info("[New Chat] All save operations completed. Proceeding with reset.");
+             
              setMessages([]);
              setErrorMessages([]); // Clear error messages
              lastAppendedErrorRef.current = null; // Reset last error ref
@@ -1929,7 +1943,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 if (filteredMessages.length > 0) {
                   // Use setTimeout to ensure the messages are rendered before scrolling
                   setTimeout(() => {
-                    scrollToBottom('auto');
+                    const container = messagesContainerRef.current;
+                    if (container) {
+                      // Instantly jump to bottom without any animation
+                      container.scrollTop = container.scrollHeight;
+                    }
                   }, 100);
                 }
               }
