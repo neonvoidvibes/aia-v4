@@ -712,8 +712,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Capture the current chat ID at the start of the save operation to prevent race conditions
         const chatIdAtStartOfSave = currentChatId;
         
+        // Generate a unique request ID to help identify and prevent duplicate requests
+        const requestId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
+        
         isSavingRef.current = true;
-        console.info('[Auto-save] Saving chat with', currentMessages.length, 'messages. Chat ID at start:', chatIdAtStartOfSave);
+        console.info(`[Auto-save] Saving chat with ${currentMessages.length} messages. Chat ID at start: ${chatIdAtStartOfSave}, Request ID: ${requestId}`);
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -727,12 +730,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.access_token}`,
+                    'X-Request-ID': requestId, // Add request ID to help with debugging
                 },
                 body: JSON.stringify({
                     agent: agentName,
                     messages: currentMessages, // Always save the complete conversation
                     chatId: chatIdAtStartOfSave, // Use the captured chat ID to prevent race conditions
                     title: chatTitle,
+                    requestId: requestId, // Include in payload for backend tracking
                 }),
             });
 
@@ -744,18 +749,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     if (!chatIdAtStartOfSave && currentChatId === null) {
                         setCurrentChatId(result.chatId);
                         setChatTitle(result.title);
-                        console.info('[Auto-save] New chat created:', result.chatId, result.title);
+                        console.info(`[Auto-save] New chat created: ${result.chatId}, ${result.title} (Request: ${requestId})`);
                     } else if (chatIdAtStartOfSave) {
-                        console.info('[Auto-save] Chat updated with all messages:', result.chatId, 'Total messages saved:', currentMessages.length);
+                        console.info(`[Auto-save] Chat updated: ${result.chatId}, Messages: ${currentMessages.length} (Request: ${requestId})`);
                     } else {
-                        console.info('[Auto-save] Save completed but chat state changed during save (new chat likely started). Not updating state.');
+                        console.info(`[Auto-save] Save completed but chat state changed during save. Not updating state. (Request: ${requestId})`);
                     }
                 }
             } else {
-                console.error('[Auto-save] Failed to save chat:', response.statusText);
+                console.error(`[Auto-save] Failed to save chat: ${response.statusText} (Request: ${requestId})`);
             }
         } catch (error) {
-            console.error('[Auto-save] Error saving chat:', error);
+            console.error(`[Auto-save] Error saving chat: ${error} (Request: ${requestId})`);
         } finally {
             isSavingRef.current = false;
         }
@@ -1219,10 +1224,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 textareaRef.current.style.overflowY = 'hidden';
             }
 
-            // Auto-save after user message is sent
+            // Auto-save after user message is sent - increased delay to reduce race conditions
             setTimeout(() => {
                 saveChatHistory();
-            }, 100);
+            }, 250);
         }
     }, [
         input, 
