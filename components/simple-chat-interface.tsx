@@ -357,12 +357,6 @@ const formatTimestamp = (date: Date | undefined): string => {
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
   function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
-    // Make race condition debug available globally for console debugging
-    React.useEffect(() => {
-        if (typeof window !== 'undefined') {
-            (window as any).raceDebug = raceConditionLog.debug;
-        }
-    }, []);
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
