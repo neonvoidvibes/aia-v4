@@ -4,7 +4,7 @@ import { getSupabaseUser } from '../proxyUtils';
 // Default Voice ID for "Rachel" on ElevenLabs - a known good fallback.
 const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 
-export const maxDuration = 60; // Allow up to 60 seconds for TTS generation
+export const maxDuration = 300; // Allow up to 5 minutes for TTS generation to handle longer texts
 
 export async function GET(req: NextRequest) {
   try {
