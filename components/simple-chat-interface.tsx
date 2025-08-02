@@ -1884,7 +1884,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              console.info("[New Chat] Client states (messages, errors, attachments, chat ID, memory) reset.");
           },
          getMessagesCount: () => messages.length,
-         scrollToTop: () => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); userHasScrolledRef.current = false; setShowScrollToBottom(false); },
+         scrollToTop: () => { 
+           messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); 
+           userHasScrolledRef.current = true; 
+           setShowScrollToBottom(false); 
+           setAssistantResponseComplete(true); 
+         },
          setInput: (text: string) => {
             handleInputChange({ target: { value: text } } as React.ChangeEvent<HTMLInputElement>);
          },
@@ -1938,6 +1943,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 const filteredMessages = chatData.messages.filter((msg: Message) => msg.role !== "system");
                 setMessages(filteredMessages);
                 console.info("[Load Chat History] Loaded", filteredMessages.length, "messages for chat:", chatData.id, "(system messages cleared)");
+                
+                // Set minimal padding when loading chat history (padding removed)
+                setAssistantResponseComplete(true);
+                setAssistantJustFinished(false);
+                userHasScrolledRef.current = true;
                 
                 // Auto-scroll to the end of the conversation after loading messages
                 if (filteredMessages.length > 0) {
@@ -2006,13 +2016,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       
       if (significantScrollUp && !isAtBottomForLogic && !userHasScrolledRef.current && !isLoading && !isThinking) {
         userHasScrolledRef.current = true;
-        // Immediately activate minimal padding when user scrolls up after assistant response finished
-        if (assistantJustFinished && !assistantResponseComplete) {
-          setAssistantResponseComplete(true);
-        }
+        // Remove padding when user scrolls up (set to true for minimal padding)
+        setAssistantResponseComplete(true);
       } else if (userHasScrolledRef.current && isAtBottomForLogic) {
         userHasScrolledRef.current = false;
-        // Keep assistantResponseComplete true so minimal padding persists
+        // Keep minimal padding when scrolling back to bottom
+        // setAssistantResponseComplete remains true to maintain minimal padding
       }
       
       prevScrollTopRef.current = st;
@@ -3185,10 +3194,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
             {showScrollToBottom && (
               <button onClick={() => {
-                // When down-arrow is clicked, activate minimal padding if assistant just finished for better UX
-                if (assistantJustFinished && !assistantResponseComplete) {
-                  setAssistantResponseComplete(true);
-                }
+                // Don't automatically activate minimal padding when clicking scroll-to-bottom
                 scrollToBottom();
               }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
                 <ArrowDown size={24} />
