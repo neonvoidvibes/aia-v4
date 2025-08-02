@@ -1,6 +1,8 @@
 import pino from 'pino';
 
-// Create the logger with appropriate configuration for different environments
+// Create the logger with a unified configuration.
+// It will now output JSON in both development and production.
+// The `pino-pretty` CLI is used in the `dev` script to format these logs for readability.
 export const logger = pino({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   formatters: {
@@ -9,17 +11,6 @@ export const logger = pino({
     },
   },
   timestamp: pino.stdTimeFunctions.isoTime,
-  // In production, use JSON format. In development, use pretty printing for readability
-  ...(process.env.NODE_ENV === 'development' && {
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        ignore: 'pid,hostname',
-        translateTime: 'SYS:standard',
-      },
-    },
-  }),
 });
 
 // Helper function to create a child logger with request context

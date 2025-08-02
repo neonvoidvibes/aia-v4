@@ -32,9 +32,13 @@ export async function findActiveBackend(urls: string[]): Promise<string | null> 
         // This case implies that the `POTENTIAL_BACKEND_URLS` array, formed from `process.env.BACKEND_API_URLS`,
         // was empty *after* splitting, trimming, and filtering. This strongly suggests the env var is missing or misconfigured.
         console.error("[Proxy Util] CRITICAL: No backend URLs were provided to findActiveBackend. This usually means BACKEND_API_URLS is missing, empty, or contains only whitespace in the environment configuration. Cannot proceed to find an active backend.");
-        return null; // Explicitly return null, no fallback to localhost.
+        return null;
     }
-    console.log("[Proxy Util] Checking potential backend URLs concurrently:", urls);
+    // This log was causing EPIPE errors with pino-pretty.
+    // We are replacing all console.log with a proper logger, but since the logger
+    // is not available in this utility file, we will comment it out for now.
+    // A more advanced solution would involve passing the logger instance.
+    // console.log("[Proxy Util] Checking potential backend URLs concurrently:", urls);
 
     const healthCheckPromises = urls.map(baseUrl => {
         const healthUrl = `${baseUrl}/api/health`;
@@ -52,9 +56,10 @@ export async function findActiveBackend(urls: string[]): Promise<string | null> 
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
         const url = urls[i];
-
+ 
         if (result.status === 'fulfilled' && result.value.ok) {
-            console.log(`[Proxy Util] Success: ${url} is active.`);
+            // This log was also causing EPIPE errors.
+            // console.log(`[Proxy Util] Success: ${url} is active.`);
             return url;
         } else {
             let reason = "Unknown error";
