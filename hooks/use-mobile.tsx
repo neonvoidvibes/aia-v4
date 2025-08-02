@@ -3,22 +3,23 @@
 import { useState, useEffect } from "react"
 
 export function useMobile() {
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined)
 
   useEffect(() => {
-    const checkIfMobile = () => {
+    const mql = window.matchMedia("(max-width: 767px)")
+    const onChange = () => {
       setIsMobile(window.innerWidth < 768)
     }
-
+    
     // Initial check
-    checkIfMobile()
-
+    setIsMobile(window.innerWidth < 768)
+    
     // Add event listener
-    window.addEventListener("resize", checkIfMobile)
+    mql.addEventListener("change", onChange)
 
     // Clean up
-    return () => window.removeEventListener("resize", checkIfMobile)
+    return () => mql.removeEventListener("change", onChange)
   }, [])
 
-  return isMobile
+  return !!isMobile
 }

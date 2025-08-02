@@ -33,12 +33,24 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
   const isMobile = useMobile();
   const [isOpen, setIsOpen] = useState(false);
 
+  // Force re-render when mobile state changes to prevent stale UI
+  useEffect(() => {
+    if (isOpen) {
+      setIsOpen(false);
+    }
+  }, [isMobile]);
+
   const handleAgentChange = (newAgent: string) => {
     if (newAgent && newAgent !== currentAgent) {
-      const currentParams = new URLSearchParams(searchParams.toString());
-      currentParams.set('agent', newAgent);
-      router.push(`/?${currentParams.toString()}`);
-      setIsOpen(false); // Close menu after selection
+      // Force close menu first to prevent state issues
+      setIsOpen(false);
+      
+      // Use setTimeout to ensure state update completes before navigation
+      setTimeout(() => {
+        const currentParams = new URLSearchParams(searchParams.toString());
+        currentParams.set('agent', newAgent);
+        router.push(`/?${currentParams.toString()}`);
+      }, 0);
     }
   };
 

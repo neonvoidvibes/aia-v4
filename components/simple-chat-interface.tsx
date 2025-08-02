@@ -77,6 +77,62 @@ const debugLog = (...args: any[]) => {
   }
 };
 
+// Enhanced logging utility for race condition debugging
+const raceConditionLog = {
+  saves: [] as Array<{requestId: string, timestamp: number, action: string, chatId: string | null, messageCount: number}>,
+  
+  logSave: (requestId: string, action: string, chatId: string | null, messageCount: number) => {
+    const entry = {
+      requestId,
+      timestamp: Date.now(),
+      action,
+      chatId,
+      messageCount
+    };
+    raceConditionLog.saves.push(entry);
+    
+    // Keep only last 20 entries to avoid memory issues
+    if (raceConditionLog.saves.length > 20) {
+      raceConditionLog.saves = raceConditionLog.saves.slice(-20);
+    }
+    
+    console.log(`[Race Debug] ${action}:`, entry);
+  },
+  
+  analyzeTiming: () => {
+    const recent = raceConditionLog.saves.slice(-10);
+    const overlapping = recent.filter((save, i) => {
+      const next = recent[i + 1];
+      return next && (next.timestamp - save.timestamp < 500); // Within 500ms
+    });
+    
+    if (overlapping.length > 0) {
+      console.warn('[Race Debug] POTENTIAL RACE CONDITIONS detected:', overlapping);
+    }
+    
+    return { totalSaves: raceConditionLog.saves.length, recentOverlapping: overlapping.length };
+  },
+  
+  // Debug helper for console inspection
+  debug: () => {
+    console.group('[Race Debug] Full Analysis');
+    console.log('All saves:', raceConditionLog.saves);
+    console.log('Timing analysis:', raceConditionLog.analyzeTiming());
+    
+    const chatCreations = raceConditionLog.saves.filter(s => s.action === 'NEW_CHAT_CREATED');
+    const stateUpdates = raceConditionLog.saves.filter(s => s.action === 'EXISTING_CHAT_UPDATED');
+    const mismatches = raceConditionLog.saves.filter(s => s.action === 'STATE_MISMATCH');
+    
+    console.log(`Summary: ${chatCreations.length} new chats, ${stateUpdates.length} updates, ${mismatches.length} mismatches`);
+    
+    if (mismatches.length > 0) {
+      console.warn('State mismatches detected:', mismatches);
+    }
+    
+    console.groupEnd();
+  }
+};
+
 /**
  * A simple markdown to HTML converter.
  * WARNING: This is NOT a full-fledged, secure markdown parser. It assumes the
@@ -356,6 +412,13 @@ const formatTimestamp = (date: Date | undefined): string => {
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
   function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
+    // Make race condition debug available globally for console debugging
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            (window as any).raceDebug = raceConditionLog.debug;
+        }
+    }, []);
+
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
     const [eventId, setEventId] = useState<string | null>(null);
@@ -507,6 +570,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       onFinish: async (message) => {
         // Auto-save chat after each assistant response
         if (agentName) {
+          console.log('[Auto-save] TRIGGER: Assistant response finished, calling saveChatHistory()');
           await saveChatHistory();
         }
       },
@@ -702,12 +766,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // Auto-save chat history function - saves complete conversation
     const saveChatHistory = useCallback(async (messagesToSave?: Message[]) => {
+        const startTime = Date.now();
+        
         if (isSavingRef.current) {
             console.warn('[Auto-save] Save already in progress. Skipping.');
             return;
         }
         const currentMessages = messagesToSave || messagesRef.current;
-        if (!agentName || currentMessages.length === 0) return;
+        if (!agentName || currentMessages.length === 0) {
+            console.log('[Auto-save] Skipping save - no agent or messages');
+            return;
+        }
 
         // Capture the current chat ID at the start of the save operation to prevent race conditions
         const chatIdAtStartOfSave = currentChatId;
@@ -715,16 +784,32 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Generate a unique request ID to help identify and prevent duplicate requests
         const requestId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
         
+        // Log detailed state for debugging
+        console.log(`[Auto-save] STARTING save operation:`, {
+            requestId,
+            chatIdAtStartOfSave,
+            currentChatId,
+            messageCount: currentMessages.length,
+            agentName,
+            chatTitle,
+            timestamp: new Date().toISOString(),
+            messageIds: currentMessages.map(m => m.id).slice(-3), // Last 3 message IDs
+            isSavingBefore: isSavingRef.current
+        });
+        
+        // Track for race condition analysis
+        raceConditionLog.logSave(requestId, 'SAVE_START', chatIdAtStartOfSave, currentMessages.length);
+        
         isSavingRef.current = true;
-        console.info(`[Auto-save] Saving chat with ${currentMessages.length} messages. Chat ID at start: ${chatIdAtStartOfSave}, Request ID: ${requestId}`);
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) {
-                console.warn('[Auto-save] No session available for auto-save');
+                console.warn(`[Auto-save] ${requestId}: No session available for auto-save`);
                 return; // finally block will still run
             }
 
+            console.log(`[Auto-save] ${requestId}: Making API call...`);
             const response = await fetch('/api/chat/history/save', {
                 method: 'POST',
                 headers: {
@@ -741,28 +826,55 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 }),
             });
 
+            const responseTime = Date.now() - startTime;
+            console.log(`[Auto-save] ${requestId}: API response received in ${responseTime}ms, status: ${response.status}`);
+
             if (response.ok) {
                 const result = await response.json();
+                console.log(`[Auto-save] ${requestId}: Response data:`, result);
+                
                 if (result.success) {
+                    // Log state comparison for debugging
+                    console.log(`[Auto-save] ${requestId}: State comparison:`, {
+                        chatIdAtStartOfSave,
+                        currentChatIdNow: currentChatId,
+                        resultChatId: result.chatId,
+                        willUpdateState: (!chatIdAtStartOfSave && currentChatId === null)
+                    });
+                    
                     // Only update chat ID and title if we don't have them yet AND
                     // the current state still matches what we started with (no new chat started)
                     if (!chatIdAtStartOfSave && currentChatId === null) {
                         setCurrentChatId(result.chatId);
                         setChatTitle(result.title);
-                        console.info(`[Auto-save] New chat created: ${result.chatId}, ${result.title} (Request: ${requestId})`);
+                        console.info(`[Auto-save] ${requestId}: NEW CHAT CREATED - ID: ${result.chatId}, Title: ${result.title}`);
+                        raceConditionLog.logSave(requestId, 'NEW_CHAT_CREATED', result.chatId, currentMessages.length);
                     } else if (chatIdAtStartOfSave) {
-                        console.info(`[Auto-save] Chat updated: ${result.chatId}, Messages: ${currentMessages.length} (Request: ${requestId})`);
+                        console.info(`[Auto-save] ${requestId}: EXISTING CHAT UPDATED - ID: ${result.chatId}, Messages: ${currentMessages.length}`);
+                        raceConditionLog.logSave(requestId, 'EXISTING_CHAT_UPDATED', result.chatId, currentMessages.length);
                     } else {
-                        console.info(`[Auto-save] Save completed but chat state changed during save. Not updating state. (Request: ${requestId})`);
+                        console.warn(`[Auto-save] ${requestId}: STATE MISMATCH - Save completed but chat state changed during save. Not updating frontend state.`);
+                        raceConditionLog.logSave(requestId, 'STATE_MISMATCH', result.chatId, currentMessages.length);
                     }
                 }
             } else {
-                console.error(`[Auto-save] Failed to save chat: ${response.statusText} (Request: ${requestId})`);
+                const errorText = await response.text().catch(() => 'Unknown error');
+                console.error(`[Auto-save] ${requestId}: API ERROR - Status: ${response.status}, Response: ${errorText}`);
             }
         } catch (error) {
-            console.error(`[Auto-save] Error saving chat: ${error} (Request: ${requestId})`);
+            const errorTime = Date.now() - startTime;
+            console.error(`[Auto-save] ${requestId}: EXCEPTION after ${errorTime}ms:`, error);
         } finally {
+            const totalTime = Date.now() - startTime;
             isSavingRef.current = false;
+            raceConditionLog.logSave(requestId, 'SAVE_COMPLETED', chatIdAtStartOfSave, currentMessages.length);
+            console.log(`[Auto-save] ${requestId}: COMPLETED in ${totalTime}ms, isSaving reset to false`);
+            
+            // Analyze race conditions periodically
+            const analysis = raceConditionLog.analyzeTiming();
+            if (analysis.recentOverlapping > 0) {
+                console.warn(`[Auto-save] ${requestId}: RACE CONDITION ANALYSIS - Found ${analysis.recentOverlapping} potentially overlapping saves in recent history!`);
+            }
         }
     }, [agentName, currentChatId, chatTitle, supabase.auth]);
 
@@ -1226,6 +1338,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
             // Auto-save after user message is sent - increased delay to reduce race conditions
             setTimeout(() => {
+                console.log('[Auto-save] TRIGGER: User message timeout (250ms), calling saveChatHistory()');
                 saveChatHistory();
             }, 250);
         }
@@ -1871,22 +1984,42 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              }
              console.info("[New Chat] All save operations completed. Proceeding with reset.");
              
+             console.log("[New Chat] BEFORE STATE RESET:", {
+                messagesCount: messages.length,
+                errorMessagesCount: errorMessages.length,
+                attachedFilesCount: attachedFiles.length,
+                currentChatId: currentChatId,
+                chatTitle: chatTitle,
+                timestamp: new Date().toISOString()
+             });
+             
              setMessages([]);
              setErrorMessages([]); // Clear error messages
              lastAppendedErrorRef.current = null; // Reset last error ref
              setAttachedFiles([]); 
              setAllAttachments([]); 
              filesForNextMessageRef.current = [];
-             // Reset chat ID and title for new chat
+             
+             // Reset chat ID and title for new chat - CRITICAL STATE RESET
+             console.log("[New Chat] RESETTING CHAT STATE: currentChatId from", currentChatId, "to null");
              setCurrentChatId(null);
              setChatTitle(null);
              setConversationSaveMarkerMessageId(null);
              setConversationMemoryId(null);
              setProcessedProposalIds(new Set()); // Reset processed proposals
+             
              if (onHistoryRefreshNeeded) {
+                console.log("[New Chat] Calling onHistoryRefreshNeeded()");
                 onHistoryRefreshNeeded();
              }
-             console.info("[New Chat] Client states (messages, errors, attachments, chat ID, memory) reset.");
+             
+             console.info("[New Chat] COMPLETED STATE RESET - All client states (messages, errors, attachments, chat ID, memory) have been reset.");
+             console.log("[New Chat] AFTER STATE RESET:", {
+                messagesCount: 0, // Should be 0
+                currentChatId: null, // Should be null
+                chatTitle: null, // Should be null
+                timestamp: new Date().toISOString()
+             });
           },
          getMessagesCount: () => messages.length,
          scrollToTop: () => { 
@@ -1907,7 +2040,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             );
          },
          loadChatHistory: async (chatId: string) => {
-            console.info("[Load Chat History] Loading chat:", chatId);
+            console.info("[Load Chat History] STARTING load for chat:", chatId);
+            console.log("[Load Chat History] BEFORE LOAD STATE:", {
+                currentChatId: currentChatId,
+                currentChatTitle: chatTitle,
+                currentMessageCount: messages.length,
+                timestamp: new Date().toISOString()
+            });
             try {
               const { data: { session } } = await supabase.auth.getSession();
               if (!session?.access_token) {
@@ -1940,6 +2079,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               setConversationMemoryId(null);
               setProcessedProposalIds(new Set()); // Also reset proposals on load
 
+              console.log("[Load Chat History] SETTING CHAT STATE:", {
+                oldChatId: currentChatId,
+                newChatId: chatData.id,
+                oldTitle: chatTitle,
+                newTitle: chatData.title,
+                timestamp: new Date().toISOString()
+              });
+              
               setCurrentChatId(chatData.id);
               setChatTitle(chatData.title);
 
@@ -1947,7 +2094,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 // Clear system messages immediately when loading chat history
                 const filteredMessages = chatData.messages.filter((msg: Message) => msg.role !== "system");
                 setMessages(filteredMessages);
-                console.info("[Load Chat History] Loaded", filteredMessages.length, "messages for chat:", chatData.id, "(system messages cleared)");
+                console.info("[Load Chat History] LOADED", filteredMessages.length, "messages for chat:", chatData.id, "(system messages cleared)");
+                console.log("[Load Chat History] COMPLETED LOAD STATE:", {
+                    finalChatId: chatData.id,
+                    finalTitle: chatData.title,
+                    messageCount: filteredMessages.length,
+                    timestamp: new Date().toISOString()
+                });
                 
                 // Set minimal padding when loading chat history (padding removed)
                 setAssistantResponseComplete(true);
