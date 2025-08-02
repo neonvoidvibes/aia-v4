@@ -2012,10 +2012,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
       } else if (userHasScrolledRef.current && isAtBottomForLogic) {
         userHasScrolledRef.current = false;
-        // Reset assistantResponseComplete when user scrolls back to bottom
-        if (assistantResponseComplete) {
-          setAssistantResponseComplete(false);
-        }
+        // Keep assistantResponseComplete true so minimal padding persists
       }
       
       prevScrollTopRef.current = st;
@@ -2769,19 +2766,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     // Only consider it an old conversation if assistant isn't active AND user hasn't just received a response
                     const isOldConversation = lastMessageIsAssistant && !userJustSubmitted && !assistantIsActive && !assistantJustFinished;
                     
-                    // Use minimal padding only when user has explicitly scrolled up
-                    const shouldUseMinimalPadding = assistantResponseComplete && userHasScrolledRef.current;
-                    
-                    // DEBUG: Show exactly why minimal padding is being applied
-                    if (shouldUseMinimalPadding) {
-                        console.log('⚠️ MINIMAL PADDING APPLIED:', {
-                            assistantResponseComplete,
-                            userHasScrolled: userHasScrolledRef.current,
-                            assistantJustFinished,
-                            lastMessageIsAssistant,
-                            assistantIsActive
-                        });
-                    }
+                    // Use minimal padding when user has explicitly scrolled up
+                    // Once user scrolls up, keep minimal padding even when they scroll back down
+                    const shouldUseMinimalPadding = assistantResponseComplete;
                     
                     if (shouldUseMinimalPadding) {
                         return '20px'; // Minimal padding
