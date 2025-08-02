@@ -1924,6 +1924,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 const filteredMessages = chatData.messages.filter((msg: Message) => msg.role !== "system");
                 setMessages(filteredMessages);
                 console.info("[Load Chat History] Loaded", filteredMessages.length, "messages for chat:", chatData.id, "(system messages cleared)");
+                
+                // Auto-scroll to the end of the conversation after loading messages
+                if (filteredMessages.length > 0) {
+                  // Use setTimeout to ensure the messages are rendered before scrolling
+                  setTimeout(() => {
+                    scrollToBottom('auto');
+                  }, 100);
+                }
               }
 
               // Populate saved states from the loaded data
