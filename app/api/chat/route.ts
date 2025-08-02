@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic"
-import { streamText, StreamingTextResponse } from "ai"
+import { streamText } from "ai"
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30
@@ -19,5 +19,5 @@ export async function POST(req: Request) {
     messages,
   })
 
-  return new StreamingTextResponse(result.toAIStream());
+  return result.toDataStreamResponse();
 }
