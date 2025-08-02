@@ -842,19 +842,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         willUpdateState: (!chatIdAtStartOfSave && currentChatId === null)
                     });
                     
-                    // Only update chat ID and title if we don't have them yet AND
-                    // the current state still matches what we started with (no new chat started)
-                    if (!chatIdAtStartOfSave && currentChatId === null) {
+                    // CRITICAL FIX: Always update state if we created a new chat, regardless of timing
+                    // This prevents race conditions where the second save starts before state updates
+                    if (!chatIdAtStartOfSave && result.chatId) {
+                        console.info(`[Auto-save] ${requestId}: NEW CHAT CREATED - Immediately updating state to prevent race conditions`);
                         setCurrentChatId(result.chatId);
                         setChatTitle(result.title);
-                        console.info(`[Auto-save] ${requestId}: NEW CHAT CREATED - ID: ${result.chatId}, Title: ${result.title}`);
+                        console.info(`[Auto-save] ${requestId}: STATE UPDATED - ID: ${result.chatId}, Title: ${result.title}`);
                         raceConditionLog.logSave(requestId, 'NEW_CHAT_CREATED', result.chatId, currentMessages.length);
                     } else if (chatIdAtStartOfSave) {
                         console.info(`[Auto-save] ${requestId}: EXISTING CHAT UPDATED - ID: ${result.chatId}, Messages: ${currentMessages.length}`);
                         raceConditionLog.logSave(requestId, 'EXISTING_CHAT_UPDATED', result.chatId, currentMessages.length);
                     } else {
-                        console.warn(`[Auto-save] ${requestId}: STATE MISMATCH - Save completed but chat state changed during save. Not updating frontend state.`);
-                        raceConditionLog.logSave(requestId, 'STATE_MISMATCH', result.chatId, currentMessages.length);
+                        console.warn(`[Auto-save] ${requestId}: UNEXPECTED STATE - chatIdAtStart: ${chatIdAtStartOfSave}, resultChatId: ${result.chatId}`);
+                        raceConditionLog.logSave(requestId, 'UNEXPECTED_STATE', result.chatId, currentMessages.length);
                     }
                 }
             } else {
