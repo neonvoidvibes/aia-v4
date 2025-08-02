@@ -2465,3 +2465,87 @@ button {
     width: 0.95rem !important; /* 14px for desktop */
   }
 }
+
+/* Global scroll bar styling - remove background entirely and set opacity to 0.25 */
+[data-radix-scroll-area-scrollbar] {
+  background: transparent !important;
+  border: none !important;
+}
+
+[data-radix-scroll-area-scrollbar][data-orientation="vertical"] {
+  width: 6px;
+  background: transparent !important;
+}
+
+[data-radix-scroll-area-scrollbar][data-orientation="horizontal"] {
+  height: 6px;
+  background: transparent !important;
+}
+
+/* Custom scroll thumb styling with theme-specific colors at 0.25 opacity */
+.scroll-thumb-custom {
+  border-radius: 20px !important;
+  border: none !important;
+}
+
+/* Default (dark theme) - White with 0.25 opacity */
+.scroll-thumb-custom {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Light theme - Black with 0.25 opacity */
+.light .scroll-thumb-custom {
+  background-color: rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Theme-specific colors with 0.25 opacity using each theme's primary color */
+
+/* White theme - Deep indigo/purple */
+.theme-white .scroll-thumb-custom {
+  background-color: hsla(260, 60%, 20%, 0.25) !important;
+}
+
+/* Neon Sunset theme - Hot pink */
+.theme-neon-sunset .scroll-thumb-custom {
+  background-color: hsla(330, 100%, 70%, 0.25) !important;
+}
+
+/* Oceanic Calm theme - Teal */
+.theme-oceanic-calm .scroll-thumb-custom {
+  background-color: hsla(190, 70%, 45%, 0.25) !important;
+}
+
+/* Forest Deep theme - Natural green */
+.theme-forest-deep .scroll-thumb-custom {
+  background-color: hsla(90, 60%, 45%, 0.25) !important;
+}
+
+/* Midnight Monochrome theme - Electric blue */
+.theme-midnight-monochrome .scroll-thumb-custom {
+  background-color: hsla(210, 80%, 60%, 0.25) !important;
+}
+
+/* Desert Mirage theme - Deep ochre/burnt orange */
+.theme-desert-mirage .scroll-thumb-custom {
+  background-color: hsla(30, 80%, 50%, 0.25) !important;
+}
+
+/* Folkhemmet theme - IKEA Blue */
+.theme-folkhemmet .scroll-thumb-custom {
+  background-color: hsla(204, 100%, 34%, 0.25) !important;
+}
+
+/* CFL theme - White */
+.theme-cfl .scroll-thumb-custom {
+  background-color: hsla(0, 0%, 98%, 0.25) !important;
+}
+
+/* Mobius theme - Desaturated cyan/blue */
+.theme-mobius .scroll-thumb-custom {
+  background-color: hsla(194, 23%, 49%, 0.25) !important;
+}
+
+/* Splash theme - Turquoise */
+.theme-splash .scroll-thumb-custom {
+  background-color: hsla(180, 100%, 50%, 0.25) !important;
+}
