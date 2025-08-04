@@ -2,12 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: "Avenir Next";
-  src: url("https://fonts.cdnfonts.com/css/avenir-next-lt-pro") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-}
+@import url('https://fonts.cdnfonts.com/css/avenir-next-lt-pro');
 
 /* --- Base Theme Variables (Dark Mode Defaults) --- */
 /* These variables define the default dark theme and are used by Shadcn components */

@@ -35,10 +35,8 @@ export default function LoginPage() {
     } else {
       // Login successful
       console.log('Login successful, redirecting...')
-      // Refresh the page to let middleware handle redirection
-      // Or redirect manually if needed, but middleware should catch it
-      router.refresh() // This re-fetches server components and runs middleware
-      // router.push('/') // Alternative manual redirect
+      // Force a full page reload to ensure session is properly set
+      window.location.href = '/'
     }
   }
 

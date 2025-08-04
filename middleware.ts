@@ -35,7 +35,11 @@ export async function middleware(req: NextRequest) {
 
   // Refresh session if expired - required for Server Components
   // https://supabase.com/docs/guides/auth/server-side/nextjs#managing-session-with-middleware-(app-router)
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { session }, error } = await supabase.auth.getSession()
+  
+  if (error) {
+    console.error("Middleware: Error getting session:", error.message)
+  }
 
   // Define public routes
   const publicRoutes = ['/login']; // Add any other public routes like /signup if needed
