@@ -1585,71 +1585,6 @@ function HomeContent() {
                 <TabsContent value="settings" className="mt-0 tab-content-scrollable">
                   <div className="space-y-6 tab-content-inner px-2 md:px-4 py-3 md:leading-normal leading-relaxed">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="agent-selector">Agent</Label>
-                      <Select value={pageAgentName || ''} onValueChange={handleAgentChange} disabled={allowedAgents.length <= 1}>
-                        <SelectTrigger className="w-[220px]" id="agent-selector">
-                          <SelectValue placeholder="Select an agent" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allowedAgents.sort().map(agent => (
-                            <SelectItem key={agent} value={agent}>{agent}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                     <div className="flex items-center justify-between">
-                      <Label htmlFor="model-selector">Chat Model</Label>
-                      <Select value={selectedModel} onValueChange={handleModelChange}>
-                        <SelectTrigger className="w-[220px]" id="model-selector">
-                          <SelectValue placeholder="Select a model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="claude-sonnet-4-20250514">Claude 4 Sonnet</SelectItem>
-                          <SelectItem value="gpt-4.1">GPT-4.1</SelectItem>
-                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
-                          <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor="temperature-slider">Temperature (Model Creativity)</Label>
-                        <span className="text-sm text-muted-foreground font-mono">{temperature.toFixed(2)}</span>
-                      </div>
-                      <Slider
-                        id="temperature-slider"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={[temperature]}
-                        onValueChange={handleTemperatureChange}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between"> 
-                      <Label htmlFor="transcription-language-toggle">Transcription Language</Label>
-                      <ToggleGroup
-                        type="single"
-                        value={transcriptionLanguage}
-                        onValueChange={(value) => {
-                          if (value === "en" || value === "sv" || value === "any") {
-                            setTranscriptionLanguage(value as "en" | "sv" | "any");
-                          }
-                        }}
-                        className="rounded-md bg-muted p-1"
-                        aria-label="Transcription language"
-                      >
-                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          {isMobile ? "Any" : "Any"}
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="en" aria-label="English" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          {isMobile ? "EN" : "English"}
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="sv" aria-label="Swedish" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
-                          {isMobile ? "SV" : "Swedish"}
-                        </ToggleGroupItem>
-                      </ToggleGroup>
-                    </div>
-                    <div className="flex items-center justify-between">
                       <Label>Global Theme</Label>
                       <ThemeToggle />
                     </div>
@@ -1744,6 +1679,71 @@ function HomeContent() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="agent-selector">Agent</Label>
+                      <Select value={pageAgentName || ''} onValueChange={handleAgentChange} disabled={allowedAgents.length <= 1}>
+                        <SelectTrigger className="w-[220px]" id="agent-selector">
+                          <SelectValue placeholder="Select an agent" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allowedAgents.sort().map(agent => (
+                            <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                     <div className="flex items-center justify-between">
+                      <Label htmlFor="model-selector">Chat Model</Label>
+                      <Select value={selectedModel} onValueChange={handleModelChange}>
+                        <SelectTrigger className="w-[220px]" id="model-selector">
+                          <SelectValue placeholder="Select a model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="claude-sonnet-4-20250514">Claude 4 Sonnet</SelectItem>
+                          <SelectItem value="gpt-4.1">GPT-4.1</SelectItem>
+                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                          <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="temperature-slider">Temperature (Model Creativity)</Label>
+                        <span className="text-sm text-muted-foreground font-mono">{temperature.toFixed(2)}</span>
+                      </div>
+                      <Slider
+                        id="temperature-slider"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={[temperature]}
+                        onValueChange={handleTemperatureChange}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between"> 
+                      <Label htmlFor="transcription-language-toggle">Transcription Language</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={transcriptionLanguage}
+                        onValueChange={(value) => {
+                          if (value === "en" || value === "sv" || value === "any") {
+                            setTranscriptionLanguage(value as "en" | "sv" | "any");
+                          }
+                        }}
+                        className="rounded-md bg-muted p-1"
+                        aria-label="Transcription language"
+                      >
+                        <ToggleGroupItem value="any" aria-label="Auto-detect language" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "Any" : "Any"}
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="en" aria-label="English" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "EN" : "English"}
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="sv" aria-label="Swedish" size="sm" className="px-3 data-[state=on]:bg-background data-[state=on]:text-foreground">
+                          {isMobile ? "SV" : "Swedish"}
+                        </ToggleGroupItem>
+                      </ToggleGroup>
                     </div>
                     <VADSettings
                       aggressiveness={vadAggressiveness}
