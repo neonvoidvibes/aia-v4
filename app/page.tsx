@@ -1531,6 +1531,9 @@ function HomeContent() {
               })}
               onChatIdChange={setCurrentChatId}
               onHistoryRefreshNeeded={() => setHistoryNeedsRefresh(true)}
+              savedTranscriptMemoryMode={savedTranscriptMemoryMode}
+              individualMemoryToggleStates={individualMemoryToggleStates}
+              savedTranscriptSummaries={savedTranscriptSummaries}
             />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>

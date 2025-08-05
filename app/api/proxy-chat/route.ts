@@ -72,11 +72,13 @@ export async function POST(req: NextRequest) {
       transcriptListenModeSetting = "latest"; // Default to "latest" if invalid value
     }
     const savedTranscriptMemoryModeSetting = body.data?.savedTranscriptMemoryMode || body.savedTranscriptMemoryMode || "disabled";
+    const individualMemoryToggleStates = body.data?.individualMemoryToggleStates || body.individualMemoryToggleStates || {};
+    const savedTranscriptSummaries = body.data?.savedTranscriptSummaries || body.savedTranscriptSummaries || [];
     const transcriptionLanguageSetting = body.data?.transcriptionLanguage || body.transcriptionLanguage || "any"; // Changed default to "any"
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
-    const { transcriptListenMode, savedTranscriptMemoryMode, transcriptionLanguage, model: _model, temperature: _temp, ...dataWithoutSettings } = body.data || {};
-    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, transcriptionLanguage: _trl, messages:_m, ...restOfBody } = body;
+    const { transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, transcriptionLanguage, model: _model, temperature: _temp, ...dataWithoutSettings } = body.data || {};
+    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, individualMemoryToggleStates:_imts2, savedTranscriptSummaries:_sts2, transcriptionLanguage: _trl, messages:_m, ...restOfBody } = body;
 
 
     // Basic validation for essential fields
@@ -95,6 +97,8 @@ export async function POST(req: NextRequest) {
       messageCount: userMessages.length,
       transcriptListenMode: transcriptListenModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
+      individualMemoryToggleStates: individualMemoryToggleStates,
+      savedTranscriptSummariesCount: savedTranscriptSummaries.length,
       transcriptionLanguage: transcriptionLanguageSetting
     });
 
@@ -108,6 +112,8 @@ export async function POST(req: NextRequest) {
       temperature: temperature,
       transcriptListenMode: transcriptListenModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
+      individualMemoryToggleStates: individualMemoryToggleStates,
+      savedTranscriptSummaries: savedTranscriptSummaries,
       transcriptionLanguage: transcriptionLanguageSetting, // Added
       data: dataWithoutSettings, // Pass through other data fields if they exist
       ...restOfBody // Include any other top-level properties from original body (excluding those already handled)

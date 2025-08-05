@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo, ChangeEvent } from "react"
 import { useChat, type Message } from "@ai-sdk/react"
+import { type FetchedFile } from "@/components/FetchedFileListItem"
 
 // Error message type for UI-specific error handling
 interface ErrorMessage {
@@ -308,6 +309,9 @@ interface SimpleChatInterfaceProps {
   onChatIdChange?: (chatId: string | null) => void; // New prop to notify parent of chat ID changes
   onHistoryRefreshNeeded?: () => void;
   isConversationSaved?: boolean;
+  savedTranscriptMemoryMode?: "disabled" | "enabled";
+  individualMemoryToggleStates?: Record<string, boolean>;
+  savedTranscriptSummaries?: FetchedFile[];
 
 }
 
@@ -355,7 +359,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
 
     const searchParams = useSearchParams();
@@ -497,7 +501,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         agent: agentName,
         event: eventId || '0000',
         transcriptListenMode: transcriptListenMode,
-    }), [agentName, eventId, transcriptListenMode]);
+        savedTranscriptMemoryMode: savedTranscriptMemoryMode,
+        individualMemoryToggleStates: individualMemoryToggleStates,
+        savedTranscriptSummaries: savedTranscriptSummaries,
+    }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries]);
 
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
