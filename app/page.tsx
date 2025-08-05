@@ -176,6 +176,7 @@ function HomeContent() {
   const [agentPrimaryContextS3Files, setAgentPrimaryContextS3Files] = useState<FetchedFile[]>([]); 
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
   const [savedTranscriptSummaries, setSavedTranscriptSummaries] = useState<FetchedFile[]>([]); // New state
+  const [individualMemoryToggleStates, setIndividualMemoryToggleStates] = useState<Record<string, boolean>>({}); // Individual file toggle states
   const [agentDocuments, setAgentDocuments] = useState<FetchedFile[]>([]);
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
@@ -586,6 +587,13 @@ function HomeContent() {
       }
   };
 
+  const handleIndividualMemoryToggleChange = (checked: boolean, fileKey: string) => {
+    setIndividualMemoryToggleStates(prev => ({
+      ...prev,
+      [fileKey]: checked
+    }));
+  };
+
   const confirmAndStartNewChat = () => {
       console.log("Modal confirmed, calling startNewChat via ref");
       chatInterfaceRef.current?.startNewChat();
@@ -703,6 +711,30 @@ function HomeContent() {
       localStorage.setItem(key, savedTranscriptMemoryMode);
     }
   }, [savedTranscriptMemoryMode, pageAgentName]);
+
+  // Load and persist individual memory toggle states (agent-specific)
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `individualMemoryToggleStates_${pageAgentName}`;
+      const savedStates = localStorage.getItem(key);
+      if (savedStates) {
+        try {
+          const parsedStates = JSON.parse(savedStates);
+          setIndividualMemoryToggleStates(parsedStates);
+        } catch (error) {
+          console.error('Error parsing individual memory toggle states:', error);
+          setIndividualMemoryToggleStates({});
+        }
+      }
+    }
+  }, [pageAgentName]);
+
+  useEffect(() => {
+    if (pageAgentName && Object.keys(individualMemoryToggleStates).length > 0) {
+      const key = `individualMemoryToggleStates_${pageAgentName}`;
+      localStorage.setItem(key, JSON.stringify(individualMemoryToggleStates));
+    }
+  }, [individualMemoryToggleStates, pageAgentName]);
 
   // Load and persist transcriptionLanguage (agent-specific)
   useEffect(() => {
@@ -1823,8 +1855,8 @@ function HomeContent() {
                           <Label htmlFor="saved-transcript-memory-toggle" className="memory-section-title text-sm font-medium">Memory:</Label>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-sm text-muted-foreground w-16 text-right">
-                            {savedTranscriptMemoryMode === "disabled" ? "Disabled" : "Enabled"}
+                          <span className="text-sm text-muted-foreground w-20 text-right">
+                            {savedTranscriptMemoryMode === "disabled" ? "Disabled" : "Enabled (all)"}
                           </span>
                           <Switch
                             id="saved-transcript-memory-toggle"
@@ -1848,6 +1880,10 @@ function HomeContent() {
                               showDownloadIcon={true}
                               showArchiveIcon={false} // No archive for summaries
                               showSaveAsMemoryIcon={false} // No save for already summarized
+                              showIndividualToggle={true}
+                              individualToggleChecked={individualMemoryToggleStates[summaryFile.s3Key || summaryFile.name] || false}
+                              onIndividualToggleChange={handleIndividualMemoryToggleChange}
+                              individualToggleDisabled={savedTranscriptMemoryMode === "enabled"}
                             />
                           ))
                         ) : (<p className="text-sm text-muted-foreground">No saved transcript summaries found.</p>)}

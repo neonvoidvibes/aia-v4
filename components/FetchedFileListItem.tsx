@@ -3,6 +3,7 @@
 import type React from "react"
 import { FileText, Eye, DownloadCloud, BrainCircuit, Archive, ArrowUpFromLine, Loader2 } from "lucide-react" // Added Loader2
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
 export type FetchedFile = {
@@ -25,6 +26,10 @@ type FetchedFileListItemProps = {
   showDownloadIcon?: boolean
   showArchiveIcon?: boolean // New prop
   showSaveAsMemoryIcon?: boolean // New prop
+  showIndividualToggle?: boolean // New prop for individual toggle
+  individualToggleChecked?: boolean // New prop for toggle state
+  onIndividualToggleChange?: (checked: boolean, fileKey: string) => void // New prop for toggle change
+  individualToggleDisabled?: boolean // New prop to disable individual toggle
 }
 
 export default function FetchedFileListItem({
@@ -37,6 +42,10 @@ export default function FetchedFileListItem({
   showDownloadIcon = false,
   showArchiveIcon = false, // Default to false
   showSaveAsMemoryIcon = false, // Default to false
+  showIndividualToggle = false, // Default to false
+  individualToggleChecked = false, // Default to false
+  onIndividualToggleChange,
+  individualToggleDisabled = false, // Default to false
 }: FetchedFileListItemProps) {
   const formatFileSize = (bytes?: number) => {
     if (bytes === undefined || bytes === null) return ""
@@ -80,6 +89,12 @@ export default function FetchedFileListItem({
     }
   }
 
+  const handleIndividualToggleChange = (checked: boolean) => {
+    if (onIndividualToggleChange && file.s3Key) {
+      onIndividualToggleChange(checked, file.s3Key)
+    }
+  }
+
   return (
     <div className="flex items-center justify-between p-3 border rounded-md my-1 hover:bg-muted/50 transition-colors w-full overflow-hidden min-w-0"> {/* Added overflow-hidden and min-w-0 */}
     {/* Container for icon and text, allows text to truncate */}
@@ -100,6 +115,17 @@ export default function FetchedFileListItem({
         </div>
       </div>
       <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+        {showIndividualToggle && (
+          <div className="flex items-center gap-2 mr-3">
+            <span className="text-xs text-muted-foreground">Memory:</span>
+            <Switch
+              checked={individualToggleChecked}
+              onCheckedChange={handleIndividualToggleChange}
+              disabled={individualToggleDisabled}
+              aria-label={`Toggle memory for ${file.name}`}
+            />
+          </div>
+        )}
         {showViewIcon && onView && file.s3Key && (
           <Button
             variant="ghost"
