@@ -56,6 +56,7 @@ interface SidebarProps {
   onDeleteChat: (chatId: string) => void;
   transcriptListenMode: 'latest' | 'none' | 'all';
   savedTranscriptMemoryMode: 'enabled' | 'disabled';
+  individualMemoryToggleStates?: Record<string, boolean>;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -74,7 +75,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   isLoadingHistory,
   onDeleteChat,
   transcriptListenMode,
-  savedTranscriptMemoryMode
+  savedTranscriptMemoryMode,
+  individualMemoryToggleStates,
 }) => {
   const isMobile = useIsMobile();
 
@@ -86,6 +88,17 @@ const Sidebar: React.FC<SidebarProps> = ({
         onClose();
       }
     }
+  };
+
+  const getSummaryModeText = () => {
+    if (savedTranscriptMemoryMode === 'enabled') {
+      return 'All';
+    }
+    // Check individual toggles only if the main toggle is disabled
+    if (individualMemoryToggleStates && Object.values(individualMemoryToggleStates).some(isEnabled => isEnabled)) {
+      return 'Part';
+    }
+    return 'None';
   };
 
   const groupChatsByDate = (chats: ChatHistoryItem[]) => {
@@ -173,7 +186,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 Transcript <span className="font-bold">{transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1)}</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                Summary <span className="font-bold">{savedTranscriptMemoryMode === 'enabled' ? 'Yes' : 'No'}</span>
+                Summary <span className="font-bold">{getSummaryModeText()}</span>
               </div>
             </div>
             <div className="mt-10 flex flex-col space-y-1 -ml-2">

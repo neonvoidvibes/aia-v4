@@ -1453,6 +1453,7 @@ function HomeContent() {
         onDeleteChat={handleDeleteInitiated}
         transcriptListenMode={transcriptListenMode}
         savedTranscriptMemoryMode={savedTranscriptMemoryMode}
+        individualMemoryToggleStates={individualMemoryToggleStates}
       />
       
       {/* New Chat icon positioned right of sidebar */}
