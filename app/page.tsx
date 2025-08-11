@@ -200,7 +200,7 @@ function HomeContent() {
   const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "latest" | "all">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
-  const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness>(2);
+  const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness>(1);
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
 
   // Fullscreen mode state
@@ -744,8 +744,8 @@ function HomeContent() {
       if (savedValue && ["1", "2", "3"].includes(savedValue)) {
         setVadAggressiveness(parseInt(savedValue, 10) as VADAggressiveness);
       } else {
-        setVadAggressiveness(2); // Default to 'Balanced'
-        localStorage.setItem(key, "2");
+        setVadAggressiveness(1); // Default to 'Quiet'
+        localStorage.setItem(key, "1");
       }
     }
   }, [pageAgentName]);
