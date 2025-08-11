@@ -54,6 +54,8 @@ interface SidebarProps {
   chatHistory: ChatHistoryItem[];
   isLoadingHistory: boolean;
   onDeleteChat: (chatId: string) => void;
+  transcriptListenMode: 'latest' | 'none' | 'all';
+  savedTranscriptMemoryMode: 'enabled' | 'disabled';
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -70,7 +72,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   currentChatId,
   chatHistory,
   isLoadingHistory,
-  onDeleteChat
+  onDeleteChat,
+  transcriptListenMode,
+  savedTranscriptMemoryMode
 }) => {
   const isMobile = useIsMobile();
 
@@ -164,6 +168,12 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="text-xs text-muted-foreground">
                 Model <span className="font-bold">{(selectedModel && MODEL_DISPLAY_NAMES[selectedModel]) || selectedModel || 'Loading...'}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Transcript <span className="font-bold">{transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1)}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Summary <span className="font-bold">{savedTranscriptMemoryMode === 'enabled' ? 'Yes' : 'No'}</span>
               </div>
             </div>
             <div className="mt-10 flex flex-col space-y-1 -ml-2">

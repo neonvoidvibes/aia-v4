@@ -1451,6 +1451,8 @@ function HomeContent() {
         chatHistory={chatHistory}
         isLoadingHistory={isLoadingHistory}
         onDeleteChat={handleDeleteInitiated}
+        transcriptListenMode={transcriptListenMode}
+        savedTranscriptMemoryMode={savedTranscriptMemoryMode}
       />
       
       {/* New Chat icon positioned right of sidebar */}
