@@ -625,7 +625,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // Start thinking timer when loading begins for reasoning models
     useEffect(() => {
-        if (selectedModel === 'gemini-2.5-pro' && isLoading && !isThinking) {
+        if ((selectedModel === 'gemini-2.5-pro' || selectedModel === 'gpt-5' || selectedModel === 'gpt-5-mini') && isLoading && !isThinking) {
             console.log('[Thinking] Starting timer for gemini-2.5-pro');
             setIsThinking(true);
             
@@ -650,7 +650,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // Stop thinking timer when loading finishes - separate effect without isThinking dependency
     useEffect(() => {
-        if (selectedModel === 'gemini-2.5-pro' && !isLoading && thinkingTimerRef.current) {
+        if ((selectedModel === 'gemini-2.5-pro' || selectedModel === 'gpt-5' || selectedModel === 'gpt-5-mini') && !isLoading && thinkingTimerRef.current) {
             // Calculate final time immediately
             const now = Date.now();
             const finalThinkingTime = thinkingStartTimeRef.current 
@@ -3193,10 +3193,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           {isLastUserMessage && (
                             <>
                               {/* 'isUpdatingDoc' indicator has been moved to the end of the message list for correct positioning */}
-                              {isThinking && selectedModel === 'gemini-2.5-pro' && (
+                              {isThinking && (selectedModel === 'gemini-2.5-pro' || selectedModel === 'gpt-5' || selectedModel === 'gpt-5-mini') && (
                                 <ThinkingIndicator elapsedTime={thinkingTime} />
                               )}
-                              {isLoading && !isUpdatingDoc && !isGeneratingProposal && (!isThinking || selectedModel !== 'gemini-2.5-pro') && messageThoughtDuration === undefined && (() => {
+                              {isLoading && !isUpdatingDoc && !isGeneratingProposal && (!isThinking || selectedModel !== 'gemini-2.5-pro') && selectedModel !== 'gpt-5' && selectedModel !== 'gpt-5-mini' && messageThoughtDuration === undefined && (() => {
                                 // Hide thinking dot immediately when assistant starts responding
                                 const lastMessage = combinedMessages[combinedMessages.length - 1];
                                 const assistantIsResponding = lastMessage?.role === 'assistant' && isLoading;

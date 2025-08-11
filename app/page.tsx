@@ -1739,9 +1739,10 @@ function HomeContent() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="claude-sonnet-4-20250514">Claude 4 Sonnet</SelectItem>
-                          <SelectItem value="gpt-4.1">GPT-4.1</SelectItem>
-                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                          <SelectItem value="gpt-5">GPT-5</SelectItem>
+                          <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
                           <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
