@@ -497,8 +497,8 @@
   --button-submit-bg-stop: 204 70% 50%; /* Themed blue for stop button */
   --button-submit-fg-stop: 0 0% 100%; /* White for stop button */
   
-  --icon-primary: 51 95% 71%;
-  --icon-secondary: 51 95% 51%;
+  --icon-primary: 51 95% 51%; /* Yellow for input field icons */
+  --icon-secondary: 204 100% 34%; /* Dark blue for sidebar icons */
   --icon-active: hsl(var(--accent)); /* IKEA Yellow */
   --icon-inactive: 204 25% 70%; /* Light, visible blue-gray */
   /* --icon-destructive uses the default destructive color from above */
@@ -2543,4 +2543,69 @@ button {
 /* Splash theme - Turquoise */
 .theme-splash .scroll-thumb-custom {
   background-color: hsla(180, 100%, 50%, 0.25) !important;
+}
+
+/* Folkhemmet theme specific overrides */
+/* FOUNDATIONAL FIX: Component-specific targeting to prevent conflicts */
+
+/* 1. ALL SIDEBAR ELEMENTS (including toggle button) - Dark Blue */
+.theme-folkhemmet .sidebar-bg button,
+.theme-folkhemmet .sidebar-bg button svg,
+.theme-folkhemmet .sidebar-bg .lucide {
+  color: hsl(204 100% 34%) !important;
+}
+
+/* 2. SIDEBAR TOGGLE BUTTON (when sidebar is closed) - Dark Blue */
+.theme-folkhemmet button[aria-label="More options"],
+.theme-folkhemmet button[aria-label="More options"] svg,
+.theme-folkhemmet button[aria-label="More options"] .lucide {
+  color: hsl(204 100% 34%) !important;
+}
+
+.theme-folkhemmet button[aria-label="More options"]:hover,
+.theme-folkhemmet button[aria-label="More options"]:hover svg,
+.theme-folkhemmet button[aria-label="More options"]:hover .lucide {
+  color: hsl(204 100% 34%) !important;
+}
+
+/* 3. INPUT FIELD ELEMENTS - Yellow (with component-specific targeting) */
+.theme-folkhemmet .chat-input-layout .chat-sliders-icon,
+.theme-folkhemmet .chat-input-layout .mobile-plus-button .chat-sliders-icon,
+.theme-folkhemmet .chat-input-layout .plus-menu-item,
+.theme-folkhemmet .chat-input-layout .plus-menu-item svg,
+.theme-folkhemmet .chat-input-layout .mobile-plus-button,
+.theme-folkhemmet .chat-input-layout .mobile-plus-button svg {
+  color: hsl(51 95% 51%) !important;
+}
+
+.theme-folkhemmet .chat-input-layout .chat-sliders-icon:hover,
+.theme-folkhemmet .chat-input-layout .mobile-plus-button:hover .chat-sliders-icon,
+.theme-folkhemmet .chat-input-layout .plus-menu-item:hover,
+.theme-folkhemmet .chat-input-layout .plus-menu-item:hover svg,
+.theme-folkhemmet .chat-input-layout .mobile-plus-button:hover,
+.theme-folkhemmet .chat-input-layout .mobile-plus-button:hover svg {
+  color: hsl(51 95% 51%) !important;
+}
+
+/* 4. MODEL PICKER TEXT - Yellow */
+.theme-folkhemmet .model-picker-container button,
+.theme-folkhemmet .model-picker-container button span {
+  color: hsl(51 95% 51%) !important;
+}
+
+/* 5. PLUS MENU SPECIFIC OVERRIDES - Mixed colors based on function */
+/* New chat button in plus menu uses dark blue (sidebar-like function) */
+.theme-folkhemmet .plus-menu button[title="Save chat to memory"],
+.theme-folkhemmet .plus-menu button[title="Save chat to memory"] svg {
+  color: hsl(204 100% 34%) !important;
+}
+
+/* Other plus menu items remain yellow (input field function) */
+.theme-folkhemmet .plus-menu button[title="Attach file"],
+.theme-folkhemmet .plus-menu button[title="Attach file"] svg,
+.theme-folkhemmet .plus-menu button[title="Download chat"],
+.theme-folkhemmet .plus-menu button[title="Download chat"] svg,
+.theme-folkhemmet .plus-menu button[title="Start recording"],
+.theme-folkhemmet .plus-menu button[title="Start recording"] svg {
+  color: hsl(51 95% 51%) !important;
 }
