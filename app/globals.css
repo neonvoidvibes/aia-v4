@@ -2555,6 +2555,12 @@ button {
   color: hsl(204 100% 34%) !important;
 }
 
+.theme-folkhemmet .sidebar-bg button:hover,
+.theme-folkhemmet .sidebar-bg button:hover svg,
+.theme-folkhemmet .sidebar-bg button:hover .lucide {
+  color: hsl(204 100% 34% / 0.8) !important; /* Slightly dimmed on hover */
+}
+
 /* 2. SIDEBAR TOGGLE BUTTON (when sidebar is closed) - Dark Blue */
 .theme-folkhemmet button[aria-label="More options"],
 .theme-folkhemmet button[aria-label="More options"] svg,
@@ -2565,6 +2571,12 @@ button {
 .theme-folkhemmet button[aria-label="More options"]:hover,
 .theme-folkhemmet button[aria-label="More options"]:hover svg,
 .theme-folkhemmet button[aria-label="More options"]:hover .lucide {
+  color: hsl(204 100% 34%) !important;
+}
+
+/* 2b. SIDEBAR TOGGLE BUTTON - Override Tailwind hover class with higher specificity */
+.theme-folkhemmet .sidebar-bg ~ div button.hover\:text-\[hsl\(var\(--icon-primary\)\)\]:hover,
+.theme-folkhemmet button.hover\:text-\[hsl\(var\(--icon-primary\)\)\]:hover {
   color: hsl(204 100% 34%) !important;
 }
 
@@ -2608,4 +2620,20 @@ button {
 .theme-folkhemmet .plus-menu button[title="Start recording"],
 .theme-folkhemmet .plus-menu button[title="Start recording"] svg {
   color: hsl(51 95% 51%) !important;
+}
+
+/* 6. MESSAGE ACTION ICONS AND TIMESTAMPS - Blue */
+.theme-folkhemmet .message-actions .action-button,
+.theme-folkhemmet .message-actions .action-button svg {
+  color: hsl(204 100% 34%) !important;
+}
+
+.theme-folkhemmet .message-actions .action-button:hover,
+.theme-folkhemmet .message-actions .action-button:hover svg {
+  color: hsl(204 100% 34% / 0.8) !important; /* Dimmed blue on hover */
+}
+
+/* Timestamps also blue */
+.theme-folkhemmet .message-actions .text-xs {
+  color: hsl(204 100% 34%) !important;
 }
