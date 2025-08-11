@@ -2609,7 +2609,7 @@ button {
 /* New chat button in plus menu uses dark blue (sidebar-like function) */
 .theme-folkhemmet .plus-menu button[title="Save chat to memory"],
 .theme-folkhemmet .plus-menu button[title="Save chat to memory"] svg {
-  color: hsl(204 100% 34%) !important;
+  color: hsl(51 95% 51%) !important;
 }
 
 /* Other plus menu items remain yellow (input field function) */
