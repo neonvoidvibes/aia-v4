@@ -2812,7 +2812,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         });
     }, [messages, errorMessages, processedProposalIds]);
     return (
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height))' }}>
             <div className="messages-container flex-1 relative" ref={messagesContainerRef} style={{ 
                 paddingLeft: '8px', 
                 paddingRight: '8px', 

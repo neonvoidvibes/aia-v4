@@ -2645,6 +2645,11 @@ html body .scroll-to-bottom-button {
   z-index: 999 !important;
 }
 
+/* Make sure button appears at visual bottom, not top */
+html body .messages-container {
+  position: relative !important; /* Ensure positioning context */
+}
+
 @media (max-width: 640px) {
   html body .scroll-to-bottom-button {
     bottom: 15px !important;
