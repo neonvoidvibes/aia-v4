@@ -2636,23 +2636,18 @@ button {
 }
 
 /* NUCLEAR FIX - Override everything with maximum specificity */
-/* Fix scroll button positioning - positioned at bottom center of messages area */
+/* Fix scroll button positioning - positioned above input field, fixed position */
 html body .scroll-to-bottom-button {
   position: absolute !important;
-  bottom: 20px !important; /* Position near bottom of messages area */
+  bottom: calc(var(--input-area-height) + 20px) !important; /* Position above input area with gap */
   left: 50% !important; /* Center horizontally */
   transform: translateX(-50%) !important; /* Center horizontally */
   z-index: 999 !important;
 }
 
-/* Make sure button appears at visual bottom, not top */
-html body .messages-container {
-  position: relative !important; /* Ensure positioning context */
-}
-
 @media (max-width: 640px) {
   html body .scroll-to-bottom-button {
-    bottom: 15px !important;
+    bottom: calc(var(--input-area-height) + 15px) !important;
   }
 }
 

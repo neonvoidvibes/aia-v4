@@ -2697,8 +2697,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   const onSubmit = handleSubmitWithCanvasContext;
 
   const updateInputAreaHeight = useCallback(() => {
-    // Scroll button is now positioned relative to messages container, no need to update its position
-    console.log(`[DEBUG] Input area height update - scroll button now uses fixed positioning`);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    const inputAreaContainer = textarea.closest('.input-area-container') as HTMLElement;
+    if (!inputAreaContainer) return;
+    
+    requestAnimationFrame(() => {
+      const inputAreaHeight = inputAreaContainer.offsetHeight;
+      // Update CSS variable so button position adjusts dynamically
+      document.documentElement.style.setProperty('--input-area-height', `${inputAreaHeight}px`);
+      
+      console.log(`[DEBUG] Updated --input-area-height to: ${inputAreaHeight}px`);
+    });
   }, []);
 
   const handleTextAreaInput = (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -3252,16 +3263,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                   </div>
                 )}
                 <div ref={messagesEndRef} />
-                
-                {showScrollToBottom && (
-                  <button onClick={() => {
-                    // Don't automatically activate minimal padding when clicking scroll-to-bottom
-                    scrollToBottom();
-                  }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
-                    <ArrowDown size={24} />
-                  </button>
-                )}
             </div>
+
+            {showScrollToBottom && (
+              <button onClick={() => {
+                // Don't automatically activate minimal padding when clicking scroll-to-bottom
+                scrollToBottom();
+              }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
+                <ArrowDown size={24} />
+              </button>
+            )}
 
             <div className="input-area-container flex-shrink-0">
                 <AlertDialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
