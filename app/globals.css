@@ -694,7 +694,7 @@
 /* --- Global Styles --- */
 :root {
   --header-height: 64px; /* Default header height */
-  --input-area-height: 100px; /* Default input area height */
+  --input-area-height: 88px; /* Default input area height - reduced to minimize whitespace */
 }
 
 body {
@@ -787,8 +787,8 @@ body {
   position: relative;
   min-height: var(--input-area-height); /* Minimum height */
   height: auto; /* Allow it to grow */
-  padding: 0; /* Remove padding here, let children manage it */
-  justify-content: flex-end; /* Align content to bottom */
+  padding: 8px 0 !important; /* Reduce padding to minimize whitespace */
+  justify-content: center; /* Center content instead of flex-end to reduce whitespace */
 }
 /* Mobile: Ensure input area padding matches message area */
 @media (max-width: 640px) {
@@ -803,7 +803,7 @@ body {
 .chat-input-layout {
   width: min(760px, calc(100% - 2rem)) !important;
   max-width: 760px !important;
-  margin: 16px auto !important;
+  margin: 0 auto !important; /* Remove top/bottom margin to eliminate whitespace */
   min-height: 56px !important; /* Ensure consistent minimum height */
   display: flex !important;
   flex-direction: column !important;
@@ -814,14 +814,14 @@ body {
 .sidebar-open .chat-input-layout {
   width: min(760px, calc(100% - 2rem)) !important;
   max-width: 760px !important;
-  margin: 16px auto !important;
+  margin: 0 auto !important; /* Remove top/bottom margin to eliminate whitespace */
 }
 
 /* Mobile: Use viewport-based sizing with smaller margins */
 @media (max-width: 640px) {
   .chat-input-layout {
     width: min(calc(100vw - 2rem), 800px) !important;
-    margin: 8px auto !important;
+    margin: 0 auto !important; /* Remove top/bottom margin to eliminate whitespace */
   }
   
   /* Desktop sidebar - only resize input on desktop */
@@ -829,7 +829,7 @@ body {
     .sidebar-open .chat-input-layout {
       width: min(760px, calc(100% - 2rem)) !important;
       max-width: 760px !important;
-      margin: 16px auto !important;
+      margin: 0 auto !important; /* Remove top/bottom margin to eliminate whitespace */
     }
   }
   
@@ -837,7 +837,7 @@ body {
   @media (max-width: 767px) {
     .sidebar-open .chat-input-layout {
       width: min(calc(100vw - 2rem), 800px) !important;
-      margin: 8px auto !important;
+      margin: 0 auto !important; /* Remove top/bottom margin to eliminate whitespace */
     }
   }
 }
@@ -904,7 +904,7 @@ body {
     /* Fix input area positioning to prevent bottom spacing */
     .input-area-container {
       position: static !important;
-      padding-bottom: max(env(safe-area-inset-bottom), 0.5rem) !important;
+      padding: 8px 0 max(env(safe-area-inset-bottom), 0.5rem) !important; /* Minimize top padding, keep safe area bottom */
     }
   }
 }
@@ -1415,9 +1415,9 @@ body {
 
 /* Scroll to bottom button */
 .scroll-to-bottom-button {
-  position: absolute;
-  bottom: 180px; /* Moved up from 150px to 180px */
-  left: 50%;
+  position: absolute !important;
+  bottom: calc(var(--input-area-height) + 20px) !important; /* Position relative to input area with 20px gap */
+  left: 50% !important;
   transform: translateX(-50%);
   background-color: rgba(128, 128, 128, 0.3); /* Fallback transparent background */
   color: hsl(var(--text-secondary));
@@ -1439,7 +1439,7 @@ body {
 /* Mobile positioning for scroll button */
 @media (max-width: 640px) {
   .scroll-to-bottom-button {
-    bottom: 165px; /* Moved up from 135px to 165px on mobile */
+    bottom: calc(var(--input-area-height) + 15px) !important; /* Position relative to input area with 15px gap on mobile */
   }
 }
 /* Light mode scroll button styling */
@@ -2108,7 +2108,7 @@ button {
 
 /* Additional spacing for fullscreen input area */
 .fullscreen-mode .input-area-container {
-  padding-bottom: 1rem; /* Add some spacing below input area in fullscreen */
+  padding: 8px 0 1rem !important; /* Minimize top padding, keep bottom spacing for fullscreen */
 }
 
 /* Sidebar Styles */
@@ -2633,4 +2633,31 @@ button {
 /* Timestamps also blue */
 .theme-folkhemmet .message-actions .text-xs {
   color: hsl(204 100% 34%) !important;
+}
+
+/* NUCLEAR FIX - Override everything with maximum specificity */
+/* Fix scroll button positioning - positioned at bottom center of messages area */
+html body .scroll-to-bottom-button {
+  position: absolute !important;
+  bottom: 20px !important; /* Position near bottom of messages area */
+  left: 50% !important; /* Center horizontally */
+  transform: translateX(-50%) !important; /* Center horizontally */
+  z-index: 999 !important;
+}
+
+@media (max-width: 640px) {
+  html body .scroll-to-bottom-button {
+    bottom: 15px !important;
+  }
+}
+
+/* Fix input area whitespace by forcing minimal margins/padding */
+html body .chat-input-layout {
+  margin: 0 auto !important;
+  padding: 8px 12px !important; /* Minimal padding */
+}
+
+html body .input-area-container {
+  padding: 8px 0 !important;
+  margin: 0 !important;
 }

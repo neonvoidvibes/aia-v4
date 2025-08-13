@@ -2696,6 +2696,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
   const onSubmit = handleSubmitWithCanvasContext;
 
+  const updateInputAreaHeight = useCallback(() => {
+    // Scroll button is now positioned relative to messages container, no need to update its position
+    console.log(`[DEBUG] Input area height update - scroll button now uses fixed positioning`);
+  }, []);
+
   const handleTextAreaInput = (e: ChangeEvent<HTMLTextAreaElement>) => {
     handleInputChange(e);
     const textarea = e.target;
@@ -2709,11 +2714,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const maxHeight = 200; 
     
     // Set the new height, respecting the min-height set in the style attribute
-    textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+    const finalHeight = Math.min(scrollHeight, maxHeight);
+    textarea.style.height = `${finalHeight}px`;
     
     // Enable scrolling if we've hit the max height
     textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+    
+    // Update CSS variable for dynamic height-dependent elements (like scroll button)
+    updateInputAreaHeight();
   };
+
+  // Update height when input is cleared or on initial render
+  useEffect(() => {
+    updateInputAreaHeight();
+  }, [input, updateInputAreaHeight]);
 
   const toggleMessageCollapse = (messageId: string) => {
     setCollapsedMessages(prev => {
@@ -2798,8 +2812,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         });
     }, [messages, errorMessages, processedProposalIds]);
     return (
-        <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
-            <div className="messages-container" ref={messagesContainerRef} style={{ 
+        <div className="flex flex-col h-screen">
+            <div className="messages-container flex-1 relative" ref={messagesContainerRef} style={{ 
                 paddingLeft: '8px', 
                 paddingRight: '8px', 
                 overflow: 'auto',
@@ -3238,16 +3252,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                   </div>
                 )}
                 <div ref={messagesEndRef} />
+                
+                {showScrollToBottom && (
+                  <button onClick={() => {
+                    // Don't automatically activate minimal padding when clicking scroll-to-bottom
+                    scrollToBottom();
+                  }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
+                    <ArrowDown size={24} />
+                  </button>
+                )}
             </div>
-
-            {showScrollToBottom && (
-              <button onClick={() => {
-                // Don't automatically activate minimal padding when clicking scroll-to-bottom
-                scrollToBottom();
-              }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
-                <ArrowDown size={24} />
-              </button>
-            )}
 
             <div className="input-area-container flex-shrink-0">
                 <AlertDialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
