@@ -3249,7 +3249,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               </button>
             )}
 
-            <div className="input-area-container flex-shrink-0" style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+            <div className="input-area-container flex-shrink-0">
                 <AlertDialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>

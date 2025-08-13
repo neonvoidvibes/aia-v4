@@ -756,7 +756,7 @@ body {
   /* Ensure the flex container can actually scroll */
   flex: 1;
   min-height: 0; /* Critical for flex children to be scrollable */
-  overflow-y: visible; /* Let parent handle scrolling */
+  overflow-y: auto; /* Scroll messages only */
   overflow-x: hidden;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
@@ -903,10 +903,7 @@ body {
     
     /* Fix input area positioning to prevent bottom spacing */
     .input-area-container {
-      position: absolute !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
+      position: static !important;
       padding-bottom: max(env(safe-area-inset-bottom), 0.5rem) !important;
     }
   }
