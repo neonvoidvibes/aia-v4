@@ -785,10 +785,10 @@ body {
   background-color: transparent;
   z-index: 10;
   position: relative;
-  min-height: var(--input-area-height); /* Minimum height */
+  /* Remove min-height to avoid fixed height behavior */
   height: auto; /* Allow it to grow */
-  padding: 8px 0 !important; /* Reduce padding to minimize whitespace */
-  justify-content: center; /* Center content instead of flex-end to reduce whitespace */
+  padding: 8px 0 !important; /* Minimal padding */
+  justify-content: flex-end; /* Align to bottom instead of center */
 }
 /* Mobile: Ensure input area padding matches message area */
 @media (max-width: 640px) {
@@ -2660,4 +2660,6 @@ html body .chat-input-layout {
 html body .input-area-container {
   padding: 8px 0 !important;
   margin: 0 !important;
+  min-height: auto !important; /* Remove any min-height */
+  justify-content: flex-end !important; /* Align to bottom */
 }
