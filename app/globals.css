@@ -864,7 +864,8 @@ body {
       flex: 1 !important;
       overflow: hidden !important;
       min-height: 0 !important; /* Important for flex scrolling */
-      /* Remove all height/padding overrides - let flexbox work */
+      /* Add bottom padding for safe area so input doesn't go below visible area */
+      padding-bottom: env(safe-area-inset-bottom) !important;
     }
     
     /* The chat flex container fills main-content */
@@ -893,7 +894,7 @@ body {
     .input-area-container {
       /* Minimal iOS positioning - match desktop */
       position: static !important;
-      padding: 8px 0 max(env(safe-area-inset-bottom), 0.5rem) !important;
+      padding: 8px 0 0 0 !important; /* Remove bottom padding since main-content handles safe area */
       /* Remove any height restrictions */
       height: auto !important;
       min-height: auto !important;
