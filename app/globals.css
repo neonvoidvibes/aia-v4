@@ -2622,4 +2622,25 @@ html body .input-area-container {
   .flex.flex-col[style*="calc(100vh - var(--header-height))"] {
     height: calc(100dvh - var(--header-height)) !important;
   }
+  
+  /* NUCLEAR: Remove any bottom spacing on iOS Safari */
+  html body {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  html body .main-content {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  html body .input-area-container {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  html body .chat-input-layout {
+    padding-bottom: 8px !important; /* Only keep minimal internal padding */
+    margin-bottom: 0 !important;
+  }
 }
