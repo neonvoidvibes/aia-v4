@@ -857,19 +857,23 @@ body {
       /* Remove padding-top from body to avoid double-counting */
     }
     
-    /* Main content takes full available space minus header */
+    /* Simplified iOS Safari layout - avoid complex calculations */
     .main-content {
-      height: calc(100vh - var(--header-height)) !important;
-      height: calc(100dvh - var(--header-height)) !important;
-      /* Keep padding-top only here, not on body */
-      padding-top: env(safe-area-inset-top) !important;
+      /* Use simpler approach - let flexbox handle everything */
+      height: 100vh !important;
+      height: 100dvh !important;
+      padding-top: calc(var(--header-height) + env(safe-area-inset-top)) !important;
+      padding-bottom: env(safe-area-inset-bottom) !important;
       overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
     }
     
-    /* The flex container fills main-content completely */
+    /* The flex container should fill remaining space naturally */
     .main-content > .flex.flex-col {
-      height: calc(100% - env(safe-area-inset-top)) !important; /* Subtract safe area from flex container */
+      flex: 1 !important; /* Take remaining space */
       overflow: hidden !important; /* Only messages-container should scroll */
+      min-height: 0 !important; /* Important for flex children */
     }
     
     /* Add safe area padding to header for menu chevron visibility and prevent overlap */
