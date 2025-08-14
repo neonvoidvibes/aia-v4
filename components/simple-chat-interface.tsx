@@ -398,8 +398,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // Industry-standard reconnection and heartbeat parameters
     const MAX_RECONNECT_ATTEMPTS = 10;
     const RECONNECT_DELAY_BASE_MS = 2500; // Start with a 2.5s base delay
-    const HEARTBEAT_INTERVAL_MS = 25000; // Ping every 25 seconds
-    const PONG_TIMEOUT_MS = 10000; // Wait 10 seconds for a pong response
+    const HEARTBEAT_INTERVAL_MS = 15000; // Ping every 15 seconds (reduced from 25s)
+    const PONG_TIMEOUT_MS = 8000; // Wait 8 seconds for a pong response (reduced from 10s)
     const MAX_HEARTBEAT_MISSES = 2; // Try ping/pong twice before considering connection dead
 
     const wsRef = useRef<WebSocket | null>(null);
@@ -1701,6 +1701,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 reconnectAttemptsRef.current = 0; 
                                 addErrorMessage("Connection re-established and stable.");
                             }
+                        } else if (messageData.type === 'ping') {
+                            // reply to server keepalive
+                            newWs.send(JSON.stringify({ type: 'pong' }));
+                            return;
                         } else {
                             debugLog(`[WebSocket] Message from server:`, event.data);
                         }
