@@ -854,20 +854,21 @@ body {
       min-height: 100dvh !important;
       overflow: hidden !important; /* Prevent outer scroll */
       position: relative !important;
-      padding-top: env(safe-area-inset-top) !important;
+      /* Remove padding-top from body to avoid double-counting */
     }
     
-    /* Ensure main chat container fills available space */
+    /* Main content takes full available space minus header */
     .main-content {
       height: calc(100vh - var(--header-height)) !important;
       height: calc(100dvh - var(--header-height)) !important;
+      /* Keep padding-top only here, not on body */
       padding-top: env(safe-area-inset-top) !important;
-      overflow: hidden !important; /* Prevent this level from scrolling */
+      overflow: hidden !important;
     }
     
-    /* The flex container inside main-content should also fill space */
+    /* The flex container fills main-content completely */
     .main-content > .flex.flex-col {
-      height: 100% !important;
+      height: calc(100% - env(safe-area-inset-top)) !important; /* Subtract safe area from flex container */
       overflow: hidden !important; /* Only messages-container should scroll */
     }
     
