@@ -846,33 +846,26 @@ body {
 @supports (-webkit-touch-callout: none) {
   /* Fix Safari viewport issues */
   @media (max-width: 640px) {
-    /* Fix body height to prevent phantom bottom spacing */
+    /* Minimal body fixes for iOS Safari - ALLOW SCROLLING */
     body {
+      /* Keep viewport height but REMOVE overflow: hidden */
       height: 100vh !important;
-      height: 100dvh !important; /* Use dynamic viewport height */
+      height: 100dvh !important;
       min-height: 100vh !important;
       min-height: 100dvh !important;
-      overflow: hidden !important;
+      /* overflow: hidden removed - this was breaking flexbox scroll */
       position: relative !important;
       padding-top: env(safe-area-inset-top) !important;
     }
     
-    /* Ensure main container uses full height without extra spacing */
+    /* Remove chat-container height restrictions - let flexbox work */
     .chat-container {
-      height: 100vh !important;
-      height: 100dvh !important;
-      max-height: 100vh !important;
-      max-height: 100dvh !important;
-      overflow: hidden !important;
+      /* Remove fixed height rules - let flexbox handle it */
     }
     
-    /* Fix main content area - ensure it accounts for safe areas */
+    /* Minimal main content fixes - match desktop behavior */
     .main-content {
-      height: calc(100vh - var(--header-height)) !important;
-      height: calc(100dvh - var(--header-height)) !important;
-      max-height: calc(100vh - var(--header-height)) !important;
-      max-height: calc(100dvh - var(--header-height)) !important;
-      /* Add top padding to account for safe area and prevent content from going under notch */
+      /* Remove fixed height calculations - let flexbox work like desktop */
       padding-top: env(safe-area-inset-top) !important;
     }
     
@@ -884,16 +877,22 @@ body {
       z-index: 10 !important;
     }
     
-    /* Minimal iOS Safari fix - only remove the problematic old rules */
+    /* Force messages container to match desktop behavior exactly */
     .messages-container {
-      /* Remove the old problematic padding-bottom calculation */
+      /* Remove ALL iOS-specific overrides, let desktop CSS work */
       padding-bottom: inherit !important;
+      height: auto !important; /* Don't force height */
+      max-height: none !important; /* Don't limit height */
+      /* Let flex: 1 from desktop work */
     }
     
     .input-area-container {
-      /* Keep basic positioning but match desktop behavior */
+      /* Minimal iOS positioning - match desktop */
       position: static !important;
       padding: 8px 0 max(env(safe-area-inset-bottom), 0.5rem) !important;
+      /* Remove any height restrictions */
+      height: auto !important;
+      min-height: auto !important;
     }
   }
 }
@@ -2061,10 +2060,10 @@ button {
   }
 }
 
-/* Enhanced spacing between messages and input field */
+/* Enhanced spacing between messages and input field - DISABLED for new flexbox layout */
 .messages-container {
-  /* Additional bottom padding to ensure proper spacing from input */
-  padding-bottom: 3rem !important; /* Increased from 32px to 48px base spacing */
+  /* Removed bottom padding - flexbox layout handles spacing naturally */
+  /* padding-bottom: 3rem !important; - DISABLED, this was causing 200px spacing issue */
 }
 
 /* Enhanced margin for thinking indicators near input field */
