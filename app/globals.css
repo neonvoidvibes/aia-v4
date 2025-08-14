@@ -846,34 +846,31 @@ body {
 @supports (-webkit-touch-callout: none) {
   /* Fix Safari viewport issues */
   @media (max-width: 640px) {
-    /* iOS Safari - prevent outer scroll but allow inner scroll */
+    /* iOS Safari - body as flex container for header + main-content */
     body {
       height: 100vh !important;
       height: 100dvh !important;
       min-height: 100vh !important;
       min-height: 100dvh !important;
       overflow: hidden !important; /* Prevent outer scroll */
-      position: relative !important;
-      /* Remove padding-top from body to avoid double-counting */
-    }
-    
-    /* Simplified iOS Safari layout - avoid complex calculations */
-    .main-content {
-      /* Use simpler approach - let flexbox handle everything */
-      height: 100vh !important;
-      height: 100dvh !important;
-      padding-top: calc(var(--header-height) + env(safe-area-inset-top)) !important;
-      padding-bottom: env(safe-area-inset-bottom) !important;
-      overflow: hidden !important;
       display: flex !important;
       flex-direction: column !important;
+      /* Let flexbox handle spacing naturally */
     }
     
-    /* The flex container should fill remaining space naturally */
+    /* iOS Safari - main content takes remaining space after header */
+    .main-content {
+      /* Use flex: 1 to take remaining space naturally, no height calculations */
+      flex: 1 !important;
+      overflow: hidden !important;
+      min-height: 0 !important; /* Important for flex scrolling */
+      /* Remove all height/padding overrides - let flexbox work */
+    }
+    
+    /* The chat flex container fills main-content */
     .main-content > .flex.flex-col {
-      flex: 1 !important; /* Take remaining space */
+      height: 100% !important;
       overflow: hidden !important; /* Only messages-container should scroll */
-      min-height: 0 !important; /* Important for flex children */
     }
     
     /* Add safe area padding to header for menu chevron visibility and prevent overlap */
