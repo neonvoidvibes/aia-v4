@@ -2825,6 +2825,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   
   useEffect(() => { 
       const lKeyDown = (e: KeyboardEvent) => { 
+        // On mobile, Enter creates new line (like Shift+Enter on desktop)
+        if (isMobile && e.key === "Enter" && !e.shiftKey) {
+          return; // Allow default behavior (new line)
+        }
+        
         if (e.key === "Enter" && !e.shiftKey && !isLoading && (input.trim() || attachedFiles.length > 0)) { 
           e.preventDefault(); 
           handleSubmitWithCanvasContext(e as any);
@@ -3440,6 +3445,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           value={input}
                           onChange={handleTextAreaInput}
                           onKeyDown={(e) => {
+                            // On mobile, Enter creates new line (like Shift+Enter on desktop)
+                            if (isMobile && e.key === "Enter" && !e.shiftKey) {
+                              return; // Allow default behavior (new line)
+                            }
+                            
                             if (e.key === "Enter" && !e.shiftKey) {
                               e.preventDefault();
                               if (input.trim() || attachedFiles.length > 0) {
