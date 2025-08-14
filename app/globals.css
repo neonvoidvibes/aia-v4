@@ -842,63 +842,10 @@ body {
   }
 }
 
-/* iOS Safari specific fixes - comprehensive approach */
+/* iOS Safari specific fixes - COMPLETELY DISABLED to use desktop solution */
 @supports (-webkit-touch-callout: none) {
-  /* Fix Safari viewport issues */
   @media (max-width: 640px) {
-    /* iOS Safari - body as flex container for header + main-content */
-    body {
-      height: 100vh !important;
-      height: 100dvh !important;
-      min-height: 100vh !important;
-      min-height: 100dvh !important;
-      overflow: hidden !important; /* Prevent outer scroll */
-      display: flex !important;
-      flex-direction: column !important;
-      /* Let flexbox handle spacing naturally */
-    }
-    
-    /* iOS Safari - main content takes remaining space after header */
-    .main-content {
-      /* Use flex: 1 to take remaining space naturally, no height calculations */
-      flex: 1 !important;
-      overflow: hidden !important;
-      min-height: 0 !important; /* Important for flex scrolling */
-      /* Add bottom padding for safe area so input doesn't go below visible area */
-      padding-bottom: env(safe-area-inset-bottom) !important;
-    }
-    
-    /* The chat flex container fills main-content */
-    .main-content > .flex.flex-col {
-      height: 100% !important;
-      overflow: hidden !important; /* Only messages-container should scroll */
-    }
-    
-    /* Add safe area padding to header for menu chevron visibility and prevent overlap */
-    header {
-      padding-top: max(env(safe-area-inset-top), 0.5rem) !important;
-      /* Ensure header has proper z-index */
-      position: relative !important;
-      z-index: 10 !important;
-    }
-    
-    /* Force messages container to match desktop behavior exactly */
-    .messages-container {
-      /* Remove ALL iOS-specific overrides, let desktop CSS work */
-      padding-bottom: inherit !important;
-      height: auto !important; /* Don't force height */
-      max-height: none !important; /* Don't limit height */
-      /* Let flex: 1 from desktop work */
-    }
-    
-    .input-area-container {
-      /* Minimal iOS positioning - match desktop */
-      position: static !important;
-      padding: 8px 0 0 0 !important; /* Remove bottom padding since main-content handles safe area */
-      /* Remove any height restrictions */
-      height: auto !important;
-      min-height: auto !important;
-    }
+    /* DISABLED - Let desktop solution work on iOS Safari too */
   }
 }
 
@@ -2658,8 +2605,9 @@ html body .input-area-container {
   justify-content: flex-end !important; /* Align to bottom */
 }
 
-/* iOS Safari fix - ensure Tailwind flex classes work properly */
+/* iOS Safari - use desktop solution but with dvh instead of vh */
 @media (max-width: 640px) {
+  /* Ensure Tailwind flex classes work */
   .messages-container.flex-1 {
     flex: 1 1 0% !important;
     min-height: 0 !important;
@@ -2668,5 +2616,10 @@ html body .input-area-container {
   .input-area-container.flex-shrink-0 {
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
+  }
+  
+  /* Use dvh instead of vh for iOS Safari viewport issues */
+  .flex.flex-col[style*="calc(100vh - var(--header-height))"] {
+    height: calc(100dvh - var(--header-height)) !important;
   }
 }
