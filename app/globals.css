@@ -2607,6 +2607,31 @@ html body .input-area-container {
 
 /* iOS Safari - use desktop solution but with dvh instead of vh */
 @media (max-width: 640px) {
+  /* NUCLEAR HTML/BODY APPROACH: Override everything */
+  html, html body {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Override any framework-added spacing on root elements only */
+  body, #__next, .main-content, .input-area-container, .chat-input-layout {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  /* Reset root element */
+  #__next {
+    height: 100dvh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
   /* Ensure Tailwind flex classes work */
   .messages-container.flex-1 {
     flex: 1 1 0% !important;
@@ -2623,12 +2648,7 @@ html body .input-area-container {
     height: calc(100dvh - var(--header-height)) !important;
   }
   
-  /* NUCLEAR: Remove any bottom spacing on iOS Safari */
-  html body {
-    padding-bottom: 0 !important;
-    margin-bottom: 0 !important;
-  }
-  
+  /* Override specific elements */
   html body .main-content {
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
