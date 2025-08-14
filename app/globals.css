@@ -884,31 +884,16 @@ body {
       z-index: 10 !important;
     }
     
-    /* BROAD iOS Safari mobile layout fix - override all container heights */
-    .flex.flex-col {
-      height: calc(100vh - var(--header-height)) !important;
-      height: calc(100dvh - var(--header-height)) !important;
-    }
-    
-    /* Force messages container to use flexbox layout like desktop */
+    /* Minimal iOS Safari fix - only remove the problematic old rules */
     .messages-container {
-      padding-top: max(env(safe-area-inset-top), 1rem) !important;
-      padding-bottom: 0 !important; /* Remove any bottom padding */
-      height: auto !important; /* Let flexbox handle height */
-      flex: 1 !important; /* Take remaining space */
-      overflow-y: auto !important;
-      margin-top: 0 !important;
-      margin-bottom: 0 !important;
+      /* Remove the old problematic padding-bottom calculation */
+      padding-bottom: inherit !important;
     }
     
-    /* Force input area to be fixed at bottom like desktop */
     .input-area-container {
+      /* Keep basic positioning but match desktop behavior */
       position: static !important;
       padding: 8px 0 max(env(safe-area-inset-bottom), 0.5rem) !important;
-      flex-shrink: 0 !important; /* Don't shrink */
-      flex-grow: 0 !important; /* Don't grow */
-      height: auto !important; /* Only as tall as needed */
-      min-height: auto !important; /* Remove any min-height */
     }
   }
 }
@@ -2669,24 +2654,15 @@ html body .input-area-container {
   justify-content: flex-end !important; /* Align to bottom */
 }
 
-/* NUCLEAR MOBILE FIX - Force consistent layout on all mobile devices */
+/* iOS Safari fix - ensure Tailwind flex classes work properly */
 @media (max-width: 640px) {
-  html body .flex.flex-col {
-    height: calc(100vh - var(--header-height)) !important;
-    height: calc(100dvh - var(--header-height)) !important;
+  .messages-container.flex-1 {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
   }
   
-  html body .messages-container {
-    flex: 1 !important;
-    height: auto !important;
-    padding-bottom: 0 !important;
-    margin-bottom: 0 !important;
-  }
-  
-  html body .input-area-container {
+  .input-area-container.flex-shrink-0 {
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
-    height: auto !important;
-    min-height: auto !important;
   }
 }
