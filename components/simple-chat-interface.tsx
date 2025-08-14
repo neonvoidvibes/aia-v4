@@ -2712,6 +2712,77 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     });
   }, []);
 
+  // iOS Safari keyboard handling
+  useEffect(() => {
+    if (typeof window !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      const handleKeyboardShow = () => {
+        // Force remove any bottom spacing that iOS Safari might add
+        document.body.style.paddingBottom = '0px';
+        document.body.style.marginBottom = '0px';
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+          (mainContent as HTMLElement).style.paddingBottom = '0px';
+          (mainContent as HTMLElement).style.marginBottom = '0px';
+        }
+        const inputContainer = document.querySelector('.input-area-container');
+        if (inputContainer) {
+          (inputContainer as HTMLElement).style.paddingBottom = '0px';
+          (inputContainer as HTMLElement).style.marginBottom = '0px';
+        }
+      };
+
+      const handleKeyboardHide = () => {
+        // Keep the same zero spacing when keyboard hides
+        document.body.style.paddingBottom = '0px';
+        document.body.style.marginBottom = '0px';
+      };
+
+      // Listen for focus events on input fields
+      const inputs = document.querySelectorAll('textarea, input');
+      inputs.forEach(input => {
+        input.addEventListener('focus', handleKeyboardShow);
+        input.addEventListener('blur', handleKeyboardHide);
+      });
+
+      // Also listen for visual viewport changes
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', handleKeyboardShow);
+      }
+
+      // Aggressive approach: Watch for any style changes to body/main elements
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+            const target = mutation.target as HTMLElement;
+            if (target === document.body || target.classList.contains('main-content') || target.classList.contains('input-area-container')) {
+              // Force remove any bottom spacing immediately
+              if (target.style.paddingBottom !== '0px') target.style.paddingBottom = '0px';
+              if (target.style.marginBottom !== '0px') target.style.marginBottom = '0px';
+            }
+          }
+        });
+      });
+
+      // Observe body and any main content areas
+      observer.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+      const mainContent = document.querySelector('.main-content');
+      if (mainContent) observer.observe(mainContent, { attributes: true, attributeFilter: ['style'] });
+      const inputContainer = document.querySelector('.input-area-container');
+      if (inputContainer) observer.observe(inputContainer, { attributes: true, attributeFilter: ['style'] });
+
+      return () => {
+        inputs.forEach(input => {
+          input.removeEventListener('focus', handleKeyboardShow);
+          input.removeEventListener('blur', handleKeyboardHide);
+        });
+        if (window.visualViewport) {
+          window.visualViewport.removeEventListener('resize', handleKeyboardShow);
+        }
+        observer.disconnect();
+      };
+    }
+  }, []);
+
   const handleTextAreaInput = (e: ChangeEvent<HTMLTextAreaElement>) => {
     handleInputChange(e);
     const textarea = e.target;
