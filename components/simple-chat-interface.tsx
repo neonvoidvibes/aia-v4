@@ -759,6 +759,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         setCurrentChatId(result.chatId);
                         setChatTitle(result.title);
                     }
+                    // After any successful save, trigger a refresh of the history list
+                    if (onHistoryRefreshNeeded) {
+                        onHistoryRefreshNeeded();
+                    }
                 }
             }
         } catch (error) {
@@ -766,7 +770,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } finally {
             isSavingRef.current = false;
         }
-    }, [agentName, currentChatId, chatTitle, supabase.auth]);
+    }, [agentName, currentChatId, chatTitle, supabase.auth, onHistoryRefreshNeeded]);
 
     const messagesRef = useRef<Message[]>(messages);
     useEffect(() => { messagesRef.current = messages; }, [messages]);
@@ -1907,6 +1911,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 onHistoryRefreshNeeded();
              }
              
+             if (onHistoryRefreshNeeded) {
+                console.log("[New Chat] Calling onHistoryRefreshNeeded()");
+                onHistoryRefreshNeeded();
+             }
              console.info("[New Chat] COMPLETED STATE RESET - All client states (messages, errors, attachments, chat ID, memory) have been reset.");
              console.log("[New Chat] AFTER STATE RESET:", {
                 messagesCount: 0, // Should be 0
@@ -2332,6 +2340,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             onHistoryRefreshNeeded();
         }
 
+        if (onHistoryRefreshNeeded) {
+            onHistoryRefreshNeeded();
+        }
+
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) throw new Error("Authentication error. Cannot save memory.");
@@ -2379,7 +2391,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } finally {
             setConfirmationRequest(null);
         }
-    }, [agentName, currentChatId, chatTitle, addErrorMessage, supabase.auth, conversationSaveMarkerMessageId, conversationMemoryId, onHistoryRefreshNeeded]);
+    }, [agentName, addErrorMessage, onHistoryRefreshNeeded, savedMessageIds, conversationSaveMarkerMessageId, conversationMemoryId]);
 
     const executeSaveMessage = useCallback(async (message: Message) => {
         debugLog("[Save Message to Memory] Executing after confirmation for message:", message.id);
@@ -2395,6 +2407,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Optimistic update placeholder
         const placeholderInfo = { savedAt: newSaveDate, memoryId: 'pending' };
         setSavedMessageIds(prev => new Map(prev).set(message.id, placeholderInfo));
+
+        if (onHistoryRefreshNeeded) {
+            onHistoryRefreshNeeded();
+        }
 
         if (onHistoryRefreshNeeded) {
             onHistoryRefreshNeeded();
@@ -2462,6 +2478,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setConversationSaveMarkerMessageId(null);
             setConversationMemoryId(null);
         }
+
+    if (onHistoryRefreshNeeded) {
+        onHistoryRefreshNeeded();
+    }
 
         if (onHistoryRefreshNeeded) {
             onHistoryRefreshNeeded();
@@ -2687,6 +2707,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             }
             
             toast.success("Message deleted.", { id: toastId });
+            if (onHistoryRefreshNeeded) {
+                onHistoryRefreshNeeded();
+            }
 
         } catch (error: any) {
             console.error('[Delete Message] Error:', error);
@@ -2696,7 +2719,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setMessages(originalMessages);
             setErrorMessages(originalErrorMessages);
         }
-    }, [messageToDelete, currentChatId, isDeleting, conversationSaveMarkerMessageId, messages, errorMessages, supabase.auth]);
+    }, [messageToDelete, currentChatId, isDeleting, conversationSaveMarkerMessageId, messages, errorMessages, supabase.auth, onHistoryRefreshNeeded]);
 
   const onSubmit = handleSubmitWithCanvasContext;
 

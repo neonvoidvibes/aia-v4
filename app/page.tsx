@@ -340,6 +340,14 @@ function HomeContent() {
   }, [supabase.auth]);
 
   useEffect(() => {
+    if (historyNeedsRefresh && pageAgentName) {
+      fetchChatHistory(pageAgentName).then(() => {
+        setHistoryNeedsRefresh(false);
+      });
+    }
+  }, [historyNeedsRefresh, pageAgentName, fetchChatHistory]);
+
+  useEffect(() => {
     const agentParam = searchParams.get('agent');
     const eventParam = searchParams.get('event');
 
