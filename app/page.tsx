@@ -260,6 +260,7 @@ function HomeContent() {
   // State for Chat History
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isSidebarLocked, setIsSidebarLocked] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [chatIdToDelete, setChatIdToDelete] = useState<string | null>(null);
 
@@ -315,7 +316,7 @@ function HomeContent() {
   const router = useRouter();
 
   const fetchChatHistory = useCallback(async (agentToFetch: string) => {
-    if (!agentToFetch) return;
+    if (!agentToFetch || isSidebarLocked) return;
     
     setIsLoadingHistory(true);
     try {
@@ -337,7 +338,7 @@ function HomeContent() {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [supabase.auth]);
+  }, [supabase.auth, isSidebarLocked]);
 
   useEffect(() => {
     if (historyNeedsRefresh && pageAgentName) {
@@ -487,6 +488,8 @@ function HomeContent() {
   const handleDeleteConfirm = async () => {
     if (!chatIdToDelete) return;
 
+    setIsSidebarLocked(true); // Lock the sidebar from refreshing
+
     const originalChatHistory = [...chatHistory];
     const chatToDelete = chatHistory.find(chat => chat.id === chatIdToDelete);
     const isDeletingCurrentChat = chatIdToDelete === currentChatId;
@@ -523,7 +526,7 @@ function HomeContent() {
 
         toast.success("Conversation deleted.");
         
-        // After successful deletion, refresh the history list to ensure consistency.
+        // After successful deletion, queue a refresh for when the lock is released.
         setHistoryNeedsRefresh(true);
 
     } catch (error: any) {
@@ -543,6 +546,7 @@ function HomeContent() {
           }
         }
     } finally {
+        setIsSidebarLocked(false); // Unlock the sidebar
         setChatIdToDelete(null);
     }
   };
