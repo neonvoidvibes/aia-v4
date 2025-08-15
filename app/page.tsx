@@ -491,9 +491,15 @@ function HomeContent() {
     const chatToDelete = chatHistory.find(chat => chat.id === chatIdToDelete);
     const isDeletingCurrentChat = chatIdToDelete === currentChatId;
 
-    // Optimistically remove the chat from the UI
+    // Optimistic UI updates
     setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
     setShowDeleteConfirmation(false);
+
+    // If deleting the current chat, clear the main window IMMEDIATELY
+    if (isDeletingCurrentChat) {
+        chatInterfaceRef.current?.startNewChat();
+        setCurrentChatId(null);
+    }
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -516,18 +522,19 @@ function HomeContent() {
         }
 
         toast.success("Conversation deleted.");
-
-        // If the deleted chat was the currently active one, start a new chat now.
-        if (isDeletingCurrentChat) {
-            handleNewChatFromSidebar();
-        }
+        
+        // After successful deletion, refresh the history list to ensure consistency.
+        setHistoryNeedsRefresh(true);
 
     } catch (error: any) {
         console.error('Failed to delete chat history:', error);
         toast.error(`Failed to delete conversation: ${error.message}. Restoring.`);
+        
         // Rollback UI on failure
         setChatHistory(originalChatHistory);
-        // If deletion of the current chat fails, reload it.
+
+        // If deletion of the current chat fails, we need to reload it,
+        // since we optimistically cleared it.
         if (isDeletingCurrentChat && chatToDelete) {
           if (chatInterfaceRef.current) {
             chatInterfaceRef.current.loadChatHistory(chatToDelete.id);
