@@ -497,7 +497,7 @@ function HomeContent() {
 
     // If deleting the current chat, clear the main window IMMEDIATELY
     if (isDeletingCurrentChat) {
-        chatInterfaceRef.current?.startNewChat();
+        chatInterfaceRef.current?.startNewChat({ suppressRefresh: true });
         setCurrentChatId(null);
     }
 
@@ -614,14 +614,12 @@ function HomeContent() {
       chatInterfaceRef.current?.startNewChat();
       setCurrentChatId(null);
       setShowNewChatConfirm(false);
-      setHistoryNeedsRefresh(true); // Trigger refresh
   };
 
   const handleNewChatFromSidebar = () => {
       console.log("New chat requested from sidebar");
       chatInterfaceRef.current?.startNewChat();
       setCurrentChatId(null);
-      setHistoryNeedsRefresh(true); // Trigger refresh
   };
 
   const cancelNewChat = () => {

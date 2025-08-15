@@ -316,7 +316,7 @@ interface SimpleChatInterfaceProps {
 }
 
 export interface ChatInterfaceHandle {
-  startNewChat: () => void;
+  startNewChat: (options?: { suppressRefresh?: boolean }) => void;
   getMessagesCount: () => number;
   scrollToTop: () => void;
   submitMessageWithCanvasContext: (
