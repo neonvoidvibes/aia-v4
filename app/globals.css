@@ -130,7 +130,7 @@
 /* White Theme */
 .theme-white {
   /* Base colors */
-  --background: 0 0% 200%;
+  --background: 0 0% 100%;
   --foreground: 260 60% 20%; /* Deep indigo/purple for welcome text */
 
   /* UI elements */
@@ -1772,6 +1772,14 @@ button {
 
 /* Fix the chevron color in light mode */
 .light .chevron-rotate { color: black; }
+/* Make chevron transparent in White theme */
+.theme-white .chevron-rotate { color: transparent; }
+/* Hide ChevronDown icons in White theme */
+.theme-white .h-4.w-4.opacity-50,
+.theme-white svg.h-4.w-4.opacity-50,
+.theme-white [class*="lucide"][class*="chevron-down"] {
+  display: none !important;
+}
 
 /* Ensure consistent background colors for UI elements */
 .bg-input-gray { background-color: hsl(var(--input-gray)); }
@@ -2660,7 +2668,7 @@ html body .input-area-container {
   }
   
   html body .chat-input-layout {
-    padding-bottom: 8px !important; /* Only keep minimal internal padding */
+    padding-bottom: 12px !important; /* Only keep minimal internal padding */
     margin-bottom: 0 !important;
   }
 }

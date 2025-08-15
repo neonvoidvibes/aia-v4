@@ -261,6 +261,10 @@ function HomeContent() {
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSidebarLocked, setIsSidebarLocked] = useState(false);
+  const isSidebarLockedRef = useRef(isSidebarLocked);
+  useEffect(() => {
+    isSidebarLockedRef.current = isSidebarLocked;
+  }, [isSidebarLocked]);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [chatIdToDelete, setChatIdToDelete] = useState<string | null>(null);
 
@@ -316,7 +320,7 @@ function HomeContent() {
   const router = useRouter();
 
   const fetchChatHistory = useCallback(async (agentToFetch: string) => {
-    if (!agentToFetch || isSidebarLocked) return;
+    if (!agentToFetch || isSidebarLockedRef.current) return;
     
     setIsLoadingHistory(true);
     try {
@@ -338,7 +342,7 @@ function HomeContent() {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [supabase.auth, isSidebarLocked]);
+  }, [supabase.auth]);
 
   useEffect(() => {
     if (historyNeedsRefresh && pageAgentName) {
