@@ -312,6 +312,7 @@ interface SimpleChatInterfaceProps {
   savedTranscriptMemoryMode?: "disabled" | "enabled";
   individualMemoryToggleStates?: Record<string, boolean>;
   savedTranscriptSummaries?: FetchedFile[];
+  isModalOpen?: boolean; // New prop to indicate if a modal is open
 
 }
 
@@ -359,7 +360,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, isModalOpen = false }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
 
     const searchParams = useSearchParams();
@@ -3368,7 +3369,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 <div ref={messagesEndRef} />
             </div>
 
-            {showScrollToBottom && (
+            {showScrollToBottom && !isModalOpen && (
               <button onClick={() => {
                 // Don't automatically activate minimal padding when clicking scroll-to-bottom
                 scrollToBottom();

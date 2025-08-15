@@ -274,6 +274,17 @@ function HomeContent() {
   const [agentCapabilities, setAgentCapabilities] = useState({ pinecone_index_exists: false });
 
 
+  // Derived state to determine if any modal is currently open.
+  // This will be passed to the chat interface to hide UI elements like the scroll-to-bottom button.
+  const isAnyModalOpen =
+    showSettings ||
+    showNewChatConfirm ||
+    showS3FileViewer ||
+    showArchiveConfirmModal ||
+    showSaveAsMemoryConfirmModal ||
+    showForgetConfirmModal ||
+    showDeleteConfirmation;
+
   const handleRecordingStateChange = useCallback((newState: {
     isBrowserRecording: boolean;
     isBrowserPaused: boolean;
@@ -1558,6 +1569,7 @@ function HomeContent() {
               savedTranscriptMemoryMode={savedTranscriptMemoryMode}
               individualMemoryToggleStates={individualMemoryToggleStates}
               savedTranscriptSummaries={savedTranscriptSummaries}
+              isModalOpen={isAnyModalOpen}
             />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
