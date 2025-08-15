@@ -493,11 +493,6 @@ function HomeContent() {
 
     // Optimistically remove the chat from the UI
     setChatHistory(prev => prev.filter(chat => chat.id !== chatIdToDelete));
-    
-    // If the deleted chat is the currently active chat, start a new chat instantly
-    if (isDeletingCurrentChat) {
-        handleNewChatFromSidebar();
-    }
     setShowDeleteConfirmation(false);
 
     try {
@@ -521,6 +516,11 @@ function HomeContent() {
         }
 
         toast.success("Conversation deleted.");
+
+        // If the deleted chat was the currently active one, start a new chat now.
+        if (isDeletingCurrentChat) {
+            handleNewChatFromSidebar();
+        }
 
     } catch (error: any) {
         console.error('Failed to delete chat history:', error);
