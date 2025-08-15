@@ -727,6 +727,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
         // Capture the current chat ID at the start of the save operation to prevent race conditions
         const chatIdAtStartOfSave = currentChatId;
+
+        const isCreating = !chatIdAtStartOfSave;
+        if (isCreating) {
+            if (creatingRef.current) {
+                console.warn('[Auto-save] Create already in progress. Skipping.');
+                return;
+            }
+            if (!clientSessionIdRef.current) {
+                clientSessionIdRef.current = crypto.randomUUID();
+            }
+            creatingRef.current = true;
+        }
         
         isSavingRef.current = true;
 
@@ -747,6 +759,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     messages: currentMessages,
                     chatId: chatIdAtStartOfSave,
                     title: chatTitle,
+                    clientSessionId: clientSessionIdRef.current,
                 }),
             });
 
@@ -769,6 +782,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } catch (error) {
             console.error('[Auto-save] Save operation failed:', error);
         } finally {
+            if (typeof isCreating !== 'undefined' && isCreating) creatingRef.current = false;
             isSavingRef.current = false;
         }
     }, [agentName, currentChatId, chatTitle, supabase.auth, onHistoryRefreshNeeded]);
@@ -798,6 +812,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const timerDisplayRef = useRef<HTMLSpanElement>(null); 
     const recordControlsTimerDisplayRef = useRef<HTMLSpanElement>(null); 
     const pendingActionRef = useRef<string | null>(null); 
+    const clientSessionIdRef = useRef<string | null>(null);
+    const creatingRef = useRef(false);
 
     // NOTE: The 'Simple' view is the standard/default view for the application.
     // All primary UI elements, including the recording timer, are handled in the parent `page.tsx` component.
@@ -1903,6 +1919,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              console.log("[New Chat] RESETTING CHAT STATE: currentChatId from", currentChatId, "to null");
              setCurrentChatId(null);
              setChatTitle(null);
+             clientSessionIdRef.current = null;
              setConversationSaveMarkerMessageId(null);
              setConversationMemoryId(null);
              setProcessedProposalIds(new Set()); // Reset processed proposals
