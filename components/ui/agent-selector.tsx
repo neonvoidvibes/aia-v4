@@ -10,17 +10,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { ChevronDown } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
 
 interface AgentSelectorMenuProps {
   allowedAgents: string[];
@@ -60,37 +50,10 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
     </Button>
   );
 
-  if (isMobile) {
-    return (
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetTrigger asChild>{triggerButton}</SheetTrigger>
-        <SheetContent side="bottom" className="rounded-t-lg">
-          <SheetHeader>
-            <SheetTitle>Select Agent</SheetTitle>
-          </SheetHeader>
-          <div className="py-4">
-            <RadioGroup
-              value={currentAgent}
-              onValueChange={handleAgentChange}
-              className="flex flex-col gap-3"
-            >
-              {allowedAgents.sort().map((agent) => (
-                <div key={agent} className="flex items-center space-x-2">
-                  <RadioGroupItem value={agent} id={`agent-${agent}-mobile`} />
-                  <Label htmlFor={`agent-${agent}-mobile`}>{agent}</Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
-      <DropdownMenuContent align="center" className="max-h-72 overflow-y-auto">
+      <DropdownMenuContent align="center" className="max-h-60 overflow-y-auto">
         <DropdownMenuRadioGroup value={currentAgent} onValueChange={handleAgentChange}>
           {allowedAgents.sort().map((agent) => (
             <DropdownMenuRadioItem key={agent} value={agent} className="pr-8">
