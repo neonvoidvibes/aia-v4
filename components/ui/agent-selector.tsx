@@ -116,19 +116,7 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
             <span>Change Theme</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent
-              side={isMobile ? "bottom" : "right"}
-              align={isMobile ? "start" : "start"}
-              sideOffset={isMobile ? 6 : 8}
-              alignOffset={isMobile ? 0 : -5}
-              collisionPadding={16}
-              className={cn(
-                "rounded-md shadow-lg",
-                isMobile
-                  ? "min-w-[240px] max-w-[min(92vw,360px)] p-3 z-[60]"
-                  : "min-w-[240px] p-2 z-[60]"
-              )}
-            >
+            <DropdownMenuSubContent>
               <DropdownMenuRadioGroup value={theme} onValueChange={onThemeSelect}>
                 <DropdownMenuRadioItem value="light" onSelect={(e) => e.preventDefault()}>Light</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="dark" onSelect={(e) => e.preventDefault()}>Dark</DropdownMenuRadioItem>
