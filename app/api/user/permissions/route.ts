@@ -53,42 +53,39 @@ export async function GET(request: Request) {
  
     logger.info({ agents: allowedAgentNames }, `Permissions API: User ${user.id} has access`);
  
-    // --- Check for Pinecone namespace existence for each agent ---
+    // --- NEW BATCH CAPABILITIES CHECK ---
     const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    let agentsWithCapabilities = allowedAgentNames.map(name => ({
+        name,
+        capabilities: { pinecone_index_exists: false } // Default to false
+    }));
 
-    const agentsWithCapabilities = await Promise.all(
-      allowedAgentNames.map(async (name) => {
-        let hasNamespace = false;
-        if (activeBackendUrl) {
-          try {
-            const namespaceCheckUrl = `${activeBackendUrl}/api/index/river/namespace/${name}/exists`;
-            // We need the session token for this backend call
+    if (activeBackendUrl && allowedAgentNames.length > 0) {
+        try {
             const { data: { session } } = await supabase.auth.getSession();
-            const namespaceResponse = await fetch(namespaceCheckUrl, {
-              headers: {
-                'Authorization': `Bearer ${session?.access_token}`,
-              },
+            const capabilitiesResponse = await fetch(`${activeBackendUrl}/api/agents/capabilities`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`,
+                },
+                body: JSON.stringify({ agent_names: allowedAgentNames })
             });
-            if (namespaceResponse.ok) {
-              const namespaceData = await namespaceResponse.json();
-              hasNamespace = namespaceData.exists;
+
+            if (capabilitiesResponse.ok) {
+                const capabilitiesData = await capabilitiesResponse.json();
+                agentsWithCapabilities = allowedAgentNames.map(name => ({
+                    name,
+                    capabilities: capabilitiesData[name] || { pinecone_index_exists: false }
+                }));
             } else {
-              logger.warn(`Permissions API: Namespace check for '${name}' failed with status ${namespaceResponse.status}`);
+                logger.error("Permissions API: Failed to fetch agent capabilities from backend.");
             }
-          } catch (e) {
-            logger.error({ error: e }, `Permissions API: Error checking namespace for agent ${name}`);
-          }
-        } else {
-          logger.error("Permissions API: No active backend found to check Pinecone namespaces.");
+        } catch (e) {
+            logger.error({ error: e }, `Permissions API: Error fetching agent capabilities.`);
         }
-        return {
-          name: name,
-          capabilities: {
-            pinecone_index_exists: hasNamespace,
-          },
-        };
-      })
-    );
+    }
+    // --- END NEW BATCH LOGIC ---
 
     // Return the enhanced list of agents with their capabilities
     return NextResponse.json({ allowedAgents: agentsWithCapabilities }, { status: 200 });
