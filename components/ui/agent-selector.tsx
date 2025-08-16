@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMobile } from '@/hooks/use-mobile';
 import {
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from "next-themes";
 import { predefinedThemes } from "@/lib/themes";
 import { Palette } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AgentSelectorMenuProps {
   allowedAgents: string[];
@@ -31,6 +32,26 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
   const isMobile = useMobile();
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const el = contentRef.current;
+    if (!el) return;
+    if (isThemeOpen) {
+      el.dataset.prevOverflow = el.style.overflowY || "";
+      el.style.overflowY = "hidden";
+      // prevent iOS momentum scroll
+      const prevent = (e: TouchEvent) => e.preventDefault();
+      el.addEventListener("touchmove", prevent, { passive: false });
+      return () => {
+        el.style.overflowY = el.dataset.prevOverflow || "";
+        el.removeEventListener("touchmove", prevent);
+      };
+    }
+  }, [isMobile, isThemeOpen]);
 
   const handleAgentChange = (newAgent: string) => {
     if (newAgent && newAgent !== currentAgent) {
@@ -46,7 +67,6 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
     }
   };
   
-  // New handler for theme changes that persists the choice for the current agent
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     if (currentAgent) {
@@ -60,6 +80,11 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
     }
   };
 
+  const onThemeSelect = (value: string) => {
+    handleThemeChange(value);
+    if (isMobile) setIsThemeOpen(false);
+  };
+
   const triggerButton = (
     <Button variant="ghost" className="h-auto p-0 text-sm font-medium text-foreground opacity-50 hover:opacity-100 focus:ring-0">
       {currentAgent}
@@ -69,23 +94,50 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
-      <DropdownMenuContent align="center" className="max-h-80 overflow-y-auto">
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
+      <DropdownMenuContent
+        ref={contentRef}
+        align="center"
+        className="max-h-80 overflow-y-auto"
+      >
+        <DropdownMenuSub
+          open={isMobile ? isThemeOpen : undefined}
+          onOpenChange={(open) => {
+            if (isMobile) setIsThemeOpen(open);
+          }}
+        >
+          <DropdownMenuSubTrigger
+            onClick={(e) => {
+              if (!isMobile) return;
+              e.preventDefault();
+              setIsThemeOpen((v) => !v);
+            }}
+          >
             <Palette className="mr-2 h-4 w-4" />
             <span>Change Theme</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <DropdownMenuRadioGroup value={theme} onValueChange={handleThemeChange}>
-                <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+            <DropdownMenuSubContent
+              side={isMobile ? "bottom" : "right"}
+              align={isMobile ? "start" : "start"}
+              sideOffset={isMobile ? 6 : 8}
+              alignOffset={isMobile ? 0 : -5}
+              collisionPadding={16}
+              className={cn(
+                "rounded-md shadow-lg",
+                isMobile
+                  ? "min-w-[240px] max-w-[min(92vw,360px)] p-3 z-[60]"
+                  : "min-w-[240px] p-2 z-[60]"
+              )}
+            >
+              <DropdownMenuRadioGroup value={theme} onValueChange={onThemeSelect}>
+                <DropdownMenuRadioItem value="light" onSelect={(e) => e.preventDefault()}>Light</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark" onSelect={(e) => e.preventDefault()}>Dark</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system" onSelect={(e) => e.preventDefault()}>System</DropdownMenuRadioItem>
                 <DropdownMenuSeparator />
                 {predefinedThemes.map((customTheme) => (
-                    <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className}>
-                        {customTheme.name}
-                    </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className} onSelect={(e) => e.preventDefault()}>
+                    {customTheme.name}
+                  </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
