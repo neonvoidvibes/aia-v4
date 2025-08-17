@@ -111,5 +111,11 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: true,
     welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
+  {
+    name: "Ridge Glass",
+    className: "theme-ridge-glass",
+    isDark: true,
+    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
+  },
   // Add more predefined themes here
 ];

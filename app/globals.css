@@ -133,6 +133,9 @@
   --background: 0 0% 100%;
   --foreground: 260 60% 20%; /* Deep indigo/purple for welcome text */
 
+  /* New: Solid white background */
+  --app-background: hsl(var(--background));
+
   /* UI elements */
   --input-gray: 0 0% 88%; /* More gray for input/bubbles */
   --status-bar: 0 0% 50%;
@@ -728,6 +731,61 @@
   --icon-inactive: 285 15% 50%;
   --icon-destructive: 0 85% 55%;
   --save-memory-color: 180 100% 70%;
+
+  /* Chat text colors */
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
+}
+
+/* Ridge Glass Theme */
+.theme-ridge-glass {
+  /* Base tokens */
+  --background: 240 6% 8%;           /* Very dark grey fallback */
+  --foreground: 240 5% 95%;          /* Light grey text */
+
+  /* New: Full-page background image */
+  --app-background: url('/ridged_glass.png') no-repeat center center / cover fixed;
+
+  /* Chat + UI neutrals */
+  --input-gray: 240 6% 12%;
+  --status-bar: 240 5% 45%;
+  --placeholder-text: 240 5% 55%;
+  --text-primary: 240 5% 98%;
+  --text-secondary: 240 5% 80%;
+  --text-muted: 240 5% 65%;
+
+  /* Shadcn tokens */
+  --card: 240 6% 10%;
+  --popover: 240 6% 10%;
+  --primary: 210 20% 80%;             /* Light, cool grey for actions */
+  --primary-foreground: 210 20% 15%;  /* Dark text on primary */
+  --secondary: 240 6% 15%;
+  --secondary-foreground: 240 5% 90%;
+  --muted: 240 6% 18%;
+  --accent: 210 20% 80%;              /* Accent same as primary */
+  --accent-foreground: 210 20% 15%;
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 95%;
+  --border: 240 6% 20%;
+  --input: 240 6% 20%;
+  --ring: 210 20% 80%;
+
+  /* Buttons */
+  --button-submit-bg-active: 210 20% 75%;
+  --button-submit-fg-active: 210 20% 10%;
+  --button-submit-bg-inactive: 240 6% 15%;
+  --button-submit-fg-inactive: 240 5% 70%;
+  --button-submit-bg-stop: 240 6% 25%;
+  --button-submit-fg-stop: 240 5% 95%;
+
+  /* Icons */
+  --icon-primary: 210 20% 85%;
+  --icon-secondary: 240 5% 70%;
+  --icon-active: 210 20% 95%;
+  --icon-inactive: 240 5% 50%;
+  --icon-destructive: 0 70% 55%;
+  --save-memory-color: 180 40% 60%;
 
   /* Chat text colors */
   --input-field-text-color: var(--foreground);
@@ -2557,6 +2615,11 @@ button {
 /* Sunset Theme */
 .theme-sunset .scroll-thumb-custom {
   background-color: hsla(330, 90%, 65%, 0.25) !important;
+}
+
+/* Ridge Glass theme */
+.theme-ridge-glass .scroll-thumb-custom {
+  background-color: hsla(210, 20%, 80%, 0.25) !important;
 }
 
 /* Folkhemmet theme specific overrides */
