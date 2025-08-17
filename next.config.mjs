@@ -34,7 +34,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com; img-src * blob: data:; media-src 'self'; connect-src *; font-src 'self' https://fonts.cdnfonts.com;",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com https://fonts.googleapis.com; img-src * blob: data:; media-src 'self'; connect-src *; font-src 'self' https://fonts.cdnfonts.com https://fonts.gstatic.com;",
           },
           {
             key: 'Strict-Transport-Security',
