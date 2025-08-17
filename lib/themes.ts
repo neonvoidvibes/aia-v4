@@ -129,7 +129,7 @@ export const predefinedThemes: ColorTheme[] = [
     className: "theme-ridge-glass",
     isDark: true,
     welcomeMessage: {
-      text: "What is the underlying structure?",
+      text: "What is in between the lines?",
       fontSize: "3rem",
       fontWeight: "600",
     },
