@@ -836,8 +836,8 @@ body {
 /* Increase mobile font size and keep normal weight */
 @media (max-width: 640px) {
   body {
-    font-size: 18px; /* +2px */
-    font-weight: 300; /* Light weight */
+    font-size: 19px; /* +3px */
+    font-weight: 400; /* Light weight */
   }
 }
 
@@ -1553,6 +1553,14 @@ body {
 }
 .theme-mobius .scroll-to-bottom-button {
   background-color: rgba(22, 59, 74, 0.3); /* Dark Blue/Teal with transparency */
+}
+.theme-moderbyn .scroll-to-bottom-button {
+  background-color: hsla(208, 11%, 40%, 0.5); /* #5B6771 at 50% opacity */
+  color: hsla(0, 0%, 20%, 0.5); /* Dark gray arrow at 50% opacity */
+}
+.theme-moderbyn .scroll-to-bottom-button:hover {
+  background-color: hsla(208, 11%, 40%, 0.6); /* Slightly less transparent on hover */
+  color: hsla(0, 0%, 15%, 0.6);
 }
 
 .scroll-to-bottom-button:hover {
