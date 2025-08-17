@@ -268,13 +268,87 @@ const formatAssistantMessage = (text: string): string => {
         .replace(/\*([^\*]+)\*/g, '<em>$1</em>') // Italic (asterisk-only)
         .replace(/`([^`]+)`/g, '<code>$1</code>'); // Inline code
 
+    // --- FOOTNOTES: extract trailing defs and wire refs ---
+    type FootnoteId = string;
+    const footnotes = new Map<FootnoteId, string>();
+    
+    // 1) Extract trailing footnote block, e.g.:
+    // [1] Some source
+    // [^2]: Another source
+    {
+      const lines = html.split(/\r?\n/);
+      let i = lines.length - 1;
+      let started = false;
+      const defLines: string[] = [];
+    
+      while (i >= 0) {
+        const raw = lines[i];
+        const line = raw.trim();
+    
+        // Footnote def: "[1] text" or "[^1]: text"
+        const isDef = /^\[\^?([^\]\s]+)\]\s*:?\s+.+$/.test(line);
+        if (isDef) { defLines.unshift(line); started = true; i--; continue; }
+    
+        // Keep blank lines only after we started collecting the block
+        if (started && line === "") { defLines.unshift(line); i--; continue; }
+    
+        break; // stop at the first non-blank, non-def line after collection started
+      }
+    
+      if (defLines.length) {
+        for (const l of defLines) {
+          const m = l.match(/^\[\^?([^\]\s]+)\]\s*:?\s+(.+)$/);
+          if (m) {
+            const id = m[1].replace(/[^\w-]+/g, "");
+            if (!footnotes.has(id)) footnotes.set(id, m[2]);
+          }
+        }
+        // Drop the entire trailing block from the message
+        html = lines.slice(0, i + 1).join("\n");
+      }
+    }
+    
+    // 2) Mask code so we don’t touch [1] inside <pre>/<code>
+    const prePlaceholders: string[] = [];
+    html = html.replace(/<pre[\s\S]*?<\/pre>/g, (m) => `__PRE_${prePlaceholders.push(m) - 1}__`);
+    const codePlaceholders: string[] = [];
+    html = html.replace(/<code>[\s\S]*?<\/code>/g, (m) => `__CODE_${codePlaceholders.push(m) - 1}__`);
+    
+    // 3) Replace inline refs like [1] or [^note] (but not links "[x](url)")
+    html = html.replace(/\[\^?([^\]\s]+)\](?!\()/g, (_match, rawId) => {
+      const id = String(rawId).replace(/[^\w-]+/g, "");
+      const label = /^\d+$/.test(id) ? id : rawId; // show numbers as 1, non-numerics as their label
+      const title = footnotes.get(id) ? ` title="${footnotes.get(id)!.replace(/"/g, "&quot;")}"` : "";
+      return `<sup class="footnote-ref"><a href="#fn-${id}" id="fnref-${id}"${title}>${label}</a></sup>`;
+    });
+    
+    // 4) Unmask code again
+    html = html.replace(/__CODE_(\d+)__/g, (_m, n) => codePlaceholders[Number(n)]);
+    html = html.replace(/__PRE_(\d+)__/g, (_m, n) => prePlaceholders[Number(n)]);
+
     // Newlines to <br>, but be careful not to add them inside list structures or other blocks
     const finalHtml = html.replace(/\n/g, '<br />')
         .replace(/(<br \/>\s*)*<((h[1-3]|ul|ol|li|div|pre|blockquote|hr|table))/g, '<$2') // remove all <br>s before block elements
         .replace(/(<\/(h[1-3]|ul|ol|li|div|pre|blockquote|hr|table)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
     
-    debugLog(`[Markdown Format] Input: "${text.substring(0, 50)}..." | Output HTML: "${finalHtml.substring(0, 80)}..."`);
-    return finalHtml;
+    // Build footnotes block (if any). Allow links and inline `code` inside footnotes.
+    let footnotesHtml = "";
+    if (footnotes.size) {
+      const renderInline = (s:string) =>
+        s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+         .replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+      footnotesHtml =
+        `<section class="footnotes"><hr /><ol>` +
+        Array.from(footnotes.entries()).map(([id, content]) =>
+          `<li id="fn-${id}">${renderInline(content)} ` +
+          `<a href="#fnref-${id}" class="footnote-backref" aria-label="Back to content">↩</a></li>`
+        ).join("") +
+        `</ol></section>`;
+    }
+    
+    debugLog(`[Markdown Format] Input: "${text.substring(0, 50)}..." | Output HTML: "${(finalHtml + footnotesHtml).substring(0, 80)}..."`);
+    return finalHtml + footnotesHtml;
 }
 
 type RecordingType = 'long-form-note' | 'long-form-chat' | 'press-to-talk' | null;

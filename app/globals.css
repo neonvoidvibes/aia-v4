@@ -294,9 +294,11 @@
 
 /* Forest Deep Theme */
 .theme-forest-deep {
-  --background: 120 25% 35%; /* Very dark, desaturated green */
+  --background: 120 25% 15%; /* Dark green fallback for surfaces */
   --foreground: 90 20% 88%; /* Pale moss green / off-white */
+  --app-background: url('/forest_deep.png') no-repeat center center / cover fixed;
   --input-gray: 120 20% 18%; /* Slightly lighter dark green for inputs/bubbles */
+  --input-opacity: 0.85; /* Subtle transparency for input/bubbles */
   --status-bar: 120 20% 15%;
   --placeholder-text: 120 20% 35%;
   --text-primary: 90 30% 92%;
@@ -1680,6 +1682,33 @@ body {
 
 .ai-bubble a:hover {
   opacity: 0.8;
+}
+
+/* Footnotes */
+.ai-bubble .footnote-ref a {
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+
+.ai-bubble .footnotes {
+  font-size: 0.9em;
+  opacity: 0.9;
+  border-top: 1px solid hsl(var(--border));
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.ai-bubble .footnotes ol {
+  margin: 0.5rem 0 0 1.25rem;
+}
+
+.ai-bubble .footnotes li {
+  margin-bottom: 0.25rem;
+}
+
+.ai-bubble .footnote-backref {
+  margin-left: 0.5rem;
+  text-decoration: none;
 }
 
 /* Table wrapper for horizontal scrolling */
