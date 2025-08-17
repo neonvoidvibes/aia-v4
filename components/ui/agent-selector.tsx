@@ -122,11 +122,21 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
                 <DropdownMenuRadioItem value="dark" onSelect={(e) => e.preventDefault()}>Dark</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="system" onSelect={(e) => e.preventDefault()}>System</DropdownMenuRadioItem>
                 <DropdownMenuSeparator />
-                {predefinedThemes.map((customTheme) => (
-                  <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className} onSelect={(e) => e.preventDefault()}>
-                    {customTheme.name}
-                  </DropdownMenuRadioItem>
-                ))}
+                {predefinedThemes.map((customTheme) => {
+                  const themeGroupSeparators = new Set([
+                    'theme-midnight-monochrome',
+                    'theme-mobius',
+                    'theme-forest-deep',
+                  ]);
+                  return (
+                    <React.Fragment key={customTheme.className}>
+                      {themeGroupSeparators.has(customTheme.className) && <DropdownMenuSeparator />}
+                      <DropdownMenuRadioItem value={customTheme.className} onSelect={(e) => e.preventDefault()}>
+                        {customTheme.name}
+                      </DropdownMenuRadioItem>
+                    </React.Fragment>
+                  );
+                })}
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuPortal>

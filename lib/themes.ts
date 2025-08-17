@@ -23,33 +23,12 @@ export const G_DEFAULT_WELCOME_MESSAGE: WelcomeMessageConfig = {
 };
 
 export const predefinedThemes: ColorTheme[] = [
+  // Light themes
   {
     name: "White",
     className: "theme-white",
     isDark: false,
     welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
-  },
-  {
-    name: "Midnight Mono",
-    className: "theme-midnight-monochrome",
-    isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
-  },
-  {
-    name: "Neon Sunset",
-    className: "theme-neon-sunset",
-    isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
-  },
-  {
-    name: "Forest Deep",
-    className: "theme-forest-deep",
-    isDark: true,
-    welcomeMessage: {
-      text: "Rötterna lyssnar.",
-      fontSize: "3rem",
-      fontWeight: "600",
-    },
   },
   {
     name: "Oceanic Calm",
@@ -68,23 +47,35 @@ export const predefinedThemes: ColorTheme[] = [
     welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
   {
-    name: "Folkhemmet",
-    className: "theme-folkhemmet",
+    name: "Splash",
+    className: "theme-splash",
     isDark: false,
     welcomeMessage: {
-      text: "Hej!",
-      fontSize: "5rem",
-      fontWeight: "600",
-      // fontSize and fontWeight will fallback to G_DEFAULT_WELCOME_MESSAGE
-      // values if not specified here, thanks to the logic in simple-chat-interface.tsx
+      text: "Make a splash!",
+      fontSize: "3rem",
+      fontWeight: "700",
     },
   },
+  // Dark themes
   {
-    name: "CFL",
-    className: "theme-cfl",
+    name: "Midnight Mono",
+    className: "theme-midnight-monochrome",
     isDark: true,
     welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
+  {
+    name: "Neon",
+    className: "theme-neon-sunset",
+    isDark: true,
+    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
+  },
+  {
+    name: "Sunset",
+    className: "theme-sunset",
+    isDark: true,
+    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
+  },
+  // Project themes
   {
     name: "Mobius",
     className: "theme-mobius",
@@ -96,30 +87,20 @@ export const predefinedThemes: ColorTheme[] = [
     },
   },
   {
-    name: "Splash",
-    className: "theme-splash",
+    name: "Folkhemmet",
+    className: "theme-folkhemmet",
     isDark: false,
     welcomeMessage: {
-      text: "Make a splash!",
-      fontSize: "3rem",
-      fontWeight: "700",
-    },
-  },
-  {
-    name: "Sunset",
-    className: "theme-sunset",
-    isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
-  },
-  {
-    name: "Ridge Glass",
-    className: "theme-ridge-glass",
-    isDark: true,
-    welcomeMessage: {
-      text: "What is in between?",
-      fontSize: "3rem",
+      text: "Hej!",
+      fontSize: "5rem",
       fontWeight: "600",
     },
+  },
+  {
+    name: "CFL",
+    className: "theme-cfl",
+    isDark: true,
+    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
   {
     name: "Moderbyn",
@@ -131,5 +112,25 @@ export const predefinedThemes: ColorTheme[] = [
       fontWeight: "600",
     },
   },
-  // Add more predefined themes here
+  // Image themes
+  {
+    name: "Forest Deep",
+    className: "theme-forest-deep",
+    isDark: true,
+    welcomeMessage: {
+      text: "Rötterna lyssnar.",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
+  },
+  {
+    name: "Ridge Glass",
+    className: "theme-ridge-glass",
+    isDark: true,
+    welcomeMessage: {
+      text: "What is the underlying structure?",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
+  },
 ];

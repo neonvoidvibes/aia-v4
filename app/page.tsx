@@ -29,7 +29,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
-  DropdownMenuRadioItem
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import {
   Sheet,
@@ -126,6 +127,12 @@ function HomeContent() {
   const mainLayoutRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const { theme, setTheme } = useTheme(); 
+
+  const themeGroupSeparators = new Set([
+    'theme-midnight-monochrome', // Dark themes
+    'theme-mobius',             // Project themes
+    'theme-forest-deep',        // Image themes
+  ]);
 
   // --- START: Add this new useEffect hook ---
   useEffect(() => {
@@ -1703,11 +1710,15 @@ function HomeContent() {
                                      <RadioGroupItem value="system" id="theme-system-mobile" />
                                      <Label htmlFor="theme-system-mobile">System</Label>
                                   </div>
+                                  <Separator className="my-1" />
                                   {predefinedThemes.map((customTheme) => (
-                                    <div key={customTheme.className} className="flex items-center space-x-2">
-                                      <RadioGroupItem value={customTheme.className} id={`theme-${customTheme.className}-mobile`} />
-                                      <Label htmlFor={`theme-${customTheme.className}-mobile`}>{customTheme.name}</Label>
-                                    </div>
+                                    <React.Fragment key={customTheme.className}>
+                                      {themeGroupSeparators.has(customTheme.className) && <Separator className="my-1" />}
+                                      <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value={customTheme.className} id={`theme-${customTheme.className}-mobile`} />
+                                        <Label htmlFor={`theme-${customTheme.className}-mobile`}>{customTheme.name}</Label>
+                                      </div>
+                                    </React.Fragment>
                                   ))}
                                </RadioGroup>
                              </div>
@@ -1741,10 +1752,14 @@ function HomeContent() {
                               <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
                               <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
                               <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+                              <DropdownMenuSeparator />
                               {predefinedThemes.map((customTheme) => (
-                                <DropdownMenuRadioItem key={customTheme.className} value={customTheme.className}>
-                                  {customTheme.name}
-                                </DropdownMenuRadioItem>
+                                <React.Fragment key={customTheme.className}>
+                                  {themeGroupSeparators.has(customTheme.className) && <DropdownMenuSeparator />}
+                                  <DropdownMenuRadioItem value={customTheme.className}>
+                                    {customTheme.name}
+                                  </DropdownMenuRadioItem>
+                                </React.Fragment>
                               ))}
                             </DropdownMenuRadioGroup>
                           </DropdownMenuContent>
