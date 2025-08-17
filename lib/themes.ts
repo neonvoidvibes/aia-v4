@@ -115,7 +115,11 @@ export const predefinedThemes: ColorTheme[] = [
     name: "Ridge Glass",
     className: "theme-ridge-glass",
     isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
+    welcomeMessage: {
+      text: "What is in between?",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
   },
   // Add more predefined themes here
 ];
