@@ -749,6 +749,7 @@
 
   /* Chat + UI neutrals */
   --input-gray: 240 6% 12%;
+  --input-opacity: 0.85; /* Subtle transparency for input/bubbles */
   --status-bar: 240 5% 45%;
   --placeholder-text: 240 5% 55%;
   --text-primary: 240 5% 98%;
@@ -1033,7 +1034,7 @@ body {
 
 .user-bubble {
   max-width: 80%; /* Standard user max width */
-  background-color: hsl(var(--input-gray)); /* Background color back via CSS */
+  background-color: hsl(var(--input-gray) / var(--input-opacity, 1)); /* Background color back via CSS */
   align-self: flex-end;
   border-radius: var(--message-radius);
   border-bottom-right-radius: var(--message-radius);
@@ -1903,7 +1904,7 @@ button {
 }
 
 /* Ensure consistent background colors for UI elements */
-.bg-input-gray { background-color: hsl(var(--input-gray)); }
+.bg-input-gray { background-color: hsl(var(--input-gray) / var(--input-opacity, 1)); }
 
 /* User bubble should NOT have forced background - remove the unwanted background color */
 .user-bubble {
