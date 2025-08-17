@@ -2953,8 +2953,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 transform: 'translateZ(0)',
                 willChange: 'scroll-position'
             }}>
-                {combinedMessages.length === 0 && !isPageReady && ( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
-                {combinedMessages.length === 0 && isPageReady &&( <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10 px-8"> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
+                {combinedMessages.length === 0 && !isPageReady && ( <div className={cn(isMobile ? "fixed" : "absolute", "inset-0 flex items-center justify-center pointer-events-none z-10")}> <p className="text-2xl md:text-3xl font-bold text-center opacity-50">Loading...</p> </div> )}
+                {combinedMessages.length === 0 && isPageReady &&( <div className={cn(isMobile ? "fixed" : "absolute", "inset-0 flex items-center justify-center pointer-events-none z-10 px-8")}> <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>{currentWelcomeMessageConfig.text}</p> </div> )}
                 {combinedMessages.length > 0 && (
                   <div className="space-y-1" style={{ 
                     paddingTop: window.innerHeight <= 600 ? '24px' : '32px',
