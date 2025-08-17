@@ -1744,7 +1744,7 @@ function HomeContent() {
                               <ChevronDown className="h-4 w-4 opacity-50" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-[180px]" align="end">
+                          <DropdownMenuContent className="w-[180px] max-h-72 overflow-y-auto" align="end" collisionPadding={10}>
                             <DropdownMenuRadioGroup
                               value={currentAgentTheme || theme}
                               onValueChange={handleAgentThemeChange}
