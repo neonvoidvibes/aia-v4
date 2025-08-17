@@ -1687,13 +1687,10 @@ body {
 /* Footnotes */
 .ai-bubble .footnote-ref a {
   text-decoration: none;
-  border-bottom: 1px dotted currentColor;
 }
 
 .ai-bubble .footnotes {
   font-size: 0.9em;
-  opacity: 0.9;
-  border-top: 1px solid hsl(var(--border));
   margin-top: 0.75rem;
   padding-top: 0.5rem;
 }

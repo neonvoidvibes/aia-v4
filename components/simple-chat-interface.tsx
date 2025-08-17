@@ -339,10 +339,9 @@ const formatAssistantMessage = (text: string): string => {
          .replace(/`([^`]+)`/g, '<code>$1</code>');
     
       footnotesHtml =
-        `<section class="footnotes"><hr /><ol>` +
+        `<section class="footnotes"><ol>` +
         Array.from(footnotes.entries()).map(([id, content]) =>
-          `<li id="fn-${id}">${renderInline(content)} ` +
-          `<a href="#fnref-${id}" class="footnote-backref" aria-label="Back to content">↩</a></li>`
+          `<li id="fn-${id}">${renderInline(content)}</li>`
         ).join("") +
         `</ol></section>`;
     }
