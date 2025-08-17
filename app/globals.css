@@ -675,6 +675,66 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* Sunset Theme */
+.theme-sunset {
+  /* Base tokens */
+  --background: 285 45% 12%;           /* deep purple base for surfaces */
+  --foreground: 0 0% 98%;
+
+  /* New: full‑page gradient background (pink → orange → purple blend) */
+  --app-background: linear-gradient(
+    135deg,
+    hsl(285 65% 16%) 0%,
+    hsl(320 85% 52%) 45%,
+    hsl(30 90% 55%) 100%
+  );
+
+  /* Chat + UI neutrals */
+  --input-gray: 285 35% 22%;
+  --status-bar: 285 25% 55%;
+  --placeholder-text: 285 25% 60%;
+  --text-primary: 0 0% 96%;
+  --text-secondary: 0 0% 78%;
+  --text-muted: 25 60% 75%;
+
+  /* Shadcn tokens */
+  --card: 285 40% 16%;
+  --popover: 285 40% 16%;
+  --primary: 330 90% 65%;              /* action: hot pink */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 285 35% 24%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 285 35% 28%;
+  --accent: 30 90% 55%;                /* orange accent */
+  --accent-foreground: 0 0% 10%;       /* readable on orange */
+  --destructive: 0 85% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 285 30% 30%;
+  --input: 285 30% 30%;
+  --ring: 330 90% 65%;
+
+  /* Buttons */
+  --button-submit-bg-active: 330 90% 60%;
+  --button-submit-fg-active: 0 0% 100%;
+  --button-submit-bg-inactive: 285 35% 25%;
+  --button-submit-fg-inactive: 0 0% 80%;
+  --button-submit-bg-stop: 285 35% 30%;
+  --button-submit-fg-stop: 0 0% 98%;
+
+  /* Icons */
+  --icon-primary: 330 90% 75%;
+  --icon-secondary: 285 15% 65%;
+  --icon-active: 55 100% 60%;
+  --icon-inactive: 285 15% 50%;
+  --icon-destructive: 0 85% 55%;
+  --save-memory-color: 180 100% 70%;
+
+  /* Chat text colors */
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
+}
+
 /* Styles for Canvas-originated user messages */
 .user-bubble.from-canvas {
   background-color: hsl(var(--accent) / 0.2) !important; /* Use !important to ensure override if needed */
@@ -700,7 +760,10 @@
 body {
   font-family: "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   /* Use CSS variables for background */
-  background: linear-gradient(to bottom, hsl(var(--background) / 0.9), hsl(var(--background) / 1.1));
+  background: var(
+    --app-background,
+    linear-gradient(to bottom, hsl(var(--background) / 0.9), hsl(var(--background) / 1))
+  );
   color: hsl(var(--foreground));
   height: 100vh; /* Fixed height for proper flex calculations */
   min-height: 100dvh; /* Use dynamic viewport height */
@@ -2489,6 +2552,11 @@ button {
 /* Splash theme - Turquoise */
 .theme-splash .scroll-thumb-custom {
   background-color: hsla(180, 100%, 50%, 0.25) !important;
+}
+
+/* Sunset Theme */
+.theme-sunset .scroll-thumb-custom {
+  background-color: hsla(330, 90%, 65%, 0.25) !important;
 }
 
 /* Folkhemmet theme specific overrides */

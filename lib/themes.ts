@@ -105,5 +105,11 @@ export const predefinedThemes: ColorTheme[] = [
       fontWeight: "700",
     },
   },
+  {
+    name: "Sunset",
+    className: "theme-sunset",
+    isDark: true,
+    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
+  },
   // Add more predefined themes here
 ];
