@@ -2623,6 +2623,63 @@ button {
   background-color: hsla(210, 20%, 80%, 0.25) !important;
 }
 
+/* Moderbyn Theme */
+.theme-moderbyn {
+  /* Base tokens */
+  --background: 208 11% 40%;         /* Main gray: #5B6771 */
+  --foreground: 0 0% 98%;            /* Main text: Off-white for contrast on background */
+
+  /* Chat + UI neutrals */
+  --input-gray: 28 69% 76%;           /* User bubble/input bg: #ECBE96 */
+  --status-bar: 208 10% 75%;
+  --placeholder-text: 25 52% 25%;
+  --text-primary: 0 0% 98%;
+  --text-secondary: 0 0% 85%;
+  --text-muted: 0 0% 70%;
+
+  /* Shadcn tokens */
+  --card: 208 15% 20%;                 /* Darker slate for cards/popovers */
+  --popover: 208 15% 20%;
+  --primary: 25 58% 37%;               /* Submit button: #A46033 */
+  --primary-foreground: 0 0% 98%;      /* Text on submit button */
+  --secondary: 70 20% 30%;             /* Olive Green (kept from previous) */
+  --secondary-foreground: 0 0% 98%;
+  --muted: 208 15% 30%;
+  --accent: 30 58% 37%;                /* Accent same as primary */
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 208 15% 30%;
+  --input: 208 11% 50%;
+  --ring: 30 58% 37%;
+
+  /* Buttons */
+  --button-submit-bg-active: 25 58% 37%;
+  --button-submit-fg-active: 0 0% 98%;
+  --button-submit-bg-inactive: 208 11% 50%;
+  --button-submit-fg-inactive: 0 0% 90%;
+  --button-submit-bg-stop: 208 11% 45%;
+  --button-submit-fg-stop: 0 0% 98%;
+
+  /* Icons */
+  --icon-primary: 30 58% 65%;
+  --icon-secondary: 0 0% 80%;
+  --icon-active: 30 58% 65%;
+  --icon-inactive: 0 0% 60%;
+  --icon-destructive: 0 70% 55%;
+  --save-memory-color: 70 30% 60%;
+
+  /* Chat text colors */
+  --input-field-text-color: 30 58% 15%; /* Dark brown for text on light bubble */
+  --user-message-text-color: 30 58% 15%;  /* Dark brown for text on light bubble */
+  --assistant-message-text-color: var(--foreground); /* White text for assistant on main bg */
+}
+
+.theme-moderbyn .sidebar-bg {
+  background-color: hsl(208 15% 20%);
+  filter: none;
+}
+
 /* Folkhemmet theme specific overrides */
 /* FOUNDATIONAL FIX: Component-specific targeting to prevent conflicts */
 
@@ -2714,6 +2771,24 @@ button {
 /* Timestamps also blue */
 .theme-folkhemmet .message-actions .text-xs {
   color: hsl(204 100% 34%) !important;
+}
+
+/* Moderbyn theme specific overrides */
+.theme-moderbyn .model-picker-container button,
+.theme-moderbyn .model-picker-container button span {
+  color: hsl(var(--primary)) !important;
+}
+
+.theme-moderbyn .chat-input-layout .chat-sliders-icon,
+.theme-moderbyn .chat-input-layout .plus-menu-item,
+.theme-moderbyn .chat-input-layout .plus-menu-item svg {
+  color: hsl(var(--primary)) !important;
+}
+
+.theme-moderbyn .chat-input-layout .plus-menu-item:hover,
+.theme-moderbyn .chat-input-layout .plus-menu-item:hover svg {
+  color: hsl(var(--primary)) !important;
+  opacity: 0.8 !important;
 }
 
 /* NUCLEAR FIX - Override everything with maximum specificity */

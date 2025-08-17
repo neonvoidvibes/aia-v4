@@ -121,5 +121,15 @@ export const predefinedThemes: ColorTheme[] = [
       fontWeight: "600",
     },
   },
+  {
+    name: "Moderbyn",
+    className: "theme-moderbyn",
+    isDark: true,
+    welcomeMessage: {
+      text: "Välkommen till Moderbyn",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
+  },
   // Add more predefined themes here
 ];
