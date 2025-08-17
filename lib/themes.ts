@@ -1,7 +1,9 @@
 // lib/themes.ts
 
 export interface WelcomeMessageConfig {
-  text: string;
+  text?: string;
+  imageUrl?: string;
+  imageAlt?: string;
   fontSize?: string; // e.g., "1.5rem", "24px"
   fontWeight?: string | number; // e.g., "bold", "normal", 700, 400
 }
@@ -107,9 +109,8 @@ export const predefinedThemes: ColorTheme[] = [
     className: "theme-moderbyn",
     isDark: true,
     welcomeMessage: {
-      text: "Välkommen till Moderbyn",
-      fontSize: "3rem",
-      fontWeight: "600",
+      imageUrl: "/moderbyn-logotyp-hel-vit.png",
+      imageAlt: "Moderbyn Logotyp",
     },
   },
   // Image themes
