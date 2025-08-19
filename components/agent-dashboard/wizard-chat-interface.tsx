@@ -53,6 +53,7 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
       agent: agentName,
       initialContext: initialContext,
       currentDraftContent: currentDraftContent,
+      disableRetrieval: true, // Explicitly disable RAG for this process
     },
     initialMessages: [{
         id: 'initial-wizard-prompt',

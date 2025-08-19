@@ -77,10 +77,11 @@ export async function POST(req: NextRequest) {
     const transcriptionLanguageSetting = body.data?.transcriptionLanguage || body.transcriptionLanguage || "any"; // Changed default to "any"
     const initialContext = body.data?.initialContext || body.initialContext; // For _aicreator agent
     const currentDraftContent = body.data?.currentDraftContent || body.currentDraftContent; // For _aicreator feedback loop
+    const disableRetrieval = body.data?.disableRetrieval || body.disableRetrieval || false; // For wizard chat
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
-    const { transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, transcriptionLanguage, model: _model, temperature: _temp, initialContext: _ic, currentDraftContent: _cdc, ...dataWithoutSettings } = body.data || {};
-    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, individualMemoryToggleStates:_imts2, savedTranscriptSummaries:_sts2, transcriptionLanguage: _trl, currentDraftContent: _cdc_body, messages:_m, ...restOfBody } = body;
+    const { transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, transcriptionLanguage, model: _model, temperature: _temp, initialContext: _ic, currentDraftContent: _cdc, disableRetrieval: _dr, ...dataWithoutSettings } = body.data || {};
+    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, individualMemoryToggleStates:_imts2, savedTranscriptSummaries:_sts2, transcriptionLanguage: _trl, currentDraftContent: _cdc_body, disableRetrieval: _dr_body, messages:_m, ...restOfBody } = body;
 
 
     // Basic validation for essential fields
@@ -119,6 +120,7 @@ export async function POST(req: NextRequest) {
       transcriptionLanguage: transcriptionLanguageSetting, // Added
       initialContext: initialContext, // For _aicreator agent
       currentDraftContent: currentDraftContent, // For _aicreator feedback loop
+      disableRetrieval: disableRetrieval, // To bypass RAG in wizard
       data: dataWithoutSettings, // Pass through other data fields if they exist
       ...restOfBody // Include any other top-level properties from original body (excluding those already handled)
     };
