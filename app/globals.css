@@ -2885,6 +2885,17 @@ button {
   color: hsl(var(--icon-primary)) !important; /* Hover: Dimmed White */
 }
 
+/* Make top-left header icons (Sidebar toggle, New Chat) green */
+.theme-tenant .absolute.top-\[15px\].left-4 button,
+.theme-tenant button[aria-label="Start new chat"] {
+  color: hsl(var(--input-gray)) !important; /* Green */
+}
+
+.theme-tenant .absolute.top-\[15px\].left-4 button:hover,
+.theme-tenant button[aria-label="Start new chat"]:hover {
+  color: hsl(var(--input-gray) / 0.8) !important; /* Dimmed green on hover */
+}
+
 .theme-moderbyn .chat-input-layout .chat-sliders-icon,
 .theme-moderbyn .chat-input-layout .plus-menu-item,
 .theme-moderbyn .chat-input-layout .plus-menu-item svg {
