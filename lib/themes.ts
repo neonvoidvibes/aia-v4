@@ -79,6 +79,16 @@ export const predefinedThemes: ColorTheme[] = [
   },
   // Project themes
   {
+    name: "Tenant",
+    className: "theme-tenant",
+    isDark: true,
+    welcomeMessage: {
+      text: "Hur skapar vi värde idag?",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
+  },
+  {
     name: "Mobius",
     className: "theme-mobius",
     isDark: true,

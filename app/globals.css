@@ -576,6 +576,58 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* Tenant Theme */
+.theme-tenant {
+  /* Base colors */
+  --background: 0 0% 100%; /* White */
+  --foreground: 168 20% 30%; /* Darker Green #3d5c56 for welcome text */
+
+  /* UI elements */
+  --input-gray: 168 13% 50%; /* Green #709189 for user bubbles and input field */
+  --status-bar: 211 20% 50%;
+  --placeholder-text: 0 0% 90%; /* White placeholder text on green input */
+
+  /* Text colors */
+  --text-primary: 168 20% 30%; /* Darker Green for assistant text */
+  --text-secondary: 211 30% 40%;
+  --text-muted: 211 20% 55%;
+
+  /* Shadcn Component Variables */
+  --card: 0 0% 100%;
+  --popover: 0 0% 100%;
+  --primary: 211 59% 26%; /* Dark Blue for primary actions */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 47 83% 95%; /* Cream/Yellow #FEF8E6 */
+  --secondary-foreground: 211 59% 26%;
+  --muted: 47 83% 95%; /* Cream/Yellow #FEF8E6 */
+  --accent: 168 13% 50%; /* Green for accents */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 211 20% 88%;
+  --input: 168 13% 50%; /* Green for input field background */
+  --ring: 211 59% 26%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 0 0% 100%;   /* White BG */
+  --button-submit-fg-active: 211 59% 26%;   /* Dark Blue FG (Icon) */
+  --button-submit-bg-inactive: 211 20% 80%;
+  --button-submit-fg-inactive: 211 20% 50%;
+  --button-submit-bg-stop: 211 30% 50%;
+  --button-submit-fg-stop: 0 0% 95%;
+
+  --icon-primary: 0 0% 85%; /* Dimmed White for hover/active icons */
+  --icon-secondary: 0 0% 100%; /* White for default icons */
+  --icon-active: 168 20% 40%;
+  --icon-inactive: 211 20% 70%;
+  --save-memory-color: 168 30% 60%;
+
+  /* NEW: Text color variables for chat interface elements */
+  --input-field-text-color: 0 0% 98%; /* White text on Green input field */
+  --user-message-text-color: 0 0% 98%; /* White text on Green user bubble */
+  --assistant-message-text-color: 168 20% 30%; /* Darker Green text for assistant on White background */
+}
+
 /* Mobius Theme */
 .theme-mobius {
   --background: 200 54% 19%; /* Very Dark Blue/Teal */
@@ -2812,6 +2864,25 @@ button {
 .theme-moderbyn .model-picker-container button,
 .theme-moderbyn .model-picker-container button span {
   color: hsl(var(--primary)) !important;
+}
+
+/* Tenant theme specific overrides */
+.theme-tenant .model-picker-container button,
+.theme-tenant .model-picker-container button span {
+  color: hsl(0 0% 100%) !important; /* White */
+}
+
+/* Ensure plus menu and settings icons are white by default, and dimmed on hover */
+.theme-tenant .chat-input-layout .chat-sliders-icon,
+.theme-tenant .chat-input-layout .mobile-plus-button,
+.theme-tenant .chat-input-layout .plus-menu-item {
+  color: hsl(var(--icon-secondary)) !important; /* Default: White */
+}
+
+.theme-tenant .chat-input-layout .chat-sliders-icon:hover,
+.theme-tenant .chat-input-layout .mobile-plus-button:hover,
+.theme-tenant .chat-input-layout .plus-menu-item:hover {
+  color: hsl(var(--icon-primary)) !important; /* Hover: Dimmed White */
 }
 
 .theme-moderbyn .chat-input-layout .chat-sliders-icon,
