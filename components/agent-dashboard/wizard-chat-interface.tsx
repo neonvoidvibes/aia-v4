@@ -91,7 +91,7 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
         <div ref={messagesEndRef} />
       </div>
       <div className="p-2 border-t">
-        <form onSubmit={onSubmit} className="relative flex items-center">
+        <div className="relative flex items-center">
           <input
             ref={inputRef}
             value={input}
@@ -107,14 +107,14 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
             disabled={isLoading}
           />
           <button
-            type="button" // Change type to "button" to prevent default form submission
+            type="button"
             onClick={() => onSubmit()}
             disabled={isLoading || !input.trim()}
             className="p-2 rounded-full disabled:opacity-50 transition-colors"
           >
             <ArrowUp className="h-5 w-5" />
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );
