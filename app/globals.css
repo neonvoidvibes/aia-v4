@@ -240,57 +240,6 @@
   --assistant-message-text-color: var(--foreground);
 }
 
-/* Oceanic Calm Theme */
-.theme-oceanic-calm {
-  --background: 200 50% 95%; /* Very light cyan */
-  --foreground: 210 20% 45%; /* Dark desaturated blue text */
-  --input-gray: 200 40% 88%; /* Light cyan-gray for inputs/bubbles */
-  --status-bar: 200 30% 70%;
-  --placeholder-text: 200 30% 68%;
-  --text-primary: 210 30% 20%;
-  --text-secondary: 210 30% 40%;
-  --text-muted: 210 30% 60%;
-
-  /* Shadcn variables */
-  --card: 200 0% 100%; /* White */
-  --popover: 200 0% 100%;
-  --primary: 190 70% 45%; /* Teal */
-  --primary-foreground: 0 0% 100%; /* White */
-  --secondary: 200 30% 92%;
-  --secondary-foreground: 210 30% 20%;
-  --muted: 200 40% 90%; /* For TabList background */
-  --accent: 200 30% 92%;
-  --accent-foreground: 190 70% 35%;
-  --destructive: 0 70% 50%; /* Coral red */
-  --destructive-foreground: 0 0% 100%;
-  --border: 200 30% 85%;
-  --input: 200 30% 85%;
-  --ring: 190 70% 45%;
-
-  /* Custom Semantic Variables */
-  --button-submit-bg-active: 190 70% 40%; /* Teal BG */
-  --button-submit-fg-active: 0 0% 100%;   /* White FG */
-  --button-submit-bg-inactive: 200 30% 80%; /* Light cyan-gray BG */
-  --button-submit-fg-inactive: 210 30% 50%;   /* Muted blue FG */
-  --button-submit-bg-stop: 200 30% 60%; /* Themed cyan-gray for stop button */
-  --button-submit-fg-stop: 0 0% 100%; /* White for stop button */
-
-  --icon-primary: 210 30% 30%;
-  --icon-secondary: 210 30% 50%;
-  --icon-active: 180 100% 35%; /* Sea green for recording active */
-  --icon-inactive: 210 30% 70%;
-  --icon-destructive: 0 70% 50%;
-  --save-memory-color: 320 70% 75%; /* Added: For saved memory highlights */
-
-  /* Overrides for specific components if needed for this theme */
-  --button-active: 210 30% 25%;
-  --button-inactive: 210 30% 65%;
-
-  /* NEW: Text color variables for chat interface elements - Oceanic Calm Theme */
-  --input-field-text-color: var(--foreground);
-  --user-message-text-color: var(--foreground);
-  --assistant-message-text-color: var(--foreground);
-}
 
 /* Forest Deep Theme */
 .theme-forest-deep {
@@ -515,66 +464,6 @@
   --assistant-message-text-color: var(--foreground);
 }
 
-.theme-cfl {
-  /* Base colors */
-  --background: 0 0% 12%; /* Dark background */
-  --foreground: 0 0% 100%; /* White foreground */
-
-  /* UI elements */
-  --radius: 1.5rem;
-  --message-radius: 1.8rem;
-  --input-gray: 0 0% 32%;
-  --status-bar: 0 0% 40%;
-  --placeholder-text: 0 0% 55%;
-
-  /* Text colors */
-  --text-primary: 0 0% 100%;
-  --text-secondary: 0 0% 80%;
-  --text-muted: 0 0% 60%;
-
-  /* Shadcn Component Variables (Dark Defaults) */
-  --card: 220 13% 40%;
-  --popover: 220 13% 40%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 0 0% 9%;
-  --secondary: 0 0% 14.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%;
-  --accent: 0 0% 14.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 25%;
-  --input: 0 0% 25%;
-  --ring: 0 0% 83.1%;
-
-  /* Custom Button State Variables */
-  --button-active: 0 0% 95%;
-  --button-active-bg: transparent;
-  --button-inactive: 0 0% 60%;
-
-  /* New Semantic CSS Variables for UI elements */
-  --status-bar-text-color: hsl(var(--status-bar)); /* Color for status bar text */
-  --placeholder-text-color: hsl(var(--placeholder-text));
-  --button-submit-bg-active: 345 63% 47%;
-  --button-submit-fg-active: 0 0% 98%;
-  --button-submit-bg-inactive: 0 0% 25%;
-  --button-submit-fg-inactive: 0 0% 60%;
-  --button-submit-bg-stop: 0 0% 35%; /* Themed gray for stop button */
-  --button-submit-fg-stop: 0 0% 90%; /* Light fg for stop button */
-  
-  --icon-primary: 0 0% 90%;
-  --icon-secondary: 0 0% 70%;
-  --icon-active: 0 0% 100%;
-  --icon-inactive: 0 0% 50%;
-  --icon-destructive: 0 84.2% 60.2%;
-  --save-memory-color: 260 70% 75%; /* Added: For saved memory highlights */
-
-  /* NEW: Text color variables for chat interface elements - CFL Theme */
-  --input-field-text-color: var(--text-secondary);
-  --user-message-text-color: var(--text-secondary);
-  --assistant-message-text-color: var(--foreground);
-}
 
 /* Tenant Theme */
 .theme-tenant {
@@ -680,57 +569,6 @@
   --assistant-message-text-color: var(--foreground);
 }
 
-/* Splash Theme */
-.theme-splash {
-  --background: 55 100% 85%; /* Bright golden yellow background */
-  --foreground: 0 0% 10%; /* Dark text for contrast */
-  --input-gray: 0 0% 85%; /* Light gray input fields and user bubbles */
-  --status-bar: 0 0% 70%; /* Gray status bar */
-  --placeholder-text: 0 0% 40%; /* Gray placeholder text */
-  --text-primary: 0 0% 8%;
-  --text-secondary: 0 0% 25%;
-  --text-muted: 0 0% 45%;
-
-  /* Shadcn variables */
-  --card: 55 90% 92%; /* Light yellow card */
-  --popover: 55 90% 92%;
-  --primary: 180 100% 50%; /* Turquoise primary for submit button */
-  --primary-foreground: 0 0% 10%; /* Dark text on turquoise */
-  --secondary: 0 0% 80%; /* Light gray secondary */
-  --secondary-foreground: 0 0% 10%; /* Dark text */
-  --muted: 55 70% 88%; /* Light yellow muted */
-  --accent: 180 100% 50%; /* Turquoise accent (was coral) */
-  --accent-foreground: 0 0% 10%; /* Dark text on turquoise */
-  --destructive: 0 84% 60%; /* Red destructive */
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 75%; /* Gray border */
-  --input: 0 0% 85%; /* Light gray input background */
-  --ring: 180 100% 50%; /* Turquoise focus ring */
-
-  /* Custom Semantic Variables */
-  --button-submit-bg-active: 180 100% 50%; /* Turquoise submit button */
-  --button-submit-fg-active: 0 0% 10%; /* Dark text on turquoise */
-  --button-submit-bg-inactive: 0 0% 75%; /* Gray inactive submit */
-  --button-submit-fg-inactive: 0 0% 30%; /* Dark text */
-  --button-submit-bg-stop: 180 80% 40%; /* Darker turquoise stop button */
-  --button-submit-fg-stop: 0 0% 10%; /* Dark text on turquoise */
-
-  --icon-primary: 0 0% 50%; /* Gray main chat icons */
-  --icon-secondary: 0 0% 60%; /* Light gray secondary icons */
-  --icon-active: 180 100% 50%; /* Turquoise active icons (was coral) */
-  --icon-inactive: 0 0% 70%; /* Light gray inactive icons */
-  --icon-destructive: 0 84% 60%; /* Red destructive icons */
-  --save-memory-color: 180 80% 70%; /* Turquoise saved memory highlights (was coral) */
-
-  /* Overrides for specific components */
-  --button-active: 0 0% 50%; /* Gray active buttons for main chat */
-  --button-inactive: 0 0% 70%; /* Light gray inactive buttons */
-
-  /* Text color variables for chat interface elements */
-  --input-field-text-color: 0 0% 15%; /* Dark text in gray input fields */
-  --user-message-text-color: var(--foreground);
-  --assistant-message-text-color: var(--foreground);
-}
 
 /* Sunset Theme */
 .theme-sunset {
@@ -1637,9 +1475,6 @@ body {
 .theme-neon-sunset .scroll-to-bottom-button {
   background-color: rgba(59, 39, 77, 0.3); /* Dark indigo with transparency */
 }
-.theme-oceanic-calm .scroll-to-bottom-button {
-  background-color: rgba(188, 203, 218, 0.3); /* Light cyan-gray with transparency */
-}
 .theme-forest-deep .scroll-to-bottom-button {
   background-color: rgba(36, 48, 36, 0.3); /* Dark green with transparency */
 }
@@ -1657,9 +1492,6 @@ body {
 }
 .theme-folkhemmet .scroll-to-bottom-button {
   background-color: rgba(185, 209, 229, 0.3); /* Light blue with transparency */
-}
-.theme-cfl .scroll-to-bottom-button {
-  background-color: rgba(82, 82, 82, 0.3); /* Dark gray with transparency */
 }
 .theme-mobius .scroll-to-bottom-button {
   background-color: rgba(22, 59, 74, 0.3); /* Dark Blue/Teal with transparency */

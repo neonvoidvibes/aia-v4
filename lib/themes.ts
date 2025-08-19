@@ -33,30 +33,10 @@ export const predefinedThemes: ColorTheme[] = [
     welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
   {
-    name: "Oceanic Calm",
-    className: "theme-oceanic-calm",
-    isDark: false,
-    welcomeMessage: {
-      text: "Dive deep, dream.",
-      fontSize: "3rem",
-      fontWeight: "700",
-    },
-  },
-  {
     name: "Desert Mirage",
     className: "theme-desert-mirage",
     isDark: false,
     welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
-  },
-  {
-    name: "Splash",
-    className: "theme-splash",
-    isDark: false,
-    welcomeMessage: {
-      text: "Make a splash!",
-      fontSize: "3rem",
-      fontWeight: "700",
-    },
   },
   // Dark themes
   {
@@ -117,12 +97,6 @@ export const predefinedThemes: ColorTheme[] = [
       fontSize: "5rem",
       fontWeight: "600",
     },
-  },
-  {
-    name: "CFL",
-    className: "theme-cfl",
-    isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
   {
     name: "Moderbyn",
