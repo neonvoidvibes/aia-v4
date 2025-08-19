@@ -43,8 +43,8 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
+    if (e) e.preventDefault();
     if (input.trim()) {
       handleSubmit(e);
     }
@@ -96,12 +96,19 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
             ref={inputRef}
             value={input}
             onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                onSubmit();
+              }
+            }}
             placeholder="Describe the agent..."
             className="w-full bg-transparent border-none outline-none px-3 py-2 text-sm text-[hsl(var(--input-field-text-color))]"
             disabled={isLoading}
           />
           <button
-            type="submit"
+            type="button" // Change type to "button" to prevent default form submission
+            onClick={() => onSubmit()}
             disabled={isLoading || !input.trim()}
             className="p-2 rounded-full disabled:opacity-50 transition-colors"
           >
