@@ -17,12 +17,32 @@ const formatAssistantMessage = (text: string): string => {
     return html.replace(/\n/g, '<br />');
 };
 
+// Function to safely parse JSON from the AI's response
+const parsePromptProposal = (content: string): string | null => {
+    try {
+        // Find the JSON block, which might be wrapped in markdown
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```|({[\s\S]*})/);
+        if (jsonMatch) {
+            const jsonString = jsonMatch[1] || jsonMatch[2];
+            const parsed = JSON.parse(jsonString);
+            if (parsed && typeof parsed.system_prompt === 'string') {
+                return parsed.system_prompt;
+            }
+        }
+    } catch (e) {
+        console.error("Could not parse AI prompt proposal:", e);
+    }
+    return null;
+};
+
+
 interface WizardChatInterfaceProps {
   agentName: string;
   initialContext: string;
+  onPromptProposal: (prompt: string) => void;
 }
 
-const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, initialContext }) => {
+const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, initialContext, onPromptProposal }) => {
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/proxy-chat",
     body: {
@@ -33,7 +53,14 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
         id: 'initial-wizard-prompt',
         role: 'assistant',
         content: 'I am the Agent Creator Assistant. I will help you draft a system prompt. Describe the new agent\'s purpose. What should it do? What personality should it have?'
-    }]
+    }],
+    onFinish: (message) => {
+        const proposedPrompt = parsePromptProposal(message.content);
+        if (proposedPrompt) {
+            console.log("AI proposed a system prompt. Updating editor.");
+            onPromptProposal(proposedPrompt);
+        }
+    }
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);

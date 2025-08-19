@@ -223,6 +223,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 <WizardChatInterface
                   agentName="_aicreator"
                   initialContext={docContextForChat}
+                  onPromptProposal={setSystemPrompt}
                 />
               </div>
             </div>
