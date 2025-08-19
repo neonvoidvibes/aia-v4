@@ -17,22 +17,25 @@ const formatAssistantMessage = (text: string): string => {
     return html.replace(/\n/g, '<br />');
 };
 
-// Function to safely parse JSON from the AI's response
-const parsePromptProposal = (content: string): string | null => {
+// Function to find, parse, and extract a system prompt proposal from AI's response.
+const extractProposal = (content: string): { proposal: string | null; conversationalText: string } => {
+    const response = { proposal: null, conversationalText: content };
     try {
-        // Find the JSON block, which might be wrapped in markdown
         const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```|({[\s\S]*})/);
         if (jsonMatch) {
             const jsonString = jsonMatch[1] || jsonMatch[2];
+            const jsonBlock = jsonMatch[0];
             const parsed = JSON.parse(jsonString);
             if (parsed && typeof parsed.system_prompt === 'string') {
-                return parsed.system_prompt;
+                response.proposal = parsed.system_prompt;
+                // The conversational text is everything *before* the JSON block.
+                response.conversationalText = content.substring(0, content.indexOf(jsonBlock)).trim();
             }
         }
     } catch (e) {
         console.error("Could not parse AI prompt proposal:", e);
     }
-    return null;
+    return response;
 };
 
 
@@ -55,10 +58,10 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
         content: 'I am the Agent Creator Assistant. I will help you draft a system prompt. Describe the new agent\'s purpose. What should it do? What personality should it have?'
     }],
     onFinish: (message) => {
-        const proposedPrompt = parsePromptProposal(message.content);
-        if (proposedPrompt) {
+        const { proposal } = extractProposal(message.content);
+        if (proposal) {
             console.log("AI proposed a system prompt. Updating editor.");
-            onPromptProposal(proposedPrompt);
+            onPromptProposal(proposal);
         }
     }
   });
@@ -82,6 +85,19 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message: Message) => {
           const isUser = message.role === "user";
+          
+          let displayContent = message.content;
+          let isProposalMessage = false;
+
+          if (message.role === 'assistant') {
+            const { proposal, conversationalText } = extractProposal(message.content);
+            if (proposal) {
+              isProposalMessage = true;
+              // If there's conversational text before the proposal, show it. Otherwise, show a default message.
+              displayContent = conversationalText || "I've drafted a new version of the prompt in the editor on the right.";
+            }
+          }
+
           return (
             <motion.div
               key={message.id}
@@ -95,10 +111,11 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, in
                   "message-bubble max-w-[85%] px-4 py-2 rounded-2xl",
                   isUser
                     ? "bg-[hsl(var(--input-gray))] text-[hsl(var(--user-message-text-color))]"
-                    : "bg-transparent text-[hsl(var(--assistant-message-text-color))]"
+                    : "bg-transparent text-[hsl(var(--assistant-message-text-color))]",
+                  isProposalMessage && "italic text-muted-foreground" // Style the confirmation message differently
                 )}
               >
-                <span dangerouslySetInnerHTML={{ __html: formatAssistantMessage(message.content) }} />
+                <span dangerouslySetInnerHTML={{ __html: formatAssistantMessage(displayContent) }} />
               </div>
             </motion.div>
           );
