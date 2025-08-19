@@ -330,6 +330,7 @@ export default function DocumentUpload({
                       <div className="flex items-center gap-1">
                         {!readOnly && (
                           <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEditFile(file)}
@@ -341,6 +342,7 @@ export default function DocumentUpload({
                         )}
                         {!readOnly && allowRemove && (
                           <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => confirmRemoveFile(file.id)}
