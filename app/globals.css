@@ -848,6 +848,62 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* River Theme */
+.theme-river {
+  /* Base tokens */
+  --background: 0 0% 4%; /* very dark grey fallback */
+  --foreground: 0 0% 98%;
+
+  /* New: full‑page background image */
+  --app-background: url('/river_fluorescent_fade.png') no-repeat center center / cover fixed;
+
+  /* Chat + UI neutrals */
+  --input-gray: 0 0% 0%; /* Black for input/user bubbles */
+  --input-opacity: 0.7; /* some transparency */
+  --status-bar: 152 80% 80%; /* Lighter accent color for status */
+  --placeholder-text: 0 0% 60%;
+  --text-primary: 0 0% 98%;
+  --text-secondary: 0 0% 85%;
+  --text-muted: 0 0% 70%;
+
+  /* Shadcn tokens */
+  --card: 0 0% 8%;
+  --popover: 0 0% 8%;
+  --primary: 152 100% 55%;             /* action: accent green #16FF93 */
+  --primary-foreground: 0 0% 5%;       /* Dark text on primary */
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 20%;
+  --accent: 152 100% 55%;              /* accent green */
+  --accent-foreground: 0 0% 5%;       /* readable on accent */
+  --destructive: 0 85% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 25%;
+  --input: 0 0% 25%;
+  --ring: 152 100% 55%;
+
+  /* Buttons */
+  --button-submit-bg-active: 0 0% 98%; /* White submit button */
+  --button-submit-fg-active: 0 0% 5%;   /* Black text on it */
+  --button-submit-bg-inactive: 0 0% 20%;
+  --button-submit-fg-inactive: 0 0% 70%;
+  --button-submit-bg-stop: 0 0% 30%;
+  --button-submit-fg-stop: 0 0% 98%;
+
+  /* Icons */
+  --icon-primary: 0 0% 95%;
+  --icon-secondary: 0 0% 75%;
+  --icon-active: 152 100% 55%; /* Accent green for active things */
+  --icon-inactive: 0 0% 50%;
+  --icon-destructive: 0 85% 55%;
+  --save-memory-color: 152 80% 70%;
+
+  /* Chat text colors */
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
+}
+
 /* Styles for Canvas-originated user messages */
 .user-bubble.from-canvas {
   background-color: hsl(var(--accent) / 0.2) !important; /* Use !important to ensure override if needed */

@@ -125,7 +125,7 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
                 {predefinedThemes.map((customTheme) => {
                   const themeGroupSeparators = new Set([
                     'theme-midnight-monochrome',
-                    'theme-mobius',
+                    'theme-river',
                     'theme-forest-deep',
                   ]);
                   return (

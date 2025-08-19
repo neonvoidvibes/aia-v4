@@ -79,6 +79,16 @@ export const predefinedThemes: ColorTheme[] = [
   },
   // Project themes
   {
+    name: "River",
+    className: "theme-river",
+    isDark: true,
+    welcomeMessage: {
+      text: "Augmenting wisdom.",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
+  },
+  {
     name: "Tenant",
     className: "theme-tenant",
     isDark: true,

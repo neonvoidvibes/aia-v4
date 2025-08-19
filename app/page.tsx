@@ -130,7 +130,7 @@ function HomeContent() {
 
   const themeGroupSeparators = new Set([
     'theme-midnight-monochrome', // Dark themes
-    'theme-mobius',             // Project themes
+    'theme-river',             // Project themes
     'theme-forest-deep',        // Image themes
   ]);
 
