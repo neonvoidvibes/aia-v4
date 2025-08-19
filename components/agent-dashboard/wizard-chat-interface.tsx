@@ -42,15 +42,17 @@ const extractProposal = (content: string): { proposal: string | null; conversati
 interface WizardChatInterfaceProps {
   agentName: string;
   initialContext: string;
+  currentDraftContent: string;
   onPromptProposal: (prompt: string) => void;
 }
 
-const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, initialContext, onPromptProposal }) => {
+const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ agentName, initialContext, currentDraftContent, onPromptProposal }) => {
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/proxy-chat",
     body: {
       agent: agentName,
       initialContext: initialContext,
+      currentDraftContent: currentDraftContent,
     },
     initialMessages: [{
         id: 'initial-wizard-prompt',
