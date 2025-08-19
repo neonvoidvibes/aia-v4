@@ -75,9 +75,10 @@ export async function POST(req: NextRequest) {
     const individualMemoryToggleStates = body.data?.individualMemoryToggleStates || body.individualMemoryToggleStates || {};
     const savedTranscriptSummaries = body.data?.savedTranscriptSummaries || body.savedTranscriptSummaries || [];
     const transcriptionLanguageSetting = body.data?.transcriptionLanguage || body.transcriptionLanguage || "any"; // Changed default to "any"
+    const initialContext = body.data?.initialContext || body.initialContext; // For _aicreator agent
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
-    const { transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, transcriptionLanguage, model: _model, temperature: _temp, ...dataWithoutSettings } = body.data || {};
+    const { transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, transcriptionLanguage, model: _model, temperature: _temp, initialContext: _ic, ...dataWithoutSettings } = body.data || {};
     const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, individualMemoryToggleStates:_imts2, savedTranscriptSummaries:_sts2, transcriptionLanguage: _trl, messages:_m, ...restOfBody } = body;
 
 
@@ -115,6 +116,7 @@ export async function POST(req: NextRequest) {
       individualMemoryToggleStates: individualMemoryToggleStates,
       savedTranscriptSummaries: savedTranscriptSummaries,
       transcriptionLanguage: transcriptionLanguageSetting, // Added
+      initialContext: initialContext, // For _aicreator agent
       data: dataWithoutSettings, // Pass through other data fields if they exist
       ...restOfBody // Include any other top-level properties from original body (excluding those already handled)
     };

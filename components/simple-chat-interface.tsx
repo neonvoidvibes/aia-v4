@@ -374,6 +374,7 @@ interface SimpleChatInterfaceProps {
   globalRecordingStatus: GlobalRecordingStatus;
   setGlobalRecordingStatus: React.Dispatch<React.SetStateAction<GlobalRecordingStatus>>;
   transcriptListenMode: "none" | "latest" | "all";
+  initialContext?: string; // For _aicreator agent
   getCanvasContext?: () => { // New prop to fetch dynamic canvas context
     current_canvas_time_window_label?: string;
     active_canvas_insights?: string; // JSON string
@@ -433,7 +434,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, isModalOpen = false }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, isModalOpen = false }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
 
     const searchParams = useSearchParams();
@@ -578,7 +579,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         savedTranscriptMemoryMode: savedTranscriptMemoryMode,
         individualMemoryToggleStates: individualMemoryToggleStates,
         savedTranscriptSummaries: savedTranscriptSummaries,
-    }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries]);
+        initialContext: initialContext,
+    }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, initialContext]);
 
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
@@ -1305,6 +1307,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 transcriptListenMode: transcriptListenMode,
                 savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
                 transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any",
+                initialContext: initialContext,
             };
             
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
@@ -1958,7 +1961,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
 
      useImperativeHandle(ref, () => ({
-        startNewChat: async () => {
+        startNewChat: async (options) => {
              console.info("[New Chat] Imperative handle called.");
              if (isBrowserRecordingRef.current || sessionId) {
                 console.info("[New Chat] Active recording detected, stopping it first.");
@@ -1997,12 +2000,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              setConversationMemoryId(null);
              setProcessedProposalIds(new Set()); // Reset processed proposals
              
-             if (onHistoryRefreshNeeded) {
-                console.log("[New Chat] Calling onHistoryRefreshNeeded()");
-                onHistoryRefreshNeeded();
-             }
-             
-             if (onHistoryRefreshNeeded) {
+             if (onHistoryRefreshNeeded && agentName && !options?.suppressRefresh) { // Only refresh if an agent is active
                 console.log("[New Chat] Calling onHistoryRefreshNeeded()");
                 onHistoryRefreshNeeded();
              }

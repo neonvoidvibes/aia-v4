@@ -1,17 +1,17 @@
-import { type NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { createServerActionClient } from '@/utils/supabase/server';
-import { findActiveBackend, formatErrorResponse, proxyApiRouteRequest } from '@/app/api/proxyUtils';
+import { findActiveBackend, formatErrorResponse } from '@/app/api/proxyUtils';
 
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
 
 export async function POST(req: NextRequest) {
-  console.log("[API /api/agent/create] Received POST request");
+  console.log("[API /api/agent/create] Received POST request with FormData");
   const supabase = await createServerActionClient();
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       return formatErrorResponse("Unauthorized: Invalid session", 401);
     }
 
@@ -19,15 +19,29 @@ export async function POST(req: NextRequest) {
     if (!activeBackendUrl) {
       return formatErrorResponse("Could not connect to backend for agent creation.", 503);
     }
-
+    
     const targetUrl = `${activeBackendUrl}/api/agent/create`;
     
-    // The proxyApiRouteRequest utility handles auth, body forwarding, and response streaming
-    return proxyApiRouteRequest({
-      request: req,
-      targetUrl: targetUrl,
+    // Read the incoming request as FormData
+    const formData = await req.formData();
+    
+    // Forward the FormData to the backend
+    const backendResponse = await fetch(targetUrl, {
       method: 'POST',
+      headers: {
+        // 'Content-Type' is set automatically by fetch for FormData
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: formData,
     });
+    
+    const responseData = await backendResponse.json();
+
+    if (!backendResponse.ok) {
+      return formatErrorResponse(responseData.error || 'Backend agent creation failed', backendResponse.status);
+    }
+
+    return NextResponse.json(responseData, { status: backendResponse.status });
 
   } catch (error: any) {
     console.error("[API /api/agent/create] Error in POST handler:", error);
