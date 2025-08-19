@@ -87,8 +87,29 @@ export async function GET(request: Request) {
     }
     // --- END NEW BATCH LOGIC ---
 
-    // Return the enhanced list of agents with their capabilities
-    return NextResponse.json({ allowedAgents: agentsWithCapabilities }, { status: 200 });
+    // --- NEW: Fetch user role ---
+    let userRole = 'user'; // Default role
+    try {
+        const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', user.id)
+            .single();
+
+        if (roleError && roleError.code !== 'PGRST116') { // PGRST116: no rows found, which is not an error here
+            throw roleError;
+        }
+        
+        if (roleData) {
+            userRole = roleData.role;
+        }
+    } catch(roleError) {
+        logger.warn({ error: roleError }, `Permissions API: Could not fetch role for user ${user.id}, defaulting to 'user'.`);
+    }
+    // --- END NEW: Fetch user role ---
+ 
+    // Return the enhanced list of agents with their capabilities and the user's role
+    return NextResponse.json({ allowedAgents: agentsWithCapabilities, userRole: userRole }, { status: 200 });
  
   } catch (error) {
     logger.error({ error }, 'Permissions API: Unexpected error');

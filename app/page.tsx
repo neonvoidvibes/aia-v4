@@ -52,6 +52,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
 import AgentSelectorMenu from "@/components/ui/agent-selector";
+import AgentDashboard from "@/components/agent-dashboard"; // New import
 
 interface ChatHistoryItem {
   id: string;
@@ -332,8 +333,10 @@ function HomeContent() {
   const [pageEventId, setPageEventId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null); // Added state for user name
   const [allowedAgents, setAllowedAgents] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [showAgentDashboard, setShowAgentDashboard] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
@@ -428,6 +431,7 @@ function HomeContent() {
         const fetchedAllowedAgents: { name: string, capabilities: { pinecone_index_exists: boolean } }[] = data.allowedAgents || [];
         const agentNames = fetchedAllowedAgents.map(a => a.name);
         setAllowedAgents(agentNames);
+        setUserRole(data.userRole || 'user'); // Set the user role
 
         const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
         setUserName(name);
@@ -1529,7 +1533,12 @@ function HomeContent() {
           <div className="flex items-center justify-center h-full">
             {/* Center: Agent name (desktop) or ViewSwitcher fallback */}
             {!isMobile && pageAgentName && (
-              <AgentSelectorMenu allowedAgents={allowedAgents} currentAgent={pageAgentName} />
+              <AgentSelectorMenu
+                allowedAgents={allowedAgents}
+                currentAgent={pageAgentName}
+                userRole={userRole}
+                onDashboardClick={() => setShowAgentDashboard(true)}
+              />
             )}
             {!isMobile && !pageAgentName && (
               <ViewSwitcher 
@@ -1544,7 +1553,12 @@ function HomeContent() {
             {/* Right side: Agent name (mobile) */}
             {isMobile && pageAgentName && (
               <div className="absolute right-8" style={{ marginTop: '2px' }}>
-                <AgentSelectorMenu allowedAgents={allowedAgents} currentAgent={pageAgentName} />
+                <AgentSelectorMenu
+                  allowedAgents={allowedAgents}
+                  currentAgent={pageAgentName}
+                  userRole={userRole}
+                  onDashboardClick={() => setShowAgentDashboard(true)}
+                />
               </div>
             )}
           </div>
@@ -2092,7 +2106,21 @@ function HomeContent() {
                         </div>
                     </CollapsibleSection>
 
-                    {/* <Separator className="my-4" /> */}
+                    <Separator className="my-4" />
+                    
+                    {(userRole === 'admin' || userRole === 'super user') && (
+                      <div className="flex items-center justify-center">
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setShowSettings(false);
+                            setShowAgentDashboard(true);
+                          }}
+                        >
+                          Agent Dashboard
+                        </Button>
+                      </div>
+                    )}
                     
                     <div className="flex items-center justify-center">
                       <Button
@@ -2117,6 +2145,14 @@ function HomeContent() {
             </Tabs>
           </DialogContent>
         </Dialog>
+      )}
+      
+      {showAgentDashboard && (userRole === 'admin' || userRole === 'super user') && (
+        <AgentDashboard
+          isOpen={showAgentDashboard}
+          onClose={() => setShowAgentDashboard(false)}
+          userRole={userRole}
+        />
       )}
 
       <AlertDialogConfirm

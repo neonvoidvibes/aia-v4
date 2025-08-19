@@ -8,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
@@ -24,9 +25,11 @@ import { cn } from "@/lib/utils";
 interface AgentSelectorMenuProps {
   allowedAgents: string[];
   currentAgent: string;
+  userRole?: string | null;
+  onDashboardClick?: () => void;
 }
 
-const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, currentAgent }) => {
+const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, currentAgent, userRole, onDashboardClick }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useMobile();
@@ -142,6 +145,14 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
           </DropdownMenuPortal>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
+        {(userRole === 'admin' || userRole === 'super user') && (
+            <>
+              <DropdownMenuItem onSelect={onDashboardClick} className="cursor-pointer">
+                Agent Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+        )}
         <DropdownMenuRadioGroup value={currentAgent} onValueChange={handleAgentChange}>
           {allowedAgents.sort().map((agent) => (
             <DropdownMenuRadioItem key={agent} value={agent} className="pr-8">
