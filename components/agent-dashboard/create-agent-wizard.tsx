@@ -92,15 +92,16 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
 
   const prepareDocumentContext = async () => {
     const allFiles = [...s3Docs, ...pineconeDocs];
-    if (allFiles.length === 0) {
-        setDocContextForChat('');
-        return;
-    }
+    
+    let combinedContent = "## AGENT DEFINITION\n";
+    combinedContent += `Name: ${agentName || 'Not yet defined'}\n`;
+    combinedContent += `Description: ${description || 'Not yet defined'}\n\n`;
 
-    let combinedContent = "## DOCUMENT CONTEXT\n\n";
-    for (const file of allFiles) {
-        if (!file.content) {
-            // If content is not loaded, read it now.
+    if (allFiles.length > 0) {
+        combinedContent += "## DOCUMENT CONTEXT\n\n";
+        for (const file of allFiles) {
+            if (!file.content) {
+                // If content is not loaded, read it now.
             if (file.url) {
                 try {
                     const response = await fetch(file.url);
@@ -112,6 +113,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
             }
         }
         combinedContent += `--- START Doc: ${file.name} ---\n${file.content}\n--- END Doc: ${file.name} ---\n\n`;
+      }
     }
     setDocContextForChat(combinedContent);
   };
