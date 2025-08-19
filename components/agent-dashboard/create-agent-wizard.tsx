@@ -10,8 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import DocumentUpload from '@/components/document-upload';
-import FileEditor from '@/components/file-editor';
-import SimpleChatInterface, { type ChatInterfaceHandle } from '@/components/simple-chat-interface';
+import WizardChatInterface from './wizard-chat-interface'; // New component
 import type { AttachmentFile } from '@/components/file-attachment-minimal';
 import { toast } from 'sonner';
 
@@ -31,8 +30,6 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   
   // State for system prompt
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const chatInterfaceRef = useRef<ChatInterfaceHandle>(null);
   const [docContextForChat, setDocContextForChat] = useState('');
 
   // State for API Keys (Phase 2.3)
@@ -220,20 +217,10 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
           <div className="flex h-[60vh] gap-4">
             <div className="w-1/2 flex flex-col">
               <Label className="mb-2">AI Assistant</Label>
-              <div className="flex-1 border rounded-lg overflow-hidden">
-                <SimpleChatInterface
-                    ref={chatInterfaceRef}
-                    // @ts-ignore
-                    agentName="_aicreator"
-                    initialContext={docContextForChat}
-                    // Provide defaults for props not used in this context to prevent crashes
-                    isFullscreen={true}
-                    selectedModel="claude-sonnet-4-20250514"
-                    temperature={0.5}
-                    globalRecordingStatus={{ isRecording: false, type: null }}
-                    setGlobalRecordingStatus={() => {}}
-                    transcriptListenMode="none"
-                    vadAggressiveness={1}
+              <div className="flex-1 border rounded-lg overflow-hidden h-full">
+                <WizardChatInterface
+                  agentName="_aicreator"
+                  initialContext={docContextForChat}
                 />
               </div>
             </div>
