@@ -16,6 +16,7 @@ type DocumentUploadProps = {
   title?: string
   description: string
   type: "chat" | "memory" | "system" | "context" // Added "context"
+  idSuffix: string // New prop for ensuring unique IDs
   onFilesAdded?: (files: AttachmentFile[]) => void
   existingFiles?: AttachmentFile[]
   readOnly?: boolean
@@ -29,6 +30,7 @@ export default function DocumentUpload({
   title = "",
   description,
   type,
+  idSuffix,
   onFilesAdded,
   existingFiles = [],
   readOnly = false,
@@ -285,11 +287,11 @@ export default function DocumentUpload({
                 <Upload className="h-10 w-10 text-muted-foreground" />
                 <p className="text-lg font-medium">Drag & drop files here</p>
                 <p className="text-sm text-muted-foreground">or</p>
-                <Button type="button" variant="outline" onClick={() => document.getElementById(`file-upload-${type}`)?.click()}>
+                <Button type="button" variant="outline" onClick={() => document.getElementById(`file-upload-${type}-${idSuffix}`)?.click()}>
                   Browse files
                 </Button>
                 <input
-                  id={`file-upload-${type}`}
+                  id={`file-upload-${type}-${idSuffix}`}
                   type="file"
                   multiple
                   className="hidden"

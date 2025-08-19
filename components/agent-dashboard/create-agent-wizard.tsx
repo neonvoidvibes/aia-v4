@@ -41,20 +41,15 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Effect to clean up local storage on component unmount
+  // Effect to clean up any stale local storage from previous sessions ON MOUNT
   useEffect(() => {
-    // This function will be called when the component is unmounted
-    return () => {
-      console.log("CreateAgentWizard is unmounting. Cleaning up local storage.");
-      const currentAgentName = agentName; // Capture agent name at time of unmount
-      // Clear localStorage for the current wizard draft
-      localStorage.removeItem(`wizard-s3-docs-${currentAgentName}`);
-      localStorage.removeItem(`wizard-pinecone-docs-${currentAgentName}`);
-      // Also clear the generic key for empty agent name, just in case
-      localStorage.removeItem(`wizard-s3-docs-`);
-      localStorage.removeItem(`wizard-pinecone-docs-`);
-    };
-  }, [agentName]); // Depend on agentName to capture its latest value in the closure
+    console.log("CreateAgentWizard has mounted. Cleaning up any stale local storage.");
+    // This runs only once when the component is first created.
+    // It clears any potential leftover data regardless of the agentName.
+    // The keys are based on the initial empty agentName.
+    localStorage.removeItem(`wizard-s3-docs-`);
+    localStorage.removeItem(`wizard-pinecone-docs-`);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   const STEPS = [
     { number: 1, title: 'Agent Identity' },
@@ -204,8 +199,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 title="Core Knowledge (S3)"
                 description="Upload documents (.md, .txt) that form the agent's core, static knowledge base. These are stored in S3."
                 type="memory"
+                idSuffix="s3"
                 onFilesAdded={setS3Docs}
-                // existingFiles prop is for displaying read-only files, not needed in create wizard
                 allowRemove={true}
                 persistKey={`wizard-s3-docs-${agentName}`}
             />
@@ -213,7 +208,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 title="Vector Memory (Pinecone)"
                 description="Upload documents to be chunked, embedded, and stored in Pinecone for semantic search."
                 type="memory"
-                onFilesAdded={setPineconeDocs} // Corrected state setter
+                idSuffix="pinecone"
+                onFilesAdded={setPineconeDocs}
                 allowRemove={true}
                 persistKey={`wizard-pinecone-docs-${agentName}`}
             />
@@ -230,10 +226,14 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                     // @ts-ignore
                     agentName="_aicreator"
                     initialContext={docContextForChat}
-                    // Minimal props for this specialized use case
+                    // Provide defaults for props not used in this context to prevent crashes
                     isFullscreen={true}
                     selectedModel="claude-sonnet-4-20250514"
                     temperature={0.5}
+                    globalRecordingStatus={{ isRecording: false, type: null }}
+                    setGlobalRecordingStatus={() => {}}
+                    transcriptListenMode="none"
+                    vadAggressiveness={1}
                 />
               </div>
             </div>
