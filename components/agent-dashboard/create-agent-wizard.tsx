@@ -41,6 +41,21 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Effect to clean up local storage on component unmount
+  useEffect(() => {
+    // This function will be called when the component is unmounted
+    return () => {
+      console.log("CreateAgentWizard is unmounting. Cleaning up local storage.");
+      const currentAgentName = agentName; // Capture agent name at time of unmount
+      // Clear localStorage for the current wizard draft
+      localStorage.removeItem(`wizard-s3-docs-${currentAgentName}`);
+      localStorage.removeItem(`wizard-pinecone-docs-${currentAgentName}`);
+      // Also clear the generic key for empty agent name, just in case
+      localStorage.removeItem(`wizard-s3-docs-`);
+      localStorage.removeItem(`wizard-pinecone-docs-`);
+    };
+  }, [agentName]); // Depend on agentName to capture its latest value in the closure
+
   const STEPS = [
     { number: 1, title: 'Agent Identity' },
     { number: 2, title: 'Core Knowledge' },
@@ -199,7 +214,6 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 description="Upload documents to be chunked, embedded, and stored in Pinecone for semantic search."
                 type="memory"
                 onFilesAdded={setPineconeDocs} // Corrected state setter
-                // existingFiles prop not needed here either
                 allowRemove={true}
                 persistKey={`wizard-pinecone-docs-${agentName}`}
             />
