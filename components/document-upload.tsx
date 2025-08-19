@@ -285,7 +285,7 @@ export default function DocumentUpload({
                 <Upload className="h-10 w-10 text-muted-foreground" />
                 <p className="text-lg font-medium">Drag & drop files here</p>
                 <p className="text-sm text-muted-foreground">or</p>
-                <Button variant="outline" onClick={() => document.getElementById(`file-upload-${type}`)?.click()}>
+                <Button type="button" variant="outline" onClick={() => document.getElementById(`file-upload-${type}`)?.click()}>
                   Browse files
                 </Button>
                 <input

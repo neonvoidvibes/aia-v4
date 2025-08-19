@@ -65,9 +65,22 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     }
   };
 
+  const cleanup = () => {
+    // Clear localStorage for the current wizard draft
+    localStorage.removeItem(`wizard-s3-docs-${agentName}`);
+    localStorage.removeItem(`wizard-pinecone-docs-${agentName}`);
+    // Also clear the generic key for empty agent name
+    localStorage.removeItem(`wizard-s3-docs-`);
+    localStorage.removeItem(`wizard-pinecone-docs-`);
+  };
+
   const handleBack = () => {
-    if (step > 1) setStep(step - 1);
-    else onBack();
+    if (step > 1) {
+      setStep(step - 1);
+    } else {
+      cleanup();
+      onBack();
+    }
   };
 
   const prepareDocumentContext = async () => {
@@ -131,6 +144,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
       }
 
       toast.success(`Agent "${agentName}" created successfully!`);
+      cleanup();
       onAgentCreated();
     } catch (err: any) {
       setError(err.message);
