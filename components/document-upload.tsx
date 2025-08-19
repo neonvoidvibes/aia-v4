@@ -205,8 +205,8 @@ export default function DocumentUpload({
     return "Are you sure you want to remove this file?"
   }
 
-  // Combine local files and existing files for display
-  const displayFiles = [...files, ...existingFiles]
+  // The component now only displays its own state. Parent passes read-only files via existingFiles.
+  const displayFiles = readOnly ? existingFiles : files;
 
   return (
     <>

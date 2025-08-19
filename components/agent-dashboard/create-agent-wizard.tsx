@@ -190,7 +190,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 description="Upload documents (.md, .txt) that form the agent's core, static knowledge base. These are stored in S3."
                 type="memory"
                 onFilesAdded={setS3Docs}
-                existingFiles={s3Docs}
+                // existingFiles prop is for displaying read-only files, not needed in create wizard
                 allowRemove={true}
                 persistKey={`wizard-s3-docs-${agentName}`}
             />
@@ -198,8 +198,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 title="Vector Memory (Pinecone)"
                 description="Upload documents to be chunked, embedded, and stored in Pinecone for semantic search."
                 type="memory"
-                onFilesAdded={setPineconeDocs}
-                existingFiles={pineconeDocs}
+                onFilesAdded={setPineconeDocs} // Corrected state setter
+                // existingFiles prop not needed here either
                 allowRemove={true}
                 persistKey={`wizard-pinecone-docs-${agentName}`}
             />
