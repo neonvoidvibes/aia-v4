@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useRef } from 'react';
 import {
   Dialog,
@@ -25,7 +23,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
   const [wizardKey, setWizardKey] = useState(Date.now());
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-  const refreshAgentListRef = useRef<() => void>();
+  const refreshAgentListRef = useRef<() => void>(undefined);
   const wizardRef = useRef<CreateAgentWizardHandle>(null);
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -89,9 +87,6 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                 onCreateNew={() => {
                   setView('create');
                   setWizardStep(1); // Reset to first step
-                onCreateNew={() => {
-                  setView('create');
-                  setWizardStep(1); // Reset to first step
                 }}
                 onEditAgent={(agent) => {
                   setSelectedAgent(agent);
@@ -101,10 +96,10 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
               />
             </div>
             <div style={{ display: view === 'create' ? 'block' : 'none' }}>
-               <CreateAgentWizard
-                 ref={wizardRef}
-                 key={wizardKey}
-                 onBack={() => setView('list')}
+               <CreateAgentWizard 
+                 ref={wizardRef} 
+                 key={wizardKey} 
+                 onBack={() => setView('list')} 
                  step={wizardStep}
                  setStep={setWizardStep}
                />
@@ -115,9 +110,9 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
           </div>
           {view === 'create' && wizardStep === 4 && (
             <div className="flex justify-end p-4 border-t">
-                 <Button
-                    type="button"
-                    onClick={handleFinalCreateAgent}
+                 <Button 
+                    type="button" 
+                    onClick={handleFinalCreateAgent} 
                     disabled={isCreatingAgent}
                  >
                     {isCreatingAgent ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Complete and Create Agent'}
