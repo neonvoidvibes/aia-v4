@@ -214,7 +214,7 @@ export default function DocumentUpload({
     <>
       <Card
         className={cn(
-          "document-upload-card",
+          "document-upload-card h-full flex flex-col",
           transparentBackground && "bg-transparent border-none shadow-none p-0"
         )}
       >
@@ -231,7 +231,7 @@ export default function DocumentUpload({
         </CardHeader>
         <CardContent
           className={cn(
-            "upload-container",
+            "upload-container flex-1 flex flex-col",
             transparentBackground && "bg-transparent",
             // If no title, CardContent also has no horizontal padding.
             !title ? "pt-0 px-0" : "p-6 pt-0"
@@ -306,7 +306,7 @@ export default function DocumentUpload({
           )}
 
           {displayFiles.length > 0 && (
-            <div className={`${!readOnly ? "mt-4" : ""} space-y-2 document-files-container w-full overflow-hidden`}>
+            <div className={cn("space-y-2 document-files-container w-full overflow-hidden flex-1", !readOnly && "mt-4")}>
               <AnimatePresence>
                 {displayFiles.map((file) => (
                   <motion.div

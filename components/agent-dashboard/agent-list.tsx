@@ -58,7 +58,7 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefre
 
   return (
     <div>
-      <Card className="border-none shadow-none">
+      <Card className="border-none shadow-none bg-transparent">
         <CardHeader className="p-0 mb-4">
           <div className="flex justify-between items-center">
             <CardTitle className="text-2xl font-bold">Manage Agents</CardTitle>
@@ -82,7 +82,7 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefre
               </Button>
             </div>
           ) : (
-            <ScrollArea className="h-[calc(85vh-150px)]">
+            <ScrollArea className="h-[calc(85vh-220px)]">
               <div className="pr-4">
                 {agents.map((agent) => (
                   <div key={agent.id} className="flex items-center justify-between py-3 border-b">

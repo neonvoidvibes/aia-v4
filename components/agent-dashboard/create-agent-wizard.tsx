@@ -1,9 +1,7 @@
 "use client";
 
-"use client";
-
 import React, { useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { ArrowLeft, Loader2, Copy, ChevronLeft, ChevronRight, UserPlus, Trash2, Eye, EyeOff, RefreshCcw } from 'lucide-react';
+import { Loader2, Copy, ChevronLeft, ChevronRight, UserPlus, Trash2, Eye, EyeOff, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,6 +23,7 @@ interface CreateAgentWizardProps {
 
 export interface CreateAgentWizardHandle {
   handleCreateAgent: () => Promise<boolean>;
+  handleNext: () => Promise<void>;
 }
 
 const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardProps>(({ onBack, step, setStep }, ref) => {
@@ -109,7 +108,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
     { number: 2, title: 'Core Knowledge' },
     { number: 3, title: 'System Prompt' },
     { number: 4, title: 'User Access' },
-    { number: 5, title: 'API Keys (Optional)' },
+    { number: 5, title: 'Custom API Keys (Optional)' },
   ];
 
   const currentStep = STEPS.find(s => s.number === step);
@@ -166,14 +165,6 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
     localStorage.removeItem(`wizard-pinecone-docs-`);
   };
 
-  const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    } else {
-      onBack();
-    }
-  };
-
   const prepareDocumentContext = async () => {
     const allFiles = [...s3Docs, ...pineconeDocs];
     
@@ -208,7 +199,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
     return () => {
       cleanup();
     };
-  }, []); // The empty dependency array ensures this effect runs only once on mount and unmount.
+  }, []); // The empty dependency array ensures this runs only once on mount and unmount.
 
   // --- User Access Management Functions ---
   const handleToggleUserSelection = (userId: string) => {
@@ -381,12 +372,13 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
   useImperativeHandle(ref, () => ({
     handleCreateAgent,
+    handleNext,
   }));
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <p className="text-muted-foreground">Step {step}: {currentStep?.title}</p>
+      <div className="text-center mb-6">
+          <p className="text-muted-foreground font-semibold text-lg">Step {step}: {currentStep?.title}</p>
       </div>
 
       <form onSubmit={(e) => e.preventDefault()} autoComplete="off" className="h-[calc(85vh-250px)]">
@@ -396,23 +388,26 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
             <div className="space-y-8 pt-8 h-full">
               <div className="space-y-2">
                 <Label htmlFor="agent-name" className="text-base">Agent Name</Label>
+                <p className="text-sm text-muted-foreground">Unique name, lowercase letters, numbers, and hyphens only. Cannot be changed.</p>
                 <Input
                   id="agent-name"
                   value={agentName}
                   onChange={(e) => setAgentName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                   placeholder="e.g., customer-support-bot"
                   required
+                  className="placeholder:text-muted-foreground/70"
                 />
-                <p className="text-xs text-muted-foreground">Unique name, lowercase letters, numbers, and hyphens only. Cannot be changed.</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="agent-description">Description</Label>
+                <Label htmlFor="agent-description" className="text-base">Description</Label>
+                <p className="text-sm text-muted-foreground">A brief description of the agent's purpose.</p>
                 <Textarea
                   id="agent-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="A brief description of the agent's purpose."
+                  placeholder="e.g., An AI assistant designed to answer questions about our latest product line and help with troubleshooting."
                   rows={3}
+                  className="placeholder:text-muted-foreground/70"
                 />
               </div>
             </div>
@@ -429,6 +424,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                   onFilesAdded={setS3Docs}
                   allowRemove={true}
                   persistKey={`wizard-s3-docs-${agentName}`}
+                  transparentBackground
               />
               <DocumentUpload
                   title="Vector Memory (Pinecone)"
@@ -438,13 +434,14 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                   onFilesAdded={setPineconeDocs}
                   allowRemove={true}
                   persistKey={`wizard-pinecone-docs-${agentName}`}
+                  transparentBackground
               />
             </div>
           )}
 
           {/* Step 3: System Prompt */}
           {step === 3 && (
-            <div className="flex h-[60vh] gap-4">
+            <div className="flex h-full gap-4">
               <div className="w-1/2 flex flex-col">
                 <Label className="mb-2 text-center text-lg font-medium">AI Assistant</Label>
                 <div className="flex-1 border rounded-lg overflow-hidden h-full">
@@ -478,8 +475,8 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                       setDraftPrompt(e.target.value);
                       setIsDirtySinceVersion(true);
                     }}
-                    className="w-full h-full resize-none border-0 p-4 pr-12"
-                    placeholder="Draft the system prompt here, or ask the assistant to help you..."
+                    className="w-full h-full resize-none border-0 p-4 pr-12 placeholder:text-muted-foreground/70"
+                    placeholder="Draft the system prompt here, or ask the assistant on the left to help you..."
                   />
                 </div>
                 {promptHistory.length > 1 && (
@@ -502,14 +499,16 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
             <div className="space-y-8 h-full flex flex-col">
               {/* Grant access to existing users */}
               <div className="flex-1 flex flex-col min-h-0">
-                <h3 className="text-lg font-semibold mb-2 flex-shrink-0">Grant Access to Existing Users</h3>
-                <p className="text-sm text-muted-foreground mb-4 flex-shrink-0">Select existing users who should have access to this new agent.</p>
+                <div className="flex-shrink-0">
+                  <h3 className="text-lg font-semibold leading-snug">Grant Access to Existing Users</h3>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">Select existing users who should have access to this new agent.</p>
+                </div>
                 <div className="border rounded-md flex-1 min-h-0">
                   <ScrollArea className="h-full">
                     <div className="space-y-3 p-4">
                       {allUsers.length > 0 ? (
                         allUsers.map(user => (
-                          <div key={user.id} className="flex items-center space-x-3">
+                          <div key={user.id} className="flex items-center space-x-3 pl-2">
                             <Checkbox
                               id={`user-access-${user.id}`}
                               checked={selectedUserIds.has(user.id)}
@@ -531,11 +530,11 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
               </div>
 
               {/* Create and grant access to new users */}
-              <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 flex flex-col min-h-0 pt-4">
                 <div className="flex items-center justify-between mb-4 flex-shrink-0">
                   <div>
-                    <h3 className="text-lg font-semibold">Create & Grant Access to New Users</h3>
-                    <p className="text-sm text-muted-foreground">Add new users to the platform and automatically grant them access to this agent.</p>
+                    <h3 className="text-lg font-semibold leading-snug">Create & Grant Access to New Users</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Add new users to the platform and automatically grant them access to this agent.</p>
                   </div>
                   <Button type="button" variant="outline" size="sm" onClick={handleAddNewUser}>
                     <UserPlus className="mr-2 h-4 w-4" /> Add User
@@ -556,6 +555,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                             placeholder="new.user@example.com"
                             value={user.email}
                             onChange={(e) => handleUpdateNewUser(user.id, 'email', e.target.value)}
+                            className="placeholder:text-muted-foreground/70"
                           />
                         </div>
                         <div className="space-y-2">
@@ -615,14 +615,6 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                 <AlertDescription>{error}</AlertDescription>
             </Alert>
         )}
-
-        <div className="flex justify-end gap-4 mt-8">
-          {step < STEPS.length && (
-            <Button type="button" onClick={handleNext} disabled={isCheckingName || (step === 1 && !agentName.trim())}>
-              {isCheckingName ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</> : 'Next'}
-            </Button>
-          )}
-        </div>
       </form>
     </div>
   );
