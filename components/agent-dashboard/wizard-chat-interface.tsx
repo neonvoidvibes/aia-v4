@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useMemo } from 'react';
 import { useChat, type Message } from "@ai-sdk/react";
 import { ArrowUp, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -60,19 +60,21 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
   const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
   const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
 
+  // Memoize the body to ensure useChat hook gets the latest draft content
+  const chatApiBody = useMemo(() => ({
+    agent: agentName,
+    initialContext: initialContext,
+    disableRetrieval: true,
+    session_id: wizardSessionId,
+    currentDraftContent: currentDraftContent,
+  }), [agentName, initialContext, wizardSessionId, currentDraftContent]);
+
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     // By passing a unique ID here, we ensure that useChat creates a new,
     // isolated conversation that doesn't reuse history from localStorage from previous wizard sessions.
     id: wizardSessionId,
     api: "/api/proxy-chat",
-    body: {
-      agent: agentName,
-      initialContext: initialContext,
-      disableRetrieval: true, // Explicitly disable RAG for this process
-      // Pass the unique session ID in the body as well, so the backend can differentiate sessions.
-      session_id: wizardSessionId
-      // currentDraftContent is now passed in handleSubmit to avoid re-renders
-    },
+    body: chatApiBody,
     initialMessages: [{
         id: 'initial-wizard-prompt',
         role: 'assistant',
@@ -143,11 +145,7 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
     if (e) e.preventDefault();
     if (input.trim()) {
       onUserSubmit();
-      handleSubmit(e, {
-        data: {
-          currentDraftContent: currentDraftContent,
-        }
-      });
+      handleSubmit(e); // No longer need to pass data here, it's in the memoized body
     }
   };
 
