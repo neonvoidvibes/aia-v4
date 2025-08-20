@@ -1003,6 +1003,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 transcriptListenMode: transcriptListenMode,
                 savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
                 transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any",
+                ...(initialContext && { initialContext }),
             };
 
             append({
@@ -1307,7 +1308,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 transcriptListenMode: transcriptListenMode,
                 savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
                 transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any",
-                initialContext: initialContext,
+                ...(initialContext && { initialContext }),
             };
             
             debugLog("[handleSubmitWithCanvasContext] Final body for API:", augmentedBody);
