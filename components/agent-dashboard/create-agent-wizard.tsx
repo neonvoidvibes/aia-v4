@@ -81,6 +81,10 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     }
     setError(null);
     if (step < STEPS.length) {
+      // If leaving the prompt step and there are unsaved manual edits, save them as a new version.
+      if (step === 3 && isDirtySinceVersion) {
+        addNewPromptVersion(draftPrompt);
+      }
       // When moving to step 3, prepare the document context for the chat
       if (step === 2) {
         prepareDocumentContext();
