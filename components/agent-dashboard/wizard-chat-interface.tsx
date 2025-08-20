@@ -138,10 +138,8 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
     if (input.trim()) {
       onUserSubmit();
       handleSubmit(e, {
-        options: {
-          body: {
-            currentDraftContent: currentDraftContent,
-          }
+        data: {
+          currentDraftContent: currentDraftContent,
         }
       });
     }
