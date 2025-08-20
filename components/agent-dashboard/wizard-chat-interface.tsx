@@ -186,7 +186,7 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
                   "message-bubble max-w-[85%] px-4 py-2 rounded-2xl",
                   isUser && "bg-[hsl(var(--input-gray))] text-[hsl(var(--user-message-text-color))]",
                   message.role === 'assistant' && "bg-transparent text-[hsl(var(--assistant-message-text-color))]",
-                  isSystem && "w-full text-center text-xs text-muted-foreground italic bg-transparent px-0"
+                  isSystem && "text-xs bg-accent/10 text-accent-foreground"
                 )}
               >
                 <span dangerouslySetInnerHTML={{ __html: formatAssistantMessage(displayContent) }} />
