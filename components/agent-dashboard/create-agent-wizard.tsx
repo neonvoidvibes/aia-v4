@@ -270,25 +270,25 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 </div>
               </div>
               <div className="w-1/2 flex flex-col">
-                  <Label className="mb-2 text-center text-lg font-medium">System Prompt Draft</Label>
-                  <div className="flex-1 border rounded-lg p-2 relative">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-2 right-2 h-7 w-7 z-10"
-                        onClick={handleCopyPrompt}
-                        title="Copy prompt"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Textarea
-                          value={systemPrompt}
-                          onChange={(e) => setSystemPrompt(e.target.value)}
-                          className="w-full h-full resize-none border-0 focus-visible:ring-0 absolute inset-0 p-2"
-                          placeholder="Draft your system prompt here. You can copy-paste from the AI assistant."
-                      />
-                  </div>
+                <Label className="mb-2 text-center text-lg font-medium">System Prompt Draft</Label>
+                <div className="flex-1 border rounded-lg relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-3 right-3 h-7 w-7 z-10 text-muted-foreground hover:text-foreground"
+                    onClick={handleCopyPrompt}
+                    title="Copy prompt"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Textarea
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    className="w-full h-full resize-none border-0 p-3 pr-12"
+                    placeholder="Draft your system prompt here. You can copy-paste from the AI assistant."
+                  />
+                </div>
               </div>
             </div>
           )}
