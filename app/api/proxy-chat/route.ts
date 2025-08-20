@@ -67,17 +67,25 @@ export async function POST(req: NextRequest) {
     const model = body.model || body.data?.model;
     const temperature = body.temperature ?? body.data?.temperature ?? 0.5;
     
-    let transcriptListenModeSetting = body.data?.transcriptListenMode || body.transcriptListenMode || "latest";
-    if (!["none", "latest", "all"].includes(transcriptListenModeSetting)) {
-      transcriptListenModeSetting = "latest"; // Default to "latest" if invalid value
-    }
-    const savedTranscriptMemoryModeSetting = body.data?.savedTranscriptMemoryMode || body.savedTranscriptMemoryMode || "disabled";
-    const individualMemoryToggleStates = body.data?.individualMemoryToggleStates || body.individualMemoryToggleStates || {};
-    const savedTranscriptSummaries = body.data?.savedTranscriptSummaries || body.savedTranscriptSummaries || [];
-    const transcriptionLanguageSetting = body.data?.transcriptionLanguage || body.transcriptionLanguage || "any"; // Changed default to "any"
     const initialContext = body.data?.initialContext || body.initialContext; // For _aicreator agent
     const currentDraftContent = body.data?.currentDraftContent || body.currentDraftContent; // For _aicreator feedback loop
     const disableRetrieval = body.data?.disableRetrieval || body.disableRetrieval || false; // For wizard chat
+
+    // WIZARD DETECTION: A wizard session is defined by disabling retrieval and providing initial context.
+    const isWizard = disableRetrieval && !!initialContext;
+
+    // Force transcripts off for wizard; prevents backend transcript branches.
+    let transcriptListenModeSetting = isWizard ? "none" : (body.data?.transcriptListenMode || body.transcriptListenMode || "latest");
+    if (!["none", "latest", "all"].includes(transcriptListenModeSetting)) {
+      transcriptListenModeSetting = "latest"; // Default to "latest" if invalid value
+    }
+    
+    // Strip unused transcription language in wizard path. Use "any" as a safe default for backend.
+    const transcriptionLanguageSetting = isWizard ? "any" : (body.data?.transcriptionLanguage || body.transcriptionLanguage || "any");
+
+    const savedTranscriptMemoryModeSetting = body.data?.savedTranscriptMemoryMode || body.savedTranscriptMemoryMode || "disabled";
+    const individualMemoryToggleStates = body.data?.individualMemoryToggleStates || body.individualMemoryToggleStates || {};
+    const savedTranscriptSummaries = body.data?.savedTranscriptSummaries || body.savedTranscriptSummaries || [];
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
     const { transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, transcriptionLanguage, model: _model, temperature: _temp, initialContext: _ic, currentDraftContent: _cdc, disableRetrieval: _dr, ...dataWithoutSettings } = body.data || {};
