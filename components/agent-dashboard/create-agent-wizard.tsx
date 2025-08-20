@@ -188,97 +188,105 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
         </div>
       </div>
 
-      <form onSubmit={handleCreateAgent}>
+      <form onSubmit={handleCreateAgent} autoComplete="off">
         <div className="min-h-[300px]">
           {/* Step 1: Agent Identity */}
-          <div className={cn("space-y-6", { 'hidden': step !== 1 })}>
-            <div className="space-y-2">
-              <Label htmlFor="agent-name">Agent Name</Label>
-              <Input
-                id="agent-name"
-                value={agentName}
-                onChange={(e) => setAgentName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                placeholder="e.g., customer-support-bot"
-                required
-              />
-              <p className="text-xs text-muted-foreground">Unique name, lowercase letters, numbers, and hyphens only. Cannot be changed.</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-description">Description</Label>
-              <Textarea
-                id="agent-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="A brief description of the agent's purpose."
-                rows={3}
-              />
-            </div>
-          </div>
-
-          {/* Step 2: Core Knowledge */}
-          <div className={cn("space-y-6", { 'hidden': step !== 2 })}>
-             <DocumentUpload
-                title="Core Knowledge (S3)"
-                description="Upload documents (.md, .txt) that form the agent's core, static knowledge base. These are stored in S3."
-                type="memory"
-                idSuffix="s3"
-                onFilesAdded={setS3Docs}
-                allowRemove={true}
-                persistKey={`wizard-s3-docs-${agentName}`}
-            />
-            <DocumentUpload
-                title="Vector Memory (Pinecone)"
-                description="Upload documents to be chunked, embedded, and stored in Pinecone for semantic search."
-                type="memory"
-                idSuffix="pinecone"
-                onFilesAdded={setPineconeDocs}
-                allowRemove={true}
-                persistKey={`wizard-pinecone-docs-${agentName}`}
-            />
-          </div>
-
-          {/* Step 3: System Prompt */}
-          <div className={cn("flex h-[60vh] gap-4", { 'hidden': step !== 3 })}>
-            <div className="w-1/2 flex flex-col">
-              <Label className="mb-2">AI Assistant</Label>
-              <div className="flex-1 border rounded-lg overflow-hidden h-full">
-                <WizardChatInterface
-                  wizardSessionId={wizardSessionId}
-                  agentName="_aicreator"
-                  initialContext={docContextForChat}
-                  currentDraftContent={systemPrompt}
-                  onPromptProposal={setSystemPrompt}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="agent-name">Agent Name</Label>
+                <Input
+                  id="agent-name"
+                  value={agentName}
+                  onChange={(e) => setAgentName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  placeholder="e.g., customer-support-bot"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">Unique name, lowercase letters, numbers, and hyphens only. Cannot be changed.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="agent-description">Description</Label>
+                <Textarea
+                  id="agent-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="A brief description of the agent's purpose."
+                  rows={3}
                 />
               </div>
             </div>
-            <div className="w-1/2 flex flex-col">
-                <Label className="mb-2">System Prompt Draft</Label>
-                <div className="flex-1 border rounded-lg p-2">
-                    <Textarea
-                        value={systemPrompt}
-                        onChange={(e) => setSystemPrompt(e.target.value)}
-                        className="w-full h-full resize-none border-0 focus-visible:ring-0"
-                        placeholder="Draft your system prompt here. You can copy-paste from the AI assistant."
-                    />
-                </div>
+          )}
+
+          {/* Step 2: Core Knowledge */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <DocumentUpload
+                  title="Core Knowledge (S3)"
+                  description="Upload documents (.md, .txt) that form the agent's core, static knowledge base. These are stored in S3."
+                  type="memory"
+                  idSuffix="s3"
+                  onFilesAdded={setS3Docs}
+                  allowRemove={true}
+                  persistKey={`wizard-s3-docs-${agentName}`}
+              />
+              <DocumentUpload
+                  title="Vector Memory (Pinecone)"
+                  description="Upload documents to be chunked, embedded, and stored in Pinecone for semantic search."
+                  type="memory"
+                  idSuffix="pinecone"
+                  onFilesAdded={setPineconeDocs}
+                  allowRemove={true}
+                  persistKey={`wizard-pinecone-docs-${agentName}`}
+              />
             </div>
-          </div>
+          )}
+
+          {/* Step 3: System Prompt */}
+          {step === 3 && (
+            <div className="flex h-[60vh] gap-4">
+              <div className="w-1/2 flex flex-col">
+                <Label className="mb-2">AI Assistant</Label>
+                <div className="flex-1 border rounded-lg overflow-hidden h-full">
+                  <WizardChatInterface
+                    wizardSessionId={wizardSessionId}
+                    agentName="_aicreator"
+                    initialContext={docContextForChat}
+                    currentDraftContent={systemPrompt}
+                    onPromptProposal={setSystemPrompt}
+                  />
+                </div>
+              </div>
+              <div className="w-1/2 flex flex-col">
+                  <Label className="mb-2">System Prompt Draft</Label>
+                  <div className="flex-1 border rounded-lg p-2">
+                      <Textarea
+                          value={systemPrompt}
+                          onChange={(e) => setSystemPrompt(e.target.value)}
+                          className="w-full h-full resize-none border-0 focus-visible:ring-0"
+                          placeholder="Draft your system prompt here. You can copy-paste from the AI assistant."
+                      />
+                  </div>
+              </div>
+            </div>
+          )}
           
           {/* Step 4: API Keys */}
-          <div className={cn("space-y-6", { 'hidden': step !== 4 })}>
-             <div className="space-y-2">
-                <Label htmlFor="openai-key">OpenAI API Key</Label>
-                <Input id="openai-key" type="password" value={apiKeys.openai} onChange={(e) => setApiKeys(p => ({...p, openai: e.target.value}))} />
-             </div>
-             <div className="space-y-2">
-                <Label htmlFor="anthropic-key">Anthropic API Key</Label>
-                <Input id="anthropic-key" type="password" value={apiKeys.anthropic} onChange={(e) => setApiKeys(p => ({...p, anthropic: e.target.value}))} />
-             </div>
-             <div className="space-y-2">
-                <Label htmlFor="google-key">Google API Key</Label>
-                <Input id="google-key" type="password" value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} />
-             </div>
-          </div>
+          {step === 4 && (
+            <div className="space-y-6">
+               <div className="space-y-2">
+                  <Label htmlFor="openai-key">OpenAI API Key</Label>
+                  <Input id="openai-key" name="openai-key" type="password" value={apiKeys.openai} onChange={(e) => setApiKeys(p => ({...p, openai: e.target.value}))} autoComplete="new-password" />
+               </div>
+               <div className="space-y-2">
+                  <Label htmlFor="anthropic-key">Anthropic API Key</Label>
+                  <Input id="anthropic-key" name="anthropic-key" type="password" value={apiKeys.anthropic} onChange={(e) => setApiKeys(p => ({...p, anthropic: e.target.value}))} autoComplete="new-password" />
+               </div>
+               <div className="space-y-2">
+                  <Label htmlFor="google-key">Google API Key</Label>
+                  <Input id="google-key" name="google-key" type="password" value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} autoComplete="new-password" />
+               </div>
+            </div>
+          )}
         </div>
         
         {error && (

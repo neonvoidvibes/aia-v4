@@ -146,15 +146,17 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
       <div className="p-2 border-t">
         <div className="relative flex items-center">
           <input
+            type="text"
+            name={`wizard-chat-${wizardSessionId}`}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="text"
             ref={inputRef}
             value={input}
             onChange={handleInputChange}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                onSubmit();
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit(); } }}
             placeholder="Describe the agent..."
             className="w-full bg-transparent border-none outline-none px-3 py-2 text-sm text-[hsl(var(--input-field-text-color))]"
             disabled={isLoading}
