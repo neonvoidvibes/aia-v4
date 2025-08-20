@@ -85,7 +85,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     if (step > 1) {
       setStep(step - 1);
     } else {
-      cleanup();
+      // We no longer clean up here to preserve state when returning to the list view.
+      // Cleanup is now handled by the unmount effect triggered by the parent's key change.
       onBack();
     }
   };
@@ -117,6 +118,14 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     }
     setDocContextForChat(combinedContent);
   };
+
+  useEffect(() => {
+    // This effect runs when the component mounts. The returned function is the cleanup
+    // that runs when the component unmounts (e.g., when the parent dialog is closed and the key changes).
+    return () => {
+      cleanup();
+    };
+  }, []); // The empty dependency array ensures this effect runs only once on mount and unmount.
 
   const handleCreateAgent = async (e: React.FormEvent) => {
     e.preventDefault();
