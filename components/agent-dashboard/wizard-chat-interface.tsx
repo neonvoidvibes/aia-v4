@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useChat, type Message } from "@ai-sdk/react";
 import { ArrowUp, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { G_DEFAULT_WELCOME_MESSAGE } from '@/lib/themes';
+import ThinkingIndicator from '@/components/ui/ThinkingIndicator';
 
 // Simplified markdown formatter from the main chat interface
 const formatAssistantMessage = (text: string): string => {
@@ -48,7 +49,11 @@ interface WizardChatInterfaceProps {
 }
 
 const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSessionId, agentName, initialContext, currentDraftContent, onPromptProposal }) => {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
+  const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
+  const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     // By passing a unique ID here, we ensure that useChat creates a new,
     // isolated conversation that doesn't reuse history from localStorage from previous wizard sessions.
     id: wizardSessionId,
@@ -79,6 +84,47 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    if (!lastMessage) return;
+
+    const proposalTrigger = "```json";
+
+    // Phase 1: Detect proposal start during the stream to show the "working" indicator.
+    if (isLoading && lastMessage.role === 'assistant' && !isGeneratingProposal) {
+        if (lastMessage.content.includes(proposalTrigger)) {
+            console.log("[Doc Update] Proposal detected during stream for message:", lastMessage.id);
+            setIsGeneratingProposal(true);
+            setGeneratingProposalForMessageId(lastMessage.id);
+        }
+    }
+
+    // Phase 2: Process the completed proposal after the stream finishes.
+    if (!isLoading && lastMessage.role === 'assistant' && !processedProposalIds.has(lastMessage.id)) {
+        const { proposal, conversationalText } = extractProposal(lastMessage.content);
+        
+        if (proposal) {
+            // End the "generating proposal" UI state
+            setIsGeneratingProposal(false);
+            setGeneratingProposalForMessageId(null);
+            
+            // Permanently clean the message in the UI state
+            setMessages(prevMessages => {
+                const newMessages = [...prevMessages];
+                const targetMessage = newMessages.find(m => m.id === lastMessage.id);
+                if (targetMessage) {
+                    targetMessage.content = conversationalText || "I've drafted a new version of the prompt in the editor on the right.";
+                }
+                return newMessages;
+            });
+
+            // Mark as processed
+            setProcessedProposalIds(prev => new Set(prev).add(lastMessage.id));
+        }
+    }
+  }, [messages, isLoading, isGeneratingProposal, processedProposalIds, setMessages]);
+
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -95,16 +141,15 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
         {messages.map((message: Message) => {
           const isUser = message.role === "user";
           
-          let displayContent = message.content;
-          let isProposalMessage = false;
+          const isGeneratingForThisMessage = isGeneratingProposal && generatingProposalForMessageId === message.id;
 
-          if (message.role === 'assistant') {
-            const { proposal, conversationalText } = extractProposal(message.content);
-            if (proposal) {
-              isProposalMessage = true;
-              // If there's conversational text before the proposal, show it. Otherwise, show a default message.
-              displayContent = conversationalText || "I've drafted a new version of the prompt in the editor on the right.";
-            }
+          let displayContent = message.content;
+          
+          if (isGeneratingForThisMessage) {
+              const proposalIndex = displayContent.indexOf('```json');
+              if (proposalIndex !== -1) {
+                  displayContent = displayContent.substring(0, proposalIndex).trim();
+              }
           }
 
           return (
@@ -120,8 +165,7 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
                   "message-bubble max-w-[85%] px-4 py-2 rounded-2xl",
                   isUser
                     ? "bg-[hsl(var(--input-gray))] text-[hsl(var(--user-message-text-color))]"
-                    : "bg-transparent text-[hsl(var(--assistant-message-text-color))]",
-                  isProposalMessage && "italic text-muted-foreground" // Style the confirmation message differently
+                    : "bg-transparent text-[hsl(var(--assistant-message-text-color))]"
                 )}
               >
                 <span dangerouslySetInnerHTML={{ __html: formatAssistantMessage(displayContent) }} />
@@ -129,7 +173,17 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
             </motion.div>
           );
         })}
-        {isLoading && (
+        {isGeneratingProposal && (
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex justify-start"
+            >
+                <ThinkingIndicator text="Working..." showTime={false} />
+            </motion.div>
+        )}
+        {isLoading && !isGeneratingProposal && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
