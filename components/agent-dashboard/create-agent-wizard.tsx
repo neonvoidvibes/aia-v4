@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -130,6 +130,19 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     };
   }, []); // The empty dependency array ensures this effect runs only once on mount and unmount.
 
+  const handleCopyPrompt = () => {
+    if (!systemPrompt) {
+      toast.info("There is no prompt content to copy.");
+      return;
+    }
+    navigator.clipboard.writeText(systemPrompt).then(() => {
+      toast.success("System prompt copied to clipboard!");
+    }).catch(err => {
+      console.error("Failed to copy text: ", err);
+      toast.error("Failed to copy prompt to clipboard.");
+    });
+  };
+
   const handleCreateAgent = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -245,7 +258,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
           {step === 3 && (
             <div className="flex h-[60vh] gap-4">
               <div className="w-1/2 flex flex-col">
-                <Label className="mb-2">AI Assistant</Label>
+                <Label className="mb-2 text-center text-lg font-medium">AI Assistant</Label>
                 <div className="flex-1 border rounded-lg overflow-hidden h-full">
                   <WizardChatInterface
                     wizardSessionId={wizardSessionId}
@@ -257,12 +270,22 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 </div>
               </div>
               <div className="w-1/2 flex flex-col">
-                  <Label className="mb-2">System Prompt Draft</Label>
-                  <div className="flex-1 border rounded-lg p-2">
+                  <Label className="mb-2 text-center text-lg font-medium">System Prompt Draft</Label>
+                  <div className="flex-1 border rounded-lg p-2 relative">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7 z-10"
+                        onClick={handleCopyPrompt}
+                        title="Copy prompt"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Textarea
                           value={systemPrompt}
                           onChange={(e) => setSystemPrompt(e.target.value)}
-                          className="w-full h-full resize-none border-0 focus-visible:ring-0"
+                          className="w-full h-full resize-none border-0 focus-visible:ring-0 absolute inset-0 p-2"
                           placeholder="Draft your system prompt here. You can copy-paste from the AI assistant."
                       />
                   </div>
