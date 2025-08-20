@@ -152,6 +152,9 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
         role: 'system',
         content: content,
       }]);
+    },
+    scrollToBottom: () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }));
   
