@@ -204,7 +204,14 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
       setCurrentPromptIndex(newIndex);
       if (newIndex !== lastInjectedVersionIndex) {
         const newVersionTitle = `version ${newIndex + 1}`;
-        wizardChatRef.current?.injectSystemMessage(`Switched to ${newVersionTitle}: Conversation will proceed from here.`);
+        wizardChatRef.current?.injectSystemMessage(
+          `Switched to ${newVersionTitle}: Conversation will proceed from here.`
+        );
+
+        // Inject authoritative draft, hidden from UI but visible to LLM
+        wizardChatRef.current?.injectHiddenSystemMessage(
+          `<current_draft>\n${promptHistory[newIndex]}\n</current_draft>`
+        );
         setTimeout(() => wizardChatRef.current?.scrollToBottom(), 0);
         setLastInjectedVersionIndex(newIndex);
       }

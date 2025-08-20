@@ -171,6 +171,17 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
         return newMessages;
       });
     },
+    injectHiddenSystemMessage: (content: string) => {
+      setMessages(prevMessages => [
+        ...prevMessages,
+        {
+          id: `hidden-${crypto.randomUUID()}`,
+          role: 'system',
+          content,
+          hidden: true, // <-- not rendered, but still sent to backend
+        },
+      ]);
+    },
     scrollToBottom: () => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -180,6 +191,7 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
     <div className="flex flex-col h-full bg-background">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message: Message) => {
+          if ((message as any).hidden) return null;
           const isUser = message.role === "user";
           const isSystem = message.role === "system";
           
