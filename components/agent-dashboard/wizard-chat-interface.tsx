@@ -124,10 +124,13 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
   }, [messages, isLoading, isGeneratingProposal, processedProposalIds, setMessages]);
 
 
-  // Auto-scrolling is disabled for the wizard chat interface as requested.
-  // useEffect(() => {
-  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  // }, [messages]);
+  useEffect(() => {
+    // Auto-scroll to the bottom only when the user sends a message.
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'user') {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   const onSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
