@@ -3,9 +3,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { ArrowLeft, Loader2, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Loader2, Copy, ChevronLeft, ChevronRight, UserPlus, Trash2, Eye, EyeOff, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,11 +41,43 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
   const [draftPrompt, setDraftPrompt] = useState(''); // New state for the editor
   const [isDirtySinceVersion, setIsDirtySinceVersion] = useState(false);
 
+  // State for user access management (Step 4)
+  const [allUsers, setAllUsers] = useState<{ id: string; email: string }[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [newUsers, setNewUsers] = useState<{ id: string; email: string; password: string }[]>([]);
+  const [passwordVisibility, setPasswordVisibility] = useState<Record<string, boolean>>({});
+
+
   // Effect to sync editor when history/index changes
   useEffect(() => {
     setDraftPrompt(promptHistory[currentPromptIndex] ?? '');
     setIsDirtySinceVersion(false); // Reset dirty flag on version switch
   }, [currentPromptIndex, promptHistory]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      // Fetch users if we are on step 4 and the list hasn't been populated yet.
+      if (step === 4 && allUsers.length === 0) {
+        setIsLoading(true); // Use a general loading state for feedback
+        setError(null);
+        try {
+          const response = await fetch('/api/users/list');
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch users.');
+          }
+          const data = await response.json();
+          setAllUsers(data);
+        } catch (err: any) {
+          setError(`Could not load existing users: ${err.message}`);
+          toast.error(`Could not load existing users: ${err.message}`);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    fetchUsers();
+  }, [step, allUsers.length]);
 
 
   const wizardChatRef = useRef<any>(null); // Ref for chat interface methods
@@ -74,7 +108,8 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
     { number: 1, title: 'Agent Identity' },
     { number: 2, title: 'Core Knowledge' },
     { number: 3, title: 'System Prompt' },
-    { number: 4, title: 'API Keys (Optional)' },
+    { number: 4, title: 'User Access' },
+    { number: 5, title: 'API Keys (Optional)' },
   ];
 
   const currentStep = STEPS.find(s => s.number === step);
@@ -175,6 +210,55 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
     };
   }, []); // The empty dependency array ensures this effect runs only once on mount and unmount.
 
+  // --- User Access Management Functions ---
+  const handleToggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
+
+  const generatePassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+    let password = '';
+    for (let i = 0; i < 14; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const handleAddNewUser = () => {
+    const newId = crypto.randomUUID();
+    setNewUsers(prev => [...prev, { id: newId, email: '', password: generatePassword() }]);
+    setPasswordVisibility(prev => ({...prev, [newId]: true})); // Show password for new user by default
+  };
+
+  const handleUpdateNewUser = (id: string, field: 'email' | 'password', value: string) => {
+    setNewUsers(prev => prev.map(user => user.id === id ? { ...user, [field]: value } : user));
+  };
+  
+  const handleRemoveNewUser = (id: string) => {
+    setNewUsers(prev => prev.filter(user => user.id !== id));
+  };
+
+  const handleCopyPassword = (password: string) => {
+    navigator.clipboard.writeText(password).then(() => {
+      toast.success("Password copied to clipboard!");
+    }).catch(err => {
+      toast.error("Failed to copy password.");
+    });
+  };
+
+  const handleTogglePasswordVisibility = (id: string) => {
+    setPasswordVisibility(prev => ({...prev, [id]: !prev[id]}));
+  };
+  // --- End User Access Management Functions ---
+
   const handleCopyPrompt = () => {
     if (!draftPrompt) {
       toast.info("There is no prompt content to copy.");
@@ -257,6 +341,8 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
     formData.append('description', description);
     formData.append('system_prompt_content', draftPrompt);
     formData.append('api_keys', JSON.stringify(apiKeys));
+    formData.append('user_ids_to_grant_access', JSON.stringify(Array.from(selectedUserIds)));
+    formData.append('new_users_to_create', JSON.stringify(newUsers.map(({ id, ...rest }) => rest))); // Don't send client-side temp id
 
     s3Docs.forEach(file => {
       if (file.content) {
@@ -417,9 +503,100 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
               </div>
             </div>
           )}
-          
-          {/* Step 4: API Keys */}
+
+          {/* Step 4: User Access */}
           {step === 4 && (
+            <div className="space-y-8">
+              {/* Grant access to existing users */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Grant Access to Existing Users</h3>
+                <p className="text-sm text-muted-foreground mb-4">Select existing users who should have access to this new agent.</p>
+                <ScrollArea className="h-48 rounded-md border p-3">
+                  <div className="space-y-3">
+                    {allUsers.length > 0 ? (
+                      allUsers.map(user => (
+                        <div key={user.id} className="flex items-center space-x-3">
+                          <Checkbox
+                            id={`user-access-${user.id}`}
+                            checked={selectedUserIds.has(user.id)}
+                            onCheckedChange={() => handleToggleUserSelection(user.id)}
+                          />
+                          <Label htmlFor={`user-access-${user.id}`} className="font-normal cursor-pointer">
+                            {user.email}
+                          </Label>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        {isLoading ? 'Loading users...' : 'No existing users found.'}
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Create and grant access to new users */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Create & Grant Access to New Users</h3>
+                    <p className="text-sm text-muted-foreground">Add new users to the platform and automatically grant them access to this agent.</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddNewUser}>
+                    <UserPlus className="mr-2 h-4 w-4" /> Add User
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  {newUsers.map((user, index) => (
+                    <div key={user.id} className="p-4 border rounded-md relative group">
+                      <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-50 group-hover:opacity-100" onClick={() => handleRemoveNewUser(user.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`new-user-email-${user.id}`}>Email</Label>
+                          <Input
+                            id={`new-user-email-${user.id}`}
+                            type="email"
+                            placeholder="new.user@example.com"
+                            value={user.email}
+                            onChange={(e) => handleUpdateNewUser(user.id, 'email', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`new-user-password-${user.id}`}>Password</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id={`new-user-password-${user.id}`}
+                              type={passwordVisibility[user.id] ? "text" : "password"}
+                              value={user.password}
+                              onChange={(e) => handleUpdateNewUser(user.id, 'password', e.target.value)}
+                            />
+                            <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleTogglePasswordVisibility(user.id)}>
+                               {passwordVisibility[user.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleUpdateNewUser(user.id, 'password', generatePassword())}>
+                                <RefreshCcw className="h-4 w-4" />
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleCopyPassword(user.password)}>
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Auto-generated. Please save this password securely before proceeding.</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {newUsers.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No new users added yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Step 5: API Keys */}
+          {step === 5 && (
             <div className="space-y-6">
                <div className="space-y-2">
                   <Label htmlFor="openai-key">OpenAI API Key</Label>

@@ -108,7 +108,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                 <div>Editing Agent: {selectedAgent?.name} (Not Implemented) <Button onClick={() => setView('list')}>Back</Button></div>
              </div>
           </div>
-          {view === 'create' && wizardStep === 4 && (
+          {view === 'create' && wizardStep === 5 && (
             <div className="flex justify-end p-4 border-t">
                  <Button 
                     type="button" 
