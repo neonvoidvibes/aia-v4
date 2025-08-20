@@ -26,12 +26,14 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const refreshAgentListRef = useRef<() => void>();
 
-  const handleAgentCreated = () => {
+  const handleAgentCreated = async () => {
+    // This function is now called *after* the API call is successful.
+    // It should first refresh the list, then switch the view.
+    if (refreshAgentListRef.current) {
+      await refreshAgentListRef.current();
+    }
     setView('list');
     setWizardKey(Date.now()); // Reset wizard for next time
-    if (refreshAgentListRef.current) {
-      refreshAgentListRef.current();
-    }
   };
 
   const handleCloseRequest = () => {

@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 
 interface CreateAgentWizardProps {
   onBack: () => void;
-  onAgentCreated: () => void;
+  onAgentCreated: () => Promise<void>;
 }
 
 const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCreated }) => {
@@ -246,7 +246,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     }
   };
 
-  const handleCreateAgent = async () => {
+  const handleCreateAgent = async (): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
 
@@ -270,7 +270,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     try {
       const response = await fetch('/api/agent/create', {
         method: 'POST',
-        body: formData, // No Content-Type header needed, browser sets it for FormData
+        body: formData,
       });
 
       const result = await response.json();
@@ -281,10 +281,12 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
 
       toast.success(`Agent "${agentName}" created successfully!`);
       cleanup();
-      onAgentCreated();
+      await onAgentCreated();
+      return true;
     } catch (err: any) {
       setError(err.message);
       toast.error(`Error: ${err.message}`);
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -443,7 +445,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
               {isCheckingName ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</> : 'Next'}
             </Button>
           ) : (
-            <Button type="button" onClick={handleCreateAgent} disabled={isLoading || !agentName.trim()}>
+            <Button type="button" onClick={() => handleCreateAgent()} disabled={isLoading || !agentName.trim()}>
               {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Complete and Create Agent'}
             </Button>
           )}
