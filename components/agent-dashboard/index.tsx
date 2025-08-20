@@ -133,6 +133,11 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                 <div>Editing Agent: {selectedAgent?.name} (Not Implemented) <Button onClick={() => setView('list')}>Back</Button></div>
              </div>
           </div>
+          {view === 'list' && (
+            <div className="flex justify-end items-center gap-4 p-4 border-t flex-shrink-0">
+                <Button variant="outline" onClick={handleCloseRequest}>Exit</Button>
+            </div>
+          )}
           {view === 'create' && (
             <div className="flex justify-end items-center gap-4 p-4 border-t flex-shrink-0">
                 <Button variant="outline" onClick={handleCloseRequest}>Exit</Button>
