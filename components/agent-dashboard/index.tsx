@@ -102,7 +102,11 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
           </div>
           {view === 'create' && (
             <div className="flex justify-end p-4 border-t">
-                 <Button type="button" onClick={handleFinalCreateAgent} disabled={isCreatingAgent}>
+                 <Button
+                    type="button"
+                    onClick={handleFinalCreateAgent}
+                    disabled={isCreatingAgent || wizardRef.current?.step !== 4}
+                 >
                     {isCreatingAgent ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Complete and Create Agent'}
                 </Button>
             </div>

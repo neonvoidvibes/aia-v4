@@ -21,6 +21,7 @@ interface CreateAgentWizardProps {
 
 export interface CreateAgentWizardHandle {
   handleCreateAgent: () => Promise<boolean>;
+  step: number;
 }
 
 const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardProps>(({ onBack }, ref) => {
@@ -296,6 +297,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
   useImperativeHandle(ref, () => ({
     handleCreateAgent,
+    step: step,
   }));
 
   return (
