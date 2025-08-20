@@ -49,6 +49,8 @@ interface WizardChatInterfaceProps {
 
 const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSessionId, agentName, initialContext, currentDraftContent, onPromptProposal }) => {
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    // By passing a unique ID here, we ensure that useChat creates a new,
+    // isolated conversation that doesn't reuse history from localStorage from previous wizard sessions.
     id: wizardSessionId,
     api: "/api/proxy-chat",
     body: {
@@ -56,6 +58,8 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
       initialContext: initialContext,
       currentDraftContent: currentDraftContent,
       disableRetrieval: true, // Explicitly disable RAG for this process
+      // Pass the unique session ID in the body as well, so the backend can differentiate sessions.
+      session_id: wizardSessionId
     },
     initialMessages: [{
         id: 'initial-wizard-prompt',
