@@ -221,8 +221,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     }
   };
 
-  const handleCreateAgent = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateAgent = async () => {
     setIsLoading(true);
     setError(null);
 
@@ -279,7 +278,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
         </div>
       </div>
 
-      <form onSubmit={handleCreateAgent} autoComplete="off">
+      <form onSubmit={(e) => e.preventDefault()} autoComplete="off">
         <div className="min-h-[300px]">
           {/* Step 1: Agent Identity */}
           {step === 1 && (
@@ -419,7 +418,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
               Next
             </Button>
           ) : (
-            <Button type="submit" disabled={isLoading || !agentName.trim()}>
+            <Button type="button" onClick={handleCreateAgent} disabled={isLoading || !agentName.trim()}>
               {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Complete and Create Agent'}
             </Button>
           )}
