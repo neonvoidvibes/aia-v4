@@ -339,11 +339,11 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 </div>
                 {promptHistory.length > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
-                    <Button variant="ghost" size="icon" onClick={handlePrevVersion} disabled={currentPromptIndex === 0} className="h-6 w-6">
+                    <Button type="button" variant="ghost" size="icon" onClick={handlePrevVersion} disabled={currentPromptIndex === 0} className="h-6 w-6">
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <span>Version {currentPromptIndex + 1} of {promptHistory.length}</span>
-                    <Button variant="ghost" size="icon" onClick={handleNextVersion} disabled={currentPromptIndex === promptHistory.length - 1} className="h-6 w-6">
+                    <Button type="button" variant="ghost" size="icon" onClick={handleNextVersion} disabled={currentPromptIndex === promptHistory.length - 1} className="h-6 w-6">
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
