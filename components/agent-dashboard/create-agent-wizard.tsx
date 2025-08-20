@@ -37,6 +37,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   const wizardChatRef = useRef<any>(null); // Ref for chat interface methods
   const [lastInjectedVersionIndex, setLastInjectedVersionIndex] = useState<number | null>(null);
 
+  const [isDirtySinceVersion, setIsDirtySinceVersion] = useState(false);
+
   const [docContextForChat, setDocContextForChat] = useState('');
   const [wizardSessionId] = useState(() => `wizard-session-${crypto.randomUUID()}`);
 
@@ -154,7 +156,11 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
       const newHistory = [...currentHistory];
       // If history is empty, this is the first edit. Initialize it.
       if (newHistory.length === 0) {
+        setIsDirtySinceVersion(true);
         return [newContent];
+      }
+      if (newHistory[currentPromptIndex] !== newContent) {
+        setIsDirtySinceVersion(true);
       }
       newHistory[currentPromptIndex] = newContent;
       return newHistory;
@@ -171,6 +177,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
       if (currentHistory.length === 0 && newContent.trim() === '') {
         return [];
       }
+      setIsDirtySinceVersion(false);
       return [...currentHistory, newContent];
     });
   };
@@ -189,6 +196,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     const newIndex = Math.max(0, currentPromptIndex - 1);
     if (newIndex !== currentPromptIndex) {
       setCurrentPromptIndex(newIndex);
+      setIsDirtySinceVersion(false);
       if (newIndex !== lastInjectedVersionIndex) {
         const newVersionTitle = `version ${newIndex + 1}`;
         wizardChatRef.current?.injectSystemMessage(`Switched to ${newVersionTitle}: Conversation will proceed from here.`);
@@ -202,6 +210,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     const newIndex = Math.min(promptHistory.length - 1, currentPromptIndex + 1);
     if (newIndex !== currentPromptIndex) {
       setCurrentPromptIndex(newIndex);
+      setIsDirtySinceVersion(false);
       if (newIndex !== lastInjectedVersionIndex) {
         const newVersionTitle = `version ${newIndex + 1}`;
         wizardChatRef.current?.injectSystemMessage(
@@ -342,7 +351,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                     initialContext={docContextForChat}
                     currentDraftContent={systemPrompt}
                     onNewPromptVersion={addNewPromptVersion}
-                    onUserSubmit={() => addNewPromptVersion(systemPrompt)}
+                    onUserSubmit={() => { if (isDirtySinceVersion) addNewPromptVersion(systemPrompt); }}
                   />
                 </div>
               </div>
