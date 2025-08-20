@@ -34,6 +34,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const systemPrompt = promptHistory[currentPromptIndex] ?? ''; // Use ?? for safety
 
+  const wizardChatRef = useRef<any>(null); // Ref for chat interface methods
+
   const [docContextForChat, setDocContextForChat] = useState('');
   const [wizardSessionId] = useState(() => `wizard-session-${crypto.randomUUID()}`);
 
@@ -183,11 +185,17 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
 
 
   const handlePrevVersion = () => {
-    setCurrentPromptIndex(prev => Math.max(0, prev - 1));
+    const newIndex = Math.max(0, currentPromptIndex - 1);
+    setCurrentPromptIndex(newIndex);
+    const newVersionTitle = `Version ${newIndex + 1}`; // You might want a more descriptive title
+    wizardChatRef.current?.injectSystemMessage(`The draft editor has been updated to ${newVersionTitle}. The conversation will now proceed based on this version.`);
   };
 
   const handleNextVersion = () => {
-    setCurrentPromptIndex(prev => Math.min(promptHistory.length - 1, prev + 1));
+    const newIndex = Math.min(promptHistory.length - 1, currentPromptIndex + 1);
+    setCurrentPromptIndex(newIndex);
+    const newVersionTitle = `Version ${newIndex + 1}`; // You might want a more descriptive title
+    wizardChatRef.current?.injectSystemMessage(`The draft editor has been updated to ${newVersionTitle}. The conversation will now proceed based on this version.`);
   };
 
   const handleCreateAgent = async (e: React.FormEvent) => {
@@ -308,6 +316,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 <Label className="mb-2 text-center text-lg font-medium">AI Assistant</Label>
                 <div className="flex-1 border rounded-lg overflow-hidden h-full">
                   <WizardChatInterface
+                    ref={wizardChatRef}
                     wizardSessionId={wizardSessionId}
                     agentName="_aicreator"
                     initialContext={docContextForChat}

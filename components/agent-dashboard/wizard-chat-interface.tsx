@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { useChat, type Message } from "@ai-sdk/react";
 import { ArrowUp, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -49,7 +49,7 @@ interface WizardChatInterfaceProps {
   onUserSubmit: () => void;
 }
 
-const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSessionId, agentName, initialContext, currentDraftContent, onNewPromptVersion, onUserSubmit }) => {
+const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardSessionId, agentName, initialContext, currentDraftContent, onNewPromptVersion, onUserSubmit }, ref) => {
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
   const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
   const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
@@ -144,12 +144,23 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
       });
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    injectSystemMessage: (content: string) => {
+      setMessages(prevMessages => [...prevMessages, {
+        id: `system-${Date.now()}`,
+        role: 'system',
+        content: content,
+      }]);
+    }
+  }));
   
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message: Message) => {
           const isUser = message.role === "user";
+          const isSystem = message.role === "system";
           
           const isGeneratingForThisMessage = isGeneratingProposal && generatingProposalForMessageId === message.id;
 
@@ -173,9 +184,9 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
               <div
                 className={cn(
                   "message-bubble max-w-[85%] px-4 py-2 rounded-2xl",
-                  isUser
-                    ? "bg-[hsl(var(--input-gray))] text-[hsl(var(--user-message-text-color))]"
-                    : "bg-transparent text-[hsl(var(--assistant-message-text-color))]"
+                  isUser && "bg-[hsl(var(--input-gray))] text-[hsl(var(--user-message-text-color))]",
+                  message.role === 'assistant' && "bg-transparent text-[hsl(var(--assistant-message-text-color))]",
+                  isSystem && "w-full text-center text-xs text-muted-foreground italic bg-transparent px-0"
                 )}
               >
                 <span dangerouslySetInnerHTML={{ __html: formatAssistantMessage(displayContent) }} />
@@ -237,6 +248,8 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
       </div>
     </div>
   );
-};
+});
+
+WizardChatInterface.displayName = 'WizardChatInterface';
 
 export default WizardChatInterface;
