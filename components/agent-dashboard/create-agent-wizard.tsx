@@ -284,7 +284,6 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
       toast.success(`Agent "${agentName}" created successfully!`);
       cleanup();
-      await onAgentCreated();
       return true;
     } catch (err: any) {
       setError(err.message);

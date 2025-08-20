@@ -90,7 +90,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                   setSelectedAgent(agent);
                   console.log("Edit clicked for:", agent.name);
                 }}
-                onRefresh={handleAgentCreated as any}
+                onRefresh={refreshAgentListRef as any}
               />
             </div>
             <div style={{ display: view === 'create' ? 'block' : 'none' }}>
