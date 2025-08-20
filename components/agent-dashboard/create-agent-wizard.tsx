@@ -190,8 +190,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     if (newIndex !== currentPromptIndex) {
       setCurrentPromptIndex(newIndex);
       if (newIndex !== lastInjectedVersionIndex) {
-        const newVersionTitle = `Version ${newIndex + 1}`;
-        wizardChatRef.current?.injectSystemMessage(`Switched to ${newVersionTitle}. The conversation will now proceed based on this version.`);
+        const newVersionTitle = `version ${newIndex + 1}`;
+        wizardChatRef.current?.injectSystemMessage(`Switched to ${newVersionTitle}: Conversation will proceed from here.`);
         setLastInjectedVersionIndex(newIndex);
       }
     }
@@ -202,8 +202,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     if (newIndex !== currentPromptIndex) {
       setCurrentPromptIndex(newIndex);
       if (newIndex !== lastInjectedVersionIndex) {
-        const newVersionTitle = `Version ${newIndex + 1}`;
-        wizardChatRef.current?.injectSystemMessage(`Switched to ${newVersionTitle}. The conversation will now proceed based on this version.`);
+        const newVersionTitle = `version ${newIndex + 1}`;
+        wizardChatRef.current?.injectSystemMessage(`Switched to ${newVersionTitle}: Conversation will proceed from here.`);
         setLastInjectedVersionIndex(newIndex);
       }
     }
