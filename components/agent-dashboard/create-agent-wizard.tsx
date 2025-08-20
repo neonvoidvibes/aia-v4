@@ -53,6 +53,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   const [apiKeys, setApiKeys] = useState({ openai: '', anthropic: '', google: '' });
   
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingName, setIsCheckingName] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Effect to clean up any stale local storage from previous sessions ON MOUNT
@@ -74,18 +75,42 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
 
   const currentStep = STEPS.find(s => s.number === step);
 
-  const handleNext = () => {
-    if (step === 1 && !agentName.trim()) {
-      setError("Agent name is required.");
-      return;
+  const handleNext = async () => {
+    if (step === 1) {
+      if (!agentName.trim()) {
+        setError("Agent name is required.");
+        return;
+      }
+      
+      setIsCheckingName(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`/api/agent/name-exists?name=${encodeURIComponent(agentName.trim())}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to verify agent name.');
+        }
+
+        if (data.exists) {
+          setError(`Agent name "${agentName.trim()}" is already taken. Please choose another.`);
+          setIsCheckingName(false);
+          return;
+        }
+      } catch (err: any) {
+        setError(err.message);
+        setIsCheckingName(false);
+        return;
+      }
+      setIsCheckingName(false);
     }
+
     setError(null);
     if (step < STEPS.length) {
-      // If leaving the prompt step and there are unsaved manual edits, save them as a new version.
       if (step === 3 && isDirtySinceVersion) {
         addNewPromptVersion(draftPrompt);
       }
-      // When moving to step 3, prepare the document context for the chat
       if (step === 2) {
         prepareDocumentContext();
       }
@@ -414,8 +439,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
 
         <div className="flex justify-end gap-4 mt-8">
           {step < STEPS.length ? (
-            <Button type="button" onClick={handleNext} disabled={step === 1 && !agentName.trim()}>
-              Next
+            <Button type="button" onClick={handleNext} disabled={isCheckingName || (step === 1 && !agentName.trim())}>
+              {isCheckingName ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</> : 'Next'}
             </Button>
           ) : (
             <Button type="button" onClick={handleCreateAgent} disabled={isLoading || !agentName.trim()}>
