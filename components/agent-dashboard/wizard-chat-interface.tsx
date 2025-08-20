@@ -45,10 +45,11 @@ interface WizardChatInterfaceProps {
   agentName: string;
   initialContext: string;
   currentDraftContent: string;
-  onPromptProposal: (prompt: string) => void;
+  onNewPromptVersion: (prompt: string) => void;
+  onUserSubmit: () => void;
 }
 
-const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSessionId, agentName, initialContext, currentDraftContent, onPromptProposal }) => {
+const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSessionId, agentName, initialContext, currentDraftContent, onNewPromptVersion, onUserSubmit }) => {
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
   const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
   const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
@@ -74,8 +75,8 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
     onFinish: (message) => {
         const { proposal } = extractProposal(message.content);
         if (proposal) {
-            console.log("AI proposed a system prompt. Updating editor.");
-            onPromptProposal(proposal);
+            console.log("AI proposed a system prompt. Updating editor with new version.");
+            onNewPromptVersion(proposal);
         }
     }
   });
@@ -135,6 +136,7 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
   const onSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
     if (input.trim()) {
+      onUserSubmit();
       handleSubmit(e);
     }
   };

@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, Loader2, Copy } from 'lucide-react';
+import { ArrowLeft, Loader2, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,8 +29,11 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   const [s3Docs, setS3Docs] = useState<AttachmentFile[]>([]);
   const [pineconeDocs, setPineconeDocs] = useState<AttachmentFile[]>([]);
   
-  // State for system prompt
-  const [systemPrompt, setSystemPrompt] = useState('');
+  // State for system prompt versioning
+  const [promptHistory, setPromptHistory] = useState<string[]>([]);
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  const systemPrompt = promptHistory[currentPromptIndex] ?? ''; // Use ?? for safety
+
   const [docContextForChat, setDocContextForChat] = useState('');
   const [wizardSessionId] = useState(() => `wizard-session-${crypto.randomUUID()}`);
 
@@ -137,10 +140,56 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     }
     navigator.clipboard.writeText(systemPrompt).then(() => {
       toast.success("System prompt copied to clipboard!");
+      // Also create a new version on copy
+      addNewPromptVersion(systemPrompt);
     }).catch(err => {
       console.error("Failed to copy text: ", err);
       toast.error("Failed to copy prompt to clipboard.");
     });
+  };
+
+  const updateCurrentPrompt = (newContent: string) => {
+    setPromptHistory(currentHistory => {
+      const newHistory = [...currentHistory];
+      // If history is empty, this is the first edit. Initialize it.
+      if (newHistory.length === 0) {
+        return [newContent];
+      }
+      newHistory[currentPromptIndex] = newContent;
+      return newHistory;
+    });
+  };
+
+  const addNewPromptVersion = (newContent: string) => {
+    setPromptHistory(currentHistory => {
+      // Don't add if it's the same as the last version
+      if (currentHistory.length > 0 && currentHistory[currentHistory.length - 1] === newContent) {
+        return currentHistory;
+      }
+      // Don't add empty strings as the first version
+      if (currentHistory.length === 0 && newContent.trim() === '') {
+        return [];
+      }
+      return [...currentHistory, newContent];
+    });
+  };
+
+  // Effect to jump to the newest version only when a version is added
+  const prevHistoryLength = useRef(promptHistory.length);
+  useEffect(() => {
+    if (promptHistory.length > prevHistoryLength.current) {
+      setCurrentPromptIndex(promptHistory.length - 1);
+    }
+    prevHistoryLength.current = promptHistory.length;
+  }, [promptHistory]);
+
+
+  const handlePrevVersion = () => {
+    setCurrentPromptIndex(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextVersion = () => {
+    setCurrentPromptIndex(prev => Math.min(promptHistory.length - 1, prev + 1));
   };
 
   const handleCreateAgent = async (e: React.FormEvent) => {
@@ -265,12 +314,13 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                     agentName="_aicreator"
                     initialContext={docContextForChat}
                     currentDraftContent={systemPrompt}
-                    onPromptProposal={setSystemPrompt}
+                    onNewPromptVersion={addNewPromptVersion}
+                    onUserSubmit={() => addNewPromptVersion(systemPrompt)}
                   />
                 </div>
               </div>
               <div className="w-1/2 flex flex-col">
-                <Label className="mb-2 text-center text-lg font-medium">System Prompt Draft</Label>
+                <Label className="mb-1 text-center text-lg font-medium">System Prompt Draft</Label>
                 <div className="flex-1 border rounded-lg relative">
                   <Button
                     type="button"
@@ -284,11 +334,22 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                   </Button>
                   <Textarea
                     value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    onChange={(e) => updateCurrentPrompt(e.target.value)}
                     className="w-full h-full resize-none border-0 p-3 pr-12"
                     placeholder="Draft your system prompt here. You can copy-paste from the AI assistant."
                   />
                 </div>
+                {promptHistory.length > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
+                    <Button variant="ghost" size="icon" onClick={handlePrevVersion} disabled={currentPromptIndex === 0} className="h-6 w-6">
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span>Version {currentPromptIndex + 1} of {promptHistory.length}</span>
+                    <Button variant="ghost" size="icon" onClick={handleNextVersion} disabled={currentPromptIndex === promptHistory.length - 1} className="h-6 w-6">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
