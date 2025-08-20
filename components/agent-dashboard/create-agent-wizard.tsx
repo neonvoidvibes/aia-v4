@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +32,8 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   // State for system prompt
   const [systemPrompt, setSystemPrompt] = useState('');
   const [docContextForChat, setDocContextForChat] = useState('');
+  const [wizardSessionId] = useState(() => `wizard-session-${crypto.randomUUID()}`);
+
 
   // State for API Keys (Phase 2.3)
   const [apiKeys, setApiKeys] = useState({ openai: '', anthropic: '', google: '' });
@@ -172,11 +175,23 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     }
   };
   
-  const stepContent = () => {
-    switch (step) {
-      case 1:
-        return (
-          <div className="space-y-6">
+  return (
+    <div>
+      <Button variant="ghost" onClick={handleBack} className="mb-4">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      </Button>
+
+      <div className="flex justify-between items-center mb-6">
+        <div>
+            <h2 className="text-2xl font-bold">Create New Agent</h2>
+            <p className="text-muted-foreground">Step {step}: {currentStep?.title}</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleCreateAgent}>
+        <div className="min-h-[300px]">
+          {/* Step 1: Agent Identity */}
+          <div className={cn("space-y-6", { 'hidden': step !== 1 })}>
             <div className="space-y-2">
               <Label htmlFor="agent-name">Agent Name</Label>
               <Input
@@ -199,11 +214,10 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
               />
             </div>
           </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-6">
-            <DocumentUpload
+
+          {/* Step 2: Core Knowledge */}
+          <div className={cn("space-y-6", { 'hidden': step !== 2 })}>
+             <DocumentUpload
                 title="Core Knowledge (S3)"
                 description="Upload documents (.md, .txt) that form the agent's core, static knowledge base. These are stored in S3."
                 type="memory"
@@ -222,14 +236,14 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 persistKey={`wizard-pinecone-docs-${agentName}`}
             />
           </div>
-        );
-      case 3:
-        return (
-          <div className="flex h-[60vh] gap-4">
+
+          {/* Step 3: System Prompt */}
+          <div className={cn("flex h-[60vh] gap-4", { 'hidden': step !== 3 })}>
             <div className="w-1/2 flex flex-col">
               <Label className="mb-2">AI Assistant</Label>
               <div className="flex-1 border rounded-lg overflow-hidden h-full">
                 <WizardChatInterface
+                  wizardSessionId={wizardSessionId}
                   agentName="_aicreator"
                   initialContext={docContextForChat}
                   currentDraftContent={systemPrompt}
@@ -249,10 +263,9 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 </div>
             </div>
           </div>
-        );
-       case 4:
-        return (
-          <div className="space-y-6">
+          
+          {/* Step 4: API Keys */}
+          <div className={cn("space-y-6", { 'hidden': step !== 4 })}>
              <div className="space-y-2">
                 <Label htmlFor="openai-key">OpenAI API Key</Label>
                 <Input id="openai-key" type="password" value={apiKeys.openai} onChange={(e) => setApiKeys(p => ({...p, openai: e.target.value}))} />
@@ -266,28 +279,6 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                 <Input id="google-key" type="password" value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} />
              </div>
           </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div>
-      <Button variant="ghost" onClick={handleBack} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back
-      </Button>
-
-      <div className="flex justify-between items-center mb-6">
-        <div>
-            <h2 className="text-2xl font-bold">Create New Agent</h2>
-            <p className="text-muted-foreground">Step {step}: {currentStep?.title}</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleCreateAgent}>
-        <div className="min-h-[300px]">
-          {stepContent()}
         </div>
         
         {error && (
