@@ -9,9 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import AgentList from './agent-list';
-import CreateAgentWizard from './create-agent-wizard';
+import CreateAgentWizard, { type CreateAgentWizardHandle } from './create-agent-wizard';
 import { AlertDialogConfirm } from '@/components/ui/alert-dialog-confirm';
 import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 interface AgentDashboardProps {
   isOpen: boolean;
@@ -25,15 +26,24 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
   const [wizardKey, setWizardKey] = useState(Date.now());
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const refreshAgentListRef = useRef<() => void>();
+  const wizardRef = useRef<CreateAgentWizardHandle>(null);
+  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
 
-  const handleAgentCreated = async () => {
-    // This function is now called *after* the API call is successful.
-    // It should first refresh the list, then switch the view.
-    if (refreshAgentListRef.current) {
-      await refreshAgentListRef.current();
+  const handleFinalCreateAgent = async () => {
+    if (!wizardRef.current) return;
+    setIsCreatingAgent(true);
+    const success = await wizardRef.current.handleCreateAgent();
+    setIsCreatingAgent(false);
+
+    if (success) {
+      // Creation was successful, toast was shown in wizard. Now refresh list and switch view.
+      if (refreshAgentListRef.current) {
+        await refreshAgentListRef.current();
+      }
+      setView('list');
+      setWizardKey(Date.now()); // Reset wizard for next time
     }
-    setView('list');
-    setWizardKey(Date.now()); // Reset wizard for next time
+    // If not successful, the wizard will have shown an error toast. We just stay on the wizard page.
   };
 
   const handleCloseRequest = () => {
@@ -84,12 +94,19 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
               />
             </div>
             <div style={{ display: view === 'create' ? 'block' : 'none' }}>
-               <CreateAgentWizard key={wizardKey} onBack={() => setView('list')} onAgentCreated={handleAgentCreated} />
+               <CreateAgentWizard ref={wizardRef} key={wizardKey} onBack={() => setView('list')} />
             </div>
              <div style={{ display: view === 'edit' ? 'block' : 'none' }}>
                 <div>Editing Agent: {selectedAgent?.name} (Not Implemented) <Button onClick={() => setView('list')}>Back</Button></div>
              </div>
           </div>
+          {view === 'create' && (
+            <div className="flex justify-end p-4 border-t">
+                 <Button type="button" onClick={handleFinalCreateAgent} disabled={isCreatingAgent}>
+                    {isCreatingAgent ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Complete and Create Agent'}
+                </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <AlertDialogConfirm

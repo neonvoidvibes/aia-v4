@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { ArrowLeft, Loader2, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -17,10 +17,13 @@ import { toast } from 'sonner';
 
 interface CreateAgentWizardProps {
   onBack: () => void;
-  onAgentCreated: () => Promise<void>;
 }
 
-const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCreated }) => {
+export interface CreateAgentWizardHandle {
+  handleCreateAgent: () => Promise<boolean>;
+}
+
+const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardProps>(({ onBack }, ref) => {
   const [step, setStep] = useState(1);
   const [agentName, setAgentName] = useState('');
   const [description, setDescription] = useState('');
@@ -291,7 +294,11 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
       setIsLoading(false);
     }
   };
-  
+
+  useImperativeHandle(ref, () => ({
+    handleCreateAgent,
+  }));
+
   return (
     <div>
       <Button variant="ghost" onClick={handleBack} className="mb-4">
@@ -440,19 +447,16 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
         )}
 
         <div className="flex justify-end gap-4 mt-8">
-          {step < STEPS.length ? (
+          {step < STEPS.length && (
             <Button type="button" onClick={handleNext} disabled={isCheckingName || (step === 1 && !agentName.trim())}>
               {isCheckingName ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</> : 'Next'}
-            </Button>
-          ) : (
-            <Button type="button" onClick={() => handleCreateAgent()} disabled={isLoading || !agentName.trim()}>
-              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Complete and Create Agent'}
             </Button>
           )}
         </div>
       </form>
     </div>
   );
-};
+});
 
+CreateAgentWizard.displayName = 'CreateAgentWizard';
 export default CreateAgentWizard;
