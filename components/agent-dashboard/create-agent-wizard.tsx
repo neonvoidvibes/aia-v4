@@ -32,12 +32,18 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   // State for system prompt versioning
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
-  const systemPrompt = promptHistory[currentPromptIndex] ?? ''; // Use ?? for safety
+  const [draftPrompt, setDraftPrompt] = useState(''); // New state for the editor
+  const [isDirtySinceVersion, setIsDirtySinceVersion] = useState(false);
+
+  // Effect to sync editor when history/index changes
+  useEffect(() => {
+    setDraftPrompt(promptHistory[currentPromptIndex] ?? '');
+    setIsDirtySinceVersion(false); // Reset dirty flag on version switch
+  }, [currentPromptIndex, promptHistory]);
+
 
   const wizardChatRef = useRef<any>(null); // Ref for chat interface methods
   const [lastInjectedVersionIndex, setLastInjectedVersionIndex] = useState<number | null>(null);
-
-  const [isDirtySinceVersion, setIsDirtySinceVersion] = useState(false);
 
   const [docContextForChat, setDocContextForChat] = useState('');
   const [wizardSessionId] = useState(() => `wizard-session-${crypto.randomUUID()}`);
@@ -139,31 +145,15 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
   }, []); // The empty dependency array ensures this effect runs only once on mount and unmount.
 
   const handleCopyPrompt = () => {
-    if (!systemPrompt) {
+    if (!draftPrompt) {
       toast.info("There is no prompt content to copy.");
       return;
     }
-    navigator.clipboard.writeText(systemPrompt).then(() => {
+    navigator.clipboard.writeText(draftPrompt).then(() => {
       toast.success("System prompt copied to clipboard!");
     }).catch(err => {
       console.error("Failed to copy text: ", err);
       toast.error("Failed to copy prompt to clipboard.");
-    });
-  };
-
-  const updateCurrentPrompt = (newContent: string) => {
-    setPromptHistory(currentHistory => {
-      const newHistory = [...currentHistory];
-      // If history is empty, this is the first edit. Initialize it.
-      if (newHistory.length === 0) {
-        setIsDirtySinceVersion(true);
-        return [newContent];
-      }
-      if (newHistory[currentPromptIndex] !== newContent) {
-        setIsDirtySinceVersion(true);
-      }
-      newHistory[currentPromptIndex] = newContent;
-      return newHistory;
     });
   };
 
@@ -235,7 +225,7 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     const formData = new FormData();
     formData.append('agent_name', agentName);
     formData.append('description', description);
-    formData.append('system_prompt_content', systemPrompt);
+    formData.append('system_prompt_content', draftPrompt);
     formData.append('api_keys', JSON.stringify(apiKeys));
 
     s3Docs.forEach(file => {
@@ -349,9 +339,9 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                     wizardSessionId={wizardSessionId}
                     agentName="_aicreator"
                     initialContext={docContextForChat}
-                    currentDraftContent={systemPrompt}
+                    currentDraftContent={draftPrompt}
                     onNewPromptVersion={addNewPromptVersion}
-                    onUserSubmit={() => { if (isDirtySinceVersion) addNewPromptVersion(systemPrompt); }}
+                    onUserSubmit={() => { if (isDirtySinceVersion) addNewPromptVersion(draftPrompt); }}
                   />
                 </div>
               </div>
@@ -369,8 +359,11 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
                     <Copy className="h-4 w-4" />
                   </Button>
                   <Textarea
-                    value={systemPrompt}
-                    onChange={(e) => updateCurrentPrompt(e.target.value)}
+                    value={draftPrompt}
+                    onChange={(e) => {
+                      setDraftPrompt(e.target.value);
+                      setIsDirtySinceVersion(true);
+                    }}
                     className="w-full h-full resize-none border-0 p-3 pr-12"
                     placeholder="Draft your system prompt here. You can copy-paste from the AI assistant."
                   />
