@@ -152,25 +152,18 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
   useImperativeHandle(ref, () => ({
     injectSystemMessage: (content: string) => {
       setMessages(prevMessages => {
-        const newMessages = [...prevMessages];
-        const existingMsgIndex = newMessages.findIndex(m => m.id === SYSTEM_VERSION_MESSAGE_ID);
-
-        if (existingMsgIndex !== -1) {
-          // Update existing message
-          newMessages[existingMsgIndex] = {
-            ...newMessages[existingMsgIndex],
-            content: content,
-            createdAt: new Date(), // Update timestamp
-          };
-        } else {
-          // Add new message
-          newMessages.push({
-            id: SYSTEM_VERSION_MESSAGE_ID,
-            role: 'system',
-            content: content,
-          });
-        }
-        return newMessages;
+        // Filter out the previous version-tracker message to move it to the bottom
+        const filteredMessages = prevMessages.filter(m => m.id !== SYSTEM_VERSION_MESSAGE_ID);
+        
+        // Add the new/updated message to the end of the array
+        filteredMessages.push({
+          id: SYSTEM_VERSION_MESSAGE_ID,
+          role: 'system',
+          content: content,
+          createdAt: new Date(), // Update timestamp
+        });
+        
+        return filteredMessages;
       });
     },
     injectHiddenSystemMessage: (content: string) => {
