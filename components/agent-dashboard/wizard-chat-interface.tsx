@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { G_DEFAULT_WELCOME_MESSAGE } from '@/lib/themes';
 import ThinkingIndicator from '@/components/ui/ThinkingIndicator';
 
+const SYSTEM_VERSION_MESSAGE_ID = 'system-version-tracker';
+
 // Simplified markdown formatter from the main chat interface
 const formatAssistantMessage = (text: string): string => {
     if (!text) return "";
@@ -147,11 +149,27 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
 
   useImperativeHandle(ref, () => ({
     injectSystemMessage: (content: string) => {
-      setMessages(prevMessages => [...prevMessages, {
-        id: `system-${Date.now()}`,
-        role: 'system',
-        content: content,
-      }]);
+      setMessages(prevMessages => {
+        const newMessages = [...prevMessages];
+        const existingMsgIndex = newMessages.findIndex(m => m.id === SYSTEM_VERSION_MESSAGE_ID);
+
+        if (existingMsgIndex !== -1) {
+          // Update existing message
+          newMessages[existingMsgIndex] = {
+            ...newMessages[existingMsgIndex],
+            content: content,
+            createdAt: new Date(), // Update timestamp
+          };
+        } else {
+          // Add new message
+          newMessages.push({
+            id: SYSTEM_VERSION_MESSAGE_ID,
+            role: 'system',
+            content: content,
+          });
+        }
+        return newMessages;
+      });
     },
     scrollToBottom: () => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
