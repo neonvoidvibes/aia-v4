@@ -1,7 +1,7 @@
 // app/api/agent/name-exists/route.ts
-import { type NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { createServerActionClient } from '@/utils/supabase/server';
-import { findActiveBackend, formatErrorResponse, proxyApiRouteRequest } from '@/app/api/proxyUtils';
+import { findActiveBackend, formatErrorResponse } from '@/app/api/proxyUtils';
 
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
@@ -11,8 +11,8 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerActionClient();
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       return formatErrorResponse("Unauthorized: Invalid session", 401);
     }
 
@@ -28,25 +28,22 @@ export async function GET(req: NextRequest) {
     
     const targetUrl = `${activeBackendUrl}/api/agent/name-exists?name=${encodeURIComponent(agentName)}`;
     
-    // The proxy will forward the GET request along with the auth header.
-    const response = await fetch(targetUrl, {
+    // Correctly forward the request with the user's access token
+    const backendResponse = await fetch(targetUrl, {
         method: 'GET',
         headers: {
-            'Authorization': req.headers.get('Authorization') || '',
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
         }
     });
 
-    const data = await response.json();
+    const data = await backendResponse.json();
 
-    if (!response.ok) {
-        return formatErrorResponse(data.error || 'Backend check failed', response.status);
+    if (!backendResponse.ok) {
+        return formatErrorResponse(data.error || 'Backend check failed', backendResponse.status);
     }
     
-    return new Response(JSON.stringify(data), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-    });
-
+    return NextResponse.json(data, { status: 200 });
 
   } catch (error: any) {
     console.error("[API /api/agent/name-exists] Error in GET handler:", error);

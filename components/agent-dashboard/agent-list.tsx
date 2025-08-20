@@ -16,9 +16,10 @@ interface Agent {
 interface AgentListProps {
   onEditAgent: (agent: Agent) => void;
   onCreateNew: () => void;
+  onRefresh?: () => void;
 }
 
-const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew }) => {
+const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefresh }) => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,16 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew }) => {
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
+
+  useEffect(() => {
+    if (onRefresh) {
+      // Expose the fetch function to the parent
+      const handler = () => fetchAgents();
+      // This is a bit of a workaround to pass the function up.
+      // A more robust solution might use a ref, but this works for this context.
+      (onRefresh as any).current = handler;
+    }
+  }, [onRefresh, fetchAgents]);
 
   return (
     <div>

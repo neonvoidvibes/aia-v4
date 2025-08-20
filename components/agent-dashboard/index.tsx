@@ -24,10 +24,14 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
   const [wizardKey, setWizardKey] = useState(Date.now());
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const refreshAgentListRef = useRef<() => void>();
 
   const handleAgentCreated = () => {
     setView('list');
     setWizardKey(Date.now()); // Reset wizard for next time
+    if (refreshAgentListRef.current) {
+      refreshAgentListRef.current();
+    }
   };
 
   const handleCloseRequest = () => {
@@ -74,6 +78,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                   setSelectedAgent(agent);
                   console.log("Edit clicked for:", agent.name);
                 }}
+                onRefresh={handleAgentCreated as any}
               />
             </div>
             <div style={{ display: view === 'create' ? 'block' : 'none' }}>
