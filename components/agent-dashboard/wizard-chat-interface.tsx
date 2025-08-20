@@ -124,9 +124,10 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
   }, [messages, isLoading, isGeneratingProposal, processedProposalIds, setMessages]);
 
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // Auto-scrolling is disabled for the wizard chat interface as requested.
+  // useEffect(() => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // }, [messages]);
 
   const onSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
