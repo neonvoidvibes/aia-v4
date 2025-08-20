@@ -28,6 +28,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
   const refreshAgentListRef = useRef<() => void>();
   const wizardRef = useRef<CreateAgentWizardHandle>(null);
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
 
   const handleFinalCreateAgent = async () => {
     if (!wizardRef.current) return;
@@ -85,7 +86,13 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
           <div className="flex-1 overflow-y-auto">
             <div style={{ display: view === 'list' ? 'block' : 'none' }}>
               <AgentList
-                onCreateNew={() => setView('create')}
+                onCreateNew={() => {
+                  setView('create');
+                  setWizardStep(1); // Reset to first step
+                onCreateNew={() => {
+                  setView('create');
+                  setWizardStep(1); // Reset to first step
+                }}
                 onEditAgent={(agent) => {
                   setSelectedAgent(agent);
                   console.log("Edit clicked for:", agent.name);
@@ -94,18 +101,24 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
               />
             </div>
             <div style={{ display: view === 'create' ? 'block' : 'none' }}>
-               <CreateAgentWizard ref={wizardRef} key={wizardKey} onBack={() => setView('list')} />
+               <CreateAgentWizard
+                 ref={wizardRef}
+                 key={wizardKey}
+                 onBack={() => setView('list')}
+                 step={wizardStep}
+                 setStep={setWizardStep}
+               />
             </div>
              <div style={{ display: view === 'edit' ? 'block' : 'none' }}>
                 <div>Editing Agent: {selectedAgent?.name} (Not Implemented) <Button onClick={() => setView('list')}>Back</Button></div>
              </div>
           </div>
-          {view === 'create' && (
+          {view === 'create' && wizardStep === 4 && (
             <div className="flex justify-end p-4 border-t">
                  <Button
                     type="button"
                     onClick={handleFinalCreateAgent}
-                    disabled={isCreatingAgent || wizardRef.current?.step !== 4}
+                    disabled={isCreatingAgent}
                  >
                     {isCreatingAgent ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Complete and Create Agent'}
                 </Button>

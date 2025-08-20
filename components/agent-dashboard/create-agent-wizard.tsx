@@ -17,15 +17,15 @@ import { toast } from 'sonner';
 
 interface CreateAgentWizardProps {
   onBack: () => void;
+  step: number;
+  setStep: (step: number) => void;
 }
 
 export interface CreateAgentWizardHandle {
   handleCreateAgent: () => Promise<boolean>;
-  step: number;
 }
 
-const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardProps>(({ onBack }, ref) => {
-  const [step, setStep] = useState(1);
+const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardProps>(({ onBack, step, setStep }, ref) => {
   const [agentName, setAgentName] = useState('');
   const [description, setDescription] = useState('');
   
@@ -135,8 +135,6 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
     if (step > 1) {
       setStep(step - 1);
     } else {
-      // We no longer clean up here to preserve state when returning to the list view.
-      // Cleanup is now handled by the unmount effect triggered by the parent's key change.
       onBack();
     }
   };
@@ -297,7 +295,6 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
   useImperativeHandle(ref, () => ({
     handleCreateAgent,
-    step: step,
   }));
 
   return (
