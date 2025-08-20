@@ -385,24 +385,17 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
   return (
     <div>
-      <Button variant="ghost" onClick={handleBack} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back
-      </Button>
-
       <div className="flex justify-between items-center mb-6">
-        <div>
-            <h2 className="text-2xl font-bold">Create New Agent</h2>
-            <p className="text-muted-foreground">Step {step}: {currentStep?.title}</p>
-        </div>
+        <p className="text-muted-foreground">Step {step}: {currentStep?.title}</p>
       </div>
 
-      <form onSubmit={(e) => e.preventDefault()} autoComplete="off">
-        <div className="min-h-[300px]">
+      <form onSubmit={(e) => e.preventDefault()} autoComplete="off" className="h-[calc(85vh-250px)]">
+        <div className="h-full">
           {/* Step 1: Agent Identity */}
           {step === 1 && (
-            <div className="space-y-6">
+            <div className="space-y-8 pt-8 h-full">
               <div className="space-y-2">
-                <Label htmlFor="agent-name">Agent Name</Label>
+                <Label htmlFor="agent-name" className="text-base">Agent Name</Label>
                 <Input
                   id="agent-name"
                   value={agentName}
@@ -427,10 +420,10 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
           {/* Step 2: Core Knowledge */}
           {step === 2 && (
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
               <DocumentUpload
                   title="Core Knowledge (S3)"
-                  description="Upload documents (.md, .txt) that form the agent's core, static knowledge base. These are stored in S3."
+                  description="Static documents for the agent's core knowledge base (e.g., product manuals, FAQs)."
                   type="memory"
                   idSuffix="s3"
                   onFilesAdded={setS3Docs}
@@ -439,7 +432,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
               />
               <DocumentUpload
                   title="Vector Memory (Pinecone)"
-                  description="Upload documents to be chunked, embedded, and stored in Pinecone for semantic search."
+                  description="Documents to be chunked and embedded for semantic search and retrieval."
                   type="memory"
                   idSuffix="pinecone"
                   onFilesAdded={setPineconeDocs}
@@ -485,8 +478,8 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                       setDraftPrompt(e.target.value);
                       setIsDirtySinceVersion(true);
                     }}
-                    className="w-full h-full resize-none border-0 p-3 pr-12"
-                    placeholder="Draft your system prompt here. You can copy-paste from the AI assistant."
+                    className="w-full h-full resize-none border-0 p-4 pr-12"
+                    placeholder="Draft the system prompt here, or ask the assistant to help you..."
                   />
                 </div>
                 {promptHistory.length > 1 && (
@@ -506,38 +499,40 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
           {/* Step 4: User Access */}
           {step === 4 && (
-            <div className="space-y-8">
+            <div className="space-y-8 h-full flex flex-col">
               {/* Grant access to existing users */}
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Grant Access to Existing Users</h3>
-                <p className="text-sm text-muted-foreground mb-4">Select existing users who should have access to this new agent.</p>
-                <ScrollArea className="h-48 rounded-md border p-3">
-                  <div className="space-y-3">
-                    {allUsers.length > 0 ? (
-                      allUsers.map(user => (
-                        <div key={user.id} className="flex items-center space-x-3">
-                          <Checkbox
-                            id={`user-access-${user.id}`}
-                            checked={selectedUserIds.has(user.id)}
-                            onCheckedChange={() => handleToggleUserSelection(user.id)}
-                          />
-                          <Label htmlFor={`user-access-${user.id}`} className="font-normal cursor-pointer">
-                            {user.email}
-                          </Label>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        {isLoading ? 'Loading users...' : 'No existing users found.'}
-                      </p>
-                    )}
-                  </div>
-                </ScrollArea>
+              <div className="flex-1 flex flex-col min-h-0">
+                <h3 className="text-lg font-semibold mb-2 flex-shrink-0">Grant Access to Existing Users</h3>
+                <p className="text-sm text-muted-foreground mb-4 flex-shrink-0">Select existing users who should have access to this new agent.</p>
+                <div className="border rounded-md flex-1 min-h-0">
+                  <ScrollArea className="h-full">
+                    <div className="space-y-3 p-4">
+                      {allUsers.length > 0 ? (
+                        allUsers.map(user => (
+                          <div key={user.id} className="flex items-center space-x-3">
+                            <Checkbox
+                              id={`user-access-${user.id}`}
+                              checked={selectedUserIds.has(user.id)}
+                              onCheckedChange={() => handleToggleUserSelection(user.id)}
+                            />
+                            <Label htmlFor={`user-access-${user.id}`} className="font-normal cursor-pointer">
+                              {user.email}
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          {isLoading ? 'Loading users...' : 'No existing users found.'}
+                        </p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
               </div>
 
               {/* Create and grant access to new users */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-4 flex-shrink-0">
                   <div>
                     <h3 className="text-lg font-semibold">Create & Grant Access to New Users</h3>
                     <p className="text-sm text-muted-foreground">Add new users to the platform and automatically grant them access to this agent.</p>
@@ -595,20 +590,20 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
             </div>
           )}
           
-          {/* Step 5: API Keys */}
+          {/* Step 5: Custom API Keys */}
           {step === 5 && (
             <div className="space-y-6">
                <div className="space-y-2">
                   <Label htmlFor="openai-key">OpenAI API Key</Label>
-                  <Input id="openai-key" name="openai-key" type="password" value={apiKeys.openai} onChange={(e) => setApiKeys(p => ({...p, openai: e.target.value}))} autoComplete="new-password" />
+                  <Input id="openai-key" name="openai-key" type="text" value={apiKeys.openai} onChange={(e) => setApiKeys(p => ({...p, openai: e.target.value}))} />
                </div>
                <div className="space-y-2">
                   <Label htmlFor="anthropic-key">Anthropic API Key</Label>
-                  <Input id="anthropic-key" name="anthropic-key" type="password" value={apiKeys.anthropic} onChange={(e) => setApiKeys(p => ({...p, anthropic: e.target.value}))} autoComplete="new-password" />
+                  <Input id="anthropic-key" name="anthropic-key" type="text" value={apiKeys.anthropic} onChange={(e) => setApiKeys(p => ({...p, anthropic: e.target.value}))} />
                </div>
                <div className="space-y-2">
                   <Label htmlFor="google-key">Google API Key</Label>
-                  <Input id="google-key" name="google-key" type="password" value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} autoComplete="new-password" />
+                  <Input id="google-key" name="google-key" type="text" value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} />
                </div>
             </div>
           )}

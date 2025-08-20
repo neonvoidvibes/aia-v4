@@ -10,7 +10,7 @@ import AgentList from './agent-list';
 import CreateAgentWizard, { type CreateAgentWizardHandle } from './create-agent-wizard';
 import { AlertDialogConfirm } from '@/components/ui/alert-dialog-confirm';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 
 interface AgentDashboardProps {
   isOpen: boolean;
@@ -28,6 +28,18 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
 
+  const handleBack = () => {
+    if (view === 'create') {
+      if (wizardStep > 1) {
+        setWizardStep(wizardStep - 1);
+      } else {
+        setView('list');
+      }
+    } else if (view === 'edit') {
+      setView('list');
+    }
+  };
+
   const handleFinalCreateAgent = async () => {
     if (!wizardRef.current) return;
     setIsCreatingAgent(true);
@@ -35,14 +47,12 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
     setIsCreatingAgent(false);
 
     if (success) {
-      // Creation was successful, toast was shown in wizard. Now refresh list and switch view.
       if (refreshAgentListRef.current) {
         await refreshAgentListRef.current();
       }
       setView('list');
-      setWizardKey(Date.now()); // Reset wizard for next time
+      setWizardKey(Date.now());
     }
-    // If not successful, the wizard will have shown an error toast. We just stay on the wizard page.
   };
 
   const handleCloseRequest = () => {
@@ -55,38 +65,53 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
 
   const handleConfirmClose = () => {
     setShowCloseConfirm(false);
-    setWizardKey(Date.now()); // Changing the key will force remount and reset state
-    setView('list'); // Go back to the list view
-    onClose(); // Then close the dialog
+    setWizardKey(Date.now());
+    setView('list');
+    onClose();
   };
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && handleCloseRequest()}>
         <DialogContent
-          className="max-w-3xl h-[85vh] flex flex-col"
+          className="max-w-4xl w-[90vw] h-[90vh] flex flex-col p-0"
           onPointerDownOutside={(e) => {
-            // Allow clicking inside other modals spawned by the wizard
             if ((e.target as HTMLElement)?.closest('[role="dialog"]')) {
               return;
             }
             e.preventDefault();
           }}
         >
-          <DialogHeader>
-            <DialogTitle>
-              <span className="sr-only">Agent Dashboard</span>
-            </DialogTitle>
-            <DialogDescription>
-               <span className="sr-only">Manage, create, and edit your AI agents.</span>
+          <DialogHeader className="p-4 border-b flex-shrink-0">
+            <div className="flex items-center justify-between h-8">
+              <div className="w-24">
+                {view !== 'list' && (
+                  <Button variant="ghost" onClick={handleBack} className="p-0 h-auto hover:bg-transparent">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                  </Button>
+                )}
+              </div>
+              <DialogTitle className="text-center">
+                {view === 'list' && 'Agent Dashboard'}
+                {view === 'create' && 'Create New Agent'}
+                {view === 'edit' && `Edit Agent: ${selectedAgent?.name}`}
+              </DialogTitle>
+              <div className="w-24 flex justify-end">
+                <Button variant="ghost" onClick={handleCloseRequest} className="p-0 h-auto hover:bg-transparent">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+            <DialogDescription className="sr-only">
+               Manage, create, and edit your AI agents.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-6">
             <div style={{ display: view === 'list' ? 'block' : 'none' }}>
               <AgentList
                 onCreateNew={() => {
                   setView('create');
-                  setWizardStep(1); // Reset to first step
+                  setWizardStep(1);
                 }}
                 onEditAgent={(agent) => {
                   setSelectedAgent(agent);
@@ -99,7 +124,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                <CreateAgentWizard 
                  ref={wizardRef} 
                  key={wizardKey} 
-                 onBack={() => setView('list')} 
+                 onBack={() => { /* Handled by header button now */ }}
                  step={wizardStep}
                  setStep={setWizardStep}
                />
@@ -109,7 +134,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
              </div>
           </div>
           {view === 'create' && wizardStep === 5 && (
-            <div className="flex justify-end p-4 border-t">
+            <div className="flex justify-end p-4 border-t flex-shrink-0">
                  <Button 
                     type="button" 
                     onClick={handleFinalCreateAgent} 

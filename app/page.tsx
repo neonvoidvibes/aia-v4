@@ -2111,11 +2111,11 @@ function HomeContent() {
                     {(userRole === 'admin' || userRole === 'super user') && (
                       <div className="flex items-center justify-center">
                         <Button
-                          variant="secondary"
                           onClick={() => {
                             setShowSettings(false);
                             setShowAgentDashboard(true);
                           }}
+                          className="font-semibold bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent))]/90"
                         >
                           Agent Dashboard
                         </Button>

@@ -147,7 +147,7 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
         <DropdownMenuSeparator />
         {(userRole === 'admin' || userRole === 'super user') && (
             <>
-              <DropdownMenuItem onSelect={onDashboardClick} className="cursor-pointer">
+              <DropdownMenuItem onSelect={onDashboardClick} className="cursor-pointer font-semibold bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] focus:bg-[hsl(var(--accent))] focus:text-[hsl(var(--accent-foreground))]">
                 Agent Dashboard
               </DropdownMenuItem>
               <DropdownMenuSeparator />
