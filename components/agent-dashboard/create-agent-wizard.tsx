@@ -140,8 +140,6 @@ const CreateAgentWizard: React.FC<CreateAgentWizardProps> = ({ onBack, onAgentCr
     }
     navigator.clipboard.writeText(systemPrompt).then(() => {
       toast.success("System prompt copied to clipboard!");
-      // Also create a new version on copy
-      addNewPromptVersion(systemPrompt);
     }).catch(err => {
       console.error("Failed to copy text: ", err);
       toast.error("Failed to copy prompt to clipboard.");

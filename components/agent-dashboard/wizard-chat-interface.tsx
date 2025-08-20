@@ -62,10 +62,10 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
     body: {
       agent: agentName,
       initialContext: initialContext,
-      currentDraftContent: currentDraftContent,
       disableRetrieval: true, // Explicitly disable RAG for this process
       // Pass the unique session ID in the body as well, so the backend can differentiate sessions.
       session_id: wizardSessionId
+      // currentDraftContent is now passed in handleSubmit to avoid re-renders
     },
     initialMessages: [{
         id: 'initial-wizard-prompt',
@@ -137,7 +137,13 @@ const WizardChatInterface: React.FC<WizardChatInterfaceProps> = ({ wizardSession
     if (e) e.preventDefault();
     if (input.trim()) {
       onUserSubmit();
-      handleSubmit(e);
+      handleSubmit(e, {
+        options: {
+          body: {
+            currentDraftContent: currentDraftContent,
+          }
+        }
+      });
     }
   };
   
