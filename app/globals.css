@@ -2333,7 +2333,7 @@ button {
   z-index: 10000;
 }
 
-@media (max-width: 767px) and (orientation: landscape) {
+@media (max-height: 767px) and (orientation: landscape) and (pointer: coarse) {
   #app-content {
     display: none;
   }
