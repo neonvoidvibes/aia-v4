@@ -26,8 +26,12 @@ const extractProposal = (content: string): { proposal: string | null; conversati
     try {
         const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```|({[\s\S]*})/);
         if (jsonMatch) {
-            const jsonString = jsonMatch[1] || jsonMatch[2];
+            let jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
             const jsonBlock = jsonMatch[0];
+
+            // Attempt to fix common LLM JSON errors like trailing commas
+            jsonString = jsonString.replace(/,\s*([}\]])/g, '$1');
+
             const parsed = JSON.parse(jsonString);
             if (parsed && typeof parsed.system_prompt === 'string') {
                 response.proposal = parsed.system_prompt;
