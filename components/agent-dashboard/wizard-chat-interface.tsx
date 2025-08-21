@@ -211,7 +211,8 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
             >
               <div
                 className={cn(
-                  "message-bubble max-w-[85%] px-4 py-2 rounded-2xl text-base",
+                  "message-bubble max-w-[85%] px-4 py-2 rounded-2xl",
+                  "text-base max-[640px]:text-[16px]", // Desktop: text-base (16px), Mobile: forced 16px
                   isUser && "bg-[hsl(var(--input-gray))] text-[hsl(var(--user-message-text-color))]",
                   message.role === 'assistant' && "bg-transparent text-[hsl(var(--assistant-message-text-color))]",
                   isSystem && "text-xs bg-accent/10 text-accent-foreground leading-normal"
@@ -261,7 +262,7 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
             onChange={handleInputChange}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit(); } }}
             placeholder="Describe the agent..."
-            className="w-full bg-transparent border-none outline-none px-3 py-2 text-base text-[hsl(var(--input-field-text-color))]"
+            className="w-full bg-transparent border-none outline-none px-3 py-2 text-base max-[640px]:text-[16px] text-[hsl(var(--input-field-text-color))]"
             disabled={isLoading}
           />
           <button
