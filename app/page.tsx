@@ -634,48 +634,60 @@ function HomeContent() {
   };
 
   const handleIndividualMemoryToggleChange = (checked: boolean, fileKey: string) => {
-    if (savedTranscriptMemoryMode === 'all') {
-      // User is de-selecting an item from an "all" state.
-      // Switch mode to 'some'
-      setSavedTranscriptMemoryMode('some');
+    // When a user touches an individual toggle, we derive the new mode from the resulting toggles state.
+    const newStates = { ...individualMemoryToggleStates };
 
-      // Initialize all other toggles to true, and the clicked one to false.
-      const newStates: Record<string, boolean> = {};
-      savedTranscriptSummaries.forEach(file => {
-        if (file.s3Key) {
-          newStates[file.s3Key] = file.s3Key !== fileKey; // true for all except the clicked one
-        }
-      });
-      setIndividualMemoryToggleStates(newStates);
+    // If we were in 'all' mode, we need to "materialize" the state first.
+    if (savedTranscriptMemoryMode === 'all') {
+      savedTranscriptSummaries.forEach(f => { if(f.s3Key) newStates[f.s3Key] = true; });
+    }
+    
+    // Now, apply the user's change
+    newStates[fileKey] = checked;
+    setIndividualMemoryToggleStates(newStates);
+
+    // Finally, derive and set the new mode based on this new state.
+    const toggledOnCount = Object.values(newStates).filter(v => v).length;
+    const totalFiles = savedTranscriptSummaries.length;
+
+    if (totalFiles > 0 && toggledOnCount === totalFiles) {
+      setSavedTranscriptMemoryMode('all');
+    } else if (toggledOnCount > 0) {
+      setSavedTranscriptMemoryMode('some');
     } else {
-      // Existing logic for when mode is already 'some' or 'none'
-      setIndividualMemoryToggleStates(prev => ({
-        ...prev,
-        [fileKey]: checked
-      }));
+      setSavedTranscriptMemoryMode('none');
     }
   };
 
   const handleIndividualRawTranscriptToggleChange = (checked: boolean, fileKey: string) => {
-    if (transcriptListenMode === 'all' || transcriptListenMode === 'latest') {
-      // User is de-selecting an item from an "all" or "latest" state.
-      // Switch mode to 'some'
-      setTranscriptListenMode('some');
+    // When a user touches an individual toggle, we derive the new mode.
+    const newStates = { ...individualRawTranscriptToggleStates };
 
-      // Initialize all other toggles to true, and the clicked one to false.
-      const newStates: Record<string, boolean> = {};
-      transcriptionS3Files.forEach(file => {
-        if (file.s3Key) {
-          newStates[file.s3Key] = file.s3Key !== fileKey; // true for all except the clicked one
-        }
-      });
-      setIndividualRawTranscriptToggleStates(newStates);
+    // If we were in 'all' or 'latest' mode, "materialize" the current state first.
+    if (transcriptListenMode === 'all') {
+        transcriptionS3Files.forEach(f => { if(f.s3Key) newStates[f.s3Key] = true; });
+    } else if (transcriptListenMode === 'latest') {
+        const latestKey = transcriptionS3Files[0]?.s3Key;
+        if (latestKey) newStates[latestKey] = true;
+    }
+
+    // Apply the user's change.
+    newStates[fileKey] = checked;
+    setIndividualRawTranscriptToggleStates(newStates);
+
+    // Derive and set the new mode based on the result.
+    const toggledOnCount = Object.values(newStates).filter(v => v).length;
+    const totalFiles = transcriptionS3Files.length;
+    const latestFileKey = transcriptionS3Files[0]?.s3Key;
+
+    if (totalFiles > 0 && toggledOnCount === totalFiles) {
+        setTranscriptListenMode('all');
+    } else if (toggledOnCount === 1 && latestFileKey && newStates[latestFileKey]) {
+        setTranscriptListenMode('latest');
+    } else if (toggledOnCount > 0) {
+        setTranscriptListenMode('some');
     } else {
-      // Existing logic for when mode is already 'some' or 'none'
-      setIndividualRawTranscriptToggleStates(prev => ({
-        ...prev,
-        [fileKey]: checked
-      }));
+        setTranscriptListenMode('none');
     }
   };
 
@@ -1993,17 +2005,11 @@ function HomeContent() {
                           type="single"
                           value={transcriptListenMode}
                           onValueChange={(value) => {
-                            if (value === "none" || value === "some" || value === "latest" || value === "all") {
+                            if (value) {
                               const newMode = value as "none" | "some" | "latest" | "all";
                               setTranscriptListenMode(newMode);
-                              if (newMode === 'latest') {
-                                const latestFileKey = transcriptionS3Files[0]?.s3Key;
-                                if (latestFileKey) {
-                                  setIndividualRawTranscriptToggleStates({ [latestFileKey]: true });
-                                } else {
-                                  setIndividualRawTranscriptToggleStates({});
-                                }
-                              } else if (newMode === 'none' || newMode === 'all') {
+                              // When an explicit mode is chosen, clear manual overrides
+                              if (newMode !== 'some') {
                                 setIndividualRawTranscriptToggleStates({});
                               }
                             }
@@ -2065,11 +2071,11 @@ function HomeContent() {
                           type="single"
                           value={savedTranscriptMemoryMode}
                           onValueChange={(value) => {
-                            if (value === "none" || value === "some" || value === "all") {
+                            if (value) {
                               const newMode = value as "none" | "some" | "all";
                               setSavedTranscriptMemoryMode(newMode);
-                              // If user explicitly selects None or All, clear individual toggles
-                              if (newMode === 'none' || newMode === 'all') {
+                              // When an explicit mode is chosen, clear manual overrides
+                              if (newMode !== 'some') {
                                 setIndividualMemoryToggleStates({});
                               }
                             }
