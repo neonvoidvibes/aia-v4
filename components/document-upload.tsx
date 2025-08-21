@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils" // Import cn
 
 type DocumentUploadProps = {
   title?: string
+  titleClassName?: string // New prop for title styling
   description: string
   type: "chat" | "memory" | "system" | "context" // Added "context"
   idSuffix: string // New prop for ensuring unique IDs
@@ -28,6 +29,7 @@ type DocumentUploadProps = {
 
 export default function DocumentUpload({
   title = "",
+  titleClassName,
   description,
   type,
   idSuffix,
@@ -226,7 +228,7 @@ export default function DocumentUpload({
             !title ? "pt-0 pb-3 px-0" : "p-6",
           )}
         >
-          {title && <CardTitle>{title}</CardTitle>}
+          {title && <CardTitle className={cn(titleClassName)}>{title}</CardTitle>}
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent

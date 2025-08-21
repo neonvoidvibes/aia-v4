@@ -95,7 +95,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                     </Button>
                   )}
                </div>
-               <DialogTitle className="text-center text-lg font-semibold">
+               <DialogTitle className="text-center text-lg font-bold">
                   {view === 'list' && 'Agent Dashboard'}
                   {view === 'create' && 'Create New Agent'}
                   {view === 'edit' && `Edit Agent: ${selectedAgent?.name}`}
@@ -111,7 +111,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 pt-2 pb-6">
-            <div style={{ display: view === 'list' ? 'block' : 'none' }}>
+            <div style={{ display: view === 'list' ? 'block' : 'none' }} className="h-full">
               <AgentList
                 onCreateNew={() => {
                   setView('create');
@@ -146,7 +146,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                      onClick={handleFinalCreateAgent}
                      disabled={isCreatingAgent}
                   >
-                    {isCreatingAgent ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Complete and Create Agent'}
+                    {isCreatingAgent ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Create Agent'}
                   </Button>
                 )}
             </div>

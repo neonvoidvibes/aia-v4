@@ -57,17 +57,17 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefre
   }, [onRefresh, fetchAgents]);
 
   return (
-    <div>
-      <Card className="border-none shadow-none bg-transparent">
-        <CardHeader className="p-0 mb-4">
+    <div className="h-full flex flex-col">
+      <Card className="border-none shadow-none bg-transparent flex-1 flex flex-col min-h-0">
+        <CardHeader className="p-0 mb-4 flex-shrink-0">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-bold">Manage Agents</CardTitle>
-            <Button onClick={onCreateNew}>
+            <CardTitle className="text-xl md:text-2xl font-bold">Manage Agents</CardTitle>
+            <Button onClick={onCreateNew} className="hidden md:flex">
               <PlusCircle className="mr-2 h-4 w-4" /> Create New Agent
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 flex-1 min-h-0">
           {isLoading ? (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -82,12 +82,12 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefre
               </Button>
             </div>
           ) : (
-            <ScrollArea className="h-[calc(85vh-220px)]">
-              <div className="pr-4">
+            <ScrollArea className="h-full">
+              <div className="pr-4 pb-24 md:pb-4 touch-pan-y">
                 {agents.map((agent) => (
                   <div key={agent.id} className="flex items-center justify-between py-3 border-b">
                     <div className="flex-1 min-w-0 pr-4">
-                      <p className="text-sm font-medium truncate">{agent.name}</p>
+                      <p className="text-base font-semibold truncate">{agent.name}</p>
                       <p className="text-xs text-muted-foreground leading-tight truncate">
                         {agent.description || 'No description provided.'}
                       </p>
@@ -102,6 +102,11 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefre
           )}
         </CardContent>
       </Card>
+      <div className="md:hidden flex-shrink-0 pt-4">
+        <Button onClick={onCreateNew} className="w-full">
+          <PlusCircle className="mr-2 h-4 w-4" /> Create New Agent
+        </Button>
+      </div>
     </div>
   );
 };

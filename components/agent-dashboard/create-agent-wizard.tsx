@@ -387,7 +387,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
           {step === 1 && (
             <div className="space-y-8 pt-8 h-full">
               <div className="space-y-2">
-                <Label htmlFor="agent-name" className="text-base">Agent Name</Label>
+                <Label htmlFor="agent-name" className="text-lg font-semibold leading-snug">Agent Name</Label>
                 <p className="text-sm text-muted-foreground">Unique name, lowercase letters, numbers, and hyphens only. Cannot be changed.</p>
                 <Input
                   id="agent-name"
@@ -399,7 +399,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="agent-description" className="text-base">Description</Label>
+                <Label htmlFor="agent-description" className="text-lg font-semibold leading-snug">Description</Label>
                 <p className="text-sm text-muted-foreground">A brief description of the agent's purpose.</p>
                 <Textarea
                   id="agent-description"
@@ -418,6 +418,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
               <DocumentUpload
                   title="Core Knowledge (S3)"
+                  titleClassName="text-lg font-semibold leading-snug"
                   description="Static documents for the agent's core knowledge base (e.g., product manuals, FAQs)."
                   type="memory"
                   idSuffix="s3"
@@ -428,6 +429,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
               />
               <DocumentUpload
                   title="Vector Memory (Pinecone)"
+                  titleClassName="text-lg font-semibold leading-snug"
                   description="Documents to be chunked and embedded for semantic search and retrieval."
                   type="memory"
                   idSuffix="pinecone"
@@ -441,9 +443,9 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
           {/* Step 3: System Prompt */}
           {step === 3 && (
-            <div className="flex h-full gap-4">
-              <div className="w-1/2 flex flex-col">
-                <Label className="mb-2 text-center text-lg font-medium">AI Assistant</Label>
+            <div className="flex flex-col md:flex-row h-full gap-4">
+              <div className="w-full md:w-1/2 flex flex-col h-1/2 md:h-full">
+                <Label className="mb-2 text-center text-lg font-semibold leading-snug">AI Assistant</Label>
                 <div className="flex-1 border rounded-lg overflow-hidden h-full">
                   <WizardChatInterface
                     ref={wizardChatRef}
@@ -456,8 +458,8 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                   />
                 </div>
               </div>
-              <div className="w-1/2 flex flex-col">
-                <Label className="mb-1 text-center text-lg font-medium">System Prompt Draft</Label>
+              <div className="w-full md:w-1/2 flex flex-col h-1/2 md:h-full">
+                <Label className="mb-1 text-center text-lg font-semibold leading-snug">System Prompt Draft</Label>
                 <div className="flex-1 border rounded-lg relative">
                   <Button
                     type="button"
@@ -531,12 +533,12 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
               {/* Create and grant access to new users */}
               <div className="flex-1 flex flex-col min-h-0 pt-4">
-                <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                  <div>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 flex-shrink-0 gap-2">
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold leading-snug">Create & Grant Access to New Users</h3>
                     <p className="text-sm text-muted-foreground mt-1">Add new users to the platform and automatically grant them access to this agent.</p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddNewUser}>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddNewUser} className="w-full md:w-auto">
                     <UserPlus className="mr-2 h-4 w-4" /> Add User
                   </Button>
                 </div>
@@ -592,17 +594,17 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
           
           {/* Step 5: Custom API Keys */}
           {step === 5 && (
-            <div className="space-y-6">
+            <div className="space-y-6 pt-8">
                <div className="space-y-2">
-                  <Label htmlFor="openai-key">OpenAI API Key</Label>
+                  <Label htmlFor="openai-key" className="text-lg font-semibold leading-snug">OpenAI API Key</Label>
                   <Input id="openai-key" name="openai-key" type="text" value={apiKeys.openai} onChange={(e) => setApiKeys(p => ({...p, openai: e.target.value}))} />
                </div>
                <div className="space-y-2">
-                  <Label htmlFor="anthropic-key">Anthropic API Key</Label>
+                  <Label htmlFor="anthropic-key" className="text-lg font-semibold leading-snug">Anthropic API Key</Label>
                   <Input id="anthropic-key" name="anthropic-key" type="text" value={apiKeys.anthropic} onChange={(e) => setApiKeys(p => ({...p, anthropic: e.target.value}))} />
                </div>
                <div className="space-y-2">
-                  <Label htmlFor="google-key">Google API Key</Label>
+                  <Label htmlFor="google-key" className="text-lg font-semibold leading-snug">Google API Key</Label>
                   <Input id="google-key" name="google-key" type="text" value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} />
                </div>
             </div>
