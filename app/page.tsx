@@ -635,59 +635,67 @@ function HomeContent() {
 
   const handleIndividualMemoryToggleChange = (checked: boolean, fileKey: string) => {
     // When a user touches an individual toggle, we derive the new mode from the resulting toggles state.
-    const newStates = { ...individualMemoryToggleStates };
+    let currentStates = { ...individualMemoryToggleStates };
 
-    // If we were in 'all' mode, we need to "materialize" the state first.
+    // If we were in 'all' mode, we need to "materialize" the state first before applying the change.
     if (savedTranscriptMemoryMode === 'all') {
-      savedTranscriptSummaries.forEach(f => { if(f.s3Key) newStates[f.s3Key] = true; });
+      currentStates = {}; // Start fresh
+      savedTranscriptSummaries.forEach(f => { if(f.s3Key) currentStates[f.s3Key] = true; });
     }
     
-    // Now, apply the user's change
-    newStates[fileKey] = checked;
-    setIndividualMemoryToggleStates(newStates);
-
-    // Finally, derive and set the new mode based on this new state.
-    const toggledOnCount = Object.values(newStates).filter(v => v).length;
+    // Now, apply the user's change to the materialized or existing state
+    currentStates[fileKey] = checked;
+    
+    // Finally, derive and set the new mode and state based on this new state.
+    const toggledOnCount = Object.values(currentStates).filter(v => v).length;
     const totalFiles = savedTranscriptSummaries.length;
 
     if (totalFiles > 0 && toggledOnCount === totalFiles) {
       setSavedTranscriptMemoryMode('all');
+      setIndividualMemoryToggleStates({}); // Clean up individual state for 'all'
     } else if (toggledOnCount > 0) {
       setSavedTranscriptMemoryMode('some');
+      setIndividualMemoryToggleStates(currentStates);
     } else {
       setSavedTranscriptMemoryMode('none');
+      setIndividualMemoryToggleStates({}); // Clean up individual state for 'none'
     }
   };
 
   const handleIndividualRawTranscriptToggleChange = (checked: boolean, fileKey: string) => {
     // When a user touches an individual toggle, we derive the new mode.
-    const newStates = { ...individualRawTranscriptToggleStates };
+    let currentStates = { ...individualRawTranscriptToggleStates };
 
     // If we were in 'all' or 'latest' mode, "materialize" the current state first.
     if (transcriptListenMode === 'all') {
-        transcriptionS3Files.forEach(f => { if(f.s3Key) newStates[f.s3Key] = true; });
+      currentStates = {}; // Start fresh
+      transcriptionS3Files.forEach(f => { if(f.s3Key) currentStates[f.s3Key] = true; });
     } else if (transcriptListenMode === 'latest') {
-        const latestKey = transcriptionS3Files[0]?.s3Key;
-        if (latestKey) newStates[latestKey] = true;
+      currentStates = {}; // Start fresh
+      const latestKey = transcriptionS3Files[0]?.s3Key;
+      if (latestKey) currentStates[latestKey] = true;
     }
 
     // Apply the user's change.
-    newStates[fileKey] = checked;
-    setIndividualRawTranscriptToggleStates(newStates);
+    currentStates[fileKey] = checked;
 
     // Derive and set the new mode based on the result.
-    const toggledOnCount = Object.values(newStates).filter(v => v).length;
+    const toggledOnCount = Object.values(currentStates).filter(v => v).length;
     const totalFiles = transcriptionS3Files.length;
     const latestFileKey = transcriptionS3Files[0]?.s3Key;
 
     if (totalFiles > 0 && toggledOnCount === totalFiles) {
-        setTranscriptListenMode('all');
-    } else if (toggledOnCount === 1 && latestFileKey && newStates[latestFileKey]) {
-        setTranscriptListenMode('latest');
+      setTranscriptListenMode('all');
+      setIndividualRawTranscriptToggleStates({});
+    } else if (toggledOnCount === 1 && latestFileKey && currentStates[latestFileKey]) {
+      setTranscriptListenMode('latest');
+      setIndividualRawTranscriptToggleStates({}); // 'latest' is also a primary mode
     } else if (toggledOnCount > 0) {
-        setTranscriptListenMode('some');
+      setTranscriptListenMode('some');
+      setIndividualRawTranscriptToggleStates(currentStates);
     } else {
-        setTranscriptListenMode('none');
+      setTranscriptListenMode('none');
+      setIndividualRawTranscriptToggleStates({});
     }
   };
 
@@ -842,42 +850,6 @@ function HomeContent() {
     }
   }, [individualMemoryToggleStates, savedTranscriptMemoryMode]);
 
-  // Auto-switch transcript mode based on individual toggle changes
-  useEffect(() => {
-    const toggledOnKeys = Object.entries(individualRawTranscriptToggleStates)
-      .filter(([, value]) => value)
-      .map(([key]) => key);
-    const toggledOnCount = toggledOnKeys.length;
-    const totalFiles = transcriptionS3Files.length;
-
-    if (totalFiles > 0 && toggledOnCount === totalFiles) {
-      setTranscriptListenMode('all');
-      setIndividualRawTranscriptToggleStates({});
-    } else {
-      const latestFileKey = transcriptionS3Files[0]?.s3Key;
-      if (toggledOnCount === 1 && latestFileKey && toggledOnKeys[0] === latestFileKey) {
-        setTranscriptListenMode('latest');
-      } else if (toggledOnCount > 0) {
-        if (transcriptListenMode !== 'some') {
-          setTranscriptListenMode('some');
-        }
-      } else {
-        if (transcriptListenMode !== 'none') {
-          setTranscriptListenMode('none');
-        }
-      }
-    }
-  }, [individualRawTranscriptToggleStates, transcriptionS3Files, transcriptListenMode]);
-
-  useEffect(() => {
-    if (savedTranscriptMemoryMode === 'some' && savedTranscriptSummaries.length > 0) {
-      const allToggled = savedTranscriptSummaries.every(file => file.s3Key && individualMemoryToggleStates[file.s3Key]);
-      if (allToggled) {
-        setSavedTranscriptMemoryMode('all');
-        setIndividualMemoryToggleStates({});
-      }
-    }
-  }, [individualMemoryToggleStates, savedTranscriptSummaries, savedTranscriptMemoryMode]);
 
   useEffect(() => {
     if (savedTranscriptMemoryMode === 'some' && savedTranscriptSummaries.length > 0) {
@@ -2049,7 +2021,7 @@ function HomeContent() {
                                 individualToggleChecked={
                                   transcriptListenMode === 'all' ||
                                   (transcriptListenMode === 'latest' && index === 0) ||
-                                  (transcriptListenMode === 'some' && (individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name] || false))
+                                  (transcriptListenMode === 'some' && !!individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key!])
                                 }
                                 onIndividualToggleChange={handleIndividualRawTranscriptToggleChange}
                                 individualToggleDisabled={false}
@@ -2102,7 +2074,10 @@ function HomeContent() {
                               showArchiveIcon={false} // No archive for summaries
                               showSaveAsMemoryIcon={false} // No save for already summarized
                               showIndividualToggle={true}
-                              individualToggleChecked={(savedTranscriptMemoryMode === 'all') || (savedTranscriptMemoryMode === 'some' && (individualMemoryToggleStates[summaryFile.s3Key || summaryFile.name] || false))}
+                              individualToggleChecked={
+                                savedTranscriptMemoryMode === 'all' ||
+                                (savedTranscriptMemoryMode === 'some' && !!individualMemoryToggleStates[summaryFile.s3Key!])
+                              }
                               onIndividualToggleChange={handleIndividualMemoryToggleChange}
                               individualToggleDisabled={false}
                             />
