@@ -100,7 +100,11 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                   {view === 'create' && 'Create New Agent'}
                   {view === 'edit' && `Edit Agent: ${selectedAgent?.name}`}
                </DialogTitle>
-               <div className="w-24" /> {/* Spacer */}
+               <div className="w-24 flex justify-end">
+                  <Button variant="ghost" onClick={handleCloseRequest} className="p-0 h-auto hover:bg-transparent text-sm text-muted-foreground hover:text-foreground">
+                    Exit
+                  </Button>
+               </div>
              </div>
             <DialogDescription className="sr-only">
                Manage, create, and edit your AI agents.
@@ -133,14 +137,8 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                 <div>Editing Agent: {selectedAgent?.name} (Not Implemented) <Button onClick={() => setView('list')}>Back</Button></div>
              </div>
           </div>
-          {view === 'list' && (
-            <div className="flex justify-end items-center gap-4 p-4 border-t flex-shrink-0">
-                <Button variant="outline" onClick={handleCloseRequest}>Exit</Button>
-            </div>
-          )}
           {view === 'create' && (
             <div className="flex justify-end items-center gap-4 p-4 border-t flex-shrink-0">
-                <Button variant="outline" onClick={handleCloseRequest}>Exit</Button>
                 {wizardStep < 5 ? (
                   <Button type="button" onClick={handleNext}>Next</Button>
                 ) : (
