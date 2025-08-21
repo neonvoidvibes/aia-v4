@@ -840,6 +840,27 @@ function HomeContent() {
     }
   }, [individualRawTranscriptToggleStates, transcriptListenMode]);
 
+  // Auto-switch to 'all' mode if all individual toggles are manually selected
+  useEffect(() => {
+    if (transcriptListenMode === 'some' && transcriptionS3Files.length > 0) {
+      const allToggled = transcriptionS3Files.every(file => file.s3Key && individualRawTranscriptToggleStates[file.s3Key]);
+      if (allToggled) {
+        setTranscriptListenMode('all');
+        setIndividualRawTranscriptToggleStates({});
+      }
+    }
+  }, [individualRawTranscriptToggleStates, transcriptionS3Files, transcriptListenMode]);
+
+  useEffect(() => {
+    if (savedTranscriptMemoryMode === 'some' && savedTranscriptSummaries.length > 0) {
+      const allToggled = savedTranscriptSummaries.every(file => file.s3Key && individualMemoryToggleStates[file.s3Key]);
+      if (allToggled) {
+        setSavedTranscriptMemoryMode('all');
+        setIndividualMemoryToggleStates({});
+      }
+    }
+  }, [individualMemoryToggleStates, savedTranscriptSummaries, savedTranscriptMemoryMode]);
+
   // Load and persist individual raw transcript toggle states (agent-specific)
   useEffect(() => {
     if (pageAgentName) {

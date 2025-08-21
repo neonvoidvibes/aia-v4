@@ -388,10 +388,7 @@ interface SimpleChatInterfaceProps {
   savedTranscriptSummaries?: FetchedFile[];
   individualRawTranscriptToggleStates?: Record<string, boolean>;
   rawTranscriptFiles?: FetchedFile[];
-  individualRawTranscriptToggleStates?: Record<string, boolean>;
-  rawTranscriptFiles?: FetchedFile[];
   isModalOpen?: boolean; // New prop to indicate if a modal is open
-
 }
 
 export interface ChatInterfaceHandle {

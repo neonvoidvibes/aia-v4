@@ -103,11 +103,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const getTranscriptListenModeText = () => {
-    let text = transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
-    if (text === 'Some' && !(individualRawTranscriptToggleStates && Object.values(individualRawTranscriptToggleStates).some(v => v))) {
-      text = 'None';
-    }
-    return text;
+    return transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
   };
 
   const groupChatsByDate = (chats: ChatHistoryItem[]) => {
