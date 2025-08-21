@@ -2318,7 +2318,7 @@ button {
 }
 
 /* Orientation Lock Styles */
-#orientation-lock-overlay {
+/* #orientation-lock-overlay {
   display: none;
   position: fixed;
   top: 0;
@@ -2340,7 +2340,7 @@ button {
   #orientation-lock-overlay {
     display: flex;
   }
-}
+} */
 
 /* Mobile-specific scaling for chat input icons and buttons - 25% larger */
 @media (max-width: 768px) {

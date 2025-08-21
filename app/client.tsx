@@ -20,17 +20,17 @@ export default function ClientLayout({
         .catch(error => console.log('SW registration failed: ', error));
     }
 
-    const lockOrientation = async () => {
-      if (window.screen.orientation && window.screen.orientation.lock) {
-        try {
-          await window.screen.orientation.lock('portrait-primary');
-        } catch (error) {
-          console.error('Failed to lock screen orientation:', error);
-        }
-      }
-    };
+    // const lockOrientation = async () => {
+    //   if (window.screen.orientation && window.screen.orientation.lock) {
+    //     try {
+    //       await window.screen.orientation.lock('portrait-primary');
+    //     } catch (error) {
+    //       console.error('Failed to lock screen orientation:', error);
+    //     }
+    //   }
+    // };
 
-    lockOrientation();
+    // lockOrientation();
   }, []);
 
   return (
