@@ -62,7 +62,7 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefre
         <CardHeader className="p-0 mb-4 flex-shrink-0">
           <div className="flex justify-between items-center">
             <CardTitle className="text-xl md:text-2xl font-bold">Manage Agents</CardTitle>
-            <Button onClick={onCreateNew} className="hidden md:flex">
+            <Button onClick={onCreateNew} className="hidden sm:inline-flex">
               <PlusCircle className="mr-2 h-4 w-4" /> Create New Agent
             </Button>
           </div>
