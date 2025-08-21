@@ -366,6 +366,91 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     event.stopPropagation();
   }, []);
 
+  const checkNetworkConnectivity = async (): Promise<boolean> => {
+    try {
+      // Try to fetch a small resource to check connectivity
+      const response = await fetch('/api/health-check', { 
+        method: 'GET',
+        cache: 'no-cache',
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const transcribeWithRetry = async (formData: FormData, maxRetries: number = 3): Promise<any> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[FullFileTranscriber] Transcription attempt ${attempt}/${maxRetries}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minute timeout
+        
+        const response = await fetch('/api/transcribe-audio', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || data.message || data.details || `Transcription failed with status ${response.status}`);
+        }
+        
+        return { response, data };
+        
+      } catch (err: any) {
+        console.error(`[FullFileTranscriber] Attempt ${attempt} failed:`, err);
+        
+        // Don't retry on certain errors
+        if (err.name === 'AbortError') {
+          throw new Error('Transcription timed out. Please try with a shorter audio file or check your internet connection.');
+        }
+        
+        if (err.message?.includes('413') || err.message?.includes('file too large')) {
+          throw new Error('Audio file is too large. Please try with a smaller file.');
+        }
+        
+        if (err.message?.includes('400') || err.message?.includes('Invalid file')) {
+          throw new Error('Invalid audio file format. Please try with a different file.');
+        }
+        
+        // Check for network connectivity issues
+        if (err.name === 'TypeError' && err.message.includes('NetworkError') || 
+            err.message?.includes('503') || err.message?.includes('504')) {
+          const hasConnectivity = await checkNetworkConnectivity();
+          if (!hasConnectivity) {
+            throw new Error('Network connection issue detected. Please check your internet connection and try again.');
+          }
+        }
+        
+        // If this is the last attempt, throw the error
+        if (attempt === maxRetries) {
+          // Provide more helpful error message for the final attempt
+          if (err.message?.includes('503') || err.message?.includes('504')) {
+            throw new Error(`Transcription service is temporarily unavailable after ${maxRetries} attempts. Please try again later.`);
+          }
+          throw new Error(`Transcription failed after ${maxRetries} attempts: ${err.message}`);
+        }
+        
+        // Calculate exponential backoff delay: 2^attempt * 1000ms + random jitter
+        const baseDelay = Math.pow(2, attempt) * 1000;
+        const jitter = Math.random() * 1000;
+        const delay = baseDelay + jitter;
+        
+        console.log(`[FullFileTranscriber] Retrying in ${(delay / 1000).toFixed(2)} seconds...`);
+        setStatusMessage(`Network issue on attempt ${attempt}. Retrying in ${Math.ceil(delay / 1000)} seconds... (${attempt + 1}/${maxRetries})`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  };
+
   const handleStartTranscription = async () => {
     const fileToTranscribe = selectedFile; 
     const fileInfoForProcessing = selectedFile 
@@ -433,12 +518,8 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     console.info(`FullFileTranscriber: Sending transcription_language: ${transcriptionLanguage}`);
 
     try {
-      const response = await fetch('/api/transcribe-audio', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
+      const { response, data } = await transcribeWithRetry(formData);
+      
       // Truncate transcript for logging to avoid excessively long console outputs
       const loggableData = {
         transcript: data.transcript ? truncateString(data.transcript, 200) : data.transcript,
@@ -446,10 +527,6 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         // They are still stored in state and local storage for functionality (e.g., download).
       };
       console.log("[FullFileTranscriber] Received data from /api/transcribe-audio:", JSON.stringify(loggableData, null, 2));
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || data.details || `Transcription failed with status ${response.status}`);
-      }
 
       if (typeof data.transcript === 'string' && Array.isArray(data.segments)) { 
         setCurrentRawTranscriptText(data.transcript);
@@ -670,6 +747,16 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
           <Progress value={estimatedProgress} className="w-full h-2" />
           <p className="text-xs text-muted-foreground text-center mt-1">
             Estimated progress: {Math.floor(estimatedProgress)}%
+            {statusMessage?.includes('Retrying') && ' • Retrying after network issue...'}
+          </p>
+        </div>
+      )}
+      
+      {/* Retry Status Indicator */}
+      {isTranscribing && statusMessage?.includes('Retrying') && (
+        <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
+            🔄 Handling network interruption - transcription will continue automatically
           </p>
         </div>
       )}

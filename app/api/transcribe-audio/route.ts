@@ -56,11 +56,17 @@ export async function POST(req: NextRequest) {
       return formatErrorResponse("Internal Server Error: Failed to retrieve auth token", 500);
     }
     
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 900000); // 15 minute timeout for large files
+    
     const backendResponse = await fetch(targetUrl, {
       method: 'POST',
       headers: backendHeaders,
       body: backendFormData,
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
 
     console.log(`[API /api/transcribe-audio] Backend response status: ${backendResponse.status}`);
 
@@ -107,15 +113,29 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("[API /api/transcribe-audio] Error in POST handler:", error);
     let message = error.message || 'An internal server error occurred during transcription.';
-    if (error.name === 'TypeError' && error.message.includes('NetworkError')) {
-         message = "Network error connecting to the transcription service.";
-         return formatErrorResponse(message, 503);
+    let statusCode = 500;
+    
+    // Handle timeout errors
+    if (error.name === 'AbortError') {
+      message = "Transcription request timed out. This may be due to network issues or a very large file.";
+      statusCode = 504; // Gateway timeout
+    }
+    // Handle network errors
+    else if (error.name === 'TypeError' && error.message.includes('NetworkError')) {
+      message = "Network error connecting to the transcription service.";
+      statusCode = 503; // Service unavailable
+    }
+    // Handle connection errors
+    else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      message = "Unable to connect to transcription service. Please try again later.";
+      statusCode = 503;
     }
     // Catch specific body parsing errors for FormData
-    if (error.message && (error.message.includes("Could not parse content as FormData") || error.message.includes("Invalid input"))) {
-        message = "Failed to process uploaded file. Please ensure it's a valid audio file.";
-        return formatErrorResponse(message, 400);
+    else if (error.message && (error.message.includes("Could not parse content as FormData") || error.message.includes("Invalid input"))) {
+      message = "Failed to process uploaded file. Please ensure it's a valid audio file.";
+      statusCode = 400;
     }
-    return formatErrorResponse(message, 500);
+    
+    return formatErrorResponse(message, statusCode);
   }
 }
