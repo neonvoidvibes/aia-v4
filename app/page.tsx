@@ -634,17 +634,49 @@ function HomeContent() {
   };
 
   const handleIndividualMemoryToggleChange = (checked: boolean, fileKey: string) => {
-    setIndividualMemoryToggleStates(prev => ({
-      ...prev,
-      [fileKey]: checked
-    }));
+    if (savedTranscriptMemoryMode === 'all') {
+      // User is de-selecting an item from an "all" state.
+      // Switch mode to 'some'
+      setSavedTranscriptMemoryMode('some');
+
+      // Initialize all other toggles to true, and the clicked one to false.
+      const newStates: Record<string, boolean> = {};
+      savedTranscriptSummaries.forEach(file => {
+        if (file.s3Key) {
+          newStates[file.s3Key] = file.s3Key !== fileKey; // true for all except the clicked one
+        }
+      });
+      setIndividualMemoryToggleStates(newStates);
+    } else {
+      // Existing logic for when mode is already 'some' or 'none'
+      setIndividualMemoryToggleStates(prev => ({
+        ...prev,
+        [fileKey]: checked
+      }));
+    }
   };
 
   const handleIndividualRawTranscriptToggleChange = (checked: boolean, fileKey: string) => {
-    setIndividualRawTranscriptToggleStates(prev => ({
-      ...prev,
-      [fileKey]: checked
-    }));
+    if (transcriptListenMode === 'all' || transcriptListenMode === 'latest') {
+      // User is de-selecting an item from an "all" or "latest" state.
+      // Switch mode to 'some'
+      setTranscriptListenMode('some');
+
+      // Initialize all other toggles to true, and the clicked one to false.
+      const newStates: Record<string, boolean> = {};
+      transcriptionS3Files.forEach(file => {
+        if (file.s3Key) {
+          newStates[file.s3Key] = file.s3Key !== fileKey; // true for all except the clicked one
+        }
+      });
+      setIndividualRawTranscriptToggleStates(newStates);
+    } else {
+      // Existing logic for when mode is already 'some' or 'none'
+      setIndividualRawTranscriptToggleStates(prev => ({
+        ...prev,
+        [fileKey]: checked
+      }));
+    }
   };
 
   const confirmAndStartNewChat = () => {
@@ -1966,7 +1998,7 @@ function HomeContent() {
                                 showIndividualToggle={true}
                                 individualToggleChecked={(transcriptListenMode === 'all' || transcriptListenMode === 'latest') || (transcriptListenMode === 'some' && (individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name] || false))}
                                 onIndividualToggleChange={handleIndividualRawTranscriptToggleChange}
-                                individualToggleDisabled={transcriptListenMode === 'all' || transcriptListenMode === 'latest'}
+                                individualToggleDisabled={false}
                               />
                             );
                           })
@@ -2018,7 +2050,7 @@ function HomeContent() {
                               showIndividualToggle={true}
                               individualToggleChecked={(savedTranscriptMemoryMode === 'all') || (savedTranscriptMemoryMode === 'some' && (individualMemoryToggleStates[summaryFile.s3Key || summaryFile.name] || false))}
                               onIndividualToggleChange={handleIndividualMemoryToggleChange}
-                              individualToggleDisabled={savedTranscriptMemoryMode === "all"}
+                              individualToggleDisabled={false}
                             />
                           ))
                         ) : (<p className="text-sm text-muted-foreground">No saved transcript summaries found.</p>)}
