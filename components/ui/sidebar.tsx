@@ -54,9 +54,10 @@ interface SidebarProps {
   chatHistory: ChatHistoryItem[];
   isLoadingHistory: boolean;
   onDeleteChat: (chatId: string) => void;
-  transcriptListenMode: 'latest' | 'none' | 'all';
-  savedTranscriptMemoryMode: 'enabled' | 'disabled';
+  transcriptListenMode: 'latest' | 'none' | 'some' | 'all';
+  savedTranscriptMemoryMode: 'none' | 'some' | 'all';
   individualMemoryToggleStates?: Record<string, boolean>;
+  individualRawTranscriptToggleStates?: Record<string, boolean>;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -77,6 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   transcriptListenMode,
   savedTranscriptMemoryMode,
   individualMemoryToggleStates,
+  individualRawTranscriptToggleStates,
 }) => {
   const isMobile = useIsMobile();
 
@@ -91,14 +93,21 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const getSummaryModeText = () => {
-    if (savedTranscriptMemoryMode === 'enabled') {
+    if (savedTranscriptMemoryMode === 'all') {
       return 'All';
     }
-    // Check individual toggles only if the main toggle is disabled
-    if (individualMemoryToggleStates && Object.values(individualMemoryToggleStates).some(isEnabled => isEnabled)) {
-      return 'Part';
+    if (savedTranscriptMemoryMode === 'some' && individualMemoryToggleStates && Object.values(individualMemoryToggleStates).some(v => v)) {
+      return 'Some';
     }
     return 'None';
+  };
+
+  const getTranscriptListenModeText = () => {
+    let text = transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
+    if (text === 'Some' && !(individualRawTranscriptToggleStates && Object.values(individualRawTranscriptToggleStates).some(v => v))) {
+      text = 'None';
+    }
+    return text;
   };
 
   const groupChatsByDate = (chats: ChatHistoryItem[]) => {
@@ -183,7 +192,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 Model <span className="font-bold">{(selectedModel && MODEL_DISPLAY_NAMES[selectedModel]) || selectedModel || 'Loading...'}</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                Transcript <span className="font-bold">{transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1)}</span>
+                Transcript <span className="font-bold">{getTranscriptListenModeText()}</span>
               </div>
               <div className="text-xs text-muted-foreground">
                 Summary <span className="font-bold">{getSummaryModeText()}</span>

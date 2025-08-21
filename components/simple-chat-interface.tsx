@@ -383,9 +383,11 @@ interface SimpleChatInterfaceProps {
   onChatIdChange?: (chatId: string | null) => void; // New prop to notify parent of chat ID changes
   onHistoryRefreshNeeded?: () => void;
   isConversationSaved?: boolean;
-  savedTranscriptMemoryMode?: "disabled" | "enabled";
+  savedTranscriptMemoryMode?: "none" | "some" | "all";
   individualMemoryToggleStates?: Record<string, boolean>;
   savedTranscriptSummaries?: FetchedFile[];
+  individualRawTranscriptToggleStates?: Record<string, boolean>;
+  rawTranscriptFiles?: FetchedFile[];
   individualRawTranscriptToggleStates?: Record<string, boolean>;
   rawTranscriptFiles?: FetchedFile[];
   isModalOpen?: boolean; // New prop to indicate if a modal is open

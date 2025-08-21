@@ -206,8 +206,8 @@ function HomeContent() {
   const [pinnedCanvasInsights, setPinnedCanvasInsights] = useState<CanvasInsightItem[]>([]);
 
   // State for new toggles in Documents tab
-  const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "latest" | "all">("latest");
-  const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"disabled" | "enabled">("disabled");
+  const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "some" | "latest" | "all">("latest");
+  const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"none" | "some" | "all">("none");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
   const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness>(1);
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
@@ -748,10 +748,10 @@ function HomeContent() {
     if (pageAgentName) {
       const key = `savedTranscriptMemoryModeSetting_${pageAgentName}`;
       const savedMode = localStorage.getItem(key);
-      if (savedMode === "disabled" || savedMode === "enabled") {
-        setSavedTranscriptMemoryMode(savedMode as "disabled" | "enabled");
+      if (savedMode === "none" || savedMode === "some" || savedMode === "all") {
+        setSavedTranscriptMemoryMode(savedMode as "none" | "some" | "all");
       } else {
-        setSavedTranscriptMemoryMode("disabled"); // Default if no agent-specific setting found
+        setSavedTranscriptMemoryMode("none"); // Default if no agent-specific setting found
       }
     }
   }, [pageAgentName]);
@@ -786,6 +786,27 @@ function HomeContent() {
       localStorage.setItem(key, JSON.stringify(individualMemoryToggleStates));
     }
   }, [individualMemoryToggleStates, pageAgentName]);
+
+  // Auto-switch memory mode to 'some' when an individual toggle is turned on
+  useEffect(() => {
+    const hasTogglesOn = Object.values(individualMemoryToggleStates).some(v => v);
+    if (hasTogglesOn && savedTranscriptMemoryMode === 'none') {
+      setSavedTranscriptMemoryMode('some');
+    } else if (!hasTogglesOn && savedTranscriptMemoryMode === 'some') {
+      // If the user turns off the last toggle, revert to 'none'
+      setSavedTranscriptMemoryMode('none');
+    }
+  }, [individualMemoryToggleStates, savedTranscriptMemoryMode]);
+
+  // Auto-switch transcript mode to 'some' when an individual toggle is turned on
+  useEffect(() => {
+    const hasTogglesOn = Object.values(individualRawTranscriptToggleStates).some(v => v);
+    if (hasTogglesOn && (transcriptListenMode === 'none' || transcriptListenMode === 'latest')) {
+      setTranscriptListenMode('some');
+    } else if (!hasTogglesOn && transcriptListenMode === 'some') {
+      setTranscriptListenMode('none');
+    }
+  }, [individualRawTranscriptToggleStates, transcriptListenMode]);
 
   // Load and persist individual raw transcript toggle states (agent-specific)
   useEffect(() => {
@@ -1903,23 +1924,22 @@ function HomeContent() {
                           type="single"
                           value={transcriptListenMode}
                           onValueChange={(value) => {
-                            if (value === "none" || value === "latest" || value === "all") {
-                              setTranscriptListenMode(value as "none" | "latest" | "all");
+                            if (value === "none" || value === "some" || value === "latest" || value === "all") {
+                              const newMode = value as "none" | "some" | "latest" | "all";
+                              setTranscriptListenMode(newMode);
+                              if (newMode === 'none' || newMode === 'latest' || newMode === 'all') {
+                                setIndividualRawTranscriptToggleStates({});
+                              }
                             }
                           }}
                           className="rounded-md bg-muted p-0.5"
                           aria-label="Transcript listen mode"
                           id="transcript-listen-toggle-group"
                         >
-                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
-                            Latest
-                          </ToggleGroupItem>
-                          <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
-                            None
-                          </ToggleGroupItem>
-                          <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">
-                            All
-                          </ToggleGroupItem>
+                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Latest</ToggleGroupItem>
+                          <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">None</ToggleGroupItem>
+                          <ToggleGroupItem value="some" aria-label="Some" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Some</ToggleGroupItem>
+                          <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">All</ToggleGroupItem>
                         </ToggleGroup>
                       </div>
                       <div className="pb-3 space-y-2 w-full">
@@ -1944,7 +1964,7 @@ function HomeContent() {
                                 showArchiveIcon={true}
                                 showSaveAsMemoryIcon={true}
                                 showIndividualToggle={true}
-                                individualToggleChecked={(transcriptListenMode === 'all' || transcriptListenMode === 'latest') || (individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name] || false)}
+                                individualToggleChecked={(transcriptListenMode === 'all' || transcriptListenMode === 'latest') || (transcriptListenMode === 'some' && (individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name] || false))}
                                 onIndividualToggleChange={handleIndividualRawTranscriptToggleChange}
                                 individualToggleDisabled={transcriptListenMode === 'all' || transcriptListenMode === 'latest'}
                               />
@@ -1961,19 +1981,27 @@ function HomeContent() {
                           <Brain className="h-5 w-5 text-muted-foreground" />
                           <Label htmlFor="saved-transcript-memory-toggle" className="memory-section-title text-sm font-medium">Memory:</Label>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm text-muted-foreground w-20 text-right">
-                            {savedTranscriptMemoryMode === "disabled" ? "Disabled" : "Enabled (all)"}
-                          </span>
-                          <Switch
-                            id="saved-transcript-memory-toggle"
-                            checked={savedTranscriptMemoryMode === "enabled"}
-                            onCheckedChange={(checked) =>
-                              setSavedTranscriptMemoryMode(checked ? "enabled" : "disabled")
+                        <ToggleGroup
+                          type="single"
+                          value={savedTranscriptMemoryMode}
+                          onValueChange={(value) => {
+                            if (value === "none" || value === "some" || value === "all") {
+                              const newMode = value as "none" | "some" | "all";
+                              setSavedTranscriptMemoryMode(newMode);
+                              // If user explicitly selects None or All, clear individual toggles
+                              if (newMode === 'none' || newMode === 'all') {
+                                setIndividualMemoryToggleStates({});
+                              }
                             }
-                            aria-label="Saved transcript memory mode"
-                          />
-                        </div>
+                          }}
+                          className="rounded-md bg-muted p-0.5"
+                          aria-label="Saved transcript memory mode"
+                          id="saved-transcript-memory-toggle"
+                        >
+                          <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">None</ToggleGroupItem>
+                          <ToggleGroupItem value="some" aria-label="Some" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Some</ToggleGroupItem>
+                          <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">All</ToggleGroupItem>
+                        </ToggleGroup>
                       </div>
                       <div className="pb-3 space-y-2 w-full">
                         {savedTranscriptSummaries.length > 0 ? (
@@ -1988,9 +2016,9 @@ function HomeContent() {
                               showArchiveIcon={false} // No archive for summaries
                               showSaveAsMemoryIcon={false} // No save for already summarized
                               showIndividualToggle={true}
-                              individualToggleChecked={individualMemoryToggleStates[summaryFile.s3Key || summaryFile.name] || false}
+                              individualToggleChecked={(savedTranscriptMemoryMode === 'all') || (savedTranscriptMemoryMode === 'some' && (individualMemoryToggleStates[summaryFile.s3Key || summaryFile.name] || false))}
                               onIndividualToggleChange={handleIndividualMemoryToggleChange}
-                              individualToggleDisabled={savedTranscriptMemoryMode === "enabled"}
+                              individualToggleDisabled={savedTranscriptMemoryMode === "all"}
                             />
                           ))
                         ) : (<p className="text-sm text-muted-foreground">No saved transcript summaries found.</p>)}
