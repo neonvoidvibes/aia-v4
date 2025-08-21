@@ -1798,7 +1798,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 setIsReconnecting(false); 
                                 reconnectAttemptsRef.current = 0; 
                                 // Use toast only, no chat system message
-                                // addErrorMessage("Connection re-established and stable.");
+                                toast.success("Connection re-established and stable.");
                             }
                         } else if (messageData.type === 'ping') {
                             // reply to server keepalive
@@ -1860,7 +1860,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const tryReconnect = useCallback(() => {
         if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-            addErrorMessage('Failed to reconnect recording after multiple attempts. Please stop and start manually.');
+            toast.error('Failed to reconnect recording after multiple attempts. Please stop and start manually.');
             resetRecordingStates();
             return;
         }
@@ -1869,7 +1869,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const nextAttempt = reconnectAttemptsRef.current;
         
         // Use toast only, no chat system message
-        // addErrorMessage(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
+        toast.warning(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
         
         const backoff = Math.pow(2, nextAttempt - 1);
         const jitter = Math.random() * 1000; // Add up to 1s of random delay
@@ -1890,7 +1890,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 connectWebSocket(currentSessionToReconnect);
             } else {
                 console.error("[Reconnect] Cannot reconnect: session ID is null.");
-                addErrorMessage('Cannot reconnect: session information was lost. Please stop and start recording again.');
+                toast.error('Cannot reconnect: session information was lost. Please stop and start recording again.');
                 setIsReconnecting(false);
                 resetRecordingStates();
             }
