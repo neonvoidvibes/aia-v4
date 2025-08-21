@@ -115,17 +115,6 @@ export default function FetchedFileListItem({
         </div>
       </div>
       <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-        {showIndividualToggle && (
-          <div className="flex items-center gap-2 mr-3">
-            <span className="text-xs text-muted-foreground">Memory:</span>
-            <Switch
-              checked={individualToggleChecked}
-              onCheckedChange={handleIndividualToggleChange}
-              disabled={individualToggleDisabled}
-              aria-label={`Toggle memory for ${file.name}`}
-            />
-          </div>
-        )}
         {showViewIcon && onView && file.s3Key && (
           <Button
             variant="ghost"
@@ -175,6 +164,16 @@ export default function FetchedFileListItem({
           >
             <Archive className="h-4 w-4" />
           </Button>
+        )}
+        {showIndividualToggle && (
+          <div className="flex items-center gap-2 ml-2">
+            <Switch
+              checked={individualToggleChecked}
+              onCheckedChange={handleIndividualToggleChange}
+              disabled={individualToggleDisabled}
+              aria-label={`Toggle memory for ${file.name}`}
+            />
+          </div>
         )}
       </div>
     </div>
