@@ -119,6 +119,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   const PONG_TIMEOUT_MS = 10000;
   const MAX_HEARTBEAT_MISSES = 2;
   const heartbeatMissesRef = useRef(0);
+  const pingStartTime = useRef<number>(0);
 
   const fetchRecordings = useCallback(async () => {
     if (!agentName) return;
@@ -419,6 +420,7 @@ const RecordView: React.FC<RecordViewProps> = ({
               newWs.close(1000, "Heartbeat timeout");
               return;
             }
+            pingStartTime.current = Date.now();
             newWs.send(JSON.stringify({action: 'ping'}));
             pongTimeoutRef.current = setTimeout(() => {
               heartbeatMissesRef.current++;
@@ -444,11 +446,16 @@ const RecordView: React.FC<RecordViewProps> = ({
           const messageData = JSON.parse(event.data);
           if (messageData.type === 'pong') {
             if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+            const rtt = Date.now() - pingStartTime.current;
+            console.log(`[RTT] ${rtt}ms`);
+            if (rtt > 5000) {
+              console.warn('[Network] High latency detected:', rtt);
+            }
             heartbeatMissesRef.current = 0;
             if (isReconnecting) {
               setIsReconnecting(false);
               reconnectAttemptsRef.current = 0;
-              toast.success("Connection re-established.");
+              toast.success("Connection re-established and stable.");
             }
           }
         } catch (e) { /* Non-JSON message */ }
@@ -469,6 +476,9 @@ const RecordView: React.FC<RecordViewProps> = ({
         if (webSocketRef.current !== newWs) return;
       
         const intentional = (newWs as any).__intentionalClose || pendingActionRef.current === 'stop';
+        const timestamp = new Date().toISOString();
+        const networkOnline = navigator.onLine;
+        console.log(`[WebSocket Close] ${timestamp} - Code: ${event.code}, Online: ${networkOnline}, Reason: '${event.reason}', Intentional: ${intentional}`);
         debugLog(`[WebSocket onclose] Code: ${event.code}, Reason: '${event.reason}', Intentional: ${intentional}`);
         setWsStatus('closed');
         webSocketRef.current = null;
