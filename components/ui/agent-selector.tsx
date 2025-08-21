@@ -100,7 +100,7 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
       <DropdownMenuContent
         ref={contentRef}
         align="center"
-        className="max-h-80 overflow-y-auto"
+        className="max-h-64 overflow-y-auto"
       >
         <DropdownMenuSub
           open={isMobile ? isThemeOpen : undefined}
