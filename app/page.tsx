@@ -185,6 +185,7 @@ function HomeContent() {
   const [pineconeMemoryDocs, setPineconeMemoryDocs] = useState<{ name: string }[]>([]);
   const [savedTranscriptSummaries, setSavedTranscriptSummaries] = useState<FetchedFile[]>([]); // New state
   const [individualMemoryToggleStates, setIndividualMemoryToggleStates] = useState<Record<string, boolean>>({}); // Individual file toggle states
+  const [individualRawTranscriptToggleStates, setIndividualRawTranscriptToggleStates] = useState<Record<string, boolean>>({});
   const [agentDocuments, setAgentDocuments] = useState<FetchedFile[]>([]);
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
@@ -639,6 +640,13 @@ function HomeContent() {
     }));
   };
 
+  const handleIndividualRawTranscriptToggleChange = (checked: boolean, fileKey: string) => {
+    setIndividualRawTranscriptToggleStates(prev => ({
+      ...prev,
+      [fileKey]: checked
+    }));
+  };
+
   const confirmAndStartNewChat = () => {
       console.log("Modal confirmed, calling startNewChat via ref");
       chatInterfaceRef.current?.startNewChat();
@@ -778,6 +786,30 @@ function HomeContent() {
       localStorage.setItem(key, JSON.stringify(individualMemoryToggleStates));
     }
   }, [individualMemoryToggleStates, pageAgentName]);
+
+  // Load and persist individual raw transcript toggle states (agent-specific)
+  useEffect(() => {
+    if (pageAgentName) {
+      const key = `individualRawTranscriptToggleStates_${pageAgentName}`;
+      const savedStates = localStorage.getItem(key);
+      if (savedStates) {
+        try {
+          const parsedStates = JSON.parse(savedStates);
+          setIndividualRawTranscriptToggleStates(parsedStates);
+        } catch (error) {
+          console.error('Error parsing individual raw transcript toggle states:', error);
+          setIndividualRawTranscriptToggleStates({});
+        }
+      }
+    }
+  }, [pageAgentName]);
+
+  useEffect(() => {
+    if (pageAgentName && Object.keys(individualRawTranscriptToggleStates).length > 0) {
+      const key = `individualRawTranscriptToggleStates_${pageAgentName}`;
+      localStorage.setItem(key, JSON.stringify(individualRawTranscriptToggleStates));
+    }
+  }, [individualRawTranscriptToggleStates, pageAgentName]);
 
   // Load and persist transcriptionLanguage (agent-specific)
   useEffect(() => {
@@ -1590,6 +1622,8 @@ function HomeContent() {
               savedTranscriptMemoryMode={savedTranscriptMemoryMode}
               individualMemoryToggleStates={individualMemoryToggleStates}
               savedTranscriptSummaries={savedTranscriptSummaries}
+              individualRawTranscriptToggleStates={individualRawTranscriptToggleStates}
+              rawTranscriptFiles={transcriptionS3Files}
               isModalOpen={isAnyModalOpen}
             />
         </div>
@@ -1909,6 +1943,10 @@ function HomeContent() {
                                 showDownloadIcon={true}
                                 showArchiveIcon={true}
                                 showSaveAsMemoryIcon={true}
+                                showIndividualToggle={true}
+                                individualToggleChecked={(transcriptListenMode === 'all' || transcriptListenMode === 'latest') || (individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name] || false)}
+                                onIndividualToggleChange={handleIndividualRawTranscriptToggleChange}
+                                individualToggleDisabled={transcriptListenMode === 'all' || transcriptListenMode === 'latest'}
                               />
                             );
                           })

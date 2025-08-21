@@ -386,6 +386,8 @@ interface SimpleChatInterfaceProps {
   savedTranscriptMemoryMode?: "disabled" | "enabled";
   individualMemoryToggleStates?: Record<string, boolean>;
   savedTranscriptSummaries?: FetchedFile[];
+  individualRawTranscriptToggleStates?: Record<string, boolean>;
+  rawTranscriptFiles?: FetchedFile[];
   isModalOpen?: boolean; // New prop to indicate if a modal is open
 
 }
@@ -434,7 +436,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, isModalOpen = false }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
 
     const searchParams = useSearchParams();
@@ -579,8 +581,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         savedTranscriptMemoryMode: savedTranscriptMemoryMode,
         individualMemoryToggleStates: individualMemoryToggleStates,
         savedTranscriptSummaries: savedTranscriptSummaries,
+        individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,
+        rawTranscriptFiles: rawTranscriptFiles,
         initialContext: initialContext,
-    }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, initialContext]);
+      }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, initialContext]);
 
     const {
       messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
