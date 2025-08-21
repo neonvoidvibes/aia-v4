@@ -830,26 +830,42 @@ function HomeContent() {
     }
   }, [individualMemoryToggleStates, savedTranscriptMemoryMode]);
 
-  // Auto-switch transcript mode to 'some' when an individual toggle is turned on
+  // Auto-switch transcript mode based on individual toggle changes
   useEffect(() => {
-    const hasTogglesOn = Object.values(individualRawTranscriptToggleStates).some(v => v);
-    if (hasTogglesOn && (transcriptListenMode === 'none' || transcriptListenMode === 'latest')) {
-      setTranscriptListenMode('some');
-    } else if (!hasTogglesOn && transcriptListenMode === 'some') {
-      setTranscriptListenMode('none');
-    }
-  }, [individualRawTranscriptToggleStates, transcriptListenMode]);
+    const toggledOnKeys = Object.entries(individualRawTranscriptToggleStates)
+      .filter(([, value]) => value)
+      .map(([key]) => key);
+    const toggledOnCount = toggledOnKeys.length;
+    const totalFiles = transcriptionS3Files.length;
 
-  // Auto-switch to 'all' mode if all individual toggles are manually selected
-  useEffect(() => {
-    if (transcriptListenMode === 'some' && transcriptionS3Files.length > 0) {
-      const allToggled = transcriptionS3Files.every(file => file.s3Key && individualRawTranscriptToggleStates[file.s3Key]);
-      if (allToggled) {
-        setTranscriptListenMode('all');
-        setIndividualRawTranscriptToggleStates({});
+    if (totalFiles > 0 && toggledOnCount === totalFiles) {
+      setTranscriptListenMode('all');
+      setIndividualRawTranscriptToggleStates({});
+    } else {
+      const latestFileKey = transcriptionS3Files[0]?.s3Key;
+      if (toggledOnCount === 1 && latestFileKey && toggledOnKeys[0] === latestFileKey) {
+        setTranscriptListenMode('latest');
+      } else if (toggledOnCount > 0) {
+        if (transcriptListenMode !== 'some') {
+          setTranscriptListenMode('some');
+        }
+      } else {
+        if (transcriptListenMode !== 'none') {
+          setTranscriptListenMode('none');
+        }
       }
     }
   }, [individualRawTranscriptToggleStates, transcriptionS3Files, transcriptListenMode]);
+
+  useEffect(() => {
+    if (savedTranscriptMemoryMode === 'some' && savedTranscriptSummaries.length > 0) {
+      const allToggled = savedTranscriptSummaries.every(file => file.s3Key && individualMemoryToggleStates[file.s3Key]);
+      if (allToggled) {
+        setSavedTranscriptMemoryMode('all');
+        setIndividualMemoryToggleStates({});
+      }
+    }
+  }, [individualMemoryToggleStates, savedTranscriptSummaries, savedTranscriptMemoryMode]);
 
   useEffect(() => {
     if (savedTranscriptMemoryMode === 'some' && savedTranscriptSummaries.length > 0) {
@@ -1980,7 +1996,14 @@ function HomeContent() {
                             if (value === "none" || value === "some" || value === "latest" || value === "all") {
                               const newMode = value as "none" | "some" | "latest" | "all";
                               setTranscriptListenMode(newMode);
-                              if (newMode === 'none' || newMode === 'latest' || newMode === 'all') {
+                              if (newMode === 'latest') {
+                                const latestFileKey = transcriptionS3Files[0]?.s3Key;
+                                if (latestFileKey) {
+                                  setIndividualRawTranscriptToggleStates({ [latestFileKey]: true });
+                                } else {
+                                  setIndividualRawTranscriptToggleStates({});
+                                }
+                              } else if (newMode === 'none' || newMode === 'all') {
                                 setIndividualRawTranscriptToggleStates({});
                               }
                             }
@@ -1997,7 +2020,7 @@ function HomeContent() {
                       </div>
                       <div className="pb-3 space-y-2 w-full">
                         {transcriptionS3Files.length > 0 ? (
-                          transcriptionS3Files.map(originalFile => {
+                          transcriptionS3Files.map((originalFile, index) => {
                             const isProcessing = processingFileKeys.has(originalFile.s3Key!);
                             const actionType = fileActionTypes[originalFile.s3Key!];
                             const fileWithPersistentStatus: FetchedFile = {
@@ -2017,7 +2040,11 @@ function HomeContent() {
                                 showArchiveIcon={true}
                                 showSaveAsMemoryIcon={true}
                                 showIndividualToggle={true}
-                                individualToggleChecked={(transcriptListenMode === 'all' || transcriptListenMode === 'latest') || (transcriptListenMode === 'some' && (individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name] || false))}
+                                individualToggleChecked={
+                                  transcriptListenMode === 'all' ||
+                                  (transcriptListenMode === 'latest' && index === 0) ||
+                                  (transcriptListenMode === 'some' && (individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name] || false))
+                                }
                                 onIndividualToggleChange={handleIndividualRawTranscriptToggleChange}
                                 individualToggleDisabled={false}
                               />
@@ -2077,7 +2104,7 @@ function HomeContent() {
                         ) : (<p className="text-sm text-muted-foreground">No saved transcript summaries found.</p>)}
                       </div>
                     </CollapsibleSection>
-                    <CollapsibleSection title="Saved Transcripts" defaultOpen={false}>
+                    <CollapsibleSection title="Archived Transcripts" defaultOpen={false}>
                        <div className="flex items-center justify-between py-3 border-b mb-3">
                          <div className="flex items-center gap-2">
                            <FileClock className="h-5 w-5 text-muted-foreground" />
