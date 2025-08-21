@@ -1797,7 +1797,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 console.info("[WebSocket onmessage] First pong after reconnect received. Finalizing reconnect state.");
                                 setIsReconnecting(false); 
                                 reconnectAttemptsRef.current = 0; 
-                                addErrorMessage("Connection re-established and stable.");
+                                // Use toast only, no chat system message
+                                // addErrorMessage("Connection re-established and stable.");
                             }
                         } else if (messageData.type === 'ping') {
                             // reply to server keepalive
@@ -1867,7 +1868,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         reconnectAttemptsRef.current++;
         const nextAttempt = reconnectAttemptsRef.current;
         
-        addErrorMessage(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
+        // Use toast only, no chat system message
+        // addErrorMessage(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
         
         const backoff = Math.pow(2, nextAttempt - 1);
         const jitter = Math.random() * 1000; // Add up to 1s of random delay
