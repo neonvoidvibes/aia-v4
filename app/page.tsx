@@ -1911,7 +1911,7 @@ function HomeContent() {
                           <SelectContent>
                             {MODEL_GROUPS.map((group) => (
                               <SelectGroup key={group.label}>
-                                <SelectLabel>{group.label}</SelectLabel>
+                                <SelectLabel className="pl-8 pr-2 uppercase text-muted-foreground font-normal text-xs opacity-75">{group.label}</SelectLabel>
                                 {group.models.map((model) => (
                                   <SelectItem key={model.id} value={model.id}>
                                     {model.name}

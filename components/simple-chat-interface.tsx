@@ -3720,7 +3720,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   {MODEL_GROUPS.map((group, index) => (
                                     <React.Fragment key={group.label}>
                                       {index > 0 && <DropdownMenuSeparator />}
-                                      <DropdownMenuLabel className="text-muted-foreground font-normal px-2 py-1.5 text-xs">
+                                      <DropdownMenuLabel className="text-muted-foreground font-normal pl-8 pr-2 py-1.5 text-xs uppercase opacity-75">
                                         {group.label}
                                       </DropdownMenuLabel>
                                       {group.models.map((model) => (
