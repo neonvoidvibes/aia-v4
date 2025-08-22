@@ -59,12 +59,14 @@ import WaveformIcon from "@/components/ui/waveform-icon";
 import { cn } from "@/lib/utils"
 import { toast } from "sonner" // Import toast
 import { type VADAggressiveness } from "./VADSettings";
-import { MODEL_DISPLAY_NAMES, AVAILABLE_MODELS } from "@/lib/model-map";
+import { MODEL_GROUPS, MODEL_DISPLAY_NAMES_MAP } from "@/lib/model-map";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -3708,17 +3710,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       marginRight: '4px'
                                     }}
                                   >
-                                    {MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}
+                                    {MODEL_DISPLAY_NAMES_MAP.get(selectedModel) || selectedModel}
                                   </span>
                                   <ChevronDown className="h-3 w-3 flex-shrink-0 mobile-chevron" />
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => onModelChange?.(value)}>
-                                  {AVAILABLE_MODELS.map((model) => (
-                                    <DropdownMenuRadioItem key={model} value={model}>
-                                      {MODEL_DISPLAY_NAMES[model] || model}
-                                    </DropdownMenuRadioItem>
+                                  {MODEL_GROUPS.map((group, index) => (
+                                    <React.Fragment key={group.label}>
+                                      {index > 0 && <DropdownMenuSeparator />}
+                                      <DropdownMenuLabel className="text-muted-foreground font-normal px-2 py-1.5 text-xs">
+                                        {group.label}
+                                      </DropdownMenuLabel>
+                                      {group.models.map((model) => (
+                                        <DropdownMenuRadioItem key={model.id} value={model.id}>
+                                          {model.name}
+                                        </DropdownMenuRadioItem>
+                                      ))}
+                                    </React.Fragment>
                                   ))}
                                 </DropdownMenuRadioGroup>
                               </DropdownMenuContent>

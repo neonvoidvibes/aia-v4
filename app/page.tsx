@@ -48,10 +48,11 @@ import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/component
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
 import AgentSelectorMenu from "@/components/ui/agent-selector";
+import { MODEL_GROUPS } from "@/lib/model-map";
 import AgentDashboard from "@/components/agent-dashboard"; // New import
 
 interface ChatHistoryItem {
@@ -1903,18 +1904,23 @@ function HomeContent() {
                     </div>
                      <div className="flex items-center justify-between">
                       <Label htmlFor="model-selector">Chat Model</Label>
-                      <Select value={selectedModel} onValueChange={handleModelChange}>
-                        <SelectTrigger className="w-[220px]" id="model-selector">
-                          <SelectValue placeholder="Select a model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="claude-sonnet-4-20250514">Claude 4 Sonnet</SelectItem>
-                          <SelectItem value="gpt-5">GPT-5</SelectItem>
-                          <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
-                          <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
-                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Select value={selectedModel} onValueChange={handleModelChange}>
+                          <SelectTrigger className="w-[220px]" id="model-selector">
+                            <SelectValue placeholder="Select a model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MODEL_GROUPS.map((group) => (
+                              <SelectGroup key={group.label}>
+                                <SelectLabel>{group.label}</SelectLabel>
+                                {group.models.map((model) => (
+                                  <SelectItem key={model.id} value={model.id}>
+                                    {model.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            ))}
+                          </SelectContent>
+                        </Select>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">

@@ -4,7 +4,7 @@ import { Separator } from './separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './sheet';
 import { useIsMobile } from './use-mobile';
 import { createClient } from '@/utils/supabase/client';
-import { MODEL_DISPLAY_NAMES } from '@/lib/model-map';
+import { MODEL_DISPLAY_NAMES_MAP } from '@/lib/model-map';
 import {
   MessageCircle,
   Settings,
@@ -185,7 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 Agent <span className="font-bold">{agentName || 'Loading...'}</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                Model <span className="font-bold">{(selectedModel && MODEL_DISPLAY_NAMES[selectedModel]) || selectedModel || 'Loading...'}</span>
+                Model <span className="font-bold">{(selectedModel && MODEL_DISPLAY_NAMES_MAP.get(selectedModel)) || selectedModel || 'Loading...'}</span>
               </div>
               <div className="text-xs text-muted-foreground">
                 Transcript <span className="font-bold">{getTranscriptListenModeText()}</span>

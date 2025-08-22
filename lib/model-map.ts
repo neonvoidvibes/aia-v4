@@ -1,9 +1,37 @@
-export const MODEL_DISPLAY_NAMES: { [key: string]: string } = {
-  "claude-sonnet-4-20250514": "Claude Sonnet 4",
-  "gpt-5": "ChatGPT 5",
-  "gpt-5-mini": "ChatGPT 5 Mini",
-  "gemini-2.5-pro": "Gemini 2.5 Pro",
-  "gemini-2.5-flash": "Gemini 2.5 Flash",
-};
+export interface Model {
+  id: string; // e.g., "claude-sonnet-4-20250514"
+  name: string; // e.g., "Claude 4 Sonnet"
+}
 
-export const AVAILABLE_MODELS = Object.keys(MODEL_DISPLAY_NAMES);
+export interface ModelGroup {
+  label: string; // e.g., "Standard"
+  models: Model[];
+}
+
+// New data structure for the grouped model picker
+export const MODEL_GROUPS: ModelGroup[] = [
+  {
+    label: "Standard",
+    models: [
+      { id: "claude-sonnet-4-20250514", name: "Claude 4 Sonnet" },
+    ],
+  },
+  {
+    label: "Fast",
+    models: [
+      { id: "gpt-oss-120b", name: "GPT Open Source" },
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    ],
+  },
+  {
+    label: "Thinking",
+    models: [
+      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+      { id: "gpt-5", name: "GPT-5" },
+    ],
+  },
+];
+
+// Helper map for components that still need a quick lookup for display names.
+export const ALL_MODELS_FLAT = MODEL_GROUPS.flatMap(group => group.models);
+export const MODEL_DISPLAY_NAMES_MAP = new Map(ALL_MODELS_FLAT.map(model => [model.id, model.name]));
