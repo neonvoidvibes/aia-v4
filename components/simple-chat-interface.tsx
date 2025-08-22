@@ -42,6 +42,7 @@ import {
   Trash2, // Added for deleting messages
   RotateCcw, // Added for retry functionality
   Waves,
+  History,
 } from "lucide-react"
 import { SlidersIcon } from "@/components/ui/sliders-icon";
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
@@ -375,7 +376,7 @@ interface SimpleChatInterfaceProps {
   vadAggressiveness: VADAggressiveness;
   globalRecordingStatus: GlobalRecordingStatus;
   setGlobalRecordingStatus: React.Dispatch<React.SetStateAction<GlobalRecordingStatus>>;
-  transcriptListenMode: "none" | "latest" | "all";
+  transcriptListenMode: "none" | "some" | "latest" | "all";
   initialContext?: string; // For _aicreator agent
   getCanvasContext?: () => { // New prop to fetch dynamic canvas context
     current_canvas_time_window_label?: string;
@@ -920,6 +921,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [conversationMemoryId, setConversationMemoryId] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<string | null>(null);
     useEffect(() => { pendingActionRef.current = pendingAction; }, [pendingAction]);
+
+    const isMemoryActive = useMemo(() => {
+      if (savedTranscriptMemoryMode === 'all') return true;
+      if (savedTranscriptMemoryMode === 'some' && individualMemoryToggleStates && Object.values(individualMemoryToggleStates).some(v => v)) return true;
+      
+      if (transcriptListenMode === 'all' || transcriptListenMode === 'latest') return true;
+      if (transcriptListenMode === 'some' && individualRawTranscriptToggleStates && Object.values(individualRawTranscriptToggleStates).some(v => v)) return true;
+  
+      return false;
+    }, [savedTranscriptMemoryMode, individualMemoryToggleStates, transcriptListenMode, individualRawTranscriptToggleStates]);
 
     const [ttsPlayback, setTtsPlayback] = useState<{
       isPlaying: boolean;
