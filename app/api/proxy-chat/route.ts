@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     // Force transcripts off for wizard; prevents backend transcript branches.
     let transcriptListenModeSetting = isWizard ? "none" : (body.data?.transcriptListenMode || body.transcriptListenMode || "latest");
-    if (!["none", "latest", "all"].includes(transcriptListenModeSetting)) {
+    if (!["none", "latest", "all", "some"].includes(transcriptListenModeSetting)) {
       transcriptListenModeSetting = "latest"; // Default to "latest" if invalid value
     }
     
