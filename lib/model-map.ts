@@ -14,20 +14,21 @@ export const MODEL_GROUPS: ModelGroup[] = [
     label: "Standard",
     models: [
       { id: "claude-sonnet-4-20250514", name: "Claude 4 Sonnet" },
+      { id: "gpt-oss-120b", name: "GPT Open Source (large)" },
     ],
   },
   {
-    label: "Fast",
+    label: "Fastest",
     models: [
-      { id: "gpt-oss-120b", name: "GPT Open Source" },
+      { id: "gpt-oss-20b", name: "GPT Open Source (small)" },
       { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
     ],
   },
   {
-    label: "Thinking",
+    label: "Reasoning",
     models: [
+      { id: "gpt-5", name: "GPT-5 Thinking" },
       { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-      { id: "gpt-5", name: "GPT-5" },
     ],
   },
 ];
