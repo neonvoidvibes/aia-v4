@@ -831,7 +831,7 @@ body {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   /* Default padding (for desktop/larger screens) */
-  padding: 4px 10px 1.5rem 10px;
+  padding: 4px 8px 1.5rem 8px;
   /* Use same width constraint as input field - relative to container, not viewport */
   max-width: 760px;
   margin: 0 auto;
@@ -842,8 +842,8 @@ body {
 /* Mobile: Add horizontal padding to match header */
 @media (max-width: 640px) {
   .messages-container {
-    padding-left: 1rem; /* 16px */
-    padding-right: 1rem; /* 16px */
+    padding-left: 8px;
+    padding-right: 8px;
     max-width: calc(100% - 2rem);
     width: calc(100% - 2rem);
   }
@@ -986,7 +986,7 @@ body {
   align-self: flex-end;
   border-radius: var(--message-radius);
   border-bottom-right-radius: var(--message-radius);
-  margin-right: 8px;
+  margin-right: 0;
   display: inline-block;
   text-align: left;
   width: max-content;
@@ -1006,7 +1006,7 @@ body {
   color: hsl(var(--assistant-message-text-color)); /* UPDATED to use new variable */
   align-self: flex-start;
   padding-left: 0; /* Remove default padding */
-  margin-left: 8px;
+  margin-left: 0;
   max-width: 100%; /* Standard AI max width */
   /* Ensure no width override */
 }

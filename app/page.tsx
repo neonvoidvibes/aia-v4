@@ -1585,7 +1585,7 @@ function HomeContent() {
         isOpen={isSidebarOpen}
         onOpen={() => setIsSidebarOpen(true)}
         onClose={() => setIsSidebarOpen(false)}
-        className="absolute top-[15px] left-4 z-20"
+        className="absolute top-[15px] left-6 z-20"
         setCurrentView={setCurrentView}
         setShowSettings={setShowSettings}
         agentName={pageAgentName || undefined}
@@ -1609,7 +1609,7 @@ function HomeContent() {
       {/* New Chat icon positioned right of sidebar */}
       <button
         onClick={handleNewChatRequest}
-        className="absolute top-[17px] left-[52px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
+        className="absolute top-[17px] left-[60px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
         aria-label="Start new chat"
         title="Start new chat"
       >
@@ -1659,7 +1659,7 @@ function HomeContent() {
 
             {/* Right side: Agent name (mobile) */}
             {isMobile && pageAgentName && (
-              <div className="absolute right-8" style={{ marginTop: '2px' }}>
+              <div className="absolute right-6" style={{ marginTop: '2px' }}>
                 <AgentSelectorMenu
                   allowedAgents={allowedAgents}
                   currentAgent={pageAgentName}
