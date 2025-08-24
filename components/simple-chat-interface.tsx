@@ -3585,7 +3585,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                       recordingTime={pressToTalkTime}
                     />
                   ) : ( // Regular input view
-                    <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] py-3 px-3 flex flex-col")}>
+                    <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] md:rounded-[1.4rem] py-3 px-3 flex flex-col")}>
                       <div className="w-full flex items-center" style={{ minHeight: '48px' }}>
                         <textarea
                           ref={textareaRef}

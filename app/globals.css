@@ -867,18 +867,6 @@ body {
   }
 }
 
-@media (min-width: 768px) {
-  /* less horizontal padding → text field, slider, menus move left; model + submit sit tighter right */
-  .chat-input-layout { padding-left: 6px !important; padding-right: 6px !important; } /* overrides 8px 12px */  /* :contentReference[oaicite:0]{index=0} */
-
-  /* left cluster: slider (+) and its menus a bit further left */
-  .plus-menu { left: -12px !important; }         /* from -7px → -12px */  /* :contentReference[oaicite:1]{index=1} */
-  .record-ui { left: -16px !important; }         /* from -12px → -16px */ /* :contentReference[oaicite:2]{index=2} */
-
-  /* right cluster: model picker closer to submit button at the edge */
-  .model-picker-container { right: 40px !important; } /* from inline 50px; mobile keeps its own 48px rule */  /* :contentReference[oaicite:3]{index=3} :contentReference[oaicite:4]{index=4} */
-}
-
 /* New class for chat input layout to separate concerns from color */
 .chat-input-layout {
   width: min(760px, calc(100% - 2rem)) !important;
@@ -1094,7 +1082,7 @@ body {
 /* Desktop: Position plus menu closer to plus icon */
 @media (min-width: 768px) {
   .plus-menu {
-    left: -7px; /* Move closer to slider icon */
+    left: -8px; /* Move closer to slider icon */
     min-width: 48px; /* Adequate width, not minimal */
   }
 }
@@ -1117,7 +1105,7 @@ body {
 }
 
 .record-ui {
-  left: -12px; /* Shift further left */
+  left: -17px; /* Shift further left */
   padding: 8px 12px;
   gap: 8px;
   min-width: 140px; /* Increased width to properly contain all controls */
@@ -2826,6 +2814,13 @@ html body .scroll-to-bottom-button {
 html body .chat-input-layout {
   margin: 0 auto !important;
   padding: 8px 12px !important; /* Minimal padding */
+}
+
+@media (min-width: 768px) {
+  html body .chat-input-layout {
+    padding-left: 8px !important;   /* was 12px */
+    padding-right: 8px !important;  /* was 12px */
+  }
 }
 
 html body .input-area-container {
