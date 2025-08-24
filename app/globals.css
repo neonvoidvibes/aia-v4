@@ -831,7 +831,7 @@ body {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   /* Default padding (for desktop/larger screens) */
-  padding: 4px 8px 1.5rem 8px;
+  padding: 4px 4px 1.5rem 8px;
   /* Use same width constraint as input field - relative to container, not viewport */
   max-width: 760px;
   margin: 0 auto;
