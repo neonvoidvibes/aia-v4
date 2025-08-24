@@ -17,7 +17,7 @@ const formatTime = (seconds: number): string => {
 
 const TTSPlaybackUI: React.FC<TTSPlaybackUIProps> = ({ onStop, playbackTime, isLoading }) => {
   return (
-    <div className={cn("chat-input-layout bg-primary rounded-[1.8rem] py-3 px-3 flex flex-col")}>
+    <div className={cn("chat-input-layout bg-primary rounded-[1.8rem] md:rounded-[1.4rem] py-3 px-3 flex flex-col")}>
       <div className="w-full flex items-center justify-center h-12">
         {isLoading ? (
           <Loader2 className="h-5 w-5 text-primary-foreground animate-spin" />
