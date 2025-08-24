@@ -13,7 +13,6 @@
 
   /* UI elements */
   --radius: 1.5rem;
-  --message-radius: 1.8rem;
   --input-gray: 0 0% 32%; /* Changed to a darker gray for dark mode input/bubbles */
   --status-bar: 0 0% 40%;
   --placeholder-text: 0 0% 55%;
@@ -965,7 +964,6 @@ body {
 
 /* --- Message Bubbles --- */
 .message-bubble {
-  border-radius: var(--message-radius);
   max-width: 80%;
   padding: 12px 18px;
   /* white-space: pre-wrap; /* Ensure newlines are respected */
@@ -982,8 +980,6 @@ body {
   max-width: 80%; /* Standard user max width */
   background-color: hsl(var(--input-gray) / var(--input-opacity, 1)); /* Background color back via CSS */
   align-self: flex-end;
-  border-radius: var(--message-radius);
-  border-bottom-right-radius: var(--message-radius);
   margin-right: 0;
   display: inline-block;
   text-align: left;
@@ -996,7 +992,6 @@ body {
 
 .user-bubble.with-attachment {
   border-top-right-radius: 4px; /* Fixed small radius (no !important) */
-  border-bottom-right-radius: var(--message-radius); /* Explicitly set back to default */
 }
 
 .ai-bubble {

@@ -3203,7 +3203,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         />
                                       </div>
                                     )}
-                                    <div className={cn("rounded-2xl p-3 message-bubble", isUser ? `user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm text-center max-w-[90%] opacity-50 pb-6` : "bg-transparent ai-bubble pl-0" )} data-role={isSystem ? "system" : undefined}>
+                                    <div className={cn("p-3 message-bubble rounded-[1.8rem] md:rounded-[1.4rem]", isUser ? `user-bubble ${hasAttachments ? "with-attachment" : ""} ${isFromCanvas ? "from-canvas" : ""}` : isSystem ? `bg-transparent text-[hsl(var(--text-muted))] text-sm text-center max-w-[90%] opacity-50 pb-6` : "bg-transparent ai-bubble pl-0" )} data-role={isSystem ? "system" : undefined}>
                                       {isFromCanvas && <span className="text-xs opacity-70 block mb-1">Sent from Canvas:</span>}
                                       {isUser || isSystem ? (
                                         <span
