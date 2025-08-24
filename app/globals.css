@@ -2218,8 +2218,12 @@ button {
 
   /* Increase margin between model picker and submit button on mobile */
   .model-picker-container {
-    right: 48px !important; /* Increased from 40px to 48px */
+    right: 48px !important;
   }
+}
+
+@media (min-width: 768px) {
+  .model-picker-container { right: 40px !important; }
 }
 
 /* Chat sliders icon - make more white in dark theme like submit button */
