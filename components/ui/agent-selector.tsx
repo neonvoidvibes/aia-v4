@@ -25,13 +25,12 @@ import { cn } from "@/lib/utils";
 interface AgentSelectorMenuProps {
   allowedAgents: string[];
   currentAgent: string;
+  onAgentChange: (agentName: string) => void; // NEW: Callback for agent selection
   userRole?: string | null;
   onDashboardClick?: () => void;
 }
 
-const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, currentAgent, userRole, onDashboardClick }) => {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, currentAgent, onAgentChange, userRole, onDashboardClick }) => {
   const isMobile = useMobile();
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -58,15 +57,11 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
 
   const handleAgentChange = (newAgent: string) => {
     if (newAgent && newAgent !== currentAgent) {
-      // Force close menu first to prevent state issues
+      // Use the callback to notify the parent component of the change.
+      // The parent will handle the state update and UI re-render.
+      onAgentChange(newAgent);
+      // Close the menu after selection.
       setIsOpen(false);
-      
-      // Use setTimeout to ensure state update completes before navigation
-      setTimeout(() => {
-        const currentParams = new URLSearchParams(searchParams.toString());
-        currentParams.set('agent', newAgent);
-        router.push(`/?${currentParams.toString()}`);
-      }, 0);
     }
   };
   

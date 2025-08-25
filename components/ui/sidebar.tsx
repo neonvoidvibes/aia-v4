@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { toast } from "sonner";
 
 type View = "chat" | "transcribe" | "record" | "canvas";
+type SidebarLink = "chat" | "record" | "transcribe" | "settings";
 
 interface ChatHistoryItem {
   id: string;
@@ -58,6 +59,7 @@ interface SidebarProps {
   savedTranscriptMemoryMode: 'none' | 'some' | 'all';
   individualMemoryToggleStates?: Record<string, boolean>;
   individualRawTranscriptToggleStates?: Record<string, boolean>;
+  uiConfig?: Record<string, any>; // Add uiConfig prop
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -79,8 +81,22 @@ const Sidebar: React.FC<SidebarProps> = ({
   savedTranscriptMemoryMode,
   individualMemoryToggleStates,
   individualRawTranscriptToggleStates,
+  uiConfig = {}, // Default to empty object
 }) => {
   const isMobile = useIsMobile();
+
+  // FUTURE-PROOFING: The links shown in the sidebar are now dynamically controlled by the workspace configuration.
+  // To add or remove a feature for a client, we just need to update the `hide_sidebar_links` array in their config.
+  const allLinks = [
+    { id: 'chat', label: 'Chat', icon: MessageSquare, action: () => setCurrentView('chat') },
+    { id: 'record', label: 'Record Note', icon: Disc, action: () => setCurrentView('record') },
+    { id: 'transcribe', label: 'Transcribe Document', icon: AudioLines, action: () => setCurrentView('transcribe') },
+    { id: 'settings', label: 'Settings', icon: Settings, action: () => setShowSettings(true) }
+  ];
+
+  const hiddenLinks: SidebarLink[] = uiConfig.hide_sidebar_links || [];
+  const visibleLinks = allLinks.filter(link => !hiddenLinks.includes(link.id as SidebarLink));
+
 
   const handleLoadChat = (chatId: string) => {
     if (onLoadChat) {
@@ -199,24 +215,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <SquarePen className="mr-3 h-5 w-5" />
                 New Chat
               </Button>
-              <Separator className="my-2 bg-border/50" />
-              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('chat'); }}>
-                <MessageSquare className="mr-3 h-5 w-5" />
-                Chat
-              </Button>
-              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('record'); }}>
-                <Disc className="mr-3 h-5 w-5" />
-                Record Note
-              </Button>
-              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
-                <AudioLines className="mr-3 h-5 w-5" />
-                Transcribe Document
-              </Button>
-              <Separator className="my-2 bg-border/50" />
-              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setShowSettings(true); }}>
-                <Settings className="mr-3 h-5 w-5" />
-                Settings
-              </Button>
+              
+              {visibleLinks.length > 0 && <Separator className="my-2 bg-border/50" />}
+
+              {visibleLinks.map(link => (
+                <Button key={link.id} variant="ghost" className="justify-start rounded-md" onClick={link.action}>
+                  <link.icon className="mr-3 h-5 w-5" />
+                  {link.label}
+                </Button>
+              ))}
             </div>
           </div>
           <div className="flex-1 flex flex-col min-h-0">
