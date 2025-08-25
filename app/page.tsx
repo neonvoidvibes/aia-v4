@@ -432,9 +432,10 @@ function HomeContent() {
     return <div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Loading agent...</p></div>;
   }
   
-  // Render ConsentView if consent is required and not yet given
-  if (activeUiConfig && activeUiConfig.require_consent && !permissionsData.userHasConsented) {
-    return <ConsentView workspaceId={currentAgent.workspaceId!} onConsent={() => window.location.reload()} />;
+  // Render ConsentView if consent is required and not yet given.
+  // We also check if the current agent actually has a workspaceId, preventing a crash for global agents.
+  if (activeUiConfig && activeUiConfig.require_consent && !permissionsData.userHasConsented && currentAgent.workspaceId) {
+    return <ConsentView workspaceId={currentAgent.workspaceId} onConsent={() => window.location.reload()} />;
   }
 
   // Define what the "Controls" icon does based on the UI config
