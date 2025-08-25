@@ -146,6 +146,7 @@ function HomeContent() {
   const [permissionsData, setPermissionsData] = useState<PermissionsData | null>(null);
   const [activeUiConfig, setActiveUiConfig] = useState<Record<string, any>>({});
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true); // New state for loading
   
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -153,6 +154,7 @@ function HomeContent() {
   // It fetches all permissions and configurations once on load.
   useEffect(() => {
     const checkAuthAndPermissions = async () => {
+      setIsLoadingPermissions(true);
       setAuthError(null);
       try {
         const response = await fetch('/api/user/permissions');
@@ -176,6 +178,8 @@ function HomeContent() {
       } catch (error) {
         console.error("Permissions Check Error:", error);
         setAuthError(error instanceof Error ? error.message : "An unknown error occurred.");
+      } finally {
+        setIsLoadingPermissions(false); // Mark loading as complete
       }
     };
     checkAuthAndPermissions();
@@ -394,10 +398,11 @@ function HomeContent() {
   // ... and the rest of the functions
   // --- End of copy-pasted functions ---
 
-  if (!permissionsData || !currentAgent) {
-    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  // --- New, more robust rendering logic ---
+  if (isLoadingPermissions) {
+    return <div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Authorizing...</p></div>;
   }
-  
+
   if (authError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
@@ -407,6 +412,24 @@ function HomeContent() {
         <Button onClick={() => router.push('/login')}>Go to Login</Button>
       </div>
     );
+  }
+
+  // Handle the case where the user is authenticated but has no agents assigned.
+  if (permissionsData && permissionsData.agents.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+        <User className="w-16 h-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Welcome!</h1>
+        <p className="text-muted-foreground mb-4">You do not have access to any agents yet.</p>
+        <p className="text-sm">Please contact an administrator to be assigned to a workspace.</p>
+      </div>
+    );
+  }
+
+  // At this point, we know we have permissionsData and at least one agent.
+  // We still need to wait for currentAgent to be set from the initial list.
+  if (!currentAgent) {
+    return <div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Loading agent...</p></div>;
   }
   
   // Render ConsentView if consent is required and not yet given
