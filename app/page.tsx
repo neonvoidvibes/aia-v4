@@ -410,7 +410,7 @@ function HomeContent() {
   }
   
   // Render ConsentView if consent is required and not yet given
-  if (activeUiConfig.require_consent && !permissionsData.userHasConsented) {
+  if (activeUiConfig && activeUiConfig.require_consent && !permissionsData.userHasConsented) {
     return <ConsentView workspaceId={currentAgent.workspaceId!} onConsent={() => window.location.reload()} />;
   }
 
