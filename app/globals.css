@@ -2314,31 +2314,6 @@ button {
   outline-offset: 2px;
 }
 
-/* Orientation Lock Styles */
-/* #orientation-lock-overlay {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  z-index: 10000;
-}
-
-@media (max-height: 767px) and (orientation: landscape) and (pointer: coarse) {
-  #app-content {
-    display: none;
-  }
-  #orientation-lock-overlay {
-    display: flex;
-  }
-} */
-
 /* Mobile-specific scaling for chat input icons and buttons - 25% larger */
 @media (max-width: 768px) {
   :root {
