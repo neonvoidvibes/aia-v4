@@ -466,8 +466,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [assistantResponseComplete, setAssistantResponseComplete] = useState(false);
     const [assistantJustFinished, setAssistantJustFinished] = useState(false);
 
-    const [agentCapabilities, setAgentCapabilities] = useState({ pinecone_index_exists: false });
-
     // WebSocket and Recording State
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [sessionStartTimeUTC, setSessionStartTimeUTC] = useState<string | null>(null); 
@@ -510,44 +508,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const eventParam = searchParams.get('event');
         debugLog(`[InitEffect] Params - Agent: ${agentParam}, Event: ${eventParam}`);
         
-        const initializeAgent = async (agent: string) => {
+        const initializeAgent = (agent: string) => {
             setAgentName(agent);
             setEventId(eventParam);
-            
-            // Fetch agent capabilities
-            try {
-                const permsResponse = await fetch('/api/user/permissions');
-                if (permsResponse.ok) {
-                    const data = await permsResponse.json();
-                    const currentAgentData = data.allowedAgents.find((a: any) => a.name === agent);
-                    if (currentAgentData) {
-                        setAgentCapabilities(currentAgentData.capabilities);
-                        debugLog(`[Agent Init] Capabilities for ${agent}:`, currentAgentData.capabilities);
-                    } else {
-                        setAgentCapabilities({ pinecone_index_exists: false }); // Default if agent not in list
-                    }
-                } else {
-                     debugLog(`[Agent Init] Failed to fetch agent capabilities.`);
-                     setAgentCapabilities({ pinecone_index_exists: false });
-                }
-            } catch (error) {
-                console.error(`[Agent Init] Error fetching capabilities:`, error);
-                setAgentCapabilities({ pinecone_index_exists: false });
-            }
-
             setIsPageReady(true);
             debugLog(`[InitEffect] Page is NOW ready. Agent: ${agent}, Event: ${eventParam}`);
         };
 
         if (agentParam) {
-            if (agentParam !== agentName) { // Only re-initialize if agent has changed
-                initializeAgent(agentParam);
-            }
+            // No need to check if agent changed, this component's state is simpler now.
+            // Parent component (`page.tsx`) handles providing the correct agent context.
+            initializeAgent(agentParam);
         } else {
             debugLog("[InitEffect] Chat Interface Waiting: Agent parameter missing from URL.");
             setIsPageReady(false);
         }
-    }, [searchParams, agentName]);
+    }, [searchParams]);
 
     // Helper function to add error messages
     const addErrorMessage = useCallback((content: string, canRetry: boolean = false) => {
