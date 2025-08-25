@@ -488,7 +488,7 @@ function HomeContent() {
                 allowedAgents={permissionsData.agents.map(a => a.name)}
                 currentAgent={currentAgent.name}
                 onAgentChange={handleAgentChange}
-                userRole={permissionsData.userRole}
+                userRole={permissionsData?.userRole}
                 onDashboardClick={() => setShowAgentDashboard(true)}
               />
             )}
@@ -515,7 +515,7 @@ function HomeContent() {
             individualMemoryToggleStates={individualMemoryToggleStates}
             savedTranscriptSummaries={savedTranscriptSummaries}
             individualRawTranscriptToggleStates={individualRawTranscriptToggleStates}
-            rawTranscriptFiles={rawTranscriptFiles}
+            rawTranscriptFiles={rawSavedS3Transcripts}
             isModalOpen={isAnyModalOpen}
             uiConfig={activeUiConfig} // Pass the active UI config down
             agentCapabilities={currentAgent?.capabilities}
@@ -527,7 +527,7 @@ function HomeContent() {
         <AgentDashboard
           isOpen={showAgentDashboard}
           onClose={() => setShowAgentDashboard(false)}
-          userRole={permissionsData.userRole}
+          userRole={permissionsData?.userRole}
         />
       )}
 
