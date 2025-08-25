@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2, SquarePen } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2, SquarePen
+import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2, SquarePen, LogOut } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2, SquarePen, LogOut
 import Sidebar from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
@@ -1523,6 +1523,19 @@ function HomeContent() {
     }
   };
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error logging out:', error);
+      toast.error("Logout failed: " + error.message);
+    } else {
+      // Using window.location.href forces a full page reload,
+      // which is good for clearing all application state and ensuring
+      // the middleware properly redirects to the login page.
+      window.location.href = '/login';
+    }
+  };
+
   const handlePinInsight = (insight: CanvasInsightItem) => {
     setPinnedCanvasInsights((prev) => {
       if (!prev.find(p => p.highlight === insight.highlight && p.explanation === insight.explanation)) { 
@@ -2269,6 +2282,17 @@ function HomeContent() {
                         ) : (
                           "Reload S3 Cache"
                         )}
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-center pt-4">
+                      <Button
+                        variant="destructive"
+                        onClick={handleLogout}
+                        className="w-full sm:w-auto"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Log Out
                       </Button>
                     </div>
 
