@@ -459,7 +459,7 @@ function HomeContent() {
       <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto">
         <header className="py-2 px-4 text-center relative flex-shrink-0" style={{ height: 'var(--header-height)' }}>
           <div className="flex items-center justify-center h-full">
-            {permissionsData.showAgentSelector && (
+            {permissionsData.showAgentSelector && currentAgent && (
               <AgentSelectorMenu
                 allowedAgents={permissionsData.agents.map(a => a.name)}
                 currentAgent={currentAgent.name}
@@ -494,7 +494,7 @@ function HomeContent() {
             rawTranscriptFiles={rawTranscriptFiles}
             isModalOpen={isAnyModalOpen}
             uiConfig={activeUiConfig} // Pass the active UI config down
-            agentCapabilities={currentAgent.capabilities}
+            agentCapabilities={currentAgent?.capabilities}
           />
         </main>
       </div>
