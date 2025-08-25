@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,

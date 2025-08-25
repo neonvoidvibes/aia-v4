@@ -392,6 +392,8 @@ interface SimpleChatInterfaceProps {
   individualRawTranscriptToggleStates?: Record<string, boolean>;
   rawTranscriptFiles?: FetchedFile[];
   isModalOpen?: boolean; // New prop to indicate if a modal is open
+  uiConfig?: Record<string, any>; // Add uiConfig prop
+  agentCapabilities?: { pinecone_index_exists: boolean }; // Add agentCapabilities prop
 }
 
 export interface ChatInterfaceHandle {
@@ -438,7 +440,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, uiConfig = {}, agentCapabilities = { pinecone_index_exists: false } }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
 
     const searchParams = useSearchParams();
@@ -3298,13 +3300,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                           <>
                                             <div className="opacity-0 group-hover:opacity-100 flex items-center transition-opacity">
                                               <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
-                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={uiConfig.tooltips?.copy_message || "Copy message"}>
                                                 {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                               </button>
-                                              <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
-                                                <Pencil className="h-4 w-4" />
-                                              </button>
-                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                              {!uiConfig.disable_message_editing && (
+                                                <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
+                                                  <Pencil className="h-4 w-4" />
+                                                </button>
+                                              )}
+                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={uiConfig.tooltips?.delete_message || "Delete message"} disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                               </button>
                                               <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Collapse message">
@@ -3321,16 +3325,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         ) : (
                                           <>
                                             <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
-                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={uiConfig.tooltips?.copy_message || "Copy message"}>
                                               {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                             </button>
-                                            <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
-                                              <Pencil className="h-4 w-4" />
-                                            </button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
+                                            {!uiConfig.disable_message_editing && (
+                                              <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
+                                                <Pencil className="h-4 w-4" />
+                                              </button>
+                                            )}
+                                            <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={uiConfig.tooltips?.save_message || "Save message to memory"} disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
                                               <Bookmark className="h-4 w-4" />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                            <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={uiConfig.tooltips?.delete_message || "Delete message"} disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
                                             <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Collapse message">
@@ -3351,20 +3357,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                               Message saved
                                             </span>
                                             <div className="opacity-0 group-hover:opacity-100 flex items-center transition-opacity">
-                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={uiConfig.tooltips?.copy_message || "Copy message"}>
                                                 {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                               </button>
-                                              <button
-                                                onClick={() => readAloud(message as Message)}
-                                                className={cn(
-                                                    "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                                    ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
-                                                )}
-                                                aria-label="Read message aloud"
-                                              >
-                                                <Volume2 className="h-4 w-4" />
-                                              </button>
-                                               <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                              {!uiConfig.disable_tts && (
+                                                <button
+                                                  onClick={() => readAloud(message as Message)}
+                                                  className={cn( "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]" )}
+                                                  aria-label="Read message aloud"
+                                                >
+                                                  <Volume2 className="h-4 w-4" />
+                                                </button>
+                                              )}
+                                               <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={uiConfig.tooltips?.delete_message || "Delete message"} disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                               </button>
                                               <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Collapse message">
@@ -3375,25 +3380,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                           </>
                                         ) : (
                                           <>
-                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={uiConfig.tooltips?.copy_message || "Copy message"}>
                                               {copyState.id === message.id && copyState.copied ? <Check className="h-4 w-4 copy-button-animation" /> : <Copy className="h-4 w-4" />}
                                             </button>
-                                            <button
-                                              onClick={() => readAloud(message as Message)}
-                                              className={cn(
-                                                  "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                                  ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
-                                              )}
-                                              aria-label="Read message aloud"
-                                            >
-                                              <Volume2 className="h-4 w-4" />
-                                            </button>
+                                            {!uiConfig.disable_tts && (
+                                              <button
+                                                onClick={() => readAloud(message as Message)}
+                                                className={cn( "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]", ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]" )}
+                                                aria-label="Read message aloud"
+                                              >
+                                                <Volume2 className="h-4 w-4" />
+                                              </button>
+                                            )}
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                               <>
-                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
+                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={uiConfig.tooltips?.save_message || "Save message to memory"} disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
                                                 <Bookmark className="h-4 w-4" />
                                               </button>
-                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={uiConfig.tooltips?.delete_message || "Delete message"} disabled={isDeleting}>
                                                 <Trash2 className="h-4 w-4" />
                                               </button>
                                               <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Collapse message">
@@ -3619,9 +3623,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           </button>
                         {showPlusMenu && (
                             <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
-                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item" onClick={attachDocument} title="Attach file">
-                                <Paperclip size={17} className="mobile-icon-small" />
-                              </button>
+                              {!uiConfig.disable_file_attachments && (
+                                <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item" onClick={attachDocument} title="Attach file">
+                                  <Paperclip size={17} className="mobile-icon-small" />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 className={cn(
@@ -3698,61 +3704,50 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           )}
                         </div>
                         <div className="relative w-full h-8 flex items-center">
-                          {/* Model Picker - chevron anchored 8px from submit button, text extends left */}
-                          <div className="absolute model-picker-container" style={{ right: '50px' }}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="text-sm font-medium opacity-50 hover:opacity-75 transition-opacity px-1 py-1 rounded-md focus:outline-none focus:ring-0"
-                                  disabled={!isPageReady || !!pendingAction}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    flexDirection: 'row',
-                                    whiteSpace: 'nowrap',
-                                    justifyContent: 'flex-end'
-                                  }}
-                                >
-                                  <span 
-                                    style={{
-                                      marginRight: '4px'
-                                    }}
+                          {/* Model Picker - Conditionally rendered based on uiConfig */}
+                          {!uiConfig.hide_model_selector && (
+                            <div className="absolute model-picker-container" style={{ right: '50px' }}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="text-sm font-medium opacity-50 hover:opacity-75 transition-opacity px-1 py-1 rounded-md focus:outline-none focus:ring-0"
+                                    disabled={!isPageReady || !!pendingAction}
+                                    style={{ display: 'flex', alignItems: 'center', flexDirection: 'row', whiteSpace: 'nowrap', justifyContent: 'flex-end' }}
                                   >
-                                    {MODEL_DISPLAY_NAMES_MAP.get(selectedModel) || selectedModel}
-                                  </span>
-                                  <ChevronDown className="h-3 w-3 flex-shrink-0 mobile-chevron" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => onModelChange?.(value)}>
-                                  {MODEL_GROUPS.map((group, index) => (
-                                    <React.Fragment key={group.label}>
-                                      {index > 0 && <DropdownMenuSeparator />}
-                                      <DropdownMenuLabel className="text-muted-foreground font-normal pl-8 pr-2 py-1.5 text-xs uppercase opacity-75">
-                                        {group.label}
-                                      </DropdownMenuLabel>
-                                      {group.models.map((model) => (
-                                        <DropdownMenuRadioItem key={model.id} value={model.id}>
-                                          {model.name}
-                                        </DropdownMenuRadioItem>
-                                      ))}
-                                    </React.Fragment>
-                                  ))}
-                                </DropdownMenuRadioGroup>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
+                                    <span style={{ marginRight: '4px' }}>
+                                      {MODEL_DISPLAY_NAMES_MAP.get(selectedModel) || selectedModel}
+                                    </span>
+                                    <ChevronDown className="h-3 w-3 flex-shrink-0 mobile-chevron" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => onModelChange?.(value)}>
+                                    {MODEL_GROUPS.map((group, index) => (
+                                      <React.Fragment key={group.label}>
+                                        {index > 0 && <DropdownMenuSeparator />}
+                                        <DropdownMenuLabel className="text-muted-foreground font-normal pl-8 pr-2 py-1.5 text-xs uppercase opacity-75">
+                                          {group.label}
+                                        </DropdownMenuLabel>
+                                        {group.models.map((model) => (
+                                          <DropdownMenuRadioItem key={model.id} value={model.id}>
+                                            {model.name}
+                                          </DropdownMenuRadioItem>
+                                        ))}
+                                      </React.Fragment>
+                                    ))}
+                                  </DropdownMenuRadioGroup>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
 
                           {/* Submit Button - absolutely positioned at right edge */}
                           <div className="absolute right-0">
                             {isLoading ? (
                               <div 
                                 onClick={stop}
-                                className={cn(
-                                  "h-8 w-8 rounded-full flex items-center justify-center mobile-submit-button cursor-pointer transition-all duration-200",
-                                  "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90"
-                                )}
+                                className={cn("h-8 w-8 rounded-full flex items-center justify-center mobile-submit-button cursor-pointer transition-all duration-200", "bg-[hsl(var(--button-submit-bg-stop))] text-[hsl(var(--button-submit-fg-stop))] hover:opacity-90")}
                                 role="button"
                                 aria-label="Stop generating"
                               >
@@ -3771,20 +3766,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 className={cn(
                                   "transition-all duration-200 rounded-full flex items-center justify-center mobile-submit-button",
                                   "h-8 w-8",
-                                  isPageReady && (input.trim() || attachedFiles.length > 0) &&
-                                    "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
-                                  isPageReady && !(input.trim() || attachedFiles.length > 0) &&
-                                    "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
+                                  isPageReady && (input.trim() || attachedFiles.length > 0) && "bg-[hsl(var(--button-submit-bg-active))] text-[hsl(var(--button-submit-fg-active))] hover:opacity-90",
+                                  isPageReady && !(input.trim() || attachedFiles.length > 0) && "bg-transparent text-[hsl(var(--primary))] cursor-pointer",
                                   ((globalRecordingStatus.isRecording || pressToTalkState === 'transcribing') && !(input.trim() || attachedFiles.length > 0)) && "cursor-not-allowed opacity-50",
                                   (!isPageReady || !!pendingActionRef.current) && "opacity-50 cursor-not-allowed"
                                 )}
-                                disabled={
-                                  !isPageReady || 
-                                  !!pendingActionRef.current || 
-                                  pressToTalkState === 'transcribing' ||
-                                  (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0))
-                                }
-                                aria-label={input.trim() || attachedFiles.length > 0 ? "Send message" : "Press to send a voice message"}
+                                disabled={ !isPageReady || !!pendingActionRef.current || pressToTalkState === 'transcribing' || (globalRecordingStatus.isRecording && !(input.trim() || attachedFiles.length > 0)) }
+                                aria-label={input.trim() || attachedFiles.length > 0 ? "Send message" : (uiConfig.tooltips?.audio_icon || "Press to send a voice message")}
                               >
                                 {pressToTalkState === 'transcribing' ? (
                                   <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/20 text-primary mobile-submit-button">
@@ -3815,41 +3803,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         <span>Agent: {agentName || '...'}</span> · <span>Event: {eventId || '...'}</span> ·{" "}
                         <span
                           ref={statusRecordingRef}
-                          className={cn(
-                            "cursor-pointer hover:text-[hsl(var(--text-primary))]",
-                            globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "cursor-not-allowed opacity-50"
-                          )}
+                          className={cn( "cursor-pointer hover:text-[hsl(var(--text-primary))]", globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "cursor-not-allowed opacity-50" )}
                           onClick={showAndPrepareRecordingControls}
-                          title={
-                            globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'
-                              ? "Another recording is active"
-                              : isBrowserRecording
-                              ? "Recording Status"
-                              : "Start recording"
-                          }
+                          title={ globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' ? "Another recording is active" : isBrowserRecording ? "Recording Status" : "Start recording" }
                         >
                           Listen:{" "}
-                          {isReconnecting ? (
-                            <>reconnecting ({reconnectAttemptsRef.current}/{MAX_RECONNECT_ATTEMPTS}) <span className="inline-block ml-1 h-2 w-2 rounded-full bg-orange-500 animate-pulse"></span></>
-                          ) : isBrowserRecording ? (
-                            isBrowserPaused ? (
-                              <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></>
-                            ) : (
-                              <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span></>
-                            )
-                          ) : globalRecordingStatus.isRecording ? (
-                            <>busy <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500"></span></>
-                          ) : (
-                            "no"
-                          )}
+                          {isReconnecting ? ( <>reconnecting ({reconnectAttemptsRef.current}/{MAX_RECONNECT_ATTEMPTS}) <span className="inline-block ml-1 h-2 w-2 rounded-full bg-orange-500 animate-pulse"></span></>
+                          ) : isBrowserRecording ? ( isBrowserPaused ? ( <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></>
+                            ) : ( <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span></> )
+                          ) : globalRecordingStatus.isRecording ? ( <>busy <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500"></span></>
+                          ) : ( "no" )}
                           {isBrowserRecording && !isReconnecting && <span ref={timerDisplayRef} className="ml-1">{formatTime(clientRecordingTime)}</span>}
                         </span>
                         {" "}· <span className={cn(wsStatus === 'open' && "text-green-500", wsStatus === 'error' && "text-red-500", wsStatus === 'closed' && "text-yellow-500")}>{wsStatus}</span>
                     </div>
                 )}
-                {isFullscreen && (
-                    <div className="pb-4"></div>
-                )}
+                {isFullscreen && ( <div className="pb-4"></div> )}
             </div>
         </div>
     )
