@@ -138,23 +138,6 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Data from CSV for bitrate estimation (kbps)
-  // These bitrates are relative guides; the main speed adjustment comes from TRANSCRIPTION_SPEED_ADJUSTMENT_FACTOR.
-  const bitrateData: { [key: string]: number } = {
-    mp3: 128,    // Reverted closer to original CSV
-    m4a: 192,    // M4A likely processes faster than its nominal bitrate, but less extreme than 768 before global adj.
-    wav: 1411,   // WAV is large, so its bitrate matters for relative estimation
-    mp4: 256,    // Assuming audio part of MP4 might be like a higher quality M4A or MP3
-    webm: 256,   // Similar to MP4
-    mpeg: 128,
-    mpga: 128,
-  };
-  const DEFAULT_BITRATE_KBPS = 192; // A general fallback
-
-  // Global factor to make estimated progress faster.
-  // Adjusted from 12 to 5 for a much slower initial ramp-up.
-  const TRANSCRIPTION_SPEED_ADJUSTMENT_FACTOR = 5;
-
   useEffect(() => {
     const savedCurrentStateString = localStorage.getItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
     if (savedCurrentStateString) {
@@ -221,85 +204,17 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     }
   }, [finishedTranscripts]);
 
-  // Effect to manage progress bar updates
+  // This effect is now simplified as the progress is driven by XHR during upload.
   useEffect(() => {
-    if (isTranscribing && adjustedTotalDurationSeconds && adjustedTotalDurationSeconds > 0) {
-      transcriptionStartTimeRef.current = Date.now();
-      setEstimatedProgress(0); // Reset progress
-
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
+    // When transcription is complete or has an error, ensure progress is set to a final state.
+    if (!isTranscribing) {
+      if (currentRawTranscriptText !== null) {
+        setEstimatedProgress(100); // Success
+      } else if (errorMessage) {
+        // Optionally reset or handle error state for progress
       }
-
-      progressIntervalRef.current = setInterval(() => {
-        if (!transcriptionStartTimeRef.current || !adjustedTotalDurationSeconds) return;
-
-        const elapsedTimeMs = Date.now() - transcriptionStartTimeRef.current;
-        const elapsedTimeSec = elapsedTimeMs / 1000;
-        
-        let currentRawProgress = (elapsedTimeSec / adjustedTotalDurationSeconds) * 100;
-
-        setEstimatedProgress(prevProgress => {
-          const visualProgressCap = 99;
-          const startSlowdownAt = 80; // Percentage where slowdown begins
-          let newProgress = prevProgress;
-
-          if (currentRawProgress >= 100) {
-            // If estimated time is up, jump to near cap, actual completion will set to 100
-            newProgress = visualProgressCap;
-          } else if (prevProgress < startSlowdownAt) {
-            // Before slowdown phase, try to match currentRawProgress, but don't exceed startSlowdownAt yet
-            // And ensure it only increases or stays the same.
-            // Cap this phase at startSlowdownAt to transition to the next logic block smoothly.
-            newProgress = Math.max(prevProgress, Math.min(currentRawProgress, startSlowdownAt));
-          } else { // We are in the slowdown phase (prevProgress >= startSlowdownAt and < visualProgressCap)
-            const distanceToCap = visualProgressCap - prevProgress;
-            if (distanceToCap > 0) {
-              // Increment by a small fraction of the remaining distance.
-              // This factor determines how quickly it approaches the cap.
-              // e.g., 0.1 means it covers 10% of the remaining distance each step.
-              const slowdownIncrementFactor = 0.08; // Smaller factor = slower approach
-              const increment = distanceToCap * slowdownIncrementFactor;
-              
-              // New progress should not jump significantly if currentRawProgress is still far behind.
-              // However, the primary driver in this phase is the diminishing increment.
-              // We can still loosely ensure it doesn't visually run *too* far ahead of scaled time.
-              const timeBasedCapInSlowdown = Math.min(currentRawProgress, visualProgressCap);
-              
-              newProgress = Math.min(prevProgress + increment, timeBasedCapInSlowdown);
-              newProgress = Math.max(prevProgress, newProgress); // Ensure it doesn't go backwards
-            } else {
-              newProgress = prevProgress; // At or beyond visual cap
-            }
-          }
-          
-          // Clamp final value between 0 and the visual cap
-          return Math.min(Math.max(0, newProgress), visualProgressCap);
-        });
-
-      }, 250); // Update progress bar every 250ms
-
-    } else {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-      if (!isTranscribing && currentRawTranscriptText !== null) { // If transcription finished successfully
-        setEstimatedProgress(100);
-      } else if (!isTranscribing && errorMessage) {
-         // Keep progress where it was or reset to 0 if desired on error
-         // For now, let's reset on error or if it was interrupted without success
-         if (estimatedProgress !== 100) setEstimatedProgress(0);
-      }
-      transcriptionStartTimeRef.current = null;
     }
-
-    return () => {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-    };
-  }, [isTranscribing, adjustedTotalDurationSeconds, currentRawTranscriptText, errorMessage]);
+  }, [isTranscribing, currentRawTranscriptText, errorMessage]);
 
   
   const clearCurrentProcessingStateUI = () => {
@@ -366,91 +281,6 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     event.stopPropagation();
   }, []);
 
-  const checkNetworkConnectivity = async (): Promise<boolean> => {
-    try {
-      // Try to fetch a small resource to check connectivity
-      const response = await fetch('/api/health-check', { 
-        method: 'GET',
-        cache: 'no-cache',
-        signal: AbortSignal.timeout(5000) // 5 second timeout
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
-  };
-
-  const transcribeWithRetry = async (formData: FormData, maxRetries: number = 3): Promise<any> => {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`[FullFileTranscriber] Transcription attempt ${attempt}/${maxRetries}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minute timeout
-        
-        const response = await fetch('/api/transcribe-audio', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.error || data.message || data.details || `Transcription failed with status ${response.status}`);
-        }
-        
-        return { response, data };
-        
-      } catch (err: any) {
-        console.error(`[FullFileTranscriber] Attempt ${attempt} failed:`, err);
-        
-        // Don't retry on certain errors
-        if (err.name === 'AbortError') {
-          throw new Error('Transcription timed out. Please try with a shorter audio file or check your internet connection.');
-        }
-        
-        if (err.message?.includes('413') || err.message?.includes('file too large')) {
-          throw new Error('Audio file is too large. Please try with a smaller file.');
-        }
-        
-        if (err.message?.includes('400') || err.message?.includes('Invalid file')) {
-          throw new Error('Invalid audio file format. Please try with a different file.');
-        }
-        
-        // Check for network connectivity issues
-        if (err.name === 'TypeError' && err.message.includes('NetworkError') || 
-            err.message?.includes('503') || err.message?.includes('504')) {
-          const hasConnectivity = await checkNetworkConnectivity();
-          if (!hasConnectivity) {
-            throw new Error('Network connection issue detected. Please check your internet connection and try again.');
-          }
-        }
-        
-        // If this is the last attempt, throw the error
-        if (attempt === maxRetries) {
-          // Provide more helpful error message for the final attempt
-          if (err.message?.includes('503') || err.message?.includes('504')) {
-            throw new Error(`Transcription service is temporarily unavailable after ${maxRetries} attempts. Please try again later.`);
-          }
-          throw new Error(`Transcription failed after ${maxRetries} attempts: ${err.message}`);
-        }
-        
-        // Calculate exponential backoff delay: 2^attempt * 1000ms + random jitter
-        const baseDelay = Math.pow(2, attempt) * 1000;
-        const jitter = Math.random() * 1000;
-        const delay = baseDelay + jitter;
-        
-        console.log(`[FullFileTranscriber] Retrying in ${(delay / 1000).toFixed(2)} seconds...`);
-        setStatusMessage(`Network issue on attempt ${attempt}. Retrying in ${Math.ceil(delay / 1000)} seconds... (${attempt + 1}/${maxRetries})`);
-        
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  };
-
   const handleStartTranscription = async () => {
     const fileToTranscribe = selectedFile; 
     const fileInfoForProcessing = selectedFile 
@@ -459,130 +289,131 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
 
     if (!fileToTranscribe) { 
       if (fileInfoForProcessing) {
-         setErrorMessage(`Please re-select the audio file '${fileInfoForProcessing.fileName}' to start transcription.`);
+        setErrorMessage(`Please re-select the audio file '${fileInfoForProcessing.fileName}' to start transcription.`);
       } else {
-         setErrorMessage('Please select an audio file first.');
+        setErrorMessage('Please select an audio file first.');
       }
+      return;
+    }
+    if (!agentName) {
+      setErrorMessage("Agent not selected. Cannot start transcription.");
       return;
     }
 
     setIsTranscribing(true);
-    const processingMsg = `Processing: ${fileInfoForProcessing?.fileName || 'audio file'}... This may take a few moments.`;
-    setStatusMessage(processingMsg);
+    setStatusMessage("Preparing upload...");
     setErrorMessage(null);
     setCurrentRawTranscriptText(null); 
     setCurrentTranscriptSegments(null);
-    setEstimatedProgress(0); // Reset progress for new transcription
-
-    // Calculate estimated duration
-    const fileSizeInBytes = (fileInfoForProcessing?.fileSize || 0);
-    const fileExtension = (fileInfoForProcessing?.fileName?.split('.').pop() || "").toLowerCase();
-    const typicalBitrateKbps = bitrateData[fileExtension] || DEFAULT_BITRATE_KBPS;
-    const typicalBitrateBps = typicalBitrateKbps * 1000;
-
-    if (typicalBitrateBps > 0 && fileSizeInBytes > 0) {
-        let estimatedProcessingSeconds = (fileSizeInBytes * 8) / typicalBitrateBps;
-        
-        // Apply the global speed adjustment factor
-        estimatedProcessingSeconds = estimatedProcessingSeconds / TRANSCRIPTION_SPEED_ADJUSTMENT_FACTOR;
-
-        const adjustedDurationForProgressBar = estimatedProcessingSeconds * 1.20; // Add 20% UX buffer to the *adjusted* estimate
-        setAdjustedTotalDurationSeconds(adjustedDurationForProgressBar);
-        console.info(`Base estimated Whisper processing time (before adj factor): ${((fileSizeInBytes * 8) / typicalBitrateBps).toFixed(2)}s. Adjusted processing time (after ${TRANSCRIPTION_SPEED_ADJUSTMENT_FACTOR}x factor): ${estimatedProcessingSeconds.toFixed(2)}s. Final for progress bar (with UX buffer): ${adjustedDurationForProgressBar.toFixed(2)}s`);
-    } else {
-        setAdjustedTotalDurationSeconds(null); // Cannot estimate, hide progress bar
-        console.warn(`Could not estimate duration for progress bar (fileSizeInBytes: ${fileSizeInBytes}, typicalBitrateBps: ${typicalBitrateBps}).`);
-    }
+    setEstimatedProgress(0);
     
-    const processingStateToSave: PersistentTranscriberState = {
-      currentProcessingFile: fileInfoForProcessing,
-      currentTranscriptText: null,
-      currentSegments: null,
-      currentStatusMessage: processingMsg, 
-      currentErrorMessage: null,
-      wasTranscribing: true,
-    };
-    localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(processingStateToSave));
-
-    const formData = new FormData();
-    formData.append('audio_file', fileToTranscribe);
-    if (agentName) { // Add agentName to FormData
-      formData.append('agent_name', agentName);
-    } else {
-      console.warn("FullFileTranscriber: agentName is null, not sending to backend. Header might be incomplete.");
-    }
-
-    // Get transcription language setting
-    const transcriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "en";
-    formData.append('transcription_language', transcriptionLanguage);
-    console.info(`FullFileTranscriber: Sending transcription_language: ${transcriptionLanguage}`);
-
     try {
-      const { response, data } = await transcribeWithRetry(formData);
-      
-      // Truncate transcript for logging to avoid excessively long console outputs
-      const loggableData = {
-        transcript: data.transcript ? truncateString(data.transcript, 200) : data.transcript,
-        // Segments are intentionally excluded from logs to avoid excessively long console outputs.
-        // They are still stored in state and local storage for functionality (e.g., download).
-      };
-      console.log("[FullFileTranscriber] Received data from /api/transcribe-audio:", JSON.stringify(loggableData, null, 2));
+      // Step 1: Get presigned URL from our backend
+      const presignedUrlResponse = await fetch('/api/s3/generate-presigned-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentName: agentName,
+          filename: fileToTranscribe.name,
+          fileType: fileToTranscribe.type,
+        }),
+      });
 
-      if (typeof data.transcript === 'string' && Array.isArray(data.segments)) { 
-        setCurrentRawTranscriptText(data.transcript);
-        setCurrentTranscriptSegments(data.segments);
+      if (!presignedUrlResponse.ok) {
+        const errorData = await presignedUrlResponse.json();
+        throw new Error(errorData.error || "Failed to prepare upload.");
+      }
+      const presignedData = await presignedUrlResponse.json();
+
+      // Step 2: Upload file directly to S3 using XHR for progress
+      setStatusMessage("Uploading to secure storage...");
+      await new Promise<void>((resolve, reject) => {
+        const formData = new FormData();
+        Object.entries(presignedData.fields).forEach(([key, value]) => {
+          formData.append(key, value as string);
+        });
+        formData.append('file', fileToTranscribe);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', presignedData.url, true);
+        
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const progress = (event.loaded / event.total) * 100;
+            setEstimatedProgress(progress);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`S3 Upload Failed: Status ${xhr.status}. ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error("S3 Upload Failed: Network error."));
+        };
+        
+        xhr.send(formData);
+      });
+      
+      setStatusMessage("Upload complete. Starting transcription job...");
+      setEstimatedProgress(100); // Mark upload as complete
+
+      // Step 3: Notify backend to start transcription job
+      const transcriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any";
+      const startJobResponse = await fetch('/api/transcription/start-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentName: agentName,
+          s3Key: presignedData.s3Key,
+          originalFilename: fileToTranscribe.name,
+          transcriptionLanguage: transcriptionLanguage,
+        }),
+      });
+      
+      const result = await startJobResponse.json();
+      if (!startJobResponse.ok) {
+        throw new Error(result.error || "Failed to start transcription job.");
+      }
+
+      // Step 4: Process successful transcription result
+      if (typeof result.transcript === 'string' && Array.isArray(result.segments)) {
+        setCurrentRawTranscriptText(result.transcript);
+        setCurrentTranscriptSegments(result.segments);
         const completeMsg = 'Transcription complete!';
         setStatusMessage(completeMsg);
 
         const newFinishedItem: FinishedTranscriptItem = {
           id: Date.now().toString(), 
           fileName: fileInfoForProcessing?.fileName || "Unknown File",
-          transcriptText: data.transcript,
-          segments: data.segments,
+          transcriptText: result.transcript,
+          segments: result.segments,
           timestamp: Date.now()
         };
         setFinishedTranscripts(prev => [newFinishedItem, ...prev.slice(0, 9)]); 
 
         const successStateToSave: PersistentTranscriberState = {
             currentProcessingFile: fileInfoForProcessing,
-            currentTranscriptText: data.transcript,
-            currentSegments: data.segments,
+            currentTranscriptText: result.transcript,
+            currentSegments: result.segments,
             currentStatusMessage: completeMsg,
             currentErrorMessage: null,
             wasTranscribing: false,
         };
         localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(successStateToSave));
-
       } else {
-        console.error("Incomplete data received from backend:", data);
-        throw new Error("Received incomplete transcription data from backend. Missing 'transcript' (string) or 'segments' (array).");
+        throw new Error("Received invalid transcription data from backend.");
       }
-
     } catch (err: any) {
-      console.error('Transcription error:', err);
-      const finalErrorMessage = err.message || 'An unknown error occurred during transcription.';
-      setErrorMessage(finalErrorMessage);
+      console.error('Transcription process error:', err);
+      setErrorMessage(err.message || 'An unknown error occurred.');
       setStatusMessage(null); 
-      const errorStateToSave: PersistentTranscriberState = {
-        currentProcessingFile: fileInfoForProcessing,
-        currentTranscriptText: null,
-        currentSegments: null,
-        currentStatusMessage: null,
-        currentErrorMessage: finalErrorMessage,
-        wasTranscribing: false,
-      };
-      localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(errorStateToSave));
     } finally {
       setIsTranscribing(false);
-      const finalLsStateString = localStorage.getItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
-      if (finalLsStateString) {
-        try {
-          const parsed = JSON.parse(finalLsStateString) as PersistentTranscriberState;
-          if (parsed.wasTranscribing === true) { 
-             localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify({...parsed, wasTranscribing: false}));
-          }
-        } catch (e) { console.error("Error finalising wasTranscribing state in LS", e); }
-      }
     }
   };
 
@@ -742,21 +573,16 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
       )}
 
       {/* Progress Bar */}
-      {isTranscribing && adjustedTotalDurationSeconds && adjustedTotalDurationSeconds > 0 && (
+      {isTranscribing && (
         <div className="mt-3 mb-1">
           <Progress value={estimatedProgress} className="w-full h-2" />
           <p className="text-xs text-muted-foreground text-center mt-1">
-            Estimated progress: {Math.floor(estimatedProgress)}%
-            {statusMessage?.includes('Retrying') && ' • Retrying after network issue...'}
-          </p>
-        </div>
-      )}
-      
-      {/* Retry Status Indicator */}
-      {isTranscribing && statusMessage?.includes('Retrying') && (
-        <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-          <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
-            🔄 Handling network interruption - transcription will continue automatically
+            {statusMessage === "Uploading to secure storage..."
+              ? `Uploading: ${Math.floor(estimatedProgress)}%`
+              : statusMessage?.includes("complete")
+                ? "Complete"
+                : "Processing..."
+            }
           </p>
         </div>
       )}
