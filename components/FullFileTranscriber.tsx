@@ -486,7 +486,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     }
   }, [currentJobId, isTranscribing, isActuallyTranscribing, startPolling]);
 
-  // Smooth progress animation effect with intelligent smoothing
+  // Smooth progress animation anchored to real chunk completion with satisfying UX
   useEffect(() => {
     if (!isTranscribing || !isActuallyTranscribing) {
       // Stop animation immediately if not actually transcribing
@@ -521,42 +521,42 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         return;
       }
       
-      // Calculate expected progress based on time elapsed for smoother movement
-      const now = Date.now();
-      const elapsed = transcriptionStartTimeRef.current ? (now - transcriptionStartTimeRef.current) : 0;
+      // Calculate chunk-based progress bounds
+      // Each chunk represents roughly (100 / totalChunks)% when completed
+      const progressPerChunk = 100 / Math.max(totalChunks, 1);
+      const completedChunkProgress = Math.floor(targetReal / progressPerChunk) * progressPerChunk;
+      const nextChunkProgress = completedChunkProgress + progressPerChunk;
       
-      // Estimate completion time based on file duration and current progress
-      // Assuming audio processing takes roughly 1/6 of audio duration (10x speed)
-      const estimatedTotalTime = adjustedTotalDurationSeconds ? (adjustedTotalDurationSeconds * 1000 / 6) : 120000; // Default 2min
-      const timeBasedProgress = Math.min(95, (elapsed / estimatedTotalTime) * 100);
+      // Allow smooth movement within current chunk range, but don't exceed next chunk boundary
+      const maxAllowedProgress = Math.min(nextChunkProgress - 2, targetReal + 3); // Stay 2% below next chunk
       
-      // Use a blend of time-based and real progress for smoother animation
-      const blendedTarget = targetReal > 0 ? 
-        Math.max(timeBasedProgress * 0.3 + targetReal * 0.7, targetReal) : 
-        timeBasedProgress;
-      
-      // Never go backwards - smooth progress can only increase or stay same
-      const finalTarget = Math.max(currentSmooth, Math.min(blendedTarget, targetReal + 5));
-      
-      if (Math.abs(currentSmooth - finalTarget) < 0.5) {
-        // Very close to target - gentle forward movement
-        const incrementSpeed = 0.02; // Gentle continuous movement
-        const newSmooth = Math.min(currentSmooth + incrementSpeed, finalTarget + 1);
+      // Smooth animation logic anchored to chunk boundaries
+      if (currentSmooth >= maxAllowedProgress) {
+        // At chunk boundary - gentle micro-movement to show activity
+        const microIncrement = 0.01; // Very small movement
+        const newSmooth = Math.min(currentSmooth + microIncrement, maxAllowedProgress);
         
         smoothProgressRef.current = newSmooth;
         setSmoothProgress(Math.floor(newSmooth));
-      } else if (currentSmooth < finalTarget) {
-        // Move towards blended target smoothly
-        const gap = finalTarget - currentSmooth;
-        const dynamicSpeed = Math.max(gap * 0.04, 0.08); // 4% of gap, minimum 0.08% per frame
-        const newSmooth = Math.min(currentSmooth + dynamicSpeed, finalTarget);
+      } else if (Math.abs(currentSmooth - targetReal) < 1) {
+        // Close to actual progress - gentle forward movement within chunk bounds
+        const incrementSpeed = 0.03; // Gentle continuous movement
+        const newSmooth = Math.min(currentSmooth + incrementSpeed, maxAllowedProgress);
+        
+        smoothProgressRef.current = newSmooth;
+        setSmoothProgress(Math.floor(newSmooth));
+      } else if (currentSmooth < targetReal) {
+        // Catch up to real progress smoothly but respect chunk boundaries
+        const gap = Math.min(targetReal - currentSmooth, maxAllowedProgress - currentSmooth);
+        const catchUpSpeed = Math.max(gap * 0.06, 0.1); // 6% of gap, minimum 0.1% per frame
+        const newSmooth = Math.min(currentSmooth + catchUpSpeed, maxAllowedProgress);
         
         smoothProgressRef.current = newSmooth;
         setSmoothProgress(Math.floor(newSmooth));
       } else {
-        // Don't move backwards, just gentle forward
-        const incrementSpeed = 0.01;
-        const newSmooth = Math.min(currentSmooth + incrementSpeed, 95);
+        // Don't move backwards - just gentle micro-movement
+        const incrementSpeed = 0.005;
+        const newSmooth = Math.min(currentSmooth + incrementSpeed, maxAllowedProgress);
         
         smoothProgressRef.current = newSmooth;
         setSmoothProgress(Math.floor(newSmooth));
@@ -584,7 +584,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         animationFrameRef.current = null;
       }
     };
-  }, [isTranscribing, isActuallyTranscribing, adjustedTotalDurationSeconds]);
+  }, [isTranscribing, isActuallyTranscribing, totalChunks]);
 
   // Cancel current transcription job
   const cancelTranscription = useCallback(async () => {
