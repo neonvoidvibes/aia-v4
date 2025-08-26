@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
     }
     console.log(`[Chat History List] Authenticated user: ${user.id}`);
 
-    const agent = req.nextUrl.searchParams.get('agent');
-    if (!agent) {
-      return formatErrorResponse("Missing 'agent' query parameter", 400);
+    const agentName = req.nextUrl.searchParams.get('agentName');
+    if (!agentName) {
+      return formatErrorResponse("Missing 'agentName' query parameter", 400);
     }
 
     const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       return formatErrorResponse("Could not connect to backend for chat history.", 503);
     }
 
-    const targetUrl = `${activeBackendUrl}/api/chat/history/list?agent=${encodeURIComponent(agent)}`;
+    const targetUrl = `${activeBackendUrl}/api/chat/history/list?agentName=${encodeURIComponent(agentName)}`;
     console.log(`[Chat History List] Forwarding GET to ${targetUrl}`);
 
     const { data: { session } } = await supabase.auth.getSession();

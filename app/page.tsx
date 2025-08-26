@@ -350,7 +350,7 @@ function HomeContent() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      const response = await fetch(`/api/chat/history/list?agent=${encodeURIComponent(agentToFetch)}`, {
+      const response = await fetch(`/api/chat/history/list?agentName=${encodeURIComponent(agentToFetch)}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
