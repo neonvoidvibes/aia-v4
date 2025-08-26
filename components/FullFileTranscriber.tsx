@@ -767,7 +767,7 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
             </>
           )}
           
-          {cardState !== 'empty' && displayFileInfoForCurrent && (
+          {(cardState !== 'empty' && displayFileInfoForCurrent) && (
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 {cardState === 'completed' ? (
@@ -791,7 +791,6 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                 size="icon" 
                 onClick={clearCurrentProcessingStateUI} 
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                disabled={false}
                 title="Clear and upload new file"
               >
                 <XCircle className="h-4 w-4" />
