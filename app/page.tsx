@@ -1617,6 +1617,7 @@ function HomeContent() {
         transcriptListenMode={transcriptListenMode}
         savedTranscriptMemoryMode={savedTranscriptMemoryMode}
         individualMemoryToggleStates={individualMemoryToggleStates}
+        onLogout={handleLogout}
       />
       
       {/* New Chat icon positioned right of sidebar */}
