@@ -137,6 +137,8 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string | null>(null);
   const [showCompletedTranscripts, setShowCompletedTranscripts] = useState<boolean>(false);
   const [isActuallyTranscribing, setIsActuallyTranscribing] = useState<boolean>(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -239,6 +241,100 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     }
   }, [isTranscribing, estimatedProgress]);
 
+  // Polling function for job status
+  const pollJobStatus = useCallback(async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/transcription/status/${jobId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get job status');
+      }
+
+      const jobStatus = await response.json();
+      
+      // Update progress
+      const progress = Math.floor((jobStatus.progress || 0) * 100);
+      setEstimatedProgress(progress);
+      setStatusMessage(jobStatus.current_step || 'Processing...');
+
+      if (jobStatus.status === 'completed' && jobStatus.result) {
+        // Job completed successfully
+        setIsTranscribing(false);
+        setIsActuallyTranscribing(false);
+        setCurrentJobId(null);
+        
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+
+        // Process the result
+        const result = jobStatus.result;
+        if (result.transcript && result.segments) {
+          setCurrentRawTranscriptText(result.transcript);
+          setCurrentTranscriptSegments(result.segments);
+          setStatusMessage('Transcription complete!');
+
+          // Add to finished transcripts
+          const newFinishedItem: FinishedTranscriptItem = {
+            id: Date.now().toString(),
+            fileName: currentPersistedFileInfo?.fileName || "Unknown File",
+            transcriptText: result.transcript,
+            segments: result.segments,
+            timestamp: Date.now()
+          };
+          setFinishedTranscripts(prev => [newFinishedItem, ...prev.slice(0, 9)]);
+        }
+      } else if (jobStatus.status === 'failed') {
+        // Job failed
+        setIsTranscribing(false);
+        setIsActuallyTranscribing(false);
+        setCurrentJobId(null);
+        setErrorMessage(jobStatus.error || 'Transcription failed');
+        setStatusMessage(null);
+        
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      }
+      // If status is still 'processing' or 'queued', continue polling
+      
+    } catch (error: any) {
+      console.error('Error polling job status:', error);
+      // Don't stop polling on single error - might be temporary network issue
+    }
+  }, [currentPersistedFileInfo]);
+
+  // Start polling for a job
+  const startPolling = useCallback((jobId: string) => {
+    setCurrentJobId(jobId);
+    
+    // Initial poll
+    pollJobStatus(jobId);
+    
+    // Set up polling with smart intervals
+    let pollCount = 0;
+    const pollInterval = () => {
+      pollCount++;
+      // Smart polling: 1s for first 10 polls, then 2s for next 20, then 3s
+      const interval = pollCount <= 10 ? 1000 : pollCount <= 30 ? 2000 : 3000;
+      
+      pollingIntervalRef.current = setTimeout(() => {
+        pollJobStatus(jobId).then(() => {
+          // Continue polling if job is still active
+          if (currentJobId === jobId) {
+            pollInterval();
+          }
+        });
+      }, interval);
+    };
+    
+    pollInterval();
+  }, [pollJobStatus, currentJobId]);
   
   const clearCurrentProcessingStateUI = () => {
     setSelectedFile(null);
@@ -249,10 +345,13 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     setCurrentPersistedFileInfo(null);
     setIsTranscribing(false); 
     setIsActuallyTranscribing(false); 
+    setCurrentJobId(null);
     setEstimatedProgress(0); // Reset progress
     setAdjustedTotalDurationSeconds(null); // Reset duration
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     progressIntervalRef.current = null;
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    pollingIntervalRef.current = null;
     transcriptionStartTimeRef.current = null;
     if(fileInputRef.current) fileInputRef.current.value = "";
     localStorage.removeItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
@@ -386,9 +485,8 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       
       setStatusMessage("Upload complete. Starting transcription job...");
       setEstimatedProgress(100); // Mark upload as complete
-      setIsActuallyTranscribing(true); // Start transcription phase
 
-      // Step 3: Notify backend to start transcription job
+      // Step 3: Start async transcription job
       const transcriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any";
       const startJobResponse = await fetch('/api/transcription/start-job', {
         method: 'POST',
@@ -406,41 +504,20 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         throw new Error(result.error || "Failed to start transcription job.");
       }
 
-      // Step 4: Process successful transcription result
-      setIsActuallyTranscribing(false); // End transcription phase
-      if (typeof result.transcript === 'string' && Array.isArray(result.segments)) {
-        setCurrentRawTranscriptText(result.transcript);
-        setCurrentTranscriptSegments(result.segments);
-        const completeMsg = 'Transcription complete!';
-        setStatusMessage(completeMsg);
-
-        const newFinishedItem: FinishedTranscriptItem = {
-          id: Date.now().toString(), 
-          fileName: fileInfoForProcessing?.fileName || "Unknown File",
-          transcriptText: result.transcript,
-          segments: result.segments,
-          timestamp: Date.now()
-        };
-        setFinishedTranscripts(prev => [newFinishedItem, ...prev.slice(0, 9)]); 
-
-        const successStateToSave: PersistentTranscriberState = {
-            currentProcessingFile: fileInfoForProcessing,
-            currentTranscriptText: result.transcript,
-            currentSegments: result.segments,
-            currentStatusMessage: completeMsg,
-            currentErrorMessage: null,
-            wasTranscribing: false,
-        };
-        localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(successStateToSave));
+      // Step 4: Start polling for job status
+      if (result.job_id) {
+        setStatusMessage("Transcription job started. Processing...");
+        setIsActuallyTranscribing(true);
+        startPolling(result.job_id);
       } else {
-        throw new Error("Received invalid transcription data from backend.");
+        throw new Error("No job ID received from backend.");
       }
+      
     } catch (err: any) {
       console.error('Transcription process error:', err);
       setErrorMessage(err.message || 'An unknown error occurred.');
       setStatusMessage(null); 
-      setIsActuallyTranscribing(false); // End transcription phase on error
-    } finally {
+      setIsActuallyTranscribing(false);
       setIsTranscribing(false);
     }
   };
