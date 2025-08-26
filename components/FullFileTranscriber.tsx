@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse, CheckCircle2, Clock } from 'lucide-react';
+import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse, CheckCircle2, Clock, StopCircle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress"; // Added Progress import
@@ -272,7 +272,12 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       // Update status message with chunk info if available
       let statusMsg = jobStatus.current_step || 'Processing...';
       if (jobStatus.completed_chunks !== undefined && jobStatus.total_chunks) {
-        statusMsg = `Processing chunk ${jobStatus.completed_chunks + 1}/${jobStatus.total_chunks}`;
+        // Show the next chunk being processed, or "completed" if all are done
+        if (jobStatus.completed_chunks >= jobStatus.total_chunks) {
+          statusMsg = `All ${jobStatus.total_chunks} chunks processed`;
+        } else {
+          statusMsg = `Processing chunk ${jobStatus.completed_chunks + 1}/${jobStatus.total_chunks}`;
+        }
       }
       setStatusMessage(statusMsg);
 
@@ -292,7 +297,18 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         if (result.transcript && result.segments) {
           setCurrentRawTranscriptText(result.transcript);
           setCurrentTranscriptSegments(result.segments);
-          setStatusMessage('Transcription complete!');
+          
+          // Handle partial results with appropriate messaging
+          if (result.partial && result.success_rate) {
+            const successPercentage = Math.round(result.success_rate * 100);
+            setStatusMessage(`Transcription completed (${successPercentage}% success)`);
+            if (result.warning) {
+              setErrorMessage(`⚠️ ${result.warning}`);
+            }
+          } else {
+            setStatusMessage('Transcription complete!');
+            setErrorMessage(null);
+          }
 
           // Add to finished transcripts
           const newFinishedItem: FinishedTranscriptItem = {
@@ -311,6 +327,18 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         setCurrentJobId(null);
         setErrorMessage(jobStatus.error || 'Transcription failed');
         setStatusMessage(null);
+        
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      } else if (jobStatus.status === 'cancelled') {
+        // Job cancelled
+        setIsTranscribing(false);
+        setIsActuallyTranscribing(false);
+        setCurrentJobId(null);
+        setStatusMessage('Transcription cancelled');
+        setErrorMessage(null);
         
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
@@ -359,6 +387,48 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       startPolling(currentJobId);
     }
   }, [currentJobId, isTranscribing, isActuallyTranscribing, startPolling]);
+
+  // Cancel current transcription job
+  const cancelTranscription = useCallback(async () => {
+    if (!currentJobId) return;
+    
+    try {
+      const response = await fetch(`/api/transcription/cancel/${currentJobId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (response.ok) {
+        setIsTranscribing(false);
+        setIsActuallyTranscribing(false);
+        setStatusMessage('Transcription cancelled');
+        setCurrentJobId(null);
+        
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        
+        // Don't clear file info so user can retry
+      } else {
+        const error = await response.json();
+        setErrorMessage(error.message || 'Failed to cancel transcription');
+      }
+    } catch (error: any) {
+      console.error('Error cancelling transcription:', error);
+      setErrorMessage('Failed to cancel transcription');
+    }
+  }, [currentJobId]);
+
+  // Retry failed transcription
+  const retryTranscription = useCallback(() => {
+    setErrorMessage(null);
+    setStatusMessage(null);
+    setCurrentRawTranscriptText(null);
+    setCurrentTranscriptSegments(null);
+    setEstimatedProgress(0);
+    handleStartTranscription();
+  }, []);
   
   const clearCurrentProcessingStateUI = () => {
     setSelectedFile(null);
@@ -743,19 +813,49 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
         {cardState !== 'empty' && (
           <div className="px-6 pb-6 flex flex-col sm:flex-row gap-3">
             {(cardState === 'ready' || cardState === 'error') && (
-              <Button
-                onClick={handleStartTranscription}
-                disabled={!canTranscribe}
-                className="w-full sm:flex-1"
-              >
-                {isTranscribing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Transcribing...
-                  </>
-                ) : (
-                  'Transcribe File'
+              <>
+                <Button
+                  onClick={cardState === 'error' ? retryTranscription : handleStartTranscription}
+                  disabled={!canTranscribe}
+                  className="w-full sm:flex-1"
+                >
+                  {isTranscribing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Transcribing...
+                    </>
+                  ) : cardState === 'error' ? (
+                    <>
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Retry Transcription
+                    </>
+                  ) : (
+                    'Transcribe File'
+                  )}
+                </Button>
+                
+                {cardState === 'error' && (
+                  <Button
+                    onClick={handleStartTranscription}
+                    variant="outline"
+                    disabled={!canTranscribe}
+                    className="w-full sm:w-auto"
+                  >
+                    Start New
+                  </Button>
                 )}
+              </>
+            )}
+            
+            {cardState === 'processing' && (
+              <Button
+                onClick={cancelTranscription}
+                variant="outline"
+                className="w-full sm:flex-1"
+                disabled={!currentJobId}
+              >
+                <StopCircle className="mr-2 h-4 w-4" />
+                Cancel
               </Button>
             )}
             
