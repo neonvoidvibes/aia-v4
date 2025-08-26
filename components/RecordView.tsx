@@ -118,7 +118,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   // Helper function to check if a recording is bookmarked (saved to memory)
   const isRecordingBookmarked = (s3Key: string) => {
     const savedInfo = savedRecordingIds.get(s3Key);
-    return savedInfo && savedInfo.memoryId !== 'pending';
+    return savedInfo !== undefined; // Show as bookmarked immediately, including 'pending' state
   };
 
   // Helper function to get storage key for agent's saved recordings
@@ -674,19 +674,23 @@ const RecordView: React.FC<RecordViewProps> = ({
     if (!agentName) return;
     
     const savedInfo = savedRecordingIds.get(s3Key);
-    if (savedInfo && savedInfo.memoryId !== 'pending') {
-      // TODO: Implement forget recording functionality like chat messages
-      toast.info("Recording already saved to memory. Forget functionality coming soon.");
-      return;
+    if (savedInfo) {
+      if (savedInfo.memoryId === 'pending') {
+        toast.info("Recording is already being saved...");
+        return;
+      } else {
+        // TODO: Implement forget recording functionality like chat messages
+        toast.info("Recording already saved to memory. Forget functionality coming soon.");
+        return;
+      }
     }
 
-    setIsEmbedding(prev => ({ ...prev, [s3Key]: true }));
-    
-    // Optimistic update (like chat messages)
+    // Optimistic update FIRST (immediate visual feedback)
     const newSaveDate = new Date();
     const placeholderInfo = { savedAt: newSaveDate, memoryId: 'pending' };
     setSavedRecordingIds(prev => new Map(prev).set(s3Key, placeholderInfo));
     
+    setIsEmbedding(prev => ({ ...prev, [s3Key]: true }));
     const toastId = `save-recording-${s3Key}`;
     toast.loading("Saving recording to memory...", { id: toastId });
     
@@ -909,11 +913,6 @@ const RecordView: React.FC<RecordViewProps> = ({
                           <Download className="h-3 w-3 mr-1" />
                           Download
                         </Button>
-                        {isRecordingBookmarked(rec.s3Key) && (
-                          <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
-                            Saved
-                          </span>
-                        )}
                         <Button 
                           variant="ghost" 
                           size="sm" 
