@@ -2116,6 +2116,12 @@ button {
   /* padding-bottom: 3rem !important; - DISABLED, this was causing 200px spacing issue */
 }
 
+/* Remove bottom padding for transcribe and record views since they have no input area */
+[data-current-view="transcribe"] .messages-container,
+[data-current-view="record"] .messages-container {
+  padding-bottom: 0 !important;
+}
+
 /* Enhanced margin for thinking indicators near input field */
 .thinking-indicator {
   margin-bottom: 2.5rem; /* Increased from 24px to 40px spacing from input */
