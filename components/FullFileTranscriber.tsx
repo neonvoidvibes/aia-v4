@@ -334,15 +334,28 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
             setErrorMessage(null);
           }
 
-          // Add to finished transcripts
-          const newFinishedItem: FinishedTranscriptItem = {
-            id: Date.now().toString(),
-            fileName: currentPersistedFileInfo?.fileName || "Unknown File",
-            transcriptText: result.transcript,
-            segments: result.segments,
-            timestamp: Date.now()
-          };
-          setFinishedTranscripts(prev => [newFinishedItem, ...prev.slice(0, 9)]);
+          // Add to finished transcripts - only if not already added
+          const currentJobIdForComparison = currentJobId;
+          setFinishedTranscripts(prev => {
+            // Check if we already have a transcript from this job
+            const existsAlready = prev.some(item => 
+              item.transcriptText === result.transcript && 
+              item.fileName === (currentPersistedFileInfo?.fileName || "Unknown File")
+            );
+            
+            if (existsAlready) {
+              return prev; // Don't add duplicate
+            }
+            
+            const newFinishedItem: FinishedTranscriptItem = {
+              id: Date.now().toString(),
+              fileName: currentPersistedFileInfo?.fileName || "Unknown File",
+              transcriptText: result.transcript,
+              segments: result.segments,
+              timestamp: Date.now()
+            };
+            return [newFinishedItem, ...prev.slice(0, 9)];
+          });
         }
       } else if (jobStatus.status === 'failed') {
         // Job failed
@@ -371,9 +384,13 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       }
       // If status is still 'processing' or 'queued', continue polling
       
+      // Return true if job is completed (success, failed, or cancelled)
+      return ['completed', 'failed', 'cancelled'].includes(jobStatus.status);
+      
     } catch (error: any) {
       console.error('Error polling job status:', error);
       // Don't stop polling on single error - might be temporary network issue
+      return false; // Continue polling on error
     }
   }, [currentPersistedFileInfo]);
 
@@ -392,15 +409,26 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       const interval = pollCount <= 10 ? 1000 : pollCount <= 30 ? 2000 : 3000;
       
       pollingIntervalRef.current = setTimeout(() => {
-        pollJobStatus(jobId).then(() => {
+        pollJobStatus(jobId).then((jobCompleted) => {
           // Continue polling if job is still active and not completed
           const currentJob = currentJobId === jobId;
           const stillTranscribing = isTranscribing;
           
-          if (currentJob && stillTranscribing) {
+          // Debug log to catch runaway polling
+          console.log('Polling check:', { currentJob, stillTranscribing, jobId, currentJobId, jobCompleted });
+          
+          // Stop polling if job is actually completed, regardless of other state
+          if (jobCompleted) {
+            console.log('Stopping polling - job completed');
+            if (pollingIntervalRef.current) {
+              clearTimeout(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+          } else if (currentJob && stillTranscribing) {
             pollInterval();
           } else {
-            // Job completed or cancelled, stop polling
+            // Job cancelled or other termination
+            console.log('Stopping polling - job terminated');
             if (pollingIntervalRef.current) {
               clearTimeout(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
