@@ -52,7 +52,8 @@ interface PersistentTranscriberState {
   currentSegments: WhisperSegment[] | null; 
   currentStatusMessage: string | null;
   currentErrorMessage: string | null;
-  wasTranscribing?: boolean; 
+  wasTranscribing?: boolean;
+  currentJobId?: string | null;
 }
 
 const CURRENT_STATE_LOCAL_STORAGE_KEY = 'fullFileTranscriberCurrentState';
@@ -160,6 +161,32 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
           } else if (savedCurrent.currentProcessingFile?.fileName){
              setStatusMessage(`Previously transcribed file '${savedCurrent.currentProcessingFile.fileName}' loaded.`);
           }
+        } else if (savedCurrent.wasTranscribing && savedCurrent.currentJobId) {
+          // Resume polling for active job
+          setIsTranscribing(true);
+          setIsActuallyTranscribing(true);
+          setCurrentJobId(savedCurrent.currentJobId);
+          setStatusMessage(`Resuming transcription job...`);
+          // Start polling after component mounts
+          setTimeout(() => {
+            pollJobStatus(savedCurrent.currentJobId).then(() => {
+              // Start regular polling
+              let pollCount = 0;
+              const pollInterval = () => {
+                pollCount++;
+                const interval = pollCount <= 10 ? 1000 : pollCount <= 30 ? 2000 : 3000;
+                
+                pollingIntervalRef.current = setTimeout(() => {
+                  pollJobStatus(savedCurrent.currentJobId).then(() => {
+                    if (currentJobId === savedCurrent.currentJobId) {
+                      pollInterval();
+                    }
+                  });
+                }, interval);
+              };
+              pollInterval();
+            });
+          }, 100);
         } else if (savedCurrent.wasTranscribing && savedCurrent.currentProcessingFile?.fileName) {
           setStatusMessage(`Processing for ${savedCurrent.currentProcessingFile.fileName} was interrupted. Please select the file again to restart transcription.`);
         } else if (savedCurrent.currentStatusMessage) { 
@@ -185,7 +212,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         localStorage.removeItem(FINISHED_TRANSCRIPTS_LOCAL_STORAGE_KEY);
       }
     }
-  }, []);
+  }, [pollJobStatus]);
 
   useEffect(() => {
     const stateToSave: PersistentTranscriberState = {
@@ -197,9 +224,10 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       currentStatusMessage: statusMessage,
       currentErrorMessage: errorMessage,
       wasTranscribing: isTranscribing,
+      currentJobId: currentJobId,
     };
     localStorage.setItem(CURRENT_STATE_LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [selectedFile, currentPersistedFileInfo, currentRawTranscriptText, currentTranscriptSegments, statusMessage, errorMessage, isTranscribing]);
+  }, [selectedFile, currentPersistedFileInfo, currentRawTranscriptText, currentTranscriptSegments, statusMessage, errorMessage, isTranscribing, currentJobId]);
 
   useEffect(() => {
     if (finishedTranscripts.length > 0) {
@@ -254,6 +282,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       }
 
       const jobStatus = await response.json();
+      console.log('Job status:', jobStatus); // Debug log
       
       // Update progress
       const progress = Math.floor((jobStatus.progress || 0) * 100);
@@ -261,7 +290,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       
       // Update status message with chunk info if available
       let statusMsg = jobStatus.current_step || 'Processing...';
-      if (jobStatus.completed_chunks && jobStatus.total_chunks) {
+      if (jobStatus.completed_chunks !== undefined && jobStatus.total_chunks) {
         statusMsg = `Processing chunk ${jobStatus.completed_chunks + 1}/${jobStatus.total_chunks}`;
       }
       setStatusMessage(statusMsg);
