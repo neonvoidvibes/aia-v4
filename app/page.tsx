@@ -1726,15 +1726,21 @@ function HomeContent() {
           </div>
         </div>
         <div className={currentView === "record" ? "flex flex-col flex-1" : "hidden"}>
-          <RecordView
-            agentName={pageAgentName}
-            globalRecordingStatus={globalRecordingStatus}
-            setGlobalRecordingStatus={setGlobalRecordingStatus}
-            isTranscriptRecordingActive={globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording}
-            agentCapabilities={agentCapabilities}
-            vadAggressiveness={vadAggressiveness}
-            setRecordingTime={setNoteRecordingTime}
-          />
+          <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
+            <div className="messages-container" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
+              <div className="space-y-1 pt-8">
+                <RecordView
+                  agentName={pageAgentName}
+                  globalRecordingStatus={globalRecordingStatus}
+                  setGlobalRecordingStatus={setGlobalRecordingStatus}
+                  isTranscriptRecordingActive={globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording}
+                  agentCapabilities={agentCapabilities}
+                  vadAggressiveness={vadAggressiveness}
+                  setRecordingTime={setNoteRecordingTime}
+                />
+              </div>
+            </div>
+          </div>
         </div>
         {currentView === "canvas" && isCanvasViewEnabled && (
           <CanvasView 
