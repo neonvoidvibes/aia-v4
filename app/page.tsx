@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2, SquarePen, LogOut } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2, SquarePen, LogOut
 import Sidebar from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1648,6 +1649,17 @@ function HomeContent() {
   };
 
 
+  // Prevent hydration mismatch for authorization state
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  if (!isClient) {
+    return (<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Loading...</p></div>);
+  }
+  
   if (isAuthorized === null) return (<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Checking authorization...</p></div>);
   if (isAuthorized === false) return (
     <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
