@@ -669,18 +669,17 @@ const RecordView: React.FC<RecordViewProps> = ({
   const isStopping = pendingAction === 'stop';
 
   return (
-    <div className="space-y-4 p-1 sm:p-0 max-w-4xl mx-auto">
+    <div className="space-y-4 p-1 sm:p-0">
       {/* Unified Recording Card */}
-      <div className="border-2 rounded-lg transition-all duration-200 border-dashed border-border hover:border-primary bg-muted/20">
+      <div className="border-2 rounded-lg transition-all duration-200 border-border bg-muted/20">
         <div className="p-6 sm:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
+          {/* Centered Header */}
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center gap-3 mb-2">
               <Mic className="w-6 h-6 text-primary flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-base font-medium text-foreground">Voice Note Recorder</p>
-                <p className="text-sm text-muted-foreground">Record your voice notes</p>
-              </div>
+              <p className="text-base font-medium text-foreground">Voice Note Recorder</p>
             </div>
+            <p className="text-sm text-muted-foreground">Record your voice notes</p>
           </div>
           
           {/* Controls - KEEPING EXACT ORIGINAL STRUCTURE */}
@@ -771,14 +770,14 @@ const RecordView: React.FC<RecordViewProps> = ({
                 <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto">
                   {finishedRecordings.map((rec) => (
                     <div key={rec.s3Key} className="flex items-center justify-between p-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                        <div className="truncate">
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-foreground truncate" title={rec.filename}>{rec.filename}</p>
                           <p className="text-xs text-muted-foreground">{new Date(rec.timestamp).toLocaleDateString()}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         <Button variant="ghost" size="sm" onClick={() => handleViewTranscript(rec.s3Key, rec.filename)} className="h-8 px-2 text-muted-foreground hover:text-primary">
                           <Eye className="h-3 w-3 mr-1" />
                           View
