@@ -767,7 +767,7 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
             </>
           )}
           
-          {(cardState !== 'empty' && displayFileInfoForCurrent) && (
+          {cardState !== 'empty' && (
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 {cardState === 'completed' ? (
@@ -780,10 +780,10 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                   <FileText className="w-6 h-6 text-primary flex-shrink-0" />
                 )}
                 <div className="min-w-0">
-                  <p className="text-base font-medium text-foreground truncate" title={displayFileInfoForCurrent.fileName}>
-                    {displayFileInfoForCurrent.fileName}
+                  <p className="text-base font-medium text-foreground truncate" title={displayFileInfoForCurrent?.fileName || 'Transcription'}>
+                    {displayFileInfoForCurrent?.fileName || 'Completed transcription'}
                   </p>
-                  <p className="text-sm text-muted-foreground">{formatFileSize(displayFileInfoForCurrent.fileSize)}</p>
+                  <p className="text-sm text-muted-foreground">{displayFileInfoForCurrent ? formatFileSize(displayFileInfoForCurrent.fileSize) : 'Ready for new upload'}</p>
                 </div>
               </div>
               <Button 
