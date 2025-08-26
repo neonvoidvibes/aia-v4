@@ -213,7 +213,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </Button>
               <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
                 <AudioLines className="mr-3 h-5 w-5" />
-                Transcribe Document
+                Transcribe
               </Button>
               <Separator className="my-2 bg-border/50" />
               <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setShowSettings(true); }}>
