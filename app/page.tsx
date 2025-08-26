@@ -54,6 +54,7 @@ import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
 import AgentSelectorMenu from "@/components/ui/agent-selector";
 import { MODEL_GROUPS } from "@/lib/model-map";
 import AgentDashboard from "@/components/agent-dashboard"; // New import
+import ConsentView from "@/components/consent-view"; // Phase 3 import
 
 interface ChatHistoryItem {
   id: string;
@@ -333,12 +334,33 @@ function HomeContent() {
 
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
   const [pageEventId, setPageEventId] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null); // Added state for user name
+  const [userName, setUserName] = useState<string | null>(null);
   const [allowedAgents, setAllowedAgents] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [showAgentDashboard, setShowAgentDashboard] = useState(false);
+  
+  // --- PHASE 3: New state management for dynamic workspaces ---
+  const [permissionsData, setPermissionsData] = useState<{
+    isAdminOverride: boolean;
+    showAgentSelector: boolean;
+    agents: Array<{
+      name: string;
+      workspaceId: string | null;
+      workspaceName: string | null;
+      workspaceUiConfig: any;
+      capabilities: { pinecone_index_exists: boolean };
+    }>;
+    workspaceConfigs: Record<string, any>;
+    userRole: string;
+  } | null>(null);
+  const [currentAgent, setCurrentAgent] = useState<string | null>(null);
+  const [activeUiConfig, setActiveUiConfig] = useState<any>({});
+  const [needsConsent, setNeedsConsent] = useState<{
+    workspaceId: string;
+    workspaceName: string;
+  } | null>(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -430,10 +452,15 @@ function HomeContent() {
         }
 
         const data = await response.json();
+        
+        // --- PHASE 3: Store the rich permissions data ---
+        setPermissionsData(data);
+        
+        // Legacy support for existing code
         const fetchedAllowedAgents: { name: string, capabilities: { pinecone_index_exists: boolean } }[] = data.allowedAgents || [];
         const agentNames = fetchedAllowedAgents.map(a => a.name);
         setAllowedAgents(agentNames);
-        setUserRole(data.userRole || 'user'); // Set the user role
+        setUserRole(data.userRole || 'user');
 
         const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
         setUserName(name);
@@ -442,7 +469,31 @@ function HomeContent() {
           // Agent is in URL, validate it
           if (agentNames.includes(agentParam)) {
             console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
-            localStorage.setItem('lastUsedAgent', agentParam); // Save the successfully accessed agent
+            localStorage.setItem('lastUsedAgent', agentParam);
+            
+            // --- PHASE 3: Set current agent and check for consent ---
+            setCurrentAgent(agentParam);
+            const agentData = data.agents.find(a => a.name === agentParam);
+            
+            if (agentData && agentData.workspaceId && agentData.workspaceUiConfig.require_consent) {
+              // Check if user has consented to this workspace
+              try {
+                const consentResponse = await fetch(`/api/user/consent?workspaceId=${agentData.workspaceId}`);
+                if (consentResponse.ok) {
+                  const consentData = await consentResponse.json();
+                  if (!consentData.hasConsented) {
+                    setNeedsConsent({
+                      workspaceId: agentData.workspaceId,
+                      workspaceName: agentData.workspaceName || 'Workspace'
+                    });
+                    return;
+                  }
+                }
+              } catch (consentError) {
+                console.warn('Error checking consent:', consentError);
+              }
+            }
+            
             const currentAgentData = fetchedAllowedAgents.find(a => a.name === agentParam);
             if (currentAgentData) {
               setAgentCapabilities(currentAgentData.capabilities);
@@ -472,6 +523,7 @@ function HomeContent() {
           } else {
             // No valid last used agent, show the selector
             console.log("Authorization Check: User authenticated, no valid last agent. Will show selector.");
+            setCurrentAgent(null);
             setIsAuthorized(true);
           }
         }
@@ -486,6 +538,28 @@ function HomeContent() {
     checkAuthAndPermissions();
   }, [searchParams, supabase.auth, router, pageAgentName, pageEventId, fetchChatHistory]);
 
+  // --- PHASE 3: Dynamic UI config updates ---
+  useEffect(() => {
+    if (permissionsData && currentAgent) {
+      const agentData = permissionsData.agents.find(a => a.name === currentAgent);
+      if (agentData && agentData.workspaceId && permissionsData.workspaceConfigs[agentData.workspaceId]) {
+        setActiveUiConfig(permissionsData.workspaceConfigs[agentData.workspaceId]);
+      } else {
+        setActiveUiConfig({});
+      }
+    } else {
+      setActiveUiConfig({});
+    }
+  }, [permissionsData, currentAgent]);
+
+  // --- PHASE 3: Handle consent completion ---
+  const handleConsentGiven = () => {
+    setNeedsConsent(null);
+    // Re-run authorization check to proceed with the agent
+    if (currentAgent) {
+      setIsAuthorized(true);
+    }
+  };
 
   // Refs
   const tabContentRef = useRef<HTMLDivElement>(null);
@@ -1584,6 +1658,17 @@ function HomeContent() {
     </div>
   );
 
+  // --- PHASE 3: Show consent view if needed ---
+  if (needsConsent) {
+    return (
+      <ConsentView 
+        workspaceId={needsConsent.workspaceId}
+        workspaceName={needsConsent.workspaceName}
+        onConsentGiven={handleConsentGiven}
+      />
+    );
+  }
+
   // If user is authorized but no agent is specified in the URL, show agent selector
   if (isAuthorized && !pageAgentName) {
     return <AgentSelector allowedAgents={allowedAgents} userName={userName} />;
@@ -1618,6 +1703,9 @@ function HomeContent() {
         savedTranscriptMemoryMode={savedTranscriptMemoryMode}
         individualMemoryToggleStates={individualMemoryToggleStates}
         onLogout={handleLogout}
+        // --- PHASE 3: Workspace UI props ---
+        isAdminOverride={permissionsData?.isAdminOverride}
+        activeUiConfig={activeUiConfig}
       />
       
       {/* New Chat icon positioned right of sidebar */}
@@ -1653,13 +1741,16 @@ function HomeContent() {
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
           <div className="flex items-center justify-center h-full">
             {/* Center: Agent name (desktop) or ViewSwitcher fallback */}
-            {!isMobile && pageAgentName && (
+            {!isMobile && pageAgentName && (permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
               <AgentSelectorMenu
                 allowedAgents={allowedAgents}
                 currentAgent={pageAgentName}
                 userRole={userRole}
                 onDashboardClick={() => setShowAgentDashboard(true)}
               />
+            )}
+            {!isMobile && pageAgentName && !(permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
+              <div className="text-lg font-medium">{pageAgentName}</div>
             )}
             {!isMobile && !pageAgentName && (
               <ViewSwitcher 
@@ -1672,7 +1763,7 @@ function HomeContent() {
             )}
 
             {/* Right side: Agent name (mobile) */}
-            {isMobile && pageAgentName && (
+            {isMobile && pageAgentName && (permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
               <div className="absolute right-6" style={{ marginTop: '2px' }}>
                 <AgentSelectorMenu
                   allowedAgents={allowedAgents}
@@ -1680,6 +1771,11 @@ function HomeContent() {
                   userRole={userRole}
                   onDashboardClick={() => setShowAgentDashboard(true)}
                 />
+              </div>
+            )}
+            {isMobile && pageAgentName && !(permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
+              <div className="absolute right-6">
+                <div className="text-lg font-medium">{pageAgentName}</div>
               </div>
             )}
           </div>
@@ -1714,6 +1810,11 @@ function HomeContent() {
               individualRawTranscriptToggleStates={individualRawTranscriptToggleStates}
               rawTranscriptFiles={transcriptionS3Files}
               isModalOpen={isAnyModalOpen}
+              // --- PHASE 3: Workspace UI props ---
+              isAdminOverride={permissionsData?.isAdminOverride}
+              activeUiConfig={activeUiConfig}
+              tooltips={activeUiConfig.tooltips || {}}
+              onOpenSettings={() => setShowSettings(true)}
             />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
@@ -1909,27 +2010,31 @@ function HomeContent() {
                         </DropdownMenu>
                       )}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="agent-selector">Agent</Label>
-                      <Select value={pageAgentName || ''} onValueChange={handleAgentChange} disabled={allowedAgents.length <= 1}>
-                        <SelectTrigger className="w-[220px]" id="agent-selector">
-                          <SelectValue placeholder="Select an agent" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allowedAgents.sort().map(agent => (
-                            <SelectItem key={agent} value={agent}>{agent}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                     <div className="flex items-center justify-between">
-                      <Label htmlFor="model-selector">Chat Model</Label>
-                        <Select value={selectedModel} onValueChange={handleModelChange}>
-                          <SelectTrigger className="w-[220px]" id="model-selector">
-                            <SelectValue placeholder="Select a model" />
+                    {(permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="agent-selector">Agent</Label>
+                        <Select value={pageAgentName || ''} onValueChange={handleAgentChange} disabled={allowedAgents.length <= 1}>
+                          <SelectTrigger className="w-[220px]" id="agent-selector">
+                            <SelectValue placeholder="Select an agent" />
                           </SelectTrigger>
                           <SelectContent>
-                            {MODEL_GROUPS.map((group) => (
+                            {allowedAgents.sort().map(agent => (
+                              <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                     {/* Model Selector - Hidden if workspace config specifies */}
+                     {(!activeUiConfig.hide_model_selector || permissionsData?.isAdminOverride) && (
+                       <div className="flex items-center justify-between">
+                        <Label htmlFor="model-selector">Chat Model</Label>
+                          <Select value={selectedModel} onValueChange={handleModelChange}>
+                            <SelectTrigger className="w-[220px]" id="model-selector">
+                              <SelectValue placeholder="Select a model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {MODEL_GROUPS.map((group) => (
                               <SelectGroup key={group.label}>
                                 <SelectLabel className="pl-8 pr-2 uppercase text-muted-foreground font-normal text-xs opacity-75">{group.label}</SelectLabel>
                                 {group.models.map((model) => (
@@ -1941,7 +2046,8 @@ function HomeContent() {
                             ))}
                           </SelectContent>
                         </Select>
-                    </div>
+                       </div>
+                     )}
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <Label htmlFor="temperature-slider">Temperature (Model Creativity)</Label>

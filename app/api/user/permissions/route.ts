@@ -24,71 +24,9 @@ export async function GET(request: Request) {
  
     logger.info(`Permissions API: Fetching permissions for user ${user.id}`);
 
-    // Fetch allowed agent NAMES for the user by joining tables
-    // The `!inner` hint ensures we only get results if the agent exists in both tables
-    const { data: permissions, error: dbError } = await supabase
-      .from('user_agent_access')
-      .select(`
-        agents!inner ( name )
-      `) // Select the 'name' column from the joined 'agents' table
-      .eq('user_id', user.id);   // Filter by the authenticated user's ID
-
-    if (dbError) {
-      console.error(`Permissions API: Database error fetching permissions for user ${user.id}:`, dbError);
-      return NextResponse.json({ error: 'Failed to fetch permissions', details: dbError.message }, { status: 500 })
-    }
-
-    // Extract just the agent names from the result
-    const allowedAgentNames = permissions
-      ? permissions
-          .map(p => {
-            const agentData = p.agents as { name: string } | { name: string }[] | null;
-            if (Array.isArray(agentData)) {
-              return agentData[0]?.name;
-            }
-            return agentData?.name;
-          })
-          .filter((name): name is string => typeof name === 'string' && name !== null)
-      : [];
- 
-    logger.info({ agents: allowedAgentNames }, `Permissions API: User ${user.id} has access`);
- 
-    // --- NEW BATCH CAPABILITIES CHECK ---
-    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
-    let agentsWithCapabilities = allowedAgentNames.map(name => ({
-        name,
-        capabilities: { pinecone_index_exists: false } // Default to false
-    }));
-
-    if (activeBackendUrl && allowedAgentNames.length > 0) {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const capabilitiesResponse = await fetch(`${activeBackendUrl}/api/agents/capabilities`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token}`,
-                },
-                body: JSON.stringify({ agent_names: allowedAgentNames })
-            });
-
-            if (capabilitiesResponse.ok) {
-                const capabilitiesData = await capabilitiesResponse.json();
-                agentsWithCapabilities = allowedAgentNames.map(name => ({
-                    name,
-                    capabilities: capabilitiesData[name] || { pinecone_index_exists: false }
-                }));
-            } else {
-                logger.error("Permissions API: Failed to fetch agent capabilities from backend.");
-            }
-        } catch (e) {
-            logger.error({ error: e }, `Permissions API: Error fetching agent capabilities.`);
-        }
-    }
-    // --- END NEW BATCH LOGIC ---
-
-    // --- NEW: Fetch user role ---
+    // --- PHASE 3: Fetch user role first to determine admin override ---
     let userRole = 'user'; // Default role
+    let isAdminOverride = false;
     try {
         const { data: roleData, error: roleError } = await supabase
             .from('user_roles')
@@ -103,13 +41,124 @@ export async function GET(request: Request) {
         if (roleData) {
             userRole = roleData.role;
         }
+        
+        // Check if user is admin or super user for override
+        isAdminOverride = userRole === 'admin' || userRole === 'super user';
     } catch(roleError) {
         logger.warn({ error: roleError }, `Permissions API: Could not fetch role for user ${user.id}, defaulting to 'user'.`);
     }
-    // --- END NEW: Fetch user role ---
+
+    // --- PHASE 3: Enhanced agent fetching with workspace support ---
+    let agentsWithWorkspaceInfo = [];
+    
+    if (isAdminOverride) {
+      // Admin users see all agents
+      const { data: allAgents, error: agentsError } = await supabase
+        .from('agents')
+        .select('name, workspace_id, workspaces(id, name, ui_config)');
+      
+      if (agentsError) {
+        logger.error(`Permissions API: Error fetching all agents for admin user ${user.id}:`, agentsError);
+        return NextResponse.json({ error: 'Failed to fetch agents', details: agentsError.message }, { status: 500 });
+      }
+      
+      agentsWithWorkspaceInfo = (allAgents || []).map(agent => ({
+        name: agent.name,
+        workspaceId: agent.workspace_id,
+        workspaceName: agent.workspaces?.name || null,
+        workspaceUiConfig: agent.workspaces?.ui_config || {}
+      }));
+    } else {
+      // Regular users: fetch through user_agent_access and workspace_users
+      const { data: permissions, error: dbError } = await supabase
+        .from('user_agent_access')
+        .select(`
+          agents!inner ( 
+            name, 
+            workspace_id,
+            workspaces(id, name, ui_config)
+          )
+        `) 
+        .eq('user_id', user.id);
+
+      if (dbError) {
+        console.error(`Permissions API: Database error fetching permissions for user ${user.id}:`, dbError);
+        return NextResponse.json({ error: 'Failed to fetch permissions', details: dbError.message }, { status: 500 })
+      }
+
+      // Extract agent info with workspace data
+      agentsWithWorkspaceInfo = (permissions || [])
+        .map(p => {
+          const agentData = Array.isArray(p.agents) ? p.agents[0] : p.agents;
+          if (!agentData) return null;
+          
+          return {
+            name: agentData.name,
+            workspaceId: agentData.workspace_id,
+            workspaceName: agentData.workspaces?.name || null,
+            workspaceUiConfig: agentData.workspaces?.ui_config || {}
+          };
+        })
+        .filter(Boolean);
+    }
  
-    // Return the enhanced list of agents with their capabilities and the user's role
-    return NextResponse.json({ allowedAgents: agentsWithCapabilities, userRole: userRole }, { status: 200 });
+    logger.info({ agentCount: agentsWithWorkspaceInfo.length }, `Permissions API: User ${user.id} has access`);
+ 
+    // --- BATCH CAPABILITIES CHECK ---
+    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const agentNames = agentsWithWorkspaceInfo.map(a => a.name);
+    let agentsWithCapabilities = agentsWithWorkspaceInfo.map(agent => ({
+        ...agent,
+        capabilities: { pinecone_index_exists: false } // Default to false
+    }));
+
+    if (activeBackendUrl && agentNames.length > 0) {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const capabilitiesResponse = await fetch(`${activeBackendUrl}/api/agents/capabilities`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`,
+                },
+                body: JSON.stringify({ agent_names: agentNames })
+            });
+
+            if (capabilitiesResponse.ok) {
+                const capabilitiesData = await capabilitiesResponse.json();
+                agentsWithCapabilities = agentsWithWorkspaceInfo.map(agent => ({
+                    ...agent,
+                    capabilities: capabilitiesData[agent.name] || { pinecone_index_exists: false }
+                }));
+            } else {
+                logger.error("Permissions API: Failed to fetch agent capabilities from backend.");
+            }
+        } catch (e) {
+            logger.error({ error: e }, `Permissions API: Error fetching agent capabilities.`);
+        }
+    }
+    
+    // --- PHASE 3: Build workspace configurations map ---
+    const workspaceConfigs = {};
+    agentsWithCapabilities.forEach(agent => {
+      if (agent.workspaceId && agent.workspaceUiConfig) {
+        workspaceConfigs[agent.workspaceId] = agent.workspaceUiConfig;
+      }
+    });
+    
+    // --- PHASE 3: Determine if agent selector should be shown ---
+    const showAgentSelector = isAdminOverride || agentsWithCapabilities.length > 1;
+    
+    // --- PHASE 3: Return the rich permissions data structure ---
+    return NextResponse.json({ 
+      isAdminOverride,
+      showAgentSelector,
+      agents: agentsWithCapabilities,
+      workspaceConfigs,
+      userRole,
+      // Legacy support for existing code
+      allowedAgents: agentsWithCapabilities.map(a => ({ name: a.name, capabilities: a.capabilities }))
+    }, { status: 200 });
  
   } catch (error) {
     logger.error({ error }, 'Permissions API: Unexpected error');

@@ -60,6 +60,9 @@ interface SidebarProps {
   individualMemoryToggleStates?: Record<string, boolean>;
   individualRawTranscriptToggleStates?: Record<string, boolean>;
   onLogout?: () => void;
+  // --- PHASE 3: Workspace UI configuration ---
+  isAdminOverride?: boolean;
+  activeUiConfig?: any;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -82,6 +85,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   individualMemoryToggleStates,
   individualRawTranscriptToggleStates,
   onLogout,
+  isAdminOverride = false,
+  activeUiConfig = {},
 }) => {
   const isMobile = useIsMobile();
 
@@ -203,23 +208,35 @@ const Sidebar: React.FC<SidebarProps> = ({
                 New Chat
               </Button>
               <Separator className="my-2 bg-border/50" />
-              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('chat'); }}>
-                <MessageSquare className="mr-3 h-5 w-5" />
-                Chat
-              </Button>
-              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('record'); }}>
-                <Disc className="mr-3 h-5 w-5" />
-                Record Note
-              </Button>
-              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
-                <AudioLines className="mr-3 h-5 w-5" />
-                Transcribe
-              </Button>
+              {/* Chat link - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_links?.includes('chat') || isAdminOverride) && (
+                <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('chat'); }}>
+                  <MessageSquare className="mr-3 h-5 w-5" />
+                  Chat
+                </Button>
+              )}
+              {/* Record link - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_links?.includes('record') || isAdminOverride) && (
+                <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('record'); }}>
+                  <Disc className="mr-3 h-5 w-5" />
+                  Record Note
+                </Button>
+              )}
+              {/* Transcribe link - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_links?.includes('transcribe') || isAdminOverride) && (
+                <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
+                  <AudioLines className="mr-3 h-5 w-5" />
+                  Transcribe Document
+                </Button>
+              )}
               <Separator className="my-2 bg-border/50" />
-              <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setShowSettings(true); }}>
-                <Settings className="mr-3 h-5 w-5" />
-                Settings
-              </Button>
+              {/* Settings link - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_links?.includes('settings') || isAdminOverride) && (
+                <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setShowSettings(true); }}>
+                  <Settings className="mr-3 h-5 w-5" />
+                  Settings
+                </Button>
+              )}
             </div>
           </div>
           <div className="flex-1 flex flex-col min-h-0">

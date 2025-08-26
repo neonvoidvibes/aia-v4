@@ -394,6 +394,11 @@ interface SimpleChatInterfaceProps {
   individualRawTranscriptToggleStates?: Record<string, boolean>;
   rawTranscriptFiles?: FetchedFile[];
   isModalOpen?: boolean; // New prop to indicate if a modal is open
+  // --- PHASE 3: Workspace UI configuration ---
+  isAdminOverride?: boolean;
+  activeUiConfig?: any;
+  tooltips?: Record<string, string>;
+  onOpenSettings?: () => void;
 }
 
 export interface ChatInterfaceHandle {
@@ -440,7 +445,8 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+
     const t = useLocalization();
 
     const searchParams = useSearchParams();
@@ -2648,7 +2654,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); debugLog("[File Change] Files attached:", newFiles.map(f=>f.name)); } if (fileInputRef.current) fileInputRef.current.value = ""; }, []);
     const removeFile = useCallback((id: string) => { debugLog("[Remove File] Removing file ID:", id); setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); }); }, []);
     const handleRecordUIMouseMove = useCallback(() => { if (isBrowserRecordingRef.current) { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); setRecordUIVisible(true); startHideTimeout(); }}, [startHideTimeout]);
-    const handlePlusMenuClick = useCallback((e: React.MouseEvent) => { e.stopPropagation(); if (showRecordUI && !isBrowserRecordingRef.current) hideRecordUI(); setShowPlusMenu(prev => !prev); }, [showRecordUI, hideRecordUI]);
+    const handlePlusMenuClick = useCallback((e: React.MouseEvent) => { 
+      e.stopPropagation(); 
+      if (showRecordUI && !isBrowserRecordingRef.current) hideRecordUI(); 
+      
+      // --- PHASE 3: Conditional behavior based on workspace settings ---
+      if (activeUiConfig.hide_sidebar_links?.includes('settings') && !isAdminOverride) {
+        // Settings is hidden, only toggle plus menu
+        setShowPlusMenu(prev => !prev);
+      } else {
+        // Settings is not hidden, open settings dialog
+        if (onOpenSettings) {
+          onOpenSettings();
+        } else {
+          // Fallback to plus menu if no settings handler provided
+          setShowPlusMenu(prev => !prev);
+        }
+      }
+    }, [showRecordUI, hideRecordUI, activeUiConfig, isAdminOverride, onOpenSettings]);
     const handleMessageInteraction = useCallback((id: string) => {
         if (isMobile) {
             setSelectedMessage(prev => prev === id ? null : id);
@@ -3305,13 +3328,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                                 </button>
                                               </ActionTooltip>
-                                              <ActionTooltip labelKey="tooltips.edit" align="end">
-                                                <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
-                                                  <Pencil className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </ActionTooltip>
+                                              {/* Message editing - Hidden if workspace config specifies */}
+                                              {(!activeUiConfig.disable_message_editing || isAdminOverride) && (
+                                                <ActionTooltip labelKey="tooltips.edit" align="end">
+                                                  <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.edit_message || "Edit message"}>
+                                                    <Pencil className="h-[18px] w-[18px]" />
+                                                  </button>
+                                                </ActionTooltip>
+                                              )}
                                               <ActionTooltip labelKey="tooltips.delete" align="end">
-                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
                                                   <Trash2 className="h-[18px] w-[18px]" />
                                                 </button>
                                               </ActionTooltip>
@@ -3338,18 +3364,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                 {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                               </button>
                                             </ActionTooltip>
+                                            {/* Message editing - Hidden if workspace config specifies */}
+                                            {(!activeUiConfig.disable_message_editing || isAdminOverride) && (
                                             <ActionTooltip labelKey="tooltips.edit" align="end">
-                                              <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
+                                              <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.edit_message || "Edit message"}>
                                                 <Pencil className="h-[18px] w-[18px]" />
                                               </button>
                                             </ActionTooltip>
+                                            )}
                                             <ActionTooltip labelKey="tooltips.saveMemory" align="end">
-                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
+                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
                                                 <Bookmark className="h-[18px] w-[18px]" />
                                               </button>
                                             </ActionTooltip>
                                             <ActionTooltip labelKey="tooltips.delete" align="end">
-                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
                                                   <Trash2 className="h-[18px] w-[18px]" />
                                               </button>
                                             </ActionTooltip>
@@ -3412,27 +3441,30 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                 {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                               </button>
                                             </ActionTooltip>
-                                            <ActionTooltip labelKey="tooltips.readAloud" align="start">
+                                            {/* TTS - Hidden if workspace config specifies */}
+                                            {(!activeUiConfig.disable_tts || isAdminOverride) && (
+                                              <ActionTooltip labelKey="tooltips.readAloud" align="start">
                                               <button
                                                 onClick={() => readAloud(message as Message)}
                                                 className={cn(
                                                     "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
                                                     ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
                                                 )}
-                                                aria-label="Read message aloud"
+                                                aria-label={tooltips.read_aloud || "Read message aloud"}
                                               >
                                                 <Volume2 className="h-[18px] w-[18px]" />
                                               </button>
-                                            </ActionTooltip>
+                                              </ActionTooltip>
+                                            )}
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                               <>
                                               <ActionTooltip labelKey="tooltips.saveMemory" align="start">
-                                                <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
+                                                <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
                                                   <Bookmark className="h-[18px] w-[18px]" />
                                                 </button>
                                               </ActionTooltip>
                                               <ActionTooltip labelKey="tooltips.delete" align="start">
-                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
                                                   <Trash2 className="h-[18px] w-[18px]" />
                                                 </button>
                                               </ActionTooltip>
@@ -3661,9 +3693,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           </button>
                         {showPlusMenu && (
                             <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
-                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item" onClick={attachDocument} title="Attach file">
-                                <Paperclip size={17} className="mobile-icon-small" />
-                              </button>
+                              {/* File attachment - Hidden if workspace config specifies */}
+                              {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
+                                <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item" onClick={attachDocument} title={tooltips.attach_file || "Attach file"}>
+                                  <Paperclip size={17} className="mobile-icon-small" />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 className={cn(
