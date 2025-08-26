@@ -269,16 +269,24 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       const progress = Math.floor((jobStatus.progress || 0) * 100);
       setEstimatedProgress(progress);
       
-      // Update status message with chunk info if available
-      let statusMsg = jobStatus.current_step || 'Processing...';
-      if (jobStatus.completed_chunks !== undefined && jobStatus.total_chunks) {
-        // Show the next chunk being processed, or "completed" if all are done
-        if (jobStatus.completed_chunks >= jobStatus.total_chunks) {
-          statusMsg = `All ${jobStatus.total_chunks} chunks processed`;
+      // Update status message - show smooth progress, not chunk details
+      let statusMsg = jobStatus.current_step || 'Processing audio...';
+      
+      // Transform technical messages to user-friendly ones
+      if (statusMsg.includes('chunk')) {
+        // Instead of showing chunk details, show processing stage
+        const progress = Math.floor((jobStatus.progress || 0) * 100);
+        if (progress < 20) {
+          statusMsg = 'Analyzing audio...';
+        } else if (progress < 80) {
+          statusMsg = 'Transcribing audio...';
+        } else if (progress < 95) {
+          statusMsg = 'Finalizing transcription...';
         } else {
-          statusMsg = `Processing chunk ${jobStatus.completed_chunks + 1}/${jobStatus.total_chunks}`;
+          statusMsg = 'Almost complete...';
         }
       }
+      
       setStatusMessage(statusMsg);
 
       if (jobStatus.status === 'completed' && jobStatus.result) {
@@ -360,7 +368,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     // Initial poll
     pollJobStatus(jobId);
     
-    // Set up polling with smart intervals
+    // Set up polling with smart intervals and better error handling
     let pollCount = 0;
     const pollInterval = () => {
       pollCount++;
@@ -369,8 +377,23 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       
       pollingIntervalRef.current = setTimeout(() => {
         pollJobStatus(jobId).then(() => {
-          // Continue polling if job is still active
-          if (currentJobId === jobId) {
+          // Continue polling if job is still active and not completed
+          const currentJob = currentJobId === jobId;
+          const stillTranscribing = isTranscribing;
+          
+          if (currentJob && stillTranscribing) {
+            pollInterval();
+          } else {
+            // Job completed or cancelled, stop polling
+            if (pollingIntervalRef.current) {
+              clearTimeout(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+          }
+        }).catch((error) => {
+          console.error('Polling error:', error);
+          // Continue polling on error unless job is done
+          if (currentJobId === jobId && isTranscribing) {
             pollInterval();
           }
         });
@@ -797,8 +820,13 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
           )}
           
           {cardState === 'completed' && (
-            <div className="text-sm text-green-600 dark:text-green-400 font-medium">
-              ✓ Transcription completed successfully
+            <div className="space-y-2">
+              <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+                ✓ Transcription completed successfully
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Click the X button above to upload another file
+              </div>
             </div>
           )}
           
