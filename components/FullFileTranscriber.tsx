@@ -5,6 +5,7 @@ import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress"; // Added Progress import
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 
 const truncateString = (str: string, maxLength: number) => {
@@ -145,6 +146,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
   const realProgressRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
   const [showCompletedTranscripts, setShowCompletedTranscripts] = useState<boolean>(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState<boolean>(false);
   const [isActuallyTranscribing, setIsActuallyTranscribing] = useState<boolean>(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -912,6 +914,7 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
 
   const clearAllFinishedTranscripts = () => {
     setFinishedTranscripts([]);
+    setShowClearAllConfirm(false);
   };
 
   const formatFileSize = (bytes: number | null | undefined) => {
@@ -1135,9 +1138,27 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
             <div className="border-t">
               <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto">
                 <div className="flex justify-end mb-2">
-                  <Button variant="outline" size="sm" onClick={clearAllFinishedTranscripts}>
-                    <Trash2 className="mr-2 h-3 w-3" /> Clear All
-                  </Button>
+                  <AlertDialog open={showClearAllConfirm} onOpenChange={setShowClearAllConfirm}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Trash2 className="mr-2 h-3 w-3" /> Clear All
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Clear All Transcripts</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to clear all completed transcripts? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={clearAllFinishedTranscripts}>
+                          Clear All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
                 {finishedTranscripts.map((item) => (
                   <div key={item.id} className="flex items-center justify-between p-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
