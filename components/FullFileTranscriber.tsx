@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse, CheckCircle2, Clock, StopCircle, RotateCcw } from 'lucide-react';
+import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse, CheckCircle2, Clock, StopCircle, RotateCcw, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress"; // Added Progress import
@@ -1000,12 +1000,12 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
               </div>
               <Button 
                 variant="ghost" 
-                size="icon" 
                 onClick={clearCurrentProcessingStateUI} 
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                title="Clear and upload new file"
+                className="h-10 px-3 text-muted-foreground hover:text-primary flex items-center gap-2"
+                title="Start new transcription"
               >
-                <XCircle className="h-4 w-4" />
+                <RefreshCw className="h-4 w-4" />
+                <span className="text-sm">Restart</span>
               </Button>
             </div>
           )}
@@ -1133,7 +1133,7 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
           
           {showCompletedTranscripts && (
             <div className="border-t">
-              <div className="p-4 space-y-2 max-h-60 overflow-y-auto">
+              <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto">
                 <div className="flex justify-end mb-2">
                   <Button variant="outline" size="sm" onClick={clearAllFinishedTranscripts}>
                     <Trash2 className="mr-2 h-3 w-3" /> Clear All

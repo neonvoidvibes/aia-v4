@@ -1719,7 +1719,7 @@ function HomeContent() {
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
             <div className="messages-container" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
-              <div className="space-y-1 pt-8 pb-4">
+              <div className="space-y-1 pt-8">
                 <FullFileTranscriber agentName={pageAgentName} userName={userName} />
               </div>
             </div>

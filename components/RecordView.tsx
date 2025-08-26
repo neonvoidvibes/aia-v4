@@ -669,7 +669,7 @@ const RecordView: React.FC<RecordViewProps> = ({
 
   return (
     <AlertDialog>
-      <div className="flex flex-col h-full p-4 items-center justify-center">
+      <div className="flex flex-col h-full items-center justify-center">
         <div className="flex flex-col items-center justify-center space-y-2 w-full max-w-md">
           {/* Controls */}
           <div className="flex items-center justify-center space-x-4">
