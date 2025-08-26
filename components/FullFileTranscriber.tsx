@@ -789,7 +789,8 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                 size="icon" 
                 onClick={clearCurrentProcessingStateUI} 
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                disabled={isTranscribing}
+                disabled={false}
+                title="Clear and upload new file"
               >
                 <XCircle className="h-4 w-4" />
               </Button>
@@ -820,13 +821,8 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
           )}
           
           {cardState === 'completed' && (
-            <div className="space-y-2">
-              <div className="text-sm text-green-600 dark:text-green-400 font-medium">
-                ✓ Transcription completed successfully
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Click the X button above to upload another file
-              </div>
+            <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+              ✓ Transcription completed successfully
             </div>
           )}
           
