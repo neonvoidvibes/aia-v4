@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse } from 'lucide-react';
+import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse, CheckCircle2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress"; // Added Progress import
@@ -134,6 +134,8 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
   const [adjustedTotalDurationSeconds, setAdjustedTotalDurationSeconds] = useState<number | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptionStartTimeRef = useRef<number | null>(null);
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string | null>(null);
+  const [showCompletedTranscripts, setShowCompletedTranscripts] = useState<boolean>(false);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -213,8 +215,28 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       } else if (errorMessage) {
         // Optionally reset or handle error state for progress
       }
+      setEstimatedTimeRemaining(null);
     }
   }, [isTranscribing, currentRawTranscriptText, errorMessage]);
+
+  // Update estimated time remaining during transcription
+  useEffect(() => {
+    if (isTranscribing && transcriptionStartTimeRef.current) {
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - transcriptionStartTimeRef.current!;
+        if (estimatedProgress > 10) {
+          const totalEstimated = (elapsed / estimatedProgress) * 100;
+          const remaining = totalEstimated - elapsed;
+          if (remaining > 0) {
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            setEstimatedTimeRemaining(minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`);
+          }
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isTranscribing, estimatedProgress]);
 
   
   const clearCurrentProcessingStateUI = () => {
@@ -282,6 +304,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
   }, []);
 
   const handleStartTranscription = async () => {
+    transcriptionStartTimeRef.current = Date.now();
     const fileToTranscribe = selectedFile; 
     const fileInfoForProcessing = selectedFile 
       ? { fileName: selectedFile.name, fileSize: selectedFile.size, fileType: selectedFile.type }
@@ -490,164 +513,213 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
 
   const canTranscribe = !!displayFileInfoForCurrent && !isTranscribing; 
   const canDownloadCurrent = (currentRawTranscriptText !== null && currentTranscriptSegments !== null) && !!displayFileInfoForCurrent && !isTranscribing;
+  const hasCompletedTranscripts = finishedTranscripts.length > 0;
 
+  // Get current state for the unified card
+  const getCardState = () => {
+    if (errorMessage) return 'error';
+    if (currentRawTranscriptText && currentTranscriptSegments) return 'completed';
+    if (isTranscribing) return 'processing';
+    if (displayFileInfoForCurrent) return 'ready';
+    return 'empty';
+  };
+
+  const cardState = getCardState();
 
   return (
-    <div className="space-y-6 p-1 sm:p-0">
-      {/* File Upload Section */}
-      <div 
-        className={cn(
-          "flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors",
-          displayFileInfoForCurrent ? "border-primary/50 bg-muted/20" : "border-border hover:bg-muted/20"
-        )}
-        onClick={() => fileInputRef.current?.click()}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        aria-labelledby="audio-upload-label"
-      >
-        <input
-          type="file"
-          accept="audio/*"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          id="audio-upload-input"
-          aria-label="Audio file uploader"
-        />
-        <UploadCloud className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mb-2 sm:mb-3" />
-        <p id="audio-upload-label" className="text-sm text-center text-muted-foreground"> {/* Added text-center */}
-          <span className="font-semibold text-primary">Click to upload</span> or drag and drop <br className="sm:hidden"/>MP3, MP4, WAV, M4A, WEBM, etc. {/* Combined lines and added MP4 */}
-        </p>
-      </div>
-
-      {/* Current/Selected File Info */}
-      {displayFileInfoForCurrent && (
-        <div className="p-3 border rounded-md bg-muted/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <FileText className="w-5 h-5 text-primary flex-shrink-0" />
-              <div className="truncate">
-                <p className="text-sm font-medium text-foreground truncate" title={displayFileInfoForCurrent.fileName || undefined}>{displayFileInfoForCurrent.fileName}</p>
-                <p className="text-xs text-muted-foreground">{formatFileSize(displayFileInfoForCurrent.fileSize)}</p>
-              </div>
-            </div>
-            <Button variant="ghost" size="icon" onClick={clearCurrentProcessingStateUI} className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Clear selected file and current process">
-              <XCircle className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Status/Error Messages for Current Operation */}
-      {errorMessage && (
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
-      )}
-      
-      {statusMessage && !errorMessage && (
-        <Alert 
-            variant={((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? "default" : "default"}
-            className={cn(
-              ((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded")))
-                ? "border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/30"
-                : statusMessage.startsWith("Processing")
-                  ? "border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/30"
-                  : "border-border"
-            )}
-        >
-           <AlertTitle className={cn(
-             ((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) && "text-green-800 dark:text-green-300",
-             statusMessage.startsWith("Processing") && "text-blue-800 dark:text-blue-300"
-           )}>
-             {((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) ? "Success!" : "Status"}
-           </AlertTitle>
-          <AlertDescription className={cn(
-             ((currentRawTranscriptText !== null || (currentTranscriptSegments && currentTranscriptSegments.length > 0)) && (statusMessage.includes("complete") || statusMessage.includes("loaded"))) && "text-green-700 dark:text-green-400",
-             statusMessage.startsWith("Processing") && "text-blue-700 dark:text-blue-400"
-          )}>
-            {statusMessage}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Progress Bar */}
-      {isTranscribing && (
-        <div className="mt-3 mb-1">
-          <Progress value={estimatedProgress} className="w-full h-2" />
-          <p className="text-xs text-muted-foreground text-center mt-1">
-            {statusMessage === "Uploading to secure storage..."
-              ? `Uploading: ${Math.floor(estimatedProgress)}%`
-              : statusMessage?.includes("complete")
-                ? "Complete"
-                : "Processing..."
-            }
-          </p>
-        </div>
-      )}
-
-      {/* Action Buttons for Current Operation */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-        <Button
-          onClick={handleStartTranscription}
-          disabled={!canTranscribe}
-          className="w-full sm:flex-1"
-        >
-          {isTranscribing ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Transcribing...
-            </>
-          ) : (
-            'Transcribe File'
+    <div className="space-y-4 p-1 sm:p-0">
+      {/* Unified File Processing Card */}
+      <div className={cn(
+        "border-2 rounded-lg transition-all duration-200",
+        cardState === 'empty' ? "border-dashed border-border hover:border-primary cursor-pointer hover:bg-muted/20" : 
+        cardState === 'error' ? "border-destructive bg-destructive/5" :
+        cardState === 'completed' ? "border-green-500 bg-green-50 dark:bg-green-900/20" :
+        cardState === 'processing' ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" :
+        "border-primary/50 bg-muted/20"
+      )}>
+        {/* Upload Area or File Info */}
+        <div 
+          className={cn(
+            "p-6 sm:p-8",
+            cardState === 'empty' && "flex flex-col items-center justify-center cursor-pointer"
           )}
-        </Button>
-
-        {canDownloadCurrent && (
-          <Button
-            onClick={handleDownloadCurrentTranscript}
-            variant="outline"
-            className="w-full sm:flex-1"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Download Transcript
-          </Button>
-        )}
-      </div>
-
-      {/* Finished Transcripts List */}
-      {finishedTranscripts.length > 0 && (
-        <div className="mt-8 pt-6 border-t">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-medium text-foreground">Completed Transcripts</h3>
-            <Button variant="outline" size="sm" onClick={clearAllFinishedTranscripts}>
-              <Trash2 className="mr-2 h-4 w-4" /> Clear List
-            </Button>
-          </div>
-          <div className="space-y-2 max-h-60 overflow-y-auto pr-2"> 
-            {finishedTranscripts.map((item) => (
-              <div key={item.id} className="p-3 border rounded-md bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ListCollapse className="w-5 h-5 text-primary flex-shrink-0" /> 
-                    <div className="truncate">
-                      <p className="text-sm font-medium text-foreground truncate" title={item.fileName}>{item.fileName}</p>
-                      <p className="text-xs text-muted-foreground">Transcribed: {new Date(item.timestamp).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => downloadSpecificTranscript(item)} className="h-7 w-7 text-muted-foreground hover:text-primary" aria-label={`Download ${item.fileName}`}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => removeFinishedTranscript(item.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label={`Remove ${item.fileName} from list`}>
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
+          onClick={cardState === 'empty' ? () => fileInputRef.current?.click() : undefined}
+          onDrop={cardState === 'empty' ? handleDrop : undefined}
+          onDragOver={cardState === 'empty' ? handleDragOver : undefined}
+        >
+          <input
+            type="file"
+            accept="audio/*"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            id="audio-upload-input"
+            aria-label="Audio file uploader"
+          />
+          
+          {cardState === 'empty' && (
+            <>
+              <UploadCloud className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mb-3" />
+              <p className="text-sm text-center text-muted-foreground">
+                <span className="font-semibold text-primary">Click to upload</span> or drag and drop <br className="sm:hidden"/>MP3, MP4, WAV, M4A, WEBM, etc.
+              </p>
+            </>
+          )}
+          
+          {cardState !== 'empty' && displayFileInfoForCurrent && (
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                {cardState === 'completed' ? (
+                  <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+                ) : cardState === 'processing' ? (
+                  <Loader2 className="w-6 h-6 text-blue-600 animate-spin flex-shrink-0" />
+                ) : cardState === 'error' ? (
+                  <XCircle className="w-6 h-6 text-destructive flex-shrink-0" />
+                ) : (
+                  <FileText className="w-6 h-6 text-primary flex-shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-base font-medium text-foreground truncate" title={displayFileInfoForCurrent.fileName}>
+                    {displayFileInfoForCurrent.fileName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{formatFileSize(displayFileInfoForCurrent.fileSize)}</p>
                 </div>
               </div>
-            ))}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={clearCurrentProcessingStateUI} 
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                disabled={isTranscribing}
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          
+          {/* Status and Progress */}
+          {cardState === 'processing' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    {statusMessage || 'Processing...'}
+                  </div>
+                  {estimatedTimeRemaining && (
+                    <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                      <Clock className="w-3 h-3" />
+                      <span>~{estimatedTimeRemaining} remaining</span>
+                    </div>
+                  )}
+                </div>
+                <div className="text-sm font-mono text-blue-600 dark:text-blue-400">
+                  {Math.floor(estimatedProgress)}%
+                </div>
+              </div>
+              <Progress value={estimatedProgress} className="w-full h-2" />
+            </div>
+          )}
+          
+          {cardState === 'completed' && (
+            <div className="text-sm text-green-700 dark:text-green-300 font-medium">
+              ✓ Transcription completed successfully
+            </div>
+          )}
+          
+          {cardState === 'error' && errorMessage && (
+            <div className="text-sm text-destructive font-medium">
+              ✗ {errorMessage}
+            </div>
+          )}
+        </div>
+        
+        {/* Action Buttons */}
+        {cardState !== 'empty' && (
+          <div className="px-6 pb-6 flex flex-col sm:flex-row gap-3">
+            {(cardState === 'ready' || cardState === 'error') && (
+              <Button
+                onClick={handleStartTranscription}
+                disabled={!canTranscribe}
+                className="w-full sm:flex-1"
+              >
+                {isTranscribing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Transcribing...
+                  </>
+                ) : (
+                  'Transcribe File'
+                )}
+              </Button>
+            )}
+            
+            {canDownloadCurrent && (
+              <Button
+                onClick={handleDownloadCurrentTranscript}
+                variant={cardState === 'completed' ? 'default' : 'outline'}
+                className="w-full sm:flex-1"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download Transcript
+              </Button>
+            )}
           </div>
+        )}
+      </div>
+
+      {/* Completed Transcripts - Collapsible */}
+      {hasCompletedTranscripts && (
+        <div className="border rounded-lg">
+          <Button 
+            variant="ghost" 
+            onClick={() => setShowCompletedTranscripts(!showCompletedTranscripts)}
+            className="w-full p-4 h-auto justify-between hover:bg-muted/50"
+          >
+            <div className="flex items-center gap-2">
+              <ListCollapse className="w-5 h-5" />
+              <span className="font-medium">Completed Transcripts ({finishedTranscripts.length})</span>
+            </div>
+            <div className={cn(
+              "transition-transform duration-200",
+              showCompletedTranscripts ? "rotate-180" : ""
+            )}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </Button>
+          
+          {showCompletedTranscripts && (
+            <div className="border-t">
+              <div className="p-4 space-y-2 max-h-60 overflow-y-auto">
+                <div className="flex justify-end mb-2">
+                  <Button variant="outline" size="sm" onClick={clearAllFinishedTranscripts}>
+                    <Trash2 className="mr-2 h-3 w-3" /> Clear All
+                  </Button>
+                </div>
+                {finishedTranscripts.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <div className="truncate">
+                        <p className="text-sm font-medium text-foreground truncate" title={item.fileName}>{item.fileName}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(item.timestamp).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => downloadSpecificTranscript(item)} className="h-8 px-2 text-muted-foreground hover:text-primary">
+                        <Download className="h-3 w-3 mr-1" />
+                        Download
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => removeFinishedTranscript(item.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                        <XCircle className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
