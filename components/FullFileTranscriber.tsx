@@ -163,6 +163,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         }
 
         if (savedCurrent.currentTranscriptText !== null && savedCurrent.currentSegments !== null) {
+          // Job completed - restore completed state but don't start polling
           setCurrentRawTranscriptText(savedCurrent.currentTranscriptText);
           setCurrentTranscriptSegments(savedCurrent.currentSegments);
           if (savedCurrent.currentStatusMessage && (savedCurrent.currentStatusMessage.includes("complete") || savedCurrent.currentStatusMessage.includes("loaded"))) {
@@ -170,8 +171,12 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
           } else if (savedCurrent.currentProcessingFile?.fileName){
              setStatusMessage(`Previously transcribed file '${savedCurrent.currentProcessingFile.fileName}' loaded.`);
           }
-        } else if (savedCurrent.wasTranscribing && savedCurrent.currentJobId) {
-          // Set up job recovery state - polling will be handled in separate effect
+          // Ensure we don't resume polling for completed jobs
+          setIsTranscribing(false);
+          setIsActuallyTranscribing(false);
+          setCurrentJobId(null);
+        } else if (savedCurrent.wasTranscribing && savedCurrent.currentJobId && !savedCurrent.currentTranscriptText) {
+          // Only resume polling if job was truly interrupted (no transcript result yet)
           setIsTranscribing(true);
           setIsActuallyTranscribing(true);
           setCurrentJobId(savedCurrent.currentJobId);
@@ -274,12 +279,14 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       console.log('Job status polling:', jobStatus); // Enhanced debug log
       
       // Update real progress and chunk info for smooth animation
-      const newRealProgress = Math.floor((jobStatus.progress || 0) * 100);
+      const newRealProgress = (jobStatus.progress || 0) * 100; // Keep decimal precision
       const chunks = jobStatus.total_chunks || 1;
       
       setRealProgress(newRealProgress);
       setTotalChunks(chunks);
       realProgressRef.current = newRealProgress;
+      
+      console.log('Progress update:', { newRealProgress, chunks, smooth: smoothProgressRef.current });
       
       // Update status message - PERCENTAGE ONLY, no chunk/segment references
       let statusMsg;
@@ -296,25 +303,28 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       setStatusMessage(statusMsg);
 
       if (jobStatus.status === 'completed' && jobStatus.result) {
-        // Job completed successfully - FORCE 100% progress and STOP animation
-        setRealProgress(100);
-        realProgressRef.current = 100;
-        setSmoothProgress(100);
-        smoothProgressRef.current = 100;
-        setIsTranscribing(false);
+        // Job completed successfully - FORCE completion state immediately
+        console.log('Job completed - forcing completion state');
         
-        // Force stop animation immediately
+        // Stop all animations and polling FIRST
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
           animationFrameRef.current = null;
         }
-        setIsActuallyTranscribing(false);
-        setCurrentJobId(null);
         
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
         }
+        
+        // Set completion state
+        setRealProgress(100);
+        realProgressRef.current = 100;
+        setSmoothProgress(100);
+        smoothProgressRef.current = 100;
+        setIsTranscribing(false);
+        setIsActuallyTranscribing(false);
+        setCurrentJobId(null);
 
         // Process the result
         const result = jobStatus.result;
@@ -441,6 +451,10 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
             }
           } else if (currentJob && stillTranscribing) {
             pollInterval();
+          } else if (jobCompleted === false) {
+            // Job is still active but polling state got confused - continue polling
+            console.log('Continuing polling - job still active');
+            pollInterval();
           } else {
             // Job cancelled or other termination
             console.log('Stopping polling - job terminated');
@@ -474,7 +488,8 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
 
   // Smooth progress animation effect
   useEffect(() => {
-    if (!isTranscribing) {
+    if (!isTranscribing || !isActuallyTranscribing) {
+      // Stop animation immediately if not actually transcribing
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
@@ -483,13 +498,8 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     }
 
     const animateProgress = () => {
-      const currentSmooth = smoothProgressRef.current;
-      const targetReal = realProgressRef.current;
-      
-      // Hard cap at 100% to prevent runaway
-      if (currentSmooth >= 100) {
-        smoothProgressRef.current = 100;
-        setSmoothProgress(100);
+      // Double check we're still actually transcribing to prevent runaway
+      if (!isTranscribing || !isActuallyTranscribing) {
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
           animationFrameRef.current = null;
@@ -497,26 +507,49 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         return;
       }
       
-      if (Math.abs(currentSmooth - targetReal) < 0.1) {
+      const currentSmooth = smoothProgressRef.current;
+      const targetReal = realProgressRef.current;
+      
+      // Hard cap at 100% to prevent runaway
+      if (currentSmooth >= 100 || targetReal >= 100) {
+        smoothProgressRef.current = Math.min(100, Math.max(currentSmooth, targetReal));
+        setSmoothProgress(Math.floor(smoothProgressRef.current));
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+        return;
+      }
+      
+      if (Math.abs(currentSmooth - targetReal) < 1) {
         // Close enough to target, do gentle movement forward but cap at 95% unless completed
-        const maxForward = targetReal >= 100 ? 100 : Math.min(targetReal + 2, 95);
-        const incrementSpeed = 0.02; // Very slow increment when caught up
+        const maxForward = targetReal >= 95 ? targetReal : Math.min(targetReal + 2, 95);
+        const incrementSpeed = 0.03; // Very gentle forward movement
         const newSmooth = Math.min(currentSmooth + incrementSpeed, maxForward);
         
         smoothProgressRef.current = newSmooth;
         setSmoothProgress(Math.floor(newSmooth));
       } else if (currentSmooth < targetReal) {
         // Catch up to real progress - move faster
-        const catchUpSpeed = (targetReal - currentSmooth) * 0.08; // 8% of gap per frame
-        const newSmooth = Math.min(currentSmooth + Math.max(catchUpSpeed, 0.1), Math.min(targetReal, 100));
+        const gap = targetReal - currentSmooth;
+        const catchUpSpeed = Math.max(gap * 0.08, 0.15); // 8% of gap, minimum 0.15% per frame
+        const newSmooth = Math.min(currentSmooth + catchUpSpeed, targetReal);
         
         smoothProgressRef.current = newSmooth;
         setSmoothProgress(Math.floor(newSmooth));
       }
       
-      // Continue animation if still transcribing and not at 100%
-      if (isTranscribing && currentSmooth < 100) {
+      // Continue animation only if still transcribing and under 100%
+      const updatedSmooth = smoothProgressRef.current;
+      const updatedReal = realProgressRef.current;
+      if (isTranscribing && isActuallyTranscribing && updatedSmooth < 100 && updatedReal < 100) {
         animationFrameRef.current = requestAnimationFrame(animateProgress);
+      } else {
+        // Stop if we've reached completion
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
       }
     };
     
@@ -528,11 +561,23 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         animationFrameRef.current = null;
       }
     };
-  }, [isTranscribing, totalChunks]);
+  }, [isTranscribing, isActuallyTranscribing]);
 
   // Cancel current transcription job
   const cancelTranscription = useCallback(async () => {
-    if (!currentJobId) return;
+    if (!currentJobId || !isActuallyTranscribing) {
+      // Don't try to cancel if no job or job already completed
+      setIsTranscribing(false);
+      setIsActuallyTranscribing(false);
+      setStatusMessage('Transcription cancelled');
+      setCurrentJobId(null);
+      
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      return;
+    }
     
     try {
       const response = await fetch(`/api/transcription/cancel/${currentJobId}`, {
@@ -554,13 +599,26 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         // Don't clear file info so user can retry
       } else {
         const error = await response.json();
-        setErrorMessage(error.message || 'Failed to cancel transcription');
+        // If job is already completed/not found, just update UI state
+        if (response.status === 400 || response.status === 404) {
+          setIsTranscribing(false);
+          setIsActuallyTranscribing(false);
+          setStatusMessage('Transcription completed');
+          setCurrentJobId(null);
+          
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        } else {
+          setErrorMessage(error.message || 'Failed to cancel transcription');
+        }
       }
     } catch (error: any) {
       console.error('Error cancelling transcription:', error);
       setErrorMessage('Failed to cancel transcription');
     }
-  }, [currentJobId]);
+  }, [currentJobId, isActuallyTranscribing]);
 
   // Retry failed transcription
   const retryTranscription = useCallback(() => {
