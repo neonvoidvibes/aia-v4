@@ -144,6 +144,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // State restoration effect (without dependencies)
   useEffect(() => {
     const savedCurrentStateString = localStorage.getItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
     if (savedCurrentStateString) {
@@ -162,31 +163,11 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
              setStatusMessage(`Previously transcribed file '${savedCurrent.currentProcessingFile.fileName}' loaded.`);
           }
         } else if (savedCurrent.wasTranscribing && savedCurrent.currentJobId) {
-          // Resume polling for active job
+          // Set up job recovery state - polling will be handled in separate effect
           setIsTranscribing(true);
           setIsActuallyTranscribing(true);
           setCurrentJobId(savedCurrent.currentJobId);
           setStatusMessage(`Resuming transcription job...`);
-          // Start polling after component mounts
-          setTimeout(() => {
-            pollJobStatus(savedCurrent.currentJobId).then(() => {
-              // Start regular polling
-              let pollCount = 0;
-              const pollInterval = () => {
-                pollCount++;
-                const interval = pollCount <= 10 ? 1000 : pollCount <= 30 ? 2000 : 3000;
-                
-                pollingIntervalRef.current = setTimeout(() => {
-                  pollJobStatus(savedCurrent.currentJobId).then(() => {
-                    if (currentJobId === savedCurrent.currentJobId) {
-                      pollInterval();
-                    }
-                  });
-                }, interval);
-              };
-              pollInterval();
-            });
-          }, 100);
         } else if (savedCurrent.wasTranscribing && savedCurrent.currentProcessingFile?.fileName) {
           setStatusMessage(`Processing for ${savedCurrent.currentProcessingFile.fileName} was interrupted. Please select the file again to restart transcription.`);
         } else if (savedCurrent.currentStatusMessage) { 
@@ -212,7 +193,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
         localStorage.removeItem(FINISHED_TRANSCRIPTS_LOCAL_STORAGE_KEY);
       }
     }
-  }, [pollJobStatus]);
+  }, []);
 
   useEffect(() => {
     const stateToSave: PersistentTranscriberState = {
@@ -370,6 +351,14 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     
     pollInterval();
   }, [pollJobStatus, currentJobId]);
+
+  // Job recovery effect - start polling for recovered jobs
+  useEffect(() => {
+    if (currentJobId && isTranscribing && isActuallyTranscribing && !pollingIntervalRef.current) {
+      // This is likely a recovered job, start polling
+      startPolling(currentJobId);
+    }
+  }, [currentJobId, isTranscribing, isActuallyTranscribing, startPolling]);
   
   const clearCurrentProcessingStateUI = () => {
     setSelectedFile(null);
