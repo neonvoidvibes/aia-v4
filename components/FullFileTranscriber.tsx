@@ -136,6 +136,14 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptionStartTimeRef = useRef<number | null>(null);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string | null>(null);
+  
+  // Smooth progress animation states
+  const [realProgress, setRealProgress] = useState<number>(0);
+  const [smoothProgress, setSmoothProgress] = useState<number>(0);
+  const [totalChunks, setTotalChunks] = useState<number>(1);
+  const smoothProgressRef = useRef<number>(0);
+  const realProgressRef = useRef<number>(0);
+  const animationFrameRef = useRef<number | null>(null);
   const [showCompletedTranscripts, setShowCompletedTranscripts] = useState<boolean>(false);
   const [isActuallyTranscribing, setIsActuallyTranscribing] = useState<boolean>(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
@@ -265,17 +273,21 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       const jobStatus = await response.json();
       console.log('Job status polling:', jobStatus); // Enhanced debug log
       
-      // Update progress
-      const progress = Math.floor((jobStatus.progress || 0) * 100);
-      setEstimatedProgress(progress);
+      // Update real progress and chunk info for smooth animation
+      const newRealProgress = Math.floor((jobStatus.progress || 0) * 100);
+      const chunks = jobStatus.total_chunks || 1;
+      
+      setRealProgress(newRealProgress);
+      setTotalChunks(chunks);
+      realProgressRef.current = newRealProgress;
       
       // Update status message - PERCENTAGE ONLY, no chunk/segment references
       let statusMsg;
       
       // Show only user-friendly messages based on percentage
-      if (progress < 15) {
+      if (newRealProgress < 15) {
         statusMsg = 'Preparing transcription...';
-      } else if (progress < 95) {
+      } else if (newRealProgress < 95) {
         statusMsg = 'Processing audio...';
       } else {
         statusMsg = 'Finalizing transcription...';
@@ -285,7 +297,8 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
 
       if (jobStatus.status === 'completed' && jobStatus.result) {
         // Job completed successfully - FORCE 100% progress
-        setEstimatedProgress(100);
+        setRealProgress(100);
+        realProgressRef.current = 100;
         setIsTranscribing(false);
         setIsActuallyTranscribing(false);
         setCurrentJobId(null);
@@ -411,6 +424,64 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     }
   }, [currentJobId, isTranscribing, isActuallyTranscribing, startPolling]);
 
+  // Smooth progress animation effect
+  useEffect(() => {
+    if (!isTranscribing) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+
+    const animateProgress = () => {
+      const currentSmooth = smoothProgressRef.current;
+      const targetReal = realProgressRef.current;
+      
+      if (Math.abs(currentSmooth - targetReal) < 0.1) {
+        // Close enough to target, do gentle movement forward
+        const expectedProgressPerChunk = 100 / totalChunks;
+        const timeElapsed = Date.now() - (transcriptionStartTimeRef.current || Date.now());
+        const expectedTimePer10Percent = (600 * 1000 / totalChunks) / (expectedProgressPerChunk / 10); // 600s per chunk
+        
+        // Slow forward movement when caught up to real progress
+        const incrementSpeed = 0.02; // Very slow increment when caught up
+        const newSmooth = Math.min(currentSmooth + incrementSpeed, targetReal + 2); // Never go more than 2% ahead
+        
+        smoothProgressRef.current = newSmooth;
+        setSmoothProgress(Math.floor(newSmooth));
+      } else if (currentSmooth < targetReal) {
+        // Catch up to real progress - move faster
+        const catchUpSpeed = (targetReal - currentSmooth) * 0.08; // 8% of gap per frame
+        const newSmooth = Math.min(currentSmooth + Math.max(catchUpSpeed, 0.1), targetReal);
+        
+        smoothProgressRef.current = newSmooth;
+        setSmoothProgress(Math.floor(newSmooth));
+      } else if (currentSmooth > targetReal) {
+        // Ahead of real progress - slow down but don't go backward
+        const slowDownSpeed = 0.01;
+        const newSmooth = Math.max(currentSmooth + slowDownSpeed, targetReal);
+        
+        smoothProgressRef.current = newSmooth;
+        setSmoothProgress(Math.floor(newSmooth));
+      }
+      
+      // Continue animation if still transcribing
+      if (isTranscribing) {
+        animationFrameRef.current = requestAnimationFrame(animateProgress);
+      }
+    };
+    
+    animationFrameRef.current = requestAnimationFrame(animateProgress);
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [isTranscribing, totalChunks]);
+
   // Cancel current transcription job
   const cancelTranscription = useCallback(async () => {
     if (!currentJobId) return;
@@ -464,11 +535,18 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     setIsActuallyTranscribing(false); 
     setCurrentJobId(null);
     setEstimatedProgress(0);
+    setRealProgress(0);
+    setSmoothProgress(0);
+    setTotalChunks(1);
+    smoothProgressRef.current = 0;
+    realProgressRef.current = 0;
     setAdjustedTotalDurationSeconds(null);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     progressIntervalRef.current = null;
     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     pollingIntervalRef.current = null;
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = null;
     transcriptionStartTimeRef.current = null;
     if(fileInputRef.current) fileInputRef.current.value = "";
     
@@ -549,6 +627,11 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     setCurrentRawTranscriptText(null); 
     setCurrentTranscriptSegments(null);
     setEstimatedProgress(0);
+    setRealProgress(0);
+    setSmoothProgress(0);
+    smoothProgressRef.current = 0;
+    realProgressRef.current = 0;
+    transcriptionStartTimeRef.current = Date.now();
     
     try {
       // Step 1: Get presigned URL from our backend
@@ -814,10 +897,10 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                   )}
                 </div>
                 <div className="text-sm font-mono text-primary">
-                  {Math.floor(estimatedProgress)}%
+                  {smoothProgress}%
                 </div>
               </div>
-              <Progress value={estimatedProgress} className="w-full h-2" />
+              <Progress value={smoothProgress} className="w-full h-2" />
             </div>
           )}
           
