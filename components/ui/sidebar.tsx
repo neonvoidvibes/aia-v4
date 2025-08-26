@@ -23,6 +23,7 @@ import {
   Clock,
   Loader2,
   Disc,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ interface SidebarProps {
   savedTranscriptMemoryMode: 'none' | 'some' | 'all';
   individualMemoryToggleStates?: Record<string, boolean>;
   individualRawTranscriptToggleStates?: Record<string, boolean>;
+  onLogout?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -79,6 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   savedTranscriptMemoryMode,
   individualMemoryToggleStates,
   individualRawTranscriptToggleStates,
+  onLogout,
 }) => {
   const isMobile = useIsMobile();
 
@@ -281,6 +284,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               )}
             </div>
+          </div>
+          <div className="mt-auto pt-4 border-t border-border/50 -mx-4 px-4">
+            <Button variant="ghost" className="w-full justify-start rounded-md" onClick={onLogout}>
+              <LogOut className="mr-3 h-5 w-5" />
+              Log Out
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
