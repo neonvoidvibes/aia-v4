@@ -296,10 +296,18 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       setStatusMessage(statusMsg);
 
       if (jobStatus.status === 'completed' && jobStatus.result) {
-        // Job completed successfully - FORCE 100% progress
+        // Job completed successfully - FORCE 100% progress and STOP animation
         setRealProgress(100);
         realProgressRef.current = 100;
+        setSmoothProgress(100);
+        smoothProgressRef.current = 100;
         setIsTranscribing(false);
+        
+        // Force stop animation immediately
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
         setIsActuallyTranscribing(false);
         setCurrentJobId(null);
         
@@ -438,36 +446,36 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       const currentSmooth = smoothProgressRef.current;
       const targetReal = realProgressRef.current;
       
+      // Hard cap at 100% to prevent runaway
+      if (currentSmooth >= 100) {
+        smoothProgressRef.current = 100;
+        setSmoothProgress(100);
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+        return;
+      }
+      
       if (Math.abs(currentSmooth - targetReal) < 0.1) {
-        // Close enough to target, do gentle movement forward
-        const expectedProgressPerChunk = 100 / totalChunks;
-        const timeElapsed = Date.now() - (transcriptionStartTimeRef.current || Date.now());
-        const expectedTimePer10Percent = (600 * 1000 / totalChunks) / (expectedProgressPerChunk / 10); // 600s per chunk
-        
-        // Slow forward movement when caught up to real progress
+        // Close enough to target, do gentle movement forward but cap at 95% unless completed
+        const maxForward = targetReal >= 100 ? 100 : Math.min(targetReal + 2, 95);
         const incrementSpeed = 0.02; // Very slow increment when caught up
-        const newSmooth = Math.min(currentSmooth + incrementSpeed, targetReal + 2); // Never go more than 2% ahead
+        const newSmooth = Math.min(currentSmooth + incrementSpeed, maxForward);
         
         smoothProgressRef.current = newSmooth;
         setSmoothProgress(Math.floor(newSmooth));
       } else if (currentSmooth < targetReal) {
         // Catch up to real progress - move faster
         const catchUpSpeed = (targetReal - currentSmooth) * 0.08; // 8% of gap per frame
-        const newSmooth = Math.min(currentSmooth + Math.max(catchUpSpeed, 0.1), targetReal);
-        
-        smoothProgressRef.current = newSmooth;
-        setSmoothProgress(Math.floor(newSmooth));
-      } else if (currentSmooth > targetReal) {
-        // Ahead of real progress - slow down but don't go backward
-        const slowDownSpeed = 0.01;
-        const newSmooth = Math.max(currentSmooth + slowDownSpeed, targetReal);
+        const newSmooth = Math.min(currentSmooth + Math.max(catchUpSpeed, 0.1), Math.min(targetReal, 100));
         
         smoothProgressRef.current = newSmooth;
         setSmoothProgress(Math.floor(newSmooth));
       }
       
-      // Continue animation if still transcribing
-      if (isTranscribing) {
+      // Continue animation if still transcribing and not at 100%
+      if (isTranscribing && currentSmooth < 100) {
         animationFrameRef.current = requestAnimationFrame(animateProgress);
       }
     };
