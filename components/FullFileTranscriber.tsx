@@ -389,8 +389,23 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       
     } catch (error: any) {
       console.error('Error polling job status:', error);
-      // Don't stop polling on single error - might be temporary network issue
-      return false; // Continue polling on error
+      
+      // If job not found (404) or server error after completion, assume job is done
+      if (error.message?.includes('Failed to get job status')) {
+        setErrorMessage('Transcription completed but status unavailable');
+        setIsTranscribing(false);
+        setIsActuallyTranscribing(false);
+        setCurrentJobId(null);
+        
+        if (pollingIntervalRef.current) {
+          clearTimeout(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        
+        return true; // Stop polling on persistent error
+      }
+      
+      return false; // Continue polling on other errors
     }
   }, [currentPersistedFileInfo]);
 
@@ -436,14 +451,11 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
           }
         }).catch((error) => {
           console.error('Polling error:', error);
-          // Continue polling on error unless job is done, but add backoff
-          if (currentJobId === jobId && isTranscribing) {
-            // Add delay on error to avoid spam
-            setTimeout(() => {
-              if (currentJobId === jobId && isTranscribing) {
-                pollInterval();
-              }
-            }, 5000); // 5 second delay on error
+          // Stop polling after multiple errors - job likely deleted
+          console.log('Stopping polling due to error - assuming job completed');
+          if (pollingIntervalRef.current) {
+            clearTimeout(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
           }
         });
       }, interval);
