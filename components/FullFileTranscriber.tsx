@@ -136,6 +136,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
   const transcriptionStartTimeRef = useRef<number | null>(null);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string | null>(null);
   const [showCompletedTranscripts, setShowCompletedTranscripts] = useState<boolean>(false);
+  const [isActuallyTranscribing, setIsActuallyTranscribing] = useState<boolean>(false);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -247,6 +248,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     setErrorMessage(null);
     setCurrentPersistedFileInfo(null);
     setIsTranscribing(false); 
+    setIsActuallyTranscribing(false); 
     setEstimatedProgress(0); // Reset progress
     setAdjustedTotalDurationSeconds(null); // Reset duration
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
@@ -384,6 +386,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       
       setStatusMessage("Upload complete. Starting transcription job...");
       setEstimatedProgress(100); // Mark upload as complete
+      setIsActuallyTranscribing(true); // Start transcription phase
 
       // Step 3: Notify backend to start transcription job
       const transcriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any";
@@ -404,6 +407,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       }
 
       // Step 4: Process successful transcription result
+      setIsActuallyTranscribing(false); // End transcription phase
       if (typeof result.transcript === 'string' && Array.isArray(result.segments)) {
         setCurrentRawTranscriptText(result.transcript);
         setCurrentTranscriptSegments(result.segments);
@@ -435,6 +439,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       console.error('Transcription process error:', err);
       setErrorMessage(err.message || 'An unknown error occurred.');
       setStatusMessage(null); 
+      setIsActuallyTranscribing(false); // End transcription phase on error
     } finally {
       setIsTranscribing(false);
     }
@@ -533,8 +538,8 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
         "border-2 rounded-lg transition-all duration-200",
         cardState === 'empty' ? "border-dashed border-border hover:border-primary cursor-pointer hover:bg-muted/20" : 
         cardState === 'error' ? "border-destructive bg-destructive/5" :
-        cardState === 'completed' ? "border-green-500 bg-green-50 dark:bg-green-900/20" :
-        cardState === 'processing' ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" :
+        cardState === 'completed' ? "border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-950/30" :
+        cardState === 'processing' ? "border-primary bg-primary/5" :
         "border-primary/50 bg-muted/20"
       )}>
         {/* Upload Area or File Info */}
@@ -572,7 +577,7 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                 {cardState === 'completed' ? (
                   <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
                 ) : cardState === 'processing' ? (
-                  <Loader2 className="w-6 h-6 text-blue-600 animate-spin flex-shrink-0" />
+                  <Loader2 className="w-6 h-6 text-primary animate-spin flex-shrink-0" />
                 ) : cardState === 'error' ? (
                   <XCircle className="w-6 h-6 text-destructive flex-shrink-0" />
                 ) : (
@@ -602,26 +607,32 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  <div className="text-sm font-medium text-primary">
                     {statusMessage || 'Processing...'}
                   </div>
-                  {estimatedTimeRemaining && (
-                    <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                  {estimatedTimeRemaining && !isActuallyTranscribing && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="w-3 h-3" />
                       <span>~{estimatedTimeRemaining} remaining</span>
                     </div>
                   )}
                 </div>
-                <div className="text-sm font-mono text-blue-600 dark:text-blue-400">
-                  {Math.floor(estimatedProgress)}%
+                <div className="text-sm font-mono text-primary">
+                  {isActuallyTranscribing ? 'Transcribing...' : `${Math.floor(estimatedProgress)}%`}
                 </div>
               </div>
-              <Progress value={estimatedProgress} className="w-full h-2" />
+              {isActuallyTranscribing ? (
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '100%' }} />
+                </div>
+              ) : (
+                <Progress value={estimatedProgress} className="w-full h-2" />
+              )}
             </div>
           )}
           
           {cardState === 'completed' && (
-            <div className="text-sm text-green-700 dark:text-green-300 font-medium">
+            <div className="text-sm text-green-600 dark:text-green-400 font-medium">
               ✓ Transcription completed successfully
             </div>
           )}
@@ -700,7 +711,7 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                 {finishedTranscripts.map((item) => (
                   <div key={item.id} className="flex items-center justify-between p-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-2 min-w-0">
-                      <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
                       <div className="truncate">
                         <p className="text-sm font-medium text-foreground truncate" title={item.fileName}>{item.fileName}</p>
                         <p className="text-xs text-muted-foreground">{new Date(item.timestamp).toLocaleDateString()}</p>
