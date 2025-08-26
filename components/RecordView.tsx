@@ -58,6 +58,7 @@ interface FinishedRecording {
   filename: string;
   agentName?: string; // Made optional as it might not come from the new API
   timestamp: string;
+  isEmbedded?: boolean; // Track if recording is already embedded/bookmarked
 }
 
 const RecordView: React.FC<RecordViewProps> = ({
@@ -71,6 +72,7 @@ const RecordView: React.FC<RecordViewProps> = ({
 }) => {
   const [finishedRecordings, setFinishedRecordings] = useState<FinishedRecording[]>([]);
   const [isEmbedding, setIsEmbedding] = useState<Record<string, boolean>>({});
+  const [savedRecordingIds, setSavedRecordingIds] = useState<Map<string, { savedAt: Date; memoryId: string; }>>(new Map());
   const [recordingToDelete, setRecordingToDelete] = useState<FinishedRecording | null>(null);
   const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState<{ filename: string; content: string } | null>(null);
@@ -113,6 +115,64 @@ const RecordView: React.FC<RecordViewProps> = ({
   const tryReconnectRef = React.useRef<() => void>(() => {});
   const supabase = createClient();
 
+  // Helper function to check if a recording is bookmarked (saved to memory)
+  const isRecordingBookmarked = (s3Key: string) => {
+    const savedInfo = savedRecordingIds.get(s3Key);
+    return savedInfo && savedInfo.memoryId !== 'pending';
+  };
+
+  // Helper function to get storage key for agent's saved recordings
+  const getStorageKey = () => `savedRecordings_${agentName}`;
+
+  // Load saved recordings from localStorage on component mount (like chat persistence)
+  useEffect(() => {
+    if (!agentName) return;
+    
+    const storageKey = getStorageKey();
+    const savedData = localStorage.getItem(storageKey);
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        const restoredMap = new Map(
+          Object.entries(parsedData).map(([key, value]: [string, any]) => [
+            key,
+            { 
+              savedAt: new Date(value.savedAt), 
+              memoryId: value.memoryId 
+            }
+          ])
+        );
+        setSavedRecordingIds(restoredMap);
+        debugLog("[Load Saved Recordings] Restored", restoredMap.size, "saved recordings from localStorage");
+      } catch (error) {
+        console.error("[Load Saved Recordings] Error parsing localStorage data:", error);
+      }
+    }
+  }, [agentName]);
+
+  // Save to localStorage whenever savedRecordingIds changes (like chat persistence)
+  useEffect(() => {
+    if (!agentName) return;
+    
+    const storageKey = getStorageKey();
+    if (savedRecordingIds.size === 0) {
+      localStorage.removeItem(storageKey);
+      return;
+    }
+    
+    const dataToSave = Object.fromEntries(
+      Array.from(savedRecordingIds.entries()).map(([key, value]) => [
+        key,
+        {
+          savedAt: value.savedAt.toISOString(),
+          memoryId: value.memoryId
+        }
+      ])
+    );
+    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+    debugLog("[Save Recordings] Persisted", savedRecordingIds.size, "saved recordings to localStorage");
+  }, [savedRecordingIds, agentName]);
+
   // Industry-standard reconnection and heartbeat parameters
   const MAX_RECONNECT_ATTEMPTS = 10;
   const RECONNECT_DELAY_BASE_MS = 2500;
@@ -126,6 +186,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     if (!agentName) return;
     debugLog("Fetching recordings for agent:", agentName);
     try {
+      // Fetch recordings list
       const response = await fetch('/api/recordings/list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -137,6 +198,33 @@ const RecordView: React.FC<RecordViewProps> = ({
       }
       const recordings: FinishedRecording[] = await response.json();
       setFinishedRecordings(recordings);
+      
+      // Fetch saved recordings state from backend (like chat messages)
+      try {
+        const savedResponse = await fetch(`/api/memory/list-saved-recordings?agentName=${encodeURIComponent(agentName)}`);
+        if (savedResponse.ok) {
+          const savedData = await savedResponse.json();
+          if (savedData.saved_recordings && Object.keys(savedData.saved_recordings).length > 0) {
+            const newSavedRecordings = new Map(
+              Object.entries(savedData.saved_recordings).map(([s3Key, info]: [string, any]) => [
+                s3Key, 
+                { 
+                  savedAt: new Date(info.savedAt || info.saved_at), 
+                  memoryId: info.memoryId || info.memory_id || info.log_id 
+                }
+              ])
+            );
+            setSavedRecordingIds(newSavedRecordings);
+            debugLog("[Load Saved Recordings] Loaded", newSavedRecordings.size, "saved recordings from backend");
+          }
+        } else {
+          // If backend doesn't support saved recordings list yet, fall back to localStorage
+          debugLog("[Load Saved Recordings] Backend endpoint not available, using localStorage fallback");
+        }
+      } catch (savedError) {
+        console.warn("[Load Saved Recordings] Error fetching saved state from backend, using localStorage:", savedError);
+      }
+      
       debugLog("Fetched recordings:", recordings);
     } catch (error) {
       console.error("Error fetching recordings:", error);
@@ -584,22 +672,57 @@ const RecordView: React.FC<RecordViewProps> = ({
 
   const handleEmbedRecording = async (s3Key: string) => {
     if (!agentName) return;
+    
+    const savedInfo = savedRecordingIds.get(s3Key);
+    if (savedInfo && savedInfo.memoryId !== 'pending') {
+      // TODO: Implement forget recording functionality like chat messages
+      toast.info("Recording already saved to memory. Forget functionality coming soon.");
+      return;
+    }
+
     setIsEmbedding(prev => ({ ...prev, [s3Key]: true }));
+    
+    // Optimistic update (like chat messages)
+    const newSaveDate = new Date();
+    const placeholderInfo = { savedAt: newSaveDate, memoryId: 'pending' };
+    setSavedRecordingIds(prev => new Map(prev).set(s3Key, placeholderInfo));
+    
+    const toastId = `save-recording-${s3Key}`;
+    toast.loading("Saving recording to memory...", { id: toastId });
+    
     try {
-      const response = await fetch('/api/recordings/embed', {
+      const response = await fetch('/api/memory/save-recording', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ s3Key, agentName }),
       });
-      const data = await response.json();
+      const result = await response.json();
+      
       if (response.ok) {
-        toast.success("Recording successfully embedded.");
+        if (result.log_id) {
+          // Final update with the real memoryId (like chat messages)
+          setSavedRecordingIds(prev => new Map(prev).set(s3Key, { 
+            savedAt: newSaveDate, 
+            memoryId: result.log_id 
+          }));
+        } else {
+          // If no log_id, something is wrong, revert.
+          throw new Error("Backend did not return a memoryId.");
+        }
+        toast.success("Recording saved to memory.", { id: toastId });
       } else {
-        throw new Error(data.error || "Failed to embed recording.");
+        throw new Error(result.error || "Failed to save recording to memory.");
       }
     } catch (error) {
-      console.error("Error embedding recording:", error);
-      toast.error((error as Error).message);
+      console.error("Error saving recording to memory:", error);
+      toast.error(`Failed to save recording: ${(error as Error).message}. Reverting.`, { id: toastId });
+      
+      // Revert optimistic update on failure (like chat messages)
+      setSavedRecordingIds(prev => {
+        const updated = new Map(prev);
+        updated.delete(s3Key);
+        return updated;
+      });
     } finally {
       setIsEmbedding(prev => ({ ...prev, [s3Key]: false }));
     }
@@ -786,8 +909,33 @@ const RecordView: React.FC<RecordViewProps> = ({
                           <Download className="h-3 w-3 mr-1" />
                           Download
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleEmbedRecording(rec.s3Key)} disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled} className="h-8 px-2 text-muted-foreground hover:text-primary">
-                          {isEmbedding[rec.s3Key] ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Bookmark className="h-3 w-3 mr-1" />}
+                        {isRecordingBookmarked(rec.s3Key) && (
+                          <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
+                            Saved
+                          </span>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEmbedRecording(rec.s3Key)} 
+                          disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled} 
+                          className={cn(
+                            "h-8 px-2",
+                            isRecordingBookmarked(rec.s3Key) 
+                              ? "text-[hsl(var(--save-memory-color))] hover:text-[hsl(var(--save-memory-color))]" 
+                              : "text-muted-foreground hover:text-primary"
+                          )}
+                        >
+                          {isEmbedding[rec.s3Key] ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Bookmark className={cn(
+                              "h-3 w-3 mr-1",
+                              isRecordingBookmarked(rec.s3Key) 
+                                ? "stroke-[hsl(var(--save-memory-color))]" 
+                                : ""
+                            )} />
+                          )}
                           Bookmark
                         </Button>
                         <AlertDialogTrigger asChild>
