@@ -258,7 +258,13 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       // Update progress
       const progress = Math.floor((jobStatus.progress || 0) * 100);
       setEstimatedProgress(progress);
-      setStatusMessage(jobStatus.current_step || 'Processing...');
+      
+      // Update status message with chunk info if available
+      let statusMsg = jobStatus.current_step || 'Processing...';
+      if (jobStatus.completed_chunks && jobStatus.total_chunks) {
+        statusMsg = `Processing chunk ${jobStatus.completed_chunks + 1}/${jobStatus.total_chunks}`;
+      }
+      setStatusMessage(statusMsg);
 
       if (jobStatus.status === 'completed' && jobStatus.result) {
         // Job completed successfully
@@ -695,16 +701,10 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                   )}
                 </div>
                 <div className="text-sm font-mono text-primary">
-                  {isActuallyTranscribing ? 'Transcribing...' : `${Math.floor(estimatedProgress)}%`}
+                  {Math.floor(estimatedProgress)}%
                 </div>
               </div>
-              {isActuallyTranscribing ? (
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '100%' }} />
-                </div>
-              ) : (
-                <Progress value={estimatedProgress} className="w-full h-2" />
-              )}
+              <Progress value={estimatedProgress} className="w-full h-2" />
             </div>
           )}
           
