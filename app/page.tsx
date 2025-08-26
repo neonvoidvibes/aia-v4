@@ -544,14 +544,20 @@ function HomeContent() {
     if (permissionsData && currentAgent) {
       const agentData = permissionsData.agents.find(a => a.name === currentAgent);
       if (agentData && agentData.workspaceId && permissionsData.workspaceConfigs[agentData.workspaceId]) {
-        setActiveUiConfig(permissionsData.workspaceConfigs[agentData.workspaceId]);
+        const workspaceConfig = permissionsData.workspaceConfigs[agentData.workspaceId];
+        setActiveUiConfig(workspaceConfig);
+        
+        // Apply theme override if specified (admin users can override)
+        if (workspaceConfig.theme_override && !permissionsData.isAdminOverride) {
+          setTheme(workspaceConfig.theme_override);
+        }
       } else {
         setActiveUiConfig({});
       }
     } else {
       setActiveUiConfig({});
     }
-  }, [permissionsData, currentAgent]);
+  }, [permissionsData, currentAgent, setTheme]);
 
   // --- PHASE 3: Handle consent completion ---
   const handleConsentGiven = () => {
@@ -1832,8 +1838,8 @@ function HomeContent() {
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
             <div className="messages-container" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
-              <div className="space-y-1 pt-8">
-                <FullFileTranscriber agentName={pageAgentName} userName={userName} />
+              <div className="space-y-1 pt-8 pb-4">
+                <FullFileTranscriber agentName={pageAgentName} userName={userName} activeUiConfig={activeUiConfig} />
               </div>
             </div>
           </div>
@@ -2022,7 +2028,7 @@ function HomeContent() {
                         </DropdownMenu>
                       )}
                     </div>
-                    {(permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
+                    {(permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
                       <div className="flex items-center justify-between">
                         <Label htmlFor="agent-selector">Agent</Label>
                         <Select value={pageAgentName || ''} onValueChange={handleAgentChange} disabled={allowedAgents.length <= 1}>

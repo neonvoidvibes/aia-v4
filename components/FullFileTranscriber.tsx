@@ -45,6 +45,7 @@ interface CurrentProcessingFileState {
 interface FullFileTranscriberProps {
   agentName: string | null;
   userName: string | null; // Added userName prop
+  activeUiConfig?: any; // Added activeUiConfig prop
 }
 
 interface PersistentTranscriberState {
@@ -118,7 +119,7 @@ const clusterSegmentsForDownload = (
 };
 
 
-const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, userName }) => { // Added userName to props
+const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, userName, activeUiConfig }) => { // Added userName and activeUiConfig to props
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   const [currentRawTranscriptText, setCurrentRawTranscriptText] = useState<string | null>(null);

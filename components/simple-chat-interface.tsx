@@ -3776,50 +3776,52 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         </div>
                         <div className="relative w-full h-8 flex items-center">
                           {/* Model Picker - chevron anchored 8px from submit button, text extends left */}
-                          <div className="absolute model-picker-container" style={{ right: '50px' }}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="text-sm font-medium opacity-50 hover:opacity-75 transition-opacity px-1 py-1 rounded-md focus:outline-none focus:ring-0"
-                                  disabled={!isPageReady || !!pendingAction}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    flexDirection: 'row',
-                                    whiteSpace: 'nowrap',
-                                    justifyContent: 'flex-end'
-                                  }}
-                                >
-                                  <span 
+                          {(!activeUiConfig.hide_model_selector || isAdminOverride) && (
+                            <div className="absolute model-picker-container" style={{ right: '50px' }}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="text-sm font-medium opacity-50 hover:opacity-75 transition-opacity px-1 py-1 rounded-md focus:outline-none focus:ring-0"
+                                    disabled={!isPageReady || !!pendingAction}
                                     style={{
-                                      marginRight: '4px'
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      flexDirection: 'row',
+                                      whiteSpace: 'nowrap',
+                                      justifyContent: 'flex-end'
                                     }}
                                   >
-                                    {MODEL_DISPLAY_NAMES_MAP.get(selectedModel) || selectedModel}
-                                  </span>
-                                  <ChevronDown className="h-3 w-3 flex-shrink-0 mobile-chevron" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => onModelChange?.(value)}>
-                                  {MODEL_GROUPS.map((group, index) => (
-                                    <React.Fragment key={group.label}>
-                                      {index > 0 && <DropdownMenuSeparator />}
-                                      <DropdownMenuLabel className="text-muted-foreground font-normal pl-8 pr-2 py-1.5 text-xs uppercase opacity-75">
-                                        {group.label}
-                                      </DropdownMenuLabel>
-                                      {group.models.map((model) => (
-                                        <DropdownMenuRadioItem key={model.id} value={model.id}>
-                                          {model.name}
-                                        </DropdownMenuRadioItem>
-                                      ))}
-                                    </React.Fragment>
-                                  ))}
-                                </DropdownMenuRadioGroup>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
+                                    <span 
+                                      style={{
+                                        marginRight: '4px'
+                                      }}
+                                    >
+                                      {MODEL_DISPLAY_NAMES_MAP.get(selectedModel) || selectedModel}
+                                    </span>
+                                    <ChevronDown className="h-3 w-3 flex-shrink-0 mobile-chevron" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => onModelChange?.(value)}>
+                                    {MODEL_GROUPS.map((group, index) => (
+                                      <React.Fragment key={group.label}>
+                                        {index > 0 && <DropdownMenuSeparator />}
+                                        <DropdownMenuLabel className="text-muted-foreground font-normal pl-8 pr-2 py-1.5 text-xs uppercase opacity-75">
+                                          {group.label}
+                                        </DropdownMenuLabel>
+                                        {group.models.map((model) => (
+                                          <DropdownMenuRadioItem key={model.id} value={model.id}>
+                                            {model.name}
+                                          </DropdownMenuRadioItem>
+                                        ))}
+                                      </React.Fragment>
+                                    ))}
+                                  </DropdownMenuRadioGroup>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
 
                           {/* Submit Button - absolutely positioned at right edge */}
                           <div className="absolute right-0">
