@@ -263,34 +263,29 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
       }
 
       const jobStatus = await response.json();
-      console.log('Job status:', jobStatus); // Debug log
+      console.log('Job status polling:', jobStatus); // Enhanced debug log
       
       // Update progress
       const progress = Math.floor((jobStatus.progress || 0) * 100);
       setEstimatedProgress(progress);
       
-      // Update status message - show smooth progress, not chunk details
-      let statusMsg = jobStatus.current_step || 'Processing audio...';
+      // Update status message - PERCENTAGE ONLY, no chunk/segment references
+      let statusMsg;
       
-      // Transform technical messages to user-friendly ones
-      if (statusMsg.includes('chunk')) {
-        // Instead of showing chunk details, show processing stage
-        const progress = Math.floor((jobStatus.progress || 0) * 100);
-        if (progress < 20) {
-          statusMsg = 'Analyzing audio...';
-        } else if (progress < 80) {
-          statusMsg = 'Transcribing audio...';
-        } else if (progress < 95) {
-          statusMsg = 'Finalizing transcription...';
-        } else {
-          statusMsg = 'Almost complete...';
-        }
+      // Show only user-friendly messages based on percentage
+      if (progress < 15) {
+        statusMsg = 'Preparing transcription...';
+      } else if (progress < 95) {
+        statusMsg = 'Processing audio...';
+      } else {
+        statusMsg = 'Finalizing transcription...';
       }
       
       setStatusMessage(statusMsg);
 
       if (jobStatus.status === 'completed' && jobStatus.result) {
-        // Job completed successfully
+        // Job completed successfully - FORCE 100% progress
+        setEstimatedProgress(100);
         setIsTranscribing(false);
         setIsActuallyTranscribing(false);
         setCurrentJobId(null);
@@ -392,9 +387,14 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
           }
         }).catch((error) => {
           console.error('Polling error:', error);
-          // Continue polling on error unless job is done
+          // Continue polling on error unless job is done, but add backoff
           if (currentJobId === jobId && isTranscribing) {
-            pollInterval();
+            // Add delay on error to avoid spam
+            setTimeout(() => {
+              if (currentJobId === jobId && isTranscribing) {
+                pollInterval();
+              }
+            }, 5000); // 5 second delay on error
           }
         });
       }, interval);
@@ -463,14 +463,16 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
     setIsTranscribing(false); 
     setIsActuallyTranscribing(false); 
     setCurrentJobId(null);
-    setEstimatedProgress(0); // Reset progress
-    setAdjustedTotalDurationSeconds(null); // Reset duration
+    setEstimatedProgress(0);
+    setAdjustedTotalDurationSeconds(null);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     progressIntervalRef.current = null;
     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     pollingIntervalRef.current = null;
     transcriptionStartTimeRef.current = null;
     if(fileInputRef.current) fileInputRef.current.value = "";
+    
+    // Clear localStorage keys
     localStorage.removeItem(CURRENT_STATE_LOCAL_STORAGE_KEY);
   };
 
