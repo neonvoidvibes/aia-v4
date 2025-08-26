@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Square, Download, Bookmark, Loader2, X, Eye } from 'lucide-react';
+import { Play, Pause, Square, Download, Bookmark, Loader2, X, Eye, ListCollapse, Mic, CheckCircle2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -75,6 +75,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState<{ filename: string; content: string } | null>(null);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
+  const [showFinishedRecordings, setShowFinishedRecordings] = useState<boolean>(false);
   const isPineconeEnabled = agentCapabilities.pinecone_index_exists;
 
   // --- Robust WebSocket and State Management ---
@@ -668,10 +669,21 @@ const RecordView: React.FC<RecordViewProps> = ({
   const isStopping = pendingAction === 'stop';
 
   return (
-    <AlertDialog>
-      <div className="flex flex-col h-full items-center justify-center">
-        <div className="flex flex-col items-center justify-center space-y-2 w-full max-w-md">
-          {/* Controls */}
+    <div className="space-y-4 p-1 sm:p-0 max-w-4xl mx-auto">
+      {/* Unified Recording Card */}
+      <div className="border-2 rounded-lg transition-all duration-200 border-dashed border-border hover:border-primary bg-muted/20">
+        <div className="p-6 sm:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Mic className="w-6 h-6 text-primary flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-base font-medium text-foreground">Voice Note Recorder</p>
+                <p className="text-sm text-muted-foreground">Record your voice notes</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Controls - KEEPING EXACT ORIGINAL STRUCTURE */}
           <div className="flex items-center justify-center space-x-4">
             <Button
               onClick={handlePlayPauseClick}
@@ -728,48 +740,72 @@ const RecordView: React.FC<RecordViewProps> = ({
             </p>
           )}
 
-          {/* Finished Recordings Section */}
-          <div className="w-full pt-4">
-            {finishedRecordings.length > 0 && (
-              <div className="flex justify-center items-center mb-2">
-                <h2 className="text-lg font-semibold">Finished Recordings</h2>
+        </div>
+      </div>
+
+      {/* Finished Recordings - Collapsible Accordion */}
+      <AlertDialog>
+        {finishedRecordings.length > 0 && (
+          <div className="border rounded-lg">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowFinishedRecordings(!showFinishedRecordings)}
+              className="w-full p-4 h-auto justify-between hover:bg-muted/50"
+            >
+              <div className="flex items-center gap-2">
+                <ListCollapse className="w-5 h-5" />
+                <span className="font-medium">Finished Recordings ({finishedRecordings.length})</span>
+              </div>
+              <div className={cn(
+                "transition-transform duration-200",
+                showFinishedRecordings ? "rotate-180" : ""
+              )}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </Button>
+            
+            {showFinishedRecordings && (
+              <div className="border-t">
+                <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto">
+                  {finishedRecordings.map((rec) => (
+                    <div key={rec.s3Key} className="flex items-center justify-between p-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <div className="truncate">
+                          <p className="text-sm font-medium text-foreground truncate" title={rec.filename}>{rec.filename}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(rec.timestamp).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleViewTranscript(rec.s3Key, rec.filename)} className="h-8 px-2 text-muted-foreground hover:text-primary">
+                          <Eye className="h-3 w-3 mr-1" />
+                          View
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)} className="h-8 px-2 text-muted-foreground hover:text-primary">
+                          <Download className="h-3 w-3 mr-1" />
+                          Download
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEmbedRecording(rec.s3Key)} disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled} className="h-8 px-2 text-muted-foreground hover:text-primary">
+                          {isEmbedding[rec.s3Key] ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Bookmark className="h-3 w-3 mr-1" />}
+                          Bookmark
+                        </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => setRecordingToDelete(rec)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-            <div className="overflow-y-auto space-y-1 px-1" style={{ maxHeight: 'calc(100vh - 350px)' }}>
-              {finishedRecordings.length > 0 ? (
-                finishedRecordings.map((rec) => (
-                  <div key={rec.s3Key} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" title={rec.filename}>{rec.filename}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(rec.timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleViewTranscript(rec.s3Key, rec.filename)} title="View Transcript">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)} title="Download">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleEmbedRecording(rec.s3Key)} disabled={isEmbedding[rec.s3Key] || !isPineconeEnabled} title="Bookmark to Memory" className={!isPineconeEnabled ? 'cursor-not-allowed' : ''}>
-                        {isEmbedding[rec.s3Key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
-                      </Button>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => setRecordingToDelete(rec)} title="Delete">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="flex items-center justify-center pt-4">
-                  <p className="text-sm text-muted-foreground text-center opacity-50">No recordings yet.</p>
-                </div>
-              )}
-            </div>
           </div>
+        )}
+
+        {/* AlertDialog content for deletion confirmation */}
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -784,8 +820,9 @@ const RecordView: React.FC<RecordViewProps> = ({
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </div>
-      </div>
+      </AlertDialog>
+
+      {/* Dialog for viewing transcripts */}
       <Dialog open={isTranscriptModalOpen} onOpenChange={setIsTranscriptModalOpen}>
         <DialogContent className="max-w-3xl h-4/5 flex flex-col">
           <DialogHeader>
@@ -814,7 +851,7 @@ const RecordView: React.FC<RecordViewProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AlertDialog>
+    </div>
   );
 };
 
