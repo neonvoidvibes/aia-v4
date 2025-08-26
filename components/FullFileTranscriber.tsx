@@ -992,9 +992,8 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                 
                 {cardState === 'error' && (
                   <Button
-                    onClick={handleStartTranscription}
+                    onClick={clearCurrentProcessingStateUI}
                     variant="outline"
-                    disabled={!canTranscribe}
                     className="w-full sm:w-auto"
                   >
                     Start New
