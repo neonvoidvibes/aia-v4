@@ -3336,16 +3336,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   </button>
                                                 </ActionTooltip>
                                               )}
-                                              <ActionTooltip labelKey="tooltips.delete" align="end">
-                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
-                                                  <Trash2 className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </ActionTooltip>
-                                              <ActionTooltip labelKey="tooltips.hide" align="end">
-                                                <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
-                                                  <ChevronUp className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </ActionTooltip>
+                                              {/* Delete button - Hidden if workspace config specifies */}
+                                              {(!activeUiConfig.hide_message_actions?.includes('delete') || isAdminOverride) && (
+                                                <ActionTooltip labelKey="tooltips.delete" align="end">
+                                                  <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
+                                                    <Trash2 className="h-[18px] w-[18px]" />
+                                                  </button>
+                                                </ActionTooltip>
+                                              )}
+                                              {/* Collapse button - Hidden if workspace config specifies */}
+                                              {(!activeUiConfig.hide_message_actions?.includes('collapse') || isAdminOverride) && (
+                                                <ActionTooltip labelKey="tooltips.hide" align="end">
+                                                  <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
+                                                    <ChevronUp className="h-[18px] w-[18px]" />
+                                                  </button>
+                                                </ActionTooltip>
+                                              )}
                                             </div>
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 ml-2">
                                               Message saved
@@ -3377,16 +3383,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                 <Bookmark className="h-[18px] w-[18px]" />
                                               </button>
                                             </ActionTooltip>
-                                            <ActionTooltip labelKey="tooltips.delete" align="end">
-                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
-                                                  <Trash2 className="h-[18px] w-[18px]" />
-                                              </button>
-                                            </ActionTooltip>
-                                            <ActionTooltip labelKey="tooltips.hide" align="end">
-                                              <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
-                                                <ChevronUp className="h-[18px] w-[18px]" />
-                                              </button>
-                                            </ActionTooltip>
+                                            {/* Delete button - Hidden if workspace config specifies */}
+                                            {(!activeUiConfig.hide_message_actions?.includes('delete') || isAdminOverride) && (
+                                              <ActionTooltip labelKey="tooltips.delete" align="end">
+                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
+                                                    <Trash2 className="h-[18px] w-[18px]" />
+                                                </button>
+                                              </ActionTooltip>
+                                            )}
+                                            {/* Collapse button - Hidden if workspace config specifies */}
+                                            {(!activeUiConfig.hide_message_actions?.includes('collapse') || isAdminOverride) && (
+                                              <ActionTooltip labelKey="tooltips.hide" align="end">
+                                                <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
+                                                  <ChevronUp className="h-[18px] w-[18px]" />
+                                                </button>
+                                              </ActionTooltip>
+                                            )}
                                           </>
                                         )}
                                       </div>
@@ -3421,16 +3433,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   <Volume2 className="h-[18px] w-[18px]" />
                                                 </button>
                                               </ActionTooltip>
+                                            )}
+                                            {/* Delete button - Hidden if workspace config specifies */}
+                                            {(!activeUiConfig.hide_message_actions?.includes('delete') || isAdminOverride) && (
                                                <ActionTooltip labelKey="tooltips.delete" align="start">
-                                                 <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                                 <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
                                                   <Trash2 className="h-[18px] w-[18px]" />
                                                  </button>
                                                </ActionTooltip>
-                                              <ActionTooltip labelKey="tooltips.hide" align="start">
-                                                <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
-                                                  <ChevronUp className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </ActionTooltip>
+                                            )}
+                                              {/* Collapse button - Hidden if workspace config specifies */}
+                                              {(!activeUiConfig.hide_message_actions?.includes('collapse') || isAdminOverride) && (
+                                                <ActionTooltip labelKey="tooltips.hide" align="start">
+                                                  <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
+                                                    <ChevronUp className="h-[18px] w-[18px]" />
+                                                  </button>
+                                                </ActionTooltip>
+                                              )}
                                               <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
                                             </div>
                                           </>
@@ -3463,16 +3482,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   <Bookmark className="h-[18px] w-[18px]" />
                                                 </button>
                                               </ActionTooltip>
-                                              <ActionTooltip labelKey="tooltips.delete" align="start">
-                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
-                                                  <Trash2 className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </ActionTooltip>
-                                              <ActionTooltip labelKey="tooltips.hide" align="start">
-                                                <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
-                                                  <ChevronUp className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </ActionTooltip>
+                                              {/* Delete button - Hidden if workspace config specifies */}
+                                              {(!activeUiConfig.hide_message_actions?.includes('delete') || isAdminOverride) && (
+                                                <ActionTooltip labelKey="tooltips.delete" align="start">
+                                                  <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label={tooltips.delete_message || "Delete message"} disabled={isDeleting}>
+                                                    <Trash2 className="h-[18px] w-[18px]" />
+                                                  </button>
+                                                </ActionTooltip>
+                                              )}
+                                              {/* Collapse button - Hidden if workspace config specifies */}
+                                              {(!activeUiConfig.hide_message_actions?.includes('collapse') || isAdminOverride) && (
+                                                <ActionTooltip labelKey="tooltips.hide" align="start">
+                                                  <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
+                                                    <ChevronUp className="h-[18px] w-[18px]" />
+                                                  </button>
+                                                </ActionTooltip>
+                                              )}
                                               </>
                                             )}
                                             <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
