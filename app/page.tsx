@@ -474,7 +474,7 @@ function HomeContent() {
             
             // --- PHASE 3: Set current agent and check for consent ---
             setCurrentAgent(agentParam);
-            const agentData = data.agents.find(a => a.name === agentParam);
+            const agentData = data.agents.find((a: any) => a.name === agentParam);
             
             if (agentData && agentData.workspaceId && agentData.workspaceUiConfig.require_consent) {
               // Check if user has consented to this workspace
@@ -2121,7 +2121,7 @@ function HomeContent() {
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <CollapsibleSection title="Chat Attachments" defaultOpen={allChatAttachments.length > 0}>
                       <div className="document-upload-container">
-                        <DocumentUpload description="Documents attached to the current chat session (Read-only)" type="chat" existingFiles={allChatAttachments} readOnly={true} allowRemove={false} transparentBackground={true} />
+                        <DocumentUpload description="Documents attached to the current chat session (Read-only)" type="chat" idSuffix="chat-attachments" existingFiles={allChatAttachments} readOnly={true} allowRemove={false} transparentBackground={true} />
                       </div>
                     </CollapsibleSection>
                     <CollapsibleSection title="Transcripts" defaultOpen={false}>
@@ -2326,7 +2326,7 @@ function HomeContent() {
                     </CollapsibleSection>
                     <CollapsibleSection title="Database" defaultOpen={false}>
                       <div className="document-upload-container">
-                        <DocumentUpload description="Locally added/edited memory files. Documents from Pinecone are listed below." type="memory" allowRemove={true} persistKey={`agent-memory-${pageAgentName}-${pageEventId}`} onFilesAdded={handleAgentMemoryUpdate} existingFiles={agentMemoryFiles} transparentBackground={true} hideDropZone={true} />
+                        <DocumentUpload description="Locally added/edited memory files. Documents from Pinecone are listed below." type="memory" idSuffix="memory-1" allowRemove={true} persistKey={`agent-memory-${pageAgentName}-${pageEventId}`} onFilesAdded={handleAgentMemoryUpdate} existingFiles={agentMemoryFiles} transparentBackground={true} hideDropZone={true} />
                       </div>
                       <div className="mt-4 space-y-2 w-full">
                         {pineconeMemoryDocs.length > 0 ? (
@@ -2342,7 +2342,7 @@ function HomeContent() {
                   <div className="space-y-4 tab-content-inner px-2 md:px-4 py-3">
                     <CollapsibleSection title="System Prompt" defaultOpen={false}>
                       <div className="document-upload-container">
-                        <DocumentUpload description="Locally added/edited system prompt files. Files from S3 are listed below." type="system" allowRemove={true} persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} onFilesAdded={handleSystemPromptUpdate} existingFiles={systemPromptFiles} transparentBackground={true} hideDropZone={true} />
+                        <DocumentUpload description="Locally added/edited system prompt files. Files from S3 are listed below." type="system" idSuffix="system-1" allowRemove={true} persistKey={`system-prompt-${pageAgentName}-${pageEventId}`} onFilesAdded={handleSystemPromptUpdate} existingFiles={systemPromptFiles} transparentBackground={true} hideDropZone={true} />
                       </div>
                       {baseSystemPromptS3Files.length > 0 && (
                         <div className="mt-4 space-y-2 w-full">
@@ -2362,7 +2362,7 @@ function HomeContent() {
                     </CollapsibleSection>
                     <CollapsibleSection title="Context" defaultOpen={false}>
                       <div className="document-upload-container">
-                        <DocumentUpload description="Locally added/edited context files. Agent-specific context from S3 is listed below." type="context" allowRemove={true} persistKey={`context-files-${pageAgentName}-${pageEventId}`} onFilesAdded={handleContextUpdate} existingFiles={contextFiles} transparentBackground={true} hideDropZone={true} />
+                        <DocumentUpload description="Locally added/edited context files. Agent-specific context from S3 is listed below." type="context" idSuffix="context-1" allowRemove={true} persistKey={`context-files-${pageAgentName}-${pageEventId}`} onFilesAdded={handleContextUpdate} existingFiles={contextFiles} transparentBackground={true} hideDropZone={true} />
                       </div>
                       <div className="mt-4 space-y-2 w-full">
                         {agentPrimaryContextS3Files.length > 0 ? (

@@ -449,7 +449,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const t = useLocalization();
 
-    const searchParams = useSearchParams();
+    let searchParams;
+    try {
+      searchParams = useSearchParams();
+    } catch (error) {
+      console.warn('useSearchParams failed, falling back to null', error);
+      searchParams = null;
+    }
     const [agentName, setAgentName] = useState<string | null>(null);
     const [eventId, setEventId] = useState<string | null>(null);
   const [isPageReady, setIsPageReady] = useState(false); 
@@ -512,13 +518,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const isStoppingRef = useRef(false);
 
     useEffect(() => {
-        const agentParam = searchParams.get('agent');
-        const eventParam = searchParams.get('event');
+        const agentParam = searchParams?.get('agent');
+        const eventParam = searchParams?.get('event');
         debugLog(`[InitEffect] Params - Agent: ${agentParam}, Event: ${eventParam}`);
         
         const initializeAgent = async (agent: string) => {
             setAgentName(agent);
-            setEventId(eventParam);
+            setEventId(eventParam || null);
             
             // Fetch agent capabilities
             try {
@@ -1938,8 +1944,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         resetRecordingStates(); // This is only for brand new sessions now
         debugLog("[Start Recording Session] Called resetRecordingStates for new session.");
         
-        const currentAgent = searchParams.get('agent');
-        const currentEvent = searchParams.get('event') || '0000';
+        const currentAgent = searchParams?.get('agent');
+        const currentEvent = searchParams?.get('event') || '0000';
         if (!currentAgent) {
             addErrorMessage('Agent information is missing. Cannot start recording.');
             setPendingAction(null); return;
@@ -3436,7 +3442,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   </button>
                                                 </ActionTooltip>
                                               )}
-                                            )}
                                             {/* Delete button - Hidden if workspace config specifies */}
                                             {(!activeUiConfig.hide_message_actions?.includes('delete') || isAdminOverride) && (
                                                <ActionTooltip labelKey="tooltips.delete" align="start">
@@ -3477,7 +3482,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   <Volume2 className="h-[18px] w-[18px]" />
                                                 </button>
                                               </ActionTooltip>
-                                            )}
                                             )}
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                               <>
