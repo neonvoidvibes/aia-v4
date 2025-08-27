@@ -1707,9 +1707,9 @@ function HomeContent() {
         agentName={pageAgentName || undefined}
         selectedModel={selectedModel}
         onNewChat={handleNewChatFromSidebar}
-        onLoadChat={(chatId: string) => {
+        onLoadChat={async (chatId: string) => {
           if (chatInterfaceRef.current) {
-            chatInterfaceRef.current.loadChatHistory(chatId);
+            await chatInterfaceRef.current.loadChatHistory(chatId);
             setCurrentChatId(chatId);
           }
         }}

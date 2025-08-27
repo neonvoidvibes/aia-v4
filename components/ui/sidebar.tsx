@@ -50,7 +50,7 @@ interface SidebarProps {
   agentName?: string;
   selectedModel?: string;
   onNewChat?: () => void;
-  onLoadChat?: (chatId: string) => void;
+  onLoadChat?: (chatId: string) => Promise<void>;
   currentChatId?: string;
   chatHistory: ChatHistoryItem[];
   isLoadingHistory: boolean;
@@ -90,13 +90,49 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const isMobile = useIsMobile();
 
-  const handleLoadChat = (chatId: string) => {
+  const handleLoadChat = async (chatId: string) => {
     if (onLoadChat) {
-      onLoadChat(chatId);
-      // Only close sidebar on mobile after selecting chat
-      if (isMobile) {
-        onClose();
+      try {
+        // Wait for chat to actually load before switching views
+        await onLoadChat(chatId);
+        // Only switch to chat view after chat is successfully loaded
+        setCurrentView('chat');
+        // Only close sidebar on mobile after selecting chat
+        if (isMobile) {
+          onClose();
+        }
+      } catch (error) {
+        console.error('[Sidebar] Failed to load chat:', error);
+        // Don't switch views or close sidebar if loading failed
+        // The error handling is already done in the loadChatHistory function
       }
+    }
+  };
+
+  // Helper functions for navigation items that auto-close sidebar on mobile
+  const handleNavigationClick = (view: View) => {
+    setCurrentView(view);
+    // Auto-close sidebar on mobile for navigation items
+    if (isMobile) {
+      onClose();
+    }
+  };
+
+  const handleNewChat = () => {
+    if (onNewChat) {
+      onNewChat();
+    }
+    // Auto-close sidebar on mobile for new chat
+    if (isMobile) {
+      onClose();
+    }
+  };
+
+  const handleShowSettings = () => {
+    setShowSettings(true);
+    // Auto-close sidebar on mobile when opening settings
+    if (isMobile) {
+      onClose();
     }
   };
 
@@ -209,7 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
             <div className="mt-10 flex flex-col space-y-1 -ml-2">
-              <Button variant="ghost" className="justify-start rounded-md" onClick={onNewChat}>
+              <Button variant="ghost" className="justify-start rounded-md" onClick={handleNewChat}>
                 <SquarePen className="mr-3 h-5 w-5" />
                 New Chat
               </Button>
@@ -219,21 +255,21 @@ const Sidebar: React.FC<SidebarProps> = ({
               {/* NEVER hardcode UI logic - always check activeUiConfig from workspaces.ui_config */}
               {/* Chat link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('chat') || isAdminOverride) && (
-                <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('chat'); }}>
+                <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('chat')}>
                   <MessageSquare className="mr-3 h-5 w-5" />
                   Chat
                 </Button>
               )}
               {/* Record link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('record') || isAdminOverride) && (
-                <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('record'); }}>
+                <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('record')}>
                   <Disc className="mr-3 h-5 w-5" />
                   Record Note
                 </Button>
               )}
               {/* Transcribe link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('transcribe') || isAdminOverride) && (
-                <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
+                <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('transcribe')}>
                   <AudioLines className="mr-3 h-5 w-5" />
                   Transcribe
                 </Button>
@@ -245,7 +281,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
               {/* Settings link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('settings') || isAdminOverride) && (
-                <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setShowSettings(true); }}>
+                <Button variant="ghost" className="justify-start rounded-md" onClick={handleShowSettings}>
                   <Settings className="mr-3 h-5 w-5" />
                   Settings
                 </Button>

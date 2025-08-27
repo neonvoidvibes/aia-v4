@@ -414,7 +414,7 @@ export interface ChatInterfaceHandle {
     }
   ) => void;
   setInput: (text: string) => void; // To prefill input from canvas
-  loadChatHistory: (chatId: string) => void; // Load chat history from database
+  loadChatHistory: (chatId: string) => Promise<void>; // Load chat history from database
 }
 
 const formatTime = (seconds: number): string => {
@@ -2163,6 +2163,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             } catch (error) {
               console.error("[Load Chat History] Error:", error);
               addErrorMessage(`Failed to load chat history: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              throw error; // Re-throw so the caller knows it failed
             }
          }
      }), [sessionId, setMessages, messages.length, handleStopRecording, handleInputChange, handleSubmitWithCanvasContext, supabase.auth, addErrorMessage]);
