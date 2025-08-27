@@ -3324,12 +3324,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             <div className="opacity-0 group-hover:opacity-100 flex items-center transition-opacity">
                                               <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
                                               <ActionTooltip label={copyState.id === message.id && copyState.copied ? t('tooltips.copied') : t('tooltips.copy')} align="end">
-                                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.copy_message || "Copy message"}>
                                                   {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                                 </button>
                                               </ActionTooltip>
-                                              {/* Message editing - Hidden if workspace config specifies */}
-                                              {(!activeUiConfig.disable_message_editing || isAdminOverride) && (
+                                              {/* Message editing - Centralized in hide_message_actions config */}
+                                              {(!activeUiConfig.hide_message_actions?.includes('edit') || isAdminOverride) && (
                                                 <ActionTooltip labelKey="tooltips.edit" align="end">
                                                   <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.edit_message || "Edit message"}>
                                                     <Pencil className="h-[18px] w-[18px]" />
@@ -3366,13 +3366,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                           <>
                                             <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
                                             <ActionTooltip label={copyState.id === message.id && copyState.copied ? t('tooltips.copied') : t('tooltips.copy')} align="end">
-                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.copy_message || "Copy message"}>
                                                 {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                               </button>
                                             </ActionTooltip>
-                                            {/* Message editing - Hidden if workspace config specifies */}
-                                            {(!activeUiConfig.disable_message_editing || isAdminOverride) && (
-                                            <ActionTooltip labelKey="tooltips.edit" align="end">
+                                            {/* Message editing - Centralized in hide_message_actions config */}
+                                            {(!activeUiConfig.hide_message_actions?.includes('edit') || isAdminOverride) && (
+                                              <ActionTooltip labelKey="tooltips.edit" align="end">
                                               <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.edit_message || "Edit message"}>
                                                 <Pencil className="h-[18px] w-[18px]" />
                                               </button>
@@ -3417,22 +3417,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             </span>
                                             <div className="opacity-0 group-hover:opacity-100 flex items-center transition-opacity">
                                               <ActionTooltip label={copyState.id === message.id && copyState.copied ? t('tooltips.copied') : t('tooltips.copy')} align="start">
-                                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.copy_message || "Copy message"}>
                                                   {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                                 </button>
                                               </ActionTooltip>
-                                              <ActionTooltip labelKey="tooltips.readAloud" align="start">
-                                                <button
-                                                  onClick={() => readAloud(message as Message)}
-                                                  className={cn(
-                                                      "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                                      ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
-                                                  )}
-                                                  aria-label="Read message aloud"
-                                                >
-                                                  <Volume2 className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </ActionTooltip>
+                                              {/* TTS - Centralized in hide_message_actions config */}
+                                              {(!activeUiConfig.hide_message_actions?.includes('tts') || isAdminOverride) && (
+                                                <ActionTooltip labelKey="tooltips.readAloud" align="start">
+                                                  <button
+                                                    onClick={() => readAloud(message as Message)}
+                                                    className={cn(
+                                                        "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
+                                                        ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
+                                                    )}
+                                                    aria-label={tooltips.read_aloud || "Read message aloud"}
+                                                  >
+                                                    <Volume2 className="h-[18px] w-[18px]" />
+                                                  </button>
+                                                </ActionTooltip>
+                                              )}
                                             )}
                                             {/* Delete button - Hidden if workspace config specifies */}
                                             {(!activeUiConfig.hide_message_actions?.includes('delete') || isAdminOverride) && (
@@ -3456,24 +3459,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         ) : (
                                           <>
                                             <ActionTooltip label={copyState.id === message.id && copyState.copied ? t('tooltips.copied') : t('tooltips.copy')} align="start">
-                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.copy_message || "Copy message"}>
                                                 {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                               </button>
                                             </ActionTooltip>
-                                            {/* TTS - Hidden if workspace config specifies */}
-                                            {(!activeUiConfig.disable_tts || isAdminOverride) && (
+                                            {/* TTS - Centralized in hide_message_actions config */}
+                                            {(!activeUiConfig.hide_message_actions?.includes('tts') || isAdminOverride) && (
                                               <ActionTooltip labelKey="tooltips.readAloud" align="start">
-                                              <button
-                                                onClick={() => readAloud(message as Message)}
-                                                className={cn(
-                                                    "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                                    ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
-                                                )}
-                                                aria-label={tooltips.read_aloud || "Read message aloud"}
-                                              >
-                                                <Volume2 className="h-[18px] w-[18px]" />
-                                              </button>
+                                                <button
+                                                  onClick={() => readAloud(message as Message)}
+                                                  className={cn(
+                                                      "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
+                                                      ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
+                                                  )}
+                                                  aria-label={tooltips.read_aloud || "Read message aloud"}
+                                                >
+                                                  <Volume2 className="h-[18px] w-[18px]" />
+                                                </button>
                                               </ActionTooltip>
+                                            )}
                                             )}
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                               <>
