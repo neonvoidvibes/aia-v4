@@ -207,7 +207,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <SquarePen className="mr-3 h-5 w-5" />
                 New Chat
               </Button>
+              {/* Top separator - Always visible after "New Chat" */}
               <Separator className="my-2 bg-border/50" />
+              {/* === ALL UI VISIBILITY CONTROLLED BY SUPABASE WORKSPACE CONFIG === */}
+              {/* NEVER hardcode UI logic - always check activeUiConfig from workspaces.ui_config */}
               {/* Chat link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('chat') || isAdminOverride) && (
                 <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('chat'); }}>
@@ -229,7 +232,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                   Transcribe Document
                 </Button>
               )}
-              <Separator className="my-2 bg-border/50" />
+              {/* Bottom separator - Hidden if workspace config specifies */}
+              {/* This separator only shows when at least one sidebar link is visible */}
+              {(!activeUiConfig.hide_sidebar_separators || isAdminOverride) && (
+                <Separator className="my-2 bg-border/50" />
+              )}
               {/* Settings link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('settings') || isAdminOverride) && (
                 <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setShowSettings(true); }}>

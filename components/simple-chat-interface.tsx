@@ -3775,7 +3775,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           )}
                         </div>
                         <div className="relative w-full h-8 flex items-center">
-                          {/* Model Picker - chevron anchored 8px from submit button, text extends left */}
+                          {/* Model Picker - UI controlled entirely by Supabase workspace config */}
+                          {/* IMPORTANT: Never hardcode UI visibility logic - always use activeUiConfig from Supabase */}
                           {(!activeUiConfig.hide_model_selector || isAdminOverride) && (
                             <div className="absolute model-picker-container" style={{ right: '50px' }}>
                               <DropdownMenu>

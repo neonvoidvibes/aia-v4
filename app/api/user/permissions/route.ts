@@ -147,7 +147,16 @@ export async function GET(request: Request) {
     });
     
     // --- PHASE 3: Determine if agent selector should be shown ---
-    const showAgentSelector = isAdminOverride || agentsWithCapabilities.length > 1;
+    // IMPORTANT: Always use workspace configuration from Supabase, never hardcode UI logic!
+    // Check if any workspace disables agent selector by default
+    let defaultHideAgentSelector = false;
+    Object.values(workspaceConfigs).forEach(config => {
+      if (config.hide_agent_selector_default) {
+        defaultHideAgentSelector = true;
+      }
+    });
+    
+    const showAgentSelector = isAdminOverride || (!defaultHideAgentSelector && agentsWithCapabilities.length > 1);
     
     // --- PHASE 3: Return the rich permissions data structure ---
     return NextResponse.json({ 

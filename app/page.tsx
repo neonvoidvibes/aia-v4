@@ -1759,7 +1759,8 @@ function HomeContent() {
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
           <div className="flex items-center justify-center h-full">
             {/* Center: Agent name (desktop) or ViewSwitcher fallback */}
-            {!isMobile && pageAgentName && (permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
+            {/* Desktop Agent Selector - Use workspace config only, no hardcoded logic */}
+            {!isMobile && pageAgentName && (!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
               <AgentSelectorMenu
                 allowedAgents={allowedAgents}
                 currentAgent={pageAgentName}
@@ -1767,7 +1768,8 @@ function HomeContent() {
                 onDashboardClick={() => setShowAgentDashboard(true)}
               />
             )}
-            {!isMobile && pageAgentName && !(permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
+            {/* Desktop Agent Name (when selector hidden) */}
+            {!isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
               <div className="text-lg font-medium">{pageAgentName}</div>
             )}
             {!isMobile && !pageAgentName && (
@@ -1781,7 +1783,8 @@ function HomeContent() {
             )}
 
             {/* Right side: Agent name (mobile) */}
-            {isMobile && pageAgentName && (permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
+            {/* Mobile Agent Selector - Use workspace config only, no hardcoded logic */}
+            {isMobile && pageAgentName && (!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
               <div className="absolute right-6" style={{ marginTop: '2px' }}>
                 <AgentSelectorMenu
                   allowedAgents={allowedAgents}
@@ -1791,7 +1794,8 @@ function HomeContent() {
                 />
               </div>
             )}
-            {isMobile && pageAgentName && !(permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (
+            {/* Mobile Agent Name (when selector hidden) */}
+            {isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
               <div className="absolute right-6">
                 <div className="text-lg font-medium">{pageAgentName}</div>
               </div>
@@ -2028,7 +2032,8 @@ function HomeContent() {
                         </DropdownMenu>
                       )}
                     </div>
-                    {(permissionsData?.isAdminOverride || permissionsData?.showAgentSelector) && (!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
+                    {/* Agent Selector - Controlled entirely by workspace config in Supabase */}
+                    {(!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
                       <div className="flex items-center justify-between">
                         <Label htmlFor="agent-selector">Agent</Label>
                         <Select value={pageAgentName || ''} onValueChange={handleAgentChange} disabled={allowedAgents.length <= 1}>
@@ -2043,8 +2048,7 @@ function HomeContent() {
                         </Select>
                       </div>
                     )}
-                     {/* Model Selector - Hidden if workspace config specifies */}
-                     {(!activeUiConfig.hide_model_selector || permissionsData?.isAdminOverride) && (
+                     {/* Model Selector - Always shown in Settings (Settings tab handles visibility) */}
                        <div className="flex items-center justify-between">
                         <Label htmlFor="model-selector">Chat Model</Label>
                           <Select value={selectedModel} onValueChange={handleModelChange}>
@@ -2065,7 +2069,6 @@ function HomeContent() {
                           </SelectContent>
                         </Select>
                        </div>
-                     )}
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <Label htmlFor="temperature-slider">Temperature (Model Creativity)</Label>
