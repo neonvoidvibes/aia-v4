@@ -1069,33 +1069,63 @@ body {
 
 .plus-menu {
   left: 8px;
-  padding: 8px 0;
-  flex-direction: column; /* Stack icons vertically */
-  min-width: 48px; /* Ensure adequate width on desktop */
+  flex-direction: column;
+  min-width: 200px;
+  width: 200px;
+  max-width: 200px;
+  border-radius: 12px !important;
+}
+
+/* New styles for plus menu items with text */
+.plus-menu-item-with-text {
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  text-align: left;
+  justify-content: flex-start !important;
+  margin: 2px 0;
+  padding: 8px 8px !important;
+  width: 100%;
+  min-height: 36px;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.plus-menu-item-with-text:hover {
+  background-color: hsl(var(--text-secondary)/0.1);
+}
+
+.plus-menu-item-with-text span {
+  font-weight: 400;
+  color: inherit;
+  line-height: 1.3;
+  font-size: 14px;
 }
 
 /* Desktop: Position plus menu closer to plus icon */
 @media (min-width: 768px) {
   .plus-menu {
     left: -8px; /* Move closer to slider icon */
-    min-width: 48px; /* Adequate width, not minimal */
+    min-width: 200px;
+    width: 200px;
+    max-width: 200px;
   }
 }
 
-/* Mobile: Prevent plus menu from stretching full width */
+/* Mobile: Adjust for mobile screens */
 @media (max-width: 767px) {
   .plus-menu {
     left: -7px;
-    width: auto !important; /* Don't stretch to full width */
-    max-width: 60px !important; /* Constrain width */
-    right: auto !important; /* Prevent stretching to right */
+    min-width: 180px !important;
+    width: 180px !important;
+    max-width: 180px !important;
+    right: auto !important;
   }
   
   /* Target the motion.div that contains the plus menu */
   .relative .plus-menu {
-    width: auto !important;
-    max-width: 60px !important;
-    min-width: 48px !important;
+    min-width: 180px !important;
+    width: 180px !important;
+    max-width: 180px !important;
   }
 }
 
@@ -2673,6 +2703,9 @@ button {
 .theme-folkhemmet .chat-input-layout .mobile-plus-button .chat-sliders-icon,
 .theme-folkhemmet .chat-input-layout .plus-menu-item,
 .theme-folkhemmet .chat-input-layout .plus-menu-item svg,
+.theme-folkhemmet .chat-input-layout .plus-menu-item-with-text,
+.theme-folkhemmet .chat-input-layout .plus-menu-item-with-text svg,
+.theme-folkhemmet .chat-input-layout .plus-menu-item-with-text span,
 .theme-folkhemmet .chat-input-layout .mobile-plus-button,
 .theme-folkhemmet .chat-input-layout .mobile-plus-button svg {
   color: hsl(51 95% 51%) !important;
@@ -2682,6 +2715,9 @@ button {
 .theme-folkhemmet .chat-input-layout .mobile-plus-button:hover .chat-sliders-icon,
 .theme-folkhemmet .chat-input-layout .plus-menu-item:hover,
 .theme-folkhemmet .chat-input-layout .plus-menu-item:hover svg,
+.theme-folkhemmet .chat-input-layout .plus-menu-item-with-text:hover,
+.theme-folkhemmet .chat-input-layout .plus-menu-item-with-text:hover svg,
+.theme-folkhemmet .chat-input-layout .plus-menu-item-with-text:hover span,
 .theme-folkhemmet .chat-input-layout .mobile-plus-button:hover,
 .theme-folkhemmet .chat-input-layout .mobile-plus-button:hover svg {
   color: hsl(51 95% 51%) !important;
@@ -2695,20 +2731,7 @@ button {
 
 /* 5. PLUS MENU SPECIFIC OVERRIDES - Mixed colors based on function */
 /* New chat button in plus menu uses dark blue (sidebar-like function) */
-.theme-folkhemmet .plus-menu button[title="Save chat to memory"],
-.theme-folkhemmet .plus-menu button[title="Save chat to memory"] svg {
-  color: hsl(51 95% 51%) !important;
-}
-
-/* Other plus menu items remain yellow (input field function) */
-.theme-folkhemmet .plus-menu button[title="Attach file"],
-.theme-folkhemmet .plus-menu button[title="Attach file"] svg,
-.theme-folkhemmet .plus-menu button[title="Download chat"],
-.theme-folkhemmet .plus-menu button[title="Download chat"] svg,
-.theme-folkhemmet .plus-menu button[title="Start recording"],
-.theme-folkhemmet .plus-menu button[title="Start recording"] svg {
-  color: hsl(51 95% 51%) !important;
-}
+/* Plus menu items styling is now handled by the general plus-menu-item-with-text selectors above */
 
 /* 6. MESSAGE ACTION ICONS AND TIMESTAMPS - Blue */
 .theme-folkhemmet .message-actions .action-button,
@@ -2741,13 +2764,19 @@ button {
 /* Ensure plus menu and settings icons are white by default, and dimmed on hover */
 .theme-tenant .chat-input-layout .chat-sliders-icon,
 .theme-tenant .chat-input-layout .mobile-plus-button,
-.theme-tenant .chat-input-layout .plus-menu-item {
+.theme-tenant .chat-input-layout .plus-menu-item,
+.theme-tenant .chat-input-layout .plus-menu-item-with-text,
+.theme-tenant .chat-input-layout .plus-menu-item-with-text svg,
+.theme-tenant .chat-input-layout .plus-menu-item-with-text span {
   color: hsl(var(--icon-secondary)) !important; /* Default: White */
 }
 
 .theme-tenant .chat-input-layout .chat-sliders-icon:hover,
 .theme-tenant .chat-input-layout .mobile-plus-button:hover,
-.theme-tenant .chat-input-layout .plus-menu-item:hover {
+.theme-tenant .chat-input-layout .plus-menu-item:hover,
+.theme-tenant .chat-input-layout .plus-menu-item-with-text:hover,
+.theme-tenant .chat-input-layout .plus-menu-item-with-text:hover svg,
+.theme-tenant .chat-input-layout .plus-menu-item-with-text:hover span {
   color: hsl(var(--icon-primary)) !important; /* Hover: Dimmed White */
 }
 
@@ -2764,12 +2793,18 @@ button {
 
 .theme-moderbyn .chat-input-layout .chat-sliders-icon,
 .theme-moderbyn .chat-input-layout .plus-menu-item,
-.theme-moderbyn .chat-input-layout .plus-menu-item svg {
+.theme-moderbyn .chat-input-layout .plus-menu-item svg,
+.theme-moderbyn .chat-input-layout .plus-menu-item-with-text,
+.theme-moderbyn .chat-input-layout .plus-menu-item-with-text svg,
+.theme-moderbyn .chat-input-layout .plus-menu-item-with-text span {
   color: hsl(var(--primary)) !important;
 }
 
 .theme-moderbyn .chat-input-layout .plus-menu-item:hover,
-.theme-moderbyn .chat-input-layout .plus-menu-item:hover svg {
+.theme-moderbyn .chat-input-layout .plus-menu-item:hover svg,
+.theme-moderbyn .chat-input-layout .plus-menu-item-with-text:hover,
+.theme-moderbyn .chat-input-layout .plus-menu-item-with-text:hover svg,
+.theme-moderbyn .chat-input-layout .plus-menu-item-with-text:hover span {
   color: hsl(var(--primary)) !important;
   opacity: 0.8 !important;
 }

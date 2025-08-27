@@ -3716,17 +3716,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             <SlidersIcon size={24} className="mobile-icon chat-sliders-icon" />
                           </button>
                         {showPlusMenu && (
-                            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 bg-input-gray rounded-full py-2 shadow-lg z-10 flex flex-col items-center plus-menu">
+                            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 rounded-xl py-2 px-1 z-10 flex flex-col plus-menu" style={{ backgroundColor: "hsl(var(--input-gray))", boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 15px 15px -5px rgba(0, 0, 0, 0.15), 0 5px 5px -5px rgba(0, 0, 0, 0.1)" }}>
                               {/* File attachment - Hidden if workspace config specifies */}
                               {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
-                                <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item" onClick={attachDocument} title={tooltips.attach_file || "Attach file"}>
-                                  <Paperclip size={17} className="mobile-icon-small" />
+                                <button type="button" className="flex items-center gap-3 p-2 plus-menu-item-with-text text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item w-full" onClick={attachDocument}>
+                                  <Paperclip size={17} className="mobile-icon-small flex-shrink-0" />
+                                  <span className="text-sm whitespace-nowrap">Add photos & files</span>
                                 </button>
                               )}
+                              
+                              {/* Separator line */}
+                              {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
+                                <div className="mx-2 h-px my-2" style={{ backgroundColor: "hsl(var(--icon-secondary) / 0.4)" }} />
+                              )}
+                              
                               <button
                                 type="button"
                                 className={cn(
-                                  "p-2 plus-menu-item mobile-plus-menu-item",
+                                  "flex items-center gap-3 p-2 plus-menu-item-with-text mobile-plus-menu-item w-full",
                                   conversationSaveMarkerMessageId
                                     ? "text-[hsl(var(--save-memory-color))]"
                                     : "text-[hsl(var(--icon-secondary))]",
@@ -3735,43 +3742,41 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     : !conversationSaveMarkerMessageId ? "hover:text-[hsl(var(--icon-primary))]" : ""
                                 )}
                                 onClick={handleSaveChatToMemory}
-                                title="Save chat to memory"
                                 disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
                               >
                                <Bookmark
                                   size={17}
                                   className={cn(
-                                    "mobile-icon-small",
+                                    "mobile-icon-small flex-shrink-0",
                                     conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
                                   )}
                                 />
+                                <span className="text-sm whitespace-nowrap">Save to memory</span>
                               </button>
-                              <button type="button" className="p-2 plus-menu-item text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item" onClick={saveChat} title="Download chat">
-                                <Download size={17} className="mobile-icon-small" />
+                              
+                              <button type="button" className="flex items-center gap-3 p-2 plus-menu-item-with-text text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item w-full" onClick={saveChat}>
+                                <Download size={17} className="mobile-icon-small flex-shrink-0" />
+                                <span className="text-sm whitespace-nowrap">Download chat</span>
                               </button>
+                              
+                              {/* Separator line */}
+                              <div className="mx-2 h-px my-2" style={{ backgroundColor: "hsl(var(--icon-secondary) / 0.4)" }} />
+                              
                               <button
                                 type="button"
                                 className={cn(
+                                  "flex items-center gap-3 p-2 plus-menu-item-with-text mobile-plus-menu-item w-full",
                                   micButtonClass,
-                                  "mobile-plus-menu-item",
                                   "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
                                   isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
                                   isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
                                   globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
                                 )}
                                 onClick={showAndPrepareRecordingControls}
-                                title={
-                                  globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'
-                                    ? "Another recording is active"
-                                    : isBrowserRecording
-                                    ? isBrowserPaused
-                                      ? "Recording Paused"
-                                      : "Recording Live"
-                                    : "Start recording"
-                                }
                                 disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
                               >
-                                <Mic size={17} className="mobile-icon-small" />
+                                <Mic size={17} className="mobile-icon-small flex-shrink-0" />
+                                <span className="text-sm whitespace-nowrap">Record meeting</span>
                               </button>
                             </motion.div>
                           )}
