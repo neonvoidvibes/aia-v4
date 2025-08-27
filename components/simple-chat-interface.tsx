@@ -2665,20 +2665,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       e.stopPropagation(); 
       if (showRecordUI && !isBrowserRecordingRef.current) hideRecordUI(); 
       
-      // --- PHASE 3: Conditional behavior based on workspace settings ---
-      if (activeUiConfig.hide_sidebar_links?.includes('settings') && !isAdminOverride) {
-        // Settings is hidden, only toggle plus menu
-        setShowPlusMenu(prev => !prev);
-      } else {
-        // Settings is not hidden, open settings dialog
-        if (onOpenSettings) {
-          onOpenSettings();
-        } else {
-          // Fallback to plus menu if no settings handler provided
-          setShowPlusMenu(prev => !prev);
-        }
-      }
-    }, [showRecordUI, hideRecordUI, activeUiConfig, isAdminOverride, onOpenSettings]);
+      // Always toggle plus menu - this is the controls menu, not settings
+      setShowPlusMenu(prev => !prev);
+    }, [showRecordUI, hideRecordUI]);
     const handleMessageInteraction = useCallback((id: string) => {
         if (isMobile) {
             setSelectedMessage(prev => prev === id ? null : id);
