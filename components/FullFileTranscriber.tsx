@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress"; // Added Progress import
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
+import { useMobile } from '@/hooks/use-mobile';
 
 const truncateString = (str: string, maxLength: number) => {
   if (str.length <= maxLength) {
@@ -131,6 +132,7 @@ const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, us
   const [errorMessage, setErrorMessage] = useState<string | null>(null);   
 
   const [finishedTranscripts, setFinishedTranscripts] = useState<FinishedTranscriptItem[]>([]);
+  const isMobile = useMobile();
 
   // State for estimated progress bar
   const [estimatedProgress, setEstimatedProgress] = useState<number>(0);
@@ -1142,7 +1144,8 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                   <AlertDialog open={showClearAllConfirm} onOpenChange={setShowClearAllConfirm}>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm">
-                        <Trash2 className="mr-2 h-3 w-3" /> Clear All
+                        <Trash2 className={cn("h-3 w-3", !isMobile && "mr-2")} />
+                        {!isMobile && " Clear All"}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -1172,8 +1175,8 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                     </div>
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="sm" onClick={() => downloadSpecificTranscript(item)} className="h-8 px-2 text-muted-foreground hover:text-primary">
-                        <Download className="h-3 w-3 mr-1" />
-                        Download
+                        <Download className={cn("h-3 w-3", !isMobile && "mr-1")} />
+                        {!isMobile && "Download"}
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => removeFinishedTranscript(item.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                         <XCircle className="h-3 w-3" />

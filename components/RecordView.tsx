@@ -5,6 +5,7 @@ import { Play, Pause, Square, Download, Bookmark, Loader2, X, Eye, ListCollapse,
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,6 +79,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   const [currentTranscript, setCurrentTranscript] = useState<{ filename: string; content: string } | null>(null);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
   const [showFinishedRecordings, setShowFinishedRecordings] = useState<boolean>(false);
+  const isMobile = useMobile();
   const isPineconeEnabled = agentCapabilities.pinecone_index_exists;
 
   // --- Robust WebSocket and State Management ---
@@ -906,12 +908,12 @@ const RecordView: React.FC<RecordViewProps> = ({
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <Button variant="ghost" size="sm" onClick={() => handleViewTranscript(rec.s3Key, rec.filename)} className="h-8 px-2 text-muted-foreground hover:text-primary">
-                          <Eye className="h-3 w-3 mr-1" />
-                          View
+                          <Eye className={cn("h-3 w-3", !isMobile && "mr-1")} />
+                          {!isMobile && "View"}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDownloadRecording(rec.s3Key, rec.filename)} className="h-8 px-2 text-muted-foreground hover:text-primary">
-                          <Download className="h-3 w-3 mr-1" />
-                          Download
+                          <Download className={cn("h-3 w-3", !isMobile && "mr-1")} />
+                          {!isMobile && "Download"}
                         </Button>
                         <Button 
                           variant="ghost" 
@@ -926,16 +928,17 @@ const RecordView: React.FC<RecordViewProps> = ({
                           )}
                         >
                           {isEmbedding[rec.s3Key] ? (
-                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            <Loader2 className={cn("h-3 w-3 animate-spin", !isMobile && "mr-1")} />
                           ) : (
                             <Bookmark className={cn(
-                              "h-3 w-3 mr-1",
+                              "h-3 w-3",
+                              !isMobile && "mr-1",
                               isRecordingBookmarked(rec.s3Key) 
                                 ? "stroke-[hsl(var(--save-memory-color))]" 
                                 : ""
                             )} />
                           )}
-                          Bookmark
+                          {!isMobile && "Bookmark"}
                         </Button>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="icon" onClick={() => setRecordingToDelete(rec)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
