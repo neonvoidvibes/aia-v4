@@ -3306,7 +3306,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>{copyState.id === message.id && copyState.copied ? "Copied!" : "Copy"}</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3316,7 +3316,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Pencil className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>Edit</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3326,7 +3326,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Trash2 className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>Delete</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3336,7 +3336,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <ChevronUp className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>Hide</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3350,7 +3350,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Bookmark className="h-[18px] w-[18px] stroke-[hsl(var(--save-memory-color))] ml-2" />
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>Forget Memory</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3364,7 +3364,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>{copyState.id === message.id && copyState.copied ? "Copied!" : "Copy"}</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3374,7 +3374,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   <Pencil className="h-[18px] w-[18px]" />
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>Edit</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3384,7 +3384,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   <Bookmark className="h-[18px] w-[18px]" />
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>Save to Memory</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3394,7 +3394,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Trash2 className="h-[18px] w-[18px]" />
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>Delete</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3404,7 +3404,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   <ChevronUp className="h-[18px] w-[18px]" />
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>Hide</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3422,7 +3422,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Bookmark className="h-[18px] w-[18px] stroke-[hsl(var(--save-memory-color))] mr-2" />
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>Forget Memory</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3436,7 +3436,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>{copyState.id === message.id && copyState.copied ? "Copied!" : "Copy"}</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3453,7 +3453,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Volume2 className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>Read Aloud</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3463,7 +3463,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Trash2 className="h-[18px] w-[18px]" />
                                                   </button>
                                                  </TooltipTrigger>
-                                                 <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                 <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                    <p>Delete</p>
                                                  </TooltipContent>
                                                </Tooltip>
@@ -3473,7 +3473,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <ChevronUp className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>Hide</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3488,7 +3488,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>{copyState.id === message.id && copyState.copied ? "Copied!" : "Copy"}</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3505,7 +3505,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                   <Volume2 className="h-[18px] w-[18px]" />
                                                 </button>
                                               </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                              <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                 <p>Read Aloud</p>
                                               </TooltipContent>
                                             </Tooltip>
@@ -3517,7 +3517,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Bookmark className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>Save to Memory</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3527,7 +3527,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <Trash2 className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>Delete</p>
                                                 </TooltipContent>
                                               </Tooltip>
@@ -3537,7 +3537,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                     <ChevronUp className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} className="rounded-md bg-black text-white px-2.5 py-1 text-sm font-semibold border-none">
+                                                <TooltipContent side="bottom" sideOffset={6} className="rounded bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
                                                   <p>Hide</p>
                                                 </TooltipContent>
                                               </Tooltip>
