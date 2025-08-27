@@ -235,7 +235,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               {(!activeUiConfig.hide_sidebar_links?.includes('transcribe') || isAdminOverride) && (
                 <Button variant="ghost" className="justify-start rounded-md" onClick={() => { setCurrentView('transcribe'); }}>
                   <AudioLines className="mr-3 h-5 w-5" />
-                  Transcribe Document
+                  Transcribe
                 </Button>
               )}
               {/* Bottom separator - Hidden if workspace config specifies */}
