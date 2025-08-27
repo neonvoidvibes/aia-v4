@@ -1768,9 +1768,11 @@ function HomeContent() {
                 onDashboardClick={() => setShowAgentDashboard(true)}
               />
             )}
-            {/* Desktop Agent Name (when selector hidden) */}
+            {/* Desktop Agent Name (when selector hidden) - Use workspace name from Supabase */}
             {!isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
-              <div className="text-lg font-medium">{pageAgentName}</div>
+              <div className="text-sm font-medium">
+                {permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}
+              </div>
             )}
             {!isMobile && !pageAgentName && (
               <ViewSwitcher 
@@ -1794,10 +1796,12 @@ function HomeContent() {
                 />
               </div>
             )}
-            {/* Mobile Agent Name (when selector hidden) */}
+            {/* Mobile Agent Name (when selector hidden) - Use workspace name from Supabase */}
             {isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
               <div className="absolute right-6">
-                <div className="text-lg font-medium">{pageAgentName}</div>
+                <div className="text-sm font-medium">
+                  {permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}
+                </div>
               </div>
             )}
           </div>

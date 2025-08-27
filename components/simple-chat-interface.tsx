@@ -396,7 +396,7 @@ interface SimpleChatInterfaceProps {
   isModalOpen?: boolean; // New prop to indicate if a modal is open
   // --- PHASE 3: Workspace UI configuration ---
   isAdminOverride?: boolean;
-  activeUiConfig?: any;
+  activeUiConfig?: any; // Supabase workspace config - controls all UI behavior
   tooltips?: Record<string, string>;
   onOpenSettings?: () => void;
 }
@@ -3678,7 +3678,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               }
                             }
                           }}
-                          placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : "Share or ask anything")}
+                          placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : (activeUiConfig.chat_input_placeholder || "Share or ask anything"))}
                           className="chat-textarea w-full bg-transparent px-2 outline-none resize-none placeholder:text-[hsl(var(--placeholder-text-color))] dark:placeholder:text-zink-500"
                           disabled={!isPageReady || !!pendingAction || pressToTalkState !== 'idle'}
                           aria-label="Chat input"

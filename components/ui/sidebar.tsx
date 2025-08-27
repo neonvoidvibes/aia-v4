@@ -189,18 +189,24 @@ const Sidebar: React.FC<SidebarProps> = ({
               </Button>
             </SheetHeader>
             <div className="px-2 mt-2 mb-2">
-              <div className="text-xs text-muted-foreground">
-                Agent <span className="font-bold">{agentName || 'Loading...'}</span>
-              </div>
+              {/* Agent row - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_info?.includes('agent') || isAdminOverride) && (
+                <div className="text-xs text-muted-foreground">
+                  Agent <span className="font-bold">{agentName || 'Loading...'}</span>
+                </div>
+              )}
               <div className="text-xs text-muted-foreground">
                 Model <span className="font-bold">{(selectedModel && MODEL_DISPLAY_NAMES_MAP.get(selectedModel)) || selectedModel || 'Loading...'}</span>
               </div>
               <div className="text-xs text-muted-foreground">
                 Transcript <span className="font-bold">{getTranscriptListenModeText()}</span>
               </div>
-              <div className="text-xs text-muted-foreground">
-                Summary <span className="font-bold">{getSummaryModeText()}</span>
-              </div>
+              {/* Summary row - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_info?.includes('summary') || isAdminOverride) && (
+                <div className="text-xs text-muted-foreground">
+                  Summary <span className="font-bold">{getSummaryModeText()}</span>
+                </div>
+              )}
             </div>
             <div className="mt-10 flex flex-col space-y-1 -ml-2">
               <Button variant="ghost" className="justify-start rounded-md" onClick={onNewChat}>
