@@ -3727,7 +3727,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               
                               {/* Separator line */}
                               {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
-                                <div className="mx-2 h-px my-2" style={{ backgroundColor: "hsl(var(--icon-secondary) / 0.2)" }} />
+                                <div className="mx-2 h-px my-2 plus-menu-separator" style={{ backgroundColor: "hsl(var(--icon-secondary) / 0.2)" }} />
                               )}
                               
                               <button
@@ -3760,7 +3760,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               </button>
                               
                               {/* Separator line */}
-                              <div className="mx-2 h-px my-2" style={{ backgroundColor: "hsl(var(--icon-secondary) / 0.2)" }} />
+                              <div className="mx-2 h-px my-2 plus-menu-separator" style={{ backgroundColor: "hsl(var(--icon-secondary) / 0.2)" }} />
                               
                               <button
                                 type="button"

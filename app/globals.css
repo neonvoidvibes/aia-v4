@@ -2734,6 +2734,11 @@ button {
 /* New chat button in plus menu uses dark blue (sidebar-like function) */
 /* Plus menu items styling is now handled by the general plus-menu-item-with-text selectors above */
 
+/* Plus menu separator lines for Folkhemmet theme - yellow but dimmed */
+.theme-folkhemmet .plus-menu-separator {
+  background-color: hsl(51 95% 51% / 0.3) !important;
+}
+
 /* 6. MESSAGE ACTION ICONS AND TIMESTAMPS - Blue */
 .theme-folkhemmet .message-actions .action-button,
 .theme-folkhemmet .message-actions .action-button svg {
