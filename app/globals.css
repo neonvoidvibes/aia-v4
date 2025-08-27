@@ -2868,4 +2868,13 @@ html body .input-area-container {
     padding-bottom: 12px !important; /* Only keep minimal internal padding */
     margin-bottom: 0 !important;
   }
+
+  /* TOOLTIP COLOR OVERRIDE - Force white text on all tooltips regardless of theme */
+  [data-radix-tooltip-content],
+  [data-radix-tooltip-content] *,
+  .theme-folkhemmet [data-radix-tooltip-content],
+  .theme-folkhemmet [data-radix-tooltip-content] * {
+    color: white !important;
+    background-color: rgb(24, 24, 27) !important; /* zinc-900 */
+  }
 }
