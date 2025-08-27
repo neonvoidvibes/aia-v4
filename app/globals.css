@@ -1082,12 +1082,13 @@ body {
   transition: background-color 0.2s ease;
   text-align: left;
   justify-content: flex-start !important;
-  margin: 2px 0;
+  margin: 2px 4px;
   padding: 8px 8px !important;
-  width: 100%;
+  width: calc(100% - 8px);
   min-height: 36px;
   display: flex !important;
   align-items: center !important;
+  gap: 12px;
 }
 
 .plus-menu-item-with-text:hover {

@@ -3716,12 +3716,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             <SlidersIcon size={24} className="mobile-icon chat-sliders-icon" />
                           </button>
                         {showPlusMenu && (
-                            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-1.5 bottom-full mb-2 rounded-xl py-2 px-1 z-10 flex flex-col plus-menu" style={{ backgroundColor: "hsl(var(--input-gray))", boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 15px 15px -5px rgba(0, 0, 0, 0.15), 0 5px 5px -5px rgba(0, 0, 0, 0.1)" }}>
+                            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-0 bottom-full mb-2 rounded-xl py-2 px-2 z-10" style={{ backgroundColor: "hsl(var(--input-gray))", boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 15px 15px -5px rgba(0, 0, 0, 0.15), 0 5px 5px -5px rgba(0, 0, 0, 0.1)", display: 'flex', flexDirection: 'column', alignItems: 'stretch', width: '200px' }}>
                               {/* File attachment - Hidden if workspace config specifies */}
                               {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
-                                <button type="button" className="flex items-center gap-3 p-2 plus-menu-item-with-text text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item w-full" onClick={attachDocument}>
-                                  <Paperclip size={17} className="mobile-icon-small flex-shrink-0" />
-                                  <span className="text-sm whitespace-nowrap">Add photos & files</span>
+                                <button type="button" className="text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', margin: '2px 0', borderRadius: '8px', width: '100%', textAlign: 'left', justifyContent: 'flex-start', backgroundColor: 'transparent', border: 'none' }}>
+                                  <Paperclip size={17} style={{ flexShrink: 0 }} />
+                                  <span style={{ fontSize: '14px', whiteSpace: 'nowrap' }}>Add photos & files</span>
                                 </button>
                               )}
                               
@@ -3733,7 +3733,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <button
                                 type="button"
                                 className={cn(
-                                  "flex items-center gap-3 p-2 plus-menu-item-with-text mobile-plus-menu-item w-full",
+                                  "plus-menu-item-with-text ",
                                   conversationSaveMarkerMessageId
                                     ? "text-[hsl(var(--save-memory-color))]"
                                     : "text-[hsl(var(--icon-secondary))]",
@@ -3754,7 +3754,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 <span className="text-sm whitespace-nowrap">Save to memory</span>
                               </button>
                               
-                              <button type="button" className="flex items-center gap-3 p-2 plus-menu-item-with-text text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-menu-item w-full" onClick={saveChat}>
+                              <button type="button" className="plus-menu-item-with-text text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] " onClick={saveChat}>
                                 <Download size={17} className="mobile-icon-small flex-shrink-0" />
                                 <span className="text-sm whitespace-nowrap">Download chat</span>
                               </button>
@@ -3765,7 +3765,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <button
                                 type="button"
                                 className={cn(
-                                  "flex items-center gap-3 p-2 plus-menu-item-with-text mobile-plus-menu-item w-full",
+                                  "plus-menu-item-with-text ",
                                   micButtonClass,
                                   "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
                                   isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
