@@ -1,0 +1,13 @@
+{
+  "tooltips": {
+    "copy": "Copy",
+    "copied": "Copied!",
+    "edit": "Edit",
+    "delete": "Delete",
+    "hide": "Hide",
+    "saveMemory": "Save to Memory",
+    "forgetMemory": "Forget Memory",
+    "readAloud": "Read Aloud",
+    "collapse": "Collapse"
+  }
+}

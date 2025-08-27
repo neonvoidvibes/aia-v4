@@ -70,7 +70,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLocalization } from "@/context/LocalizationContext";
+import { ActionTooltip } from "@/components/ui/action-tooltip";
 
 // Voice ID for ElevenLabs TTS.
 const ELEVENLABS_VOICE_ID = "aSLKtNoVBZlxQEMsnGL2"; // "Sanna Hartfield"
@@ -440,7 +441,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
   function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
-
+    const t = useLocalization();
 
     const searchParams = useSearchParams();
     const [agentName, setAgentName] = useState<string | null>(null);
@@ -3358,56 +3359,31 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         ) : (
                                           <>
                                             <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 mr-2">{formatTimestamp(message.createdAt)}</span>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
-                                                  {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
-                                                </button>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} align="end" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                <p>{copyState.id === message.id && copyState.copied ? "Copied!" : "Copy"}</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
-                                                  <Pencil className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} align="end" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                <p>Edit</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
-                                                  <Bookmark className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} align="end" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                <p>Save to Memory</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
-                                                    <Trash2 className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} align="end" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                <p>Delete</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
-                                                  <ChevronUp className="h-[18px] w-[18px]" />
-                                                </button>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} align="end" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                <p>Hide</p>
-                                              </TooltipContent>
-                                            </Tooltip>
+                                            <ActionTooltip label={copyState.id === message.id && copyState.copied ? t('tooltips.copied') : t('tooltips.copy')} align="end">
+                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                                {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
+                                              </button>
+                                            </ActionTooltip>
+                                            <ActionTooltip labelKey="tooltips.edit" align="end">
+                                              <button onClick={() => editMessage(message.id)} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Edit message">
+                                                <Pencil className="h-[18px] w-[18px]" />
+                                              </button>
+                                            </ActionTooltip>
+                                            <ActionTooltip labelKey="tooltips.saveMemory" align="end">
+                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
+                                                <Bookmark className="h-[18px] w-[18px]" />
+                                              </button>
+                                            </ActionTooltip>
+                                            <ActionTooltip labelKey="tooltips.delete" align="end">
+                                              <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                                  <Trash2 className="h-[18px] w-[18px]" />
+                                              </button>
+                                            </ActionTooltip>
+                                            <ActionTooltip labelKey="tooltips.hide" align="end">
+                                              <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
+                                                <ChevronUp className="h-[18px] w-[18px]" />
+                                              </button>
+                                            </ActionTooltip>
                                           </>
                                         )}
                                       </div>
@@ -3416,84 +3392,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       <div className="flex items-center">
                                         {isMessageSaved ? (
                                           <>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button" aria-label="Forget message memory">
-                                                    <Bookmark className="h-[18px] w-[18px] stroke-[hsl(var(--save-memory-color))] mr-2" />
-                                                </button>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                <p>Forget Memory</p>
-                                              </TooltipContent>
-                                            </Tooltip>
+                                            <ActionTooltip labelKey="tooltips.forgetMemory" align="start">
+                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button" aria-label="Forget message memory">
+                                                  <Bookmark className="h-[18px] w-[18px] stroke-[hsl(var(--save-memory-color))] mr-2" />
+                                              </button>
+                                            </ActionTooltip>
                                             <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
                                               Message saved
                                             </span>
                                             <div className="opacity-0 group-hover:opacity-100 flex items-center transition-opacity">
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
-                                                    {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
-                                                  </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                  <p>{copyState.id === message.id && copyState.copied ? "Copied!" : "Copy"}</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <button
-                                                    onClick={() => readAloud(message as Message)}
-                                                    className={cn(
-                                                        "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                                        ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
-                                                    )}
-                                                    aria-label="Read message aloud"
-                                                  >
-                                                    <Volume2 className="h-[18px] w-[18px]" />
-                                                  </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                  <p>Read Aloud</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                               <Tooltip>
-                                                 <TooltipTrigger asChild>
-                                                  <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
-                                                    <Trash2 className="h-[18px] w-[18px]" />
-                                                  </button>
-                                                 </TooltipTrigger>
-                                                 <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                   <p>Delete</p>
-                                                 </TooltipContent>
-                                               </Tooltip>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
-                                                    <ChevronUp className="h-[18px] w-[18px]" />
-                                                  </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                  <p>Hide</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                              <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
-                                            </div>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
+                                              <ActionTooltip label={copyState.id === message.id && copyState.copied ? t('tooltips.copied') : t('tooltips.copy')} align="start">
                                                 <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
                                                   {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
                                                 </button>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                <p>{copyState.id === message.id && copyState.copied ? "Copied!" : "Copy"}</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
+                                              </ActionTooltip>
+                                              <ActionTooltip labelKey="tooltips.readAloud" align="start">
                                                 <button
                                                   onClick={() => readAloud(message as Message)}
                                                   className={cn(
@@ -3504,43 +3417,56 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                 >
                                                   <Volume2 className="h-[18px] w-[18px]" />
                                                 </button>
-                                              </TooltipTrigger>
-                                              <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                <p>Read Aloud</p>
-                                              </TooltipContent>
-                                            </Tooltip>
+                                              </ActionTooltip>
+                                               <ActionTooltip labelKey="tooltips.delete" align="start">
+                                                 <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                                  <Trash2 className="h-[18px] w-[18px]" />
+                                                 </button>
+                                               </ActionTooltip>
+                                              <ActionTooltip labelKey="tooltips.hide" align="start">
+                                                <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
+                                                  <ChevronUp className="h-[18px] w-[18px]" />
+                                                </button>
+                                              </ActionTooltip>
+                                              <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <ActionTooltip label={copyState.id === message.id && copyState.copied ? t('tooltips.copied') : t('tooltips.copy')} align="start">
+                                              <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Copy message">
+                                                {copyState.id === message.id && copyState.copied ? <Check className="h-[18px] w-[18px] copy-button-animation" /> : <Copy className="h-[18px] w-[18px]" />}
+                                              </button>
+                                            </ActionTooltip>
+                                            <ActionTooltip labelKey="tooltips.readAloud" align="start">
+                                              <button
+                                                onClick={() => readAloud(message as Message)}
+                                                className={cn(
+                                                    "action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
+                                                    ttsPlayback.isPlaying && ttsPlayback.messageId === message.id && "text-[hsl(var(--primary))]"
+                                                )}
+                                                aria-label="Read message aloud"
+                                              >
+                                                <Volume2 className="h-[18px] w-[18px]" />
+                                              </button>
+                                            </ActionTooltip>
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                               <>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
-                                                    <Bookmark className="h-[18px] w-[18px]" />
-                                                  </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                  <p>Save to Memory</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
-                                                    <Trash2 className="h-[18px] w-[18px]" />
-                                                  </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                  <p>Delete</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
-                                                    <ChevronUp className="h-[18px] w-[18px]" />
-                                                  </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={6} align="start" className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none" collisionPadding={10}>
-                                                  <p>Hide</p>
-                                                </TooltipContent>
-                                              </Tooltip>
+                                              <ActionTooltip labelKey="tooltips.saveMemory" align="start">
+                                                <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label="Save message to memory" disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
+                                                  <Bookmark className="h-[18px] w-[18px]" />
+                                                </button>
+                                              </ActionTooltip>
+                                              <ActionTooltip labelKey="tooltips.delete" align="start">
+                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(message); }} className={cn("action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-destructive))]", isDeleting && "opacity-50 cursor-not-allowed")} aria-label="Delete message" disabled={isDeleting}>
+                                                  <Trash2 className="h-[18px] w-[18px]" />
+                                                </button>
+                                              </ActionTooltip>
+                                              <ActionTooltip labelKey="tooltips.hide" align="start">
+                                                <button onClick={(e) => { e.stopPropagation(); toggleMessageCollapse(message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label="Hide message">
+                                                  <ChevronUp className="h-[18px] w-[18px]" />
+                                                </button>
+                                              </ActionTooltip>
                                               </>
                                             )}
                                             <span className="text-xs text-[hsl(var(--icon-secondary))] opacity-75 ml-2">{formatTimestamp(message.createdAt)}</span>
@@ -3994,7 +3920,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 )}
             </div>
         </div>
-    </TooltipProvider>
   )
 });
 

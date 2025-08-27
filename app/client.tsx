@@ -4,6 +4,8 @@ import React, { useEffect } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner" // Import the Toaster
 import { predefinedThemes } from "@/lib/themes" // Import predefined themes
+import { LocalizationProvider } from "@/context/LocalizationContext"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 const allThemeNames = ["light", "dark", "system", ...predefinedThemes.map(t => t.className)];
 
@@ -41,15 +43,19 @@ export default function ClientLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={true} // Enable system theme
-          themes={allThemeNames} // Provide all available theme names
-        >
-          <div id="app-content">{children}</div>
-          <Toaster position="top-right" />
-        </ThemeProvider>
+        <LocalizationProvider>
+          <TooltipProvider delayDuration={100}>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem={true} // Enable system theme
+              themes={allThemeNames} // Provide all available theme names
+            >
+              <div id="app-content">{children}</div>
+              <Toaster position="top-right" />
+            </ThemeProvider>
+          </TooltipProvider>
+        </LocalizationProvider>
       </body>
     </html>
   )
