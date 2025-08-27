@@ -15,11 +15,20 @@ export default function ClientLayout({
   children: React.ReactNode
 }>) {
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    // --- SERVICE WORKER REGISTRATION GATE ---
+    // PWA functionality is temporarily disabled via an environment variable
+    // to resolve a critical caching issue with a previous faulty service worker.
+    // The deployed sw.js is a "kill-switch" that will unregister itself.
+    // To re-enable PWA features:
+    // 1. Create a new, correctly implemented service worker.
+    // 2. Set NEXT_PUBLIC_ENABLE_SW=true in your environment variables.
+    if (process.env.NEXT_PUBLIC_ENABLE_SW === 'true' && 'serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then(registration => console.log('SW registered: ', registration.scope))
         .catch(error => console.log('SW registration failed: ', error));
+    } else {
+      console.log('Service Worker registration is intentionally disabled.');
     }
 
     // const lockOrientation = async () => {

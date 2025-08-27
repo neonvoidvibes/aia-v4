@@ -30,6 +30,17 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // This rule ensures that browsers never cache the service worker file.
+        // It's critical for deploying immediate updates or kill-switches.
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store',
+          },
+        ],
+      },
+      {
         source: '/((?!api/).*)', // Apply to all paths except API routes
         headers: [
           {
