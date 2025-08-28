@@ -19,9 +19,9 @@ export interface ColorTheme {
 }
 
 export const G_DEFAULT_WELCOME_MESSAGE: WelcomeMessageConfig = {
-  text: "What is alive today?",
-  fontSize: "2.25rem", // 50% larger than original 1.5rem
-  fontWeight: 700,    // Corresponds to Tailwind's font-bold
+  text: "Augmenting wisdom.",
+  fontSize: "3rem",
+  fontWeight: "600",
 };
 
 export const predefinedThemes: ColorTheme[] = [
@@ -30,31 +30,23 @@ export const predefinedThemes: ColorTheme[] = [
     name: "Desert Mirage",
     className: "theme-desert-mirage",
     isDark: false,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
   // Dark themes
   {
     name: "Neon",
     className: "theme-neon-sunset",
     isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
   {
     name: "Sunset",
     className: "theme-sunset",
     isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
   },
   // Project themes
   {
     name: "River",
     className: "theme-river",
     isDark: true,
-    welcomeMessage: {
-      text: "Augmenting wisdom.",
-      fontSize: "3rem",
-      fontWeight: "600",
-    },
   },
   {
     name: "Tenant",
