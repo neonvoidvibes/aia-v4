@@ -1754,11 +1754,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             
             console.info("[WebSocket] Attempting to connect to URL:", wsUrl.replace(/token=.*$/, 'token=REDACTED'));
             const newWs = new WebSocket(wsUrl);
-            wsRef.current = newWs;
-            (wsRef.current as any).__intentionalClose = false;
-    
+            (newWs as any).__intentionalClose = false;
+      
             newWs.onopen = () => {
-                if (wsRef.current !== newWs) {
+              // Assign to the global ref ONLY when the connection is officially open.
+              // This prevents race conditions where other parts of the app might try to use
+              // the ref while the socket is still in the "CONNECTING" state, and it ensures
+              // the old socket (if any) remains the "current" one until this new one is ready.
+              wsRef.current = newWs;
+      
+              if (wsRef.current !== newWs) {
                     console.warn(`[WebSocket] Stale onopen event for ${newWs.url}. Ignoring.`);
                     try { newWs.close(); } catch(e){ console.warn("[WebSocket] Error closing stale newWs onopen:", e);}
                     return;
@@ -1851,6 +1856,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 }
             };
             newWs.onclose = (event) => {
+                // If the server intentionally rejected the connection because one already exists,
+                // do not attempt to reconnect. This breaks the reconnection storm loop.
+                if (event.code === 1008) {
+                    console.warn(`[WebSocket] Close received with code 1008 (Policy Violation - likely duplicate connection). Aborting reconnect.`);
+                    toast.warning("Another recording tab for this session may be active.");
+                    // Ensure we clean up this specific attempt without triggering a full reset.
+                    setWsStatus('closed');
+                    if (wsRef.current === newWs) {
+                      wsRef.current = null;
+                    }
+                    if (pendingActionRef.current === 'start') setPendingAction(null);
+                    return;
+                }
+
                 console.info(`[WebSocket] Connection closed for session ${currentSessionId}. Code: ${event.code}, Clean: ${event.wasClean}. Intentional: ${(wsRef.current as any)?.__intentionalClose}`);
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
                 if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);

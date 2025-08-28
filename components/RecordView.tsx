@@ -493,10 +493,13 @@ const RecordView: React.FC<RecordViewProps> = ({
       const wsUrl = `${wsBaseUrl}/ws/audio_stream/${sessionId}?token=${session.access_token}`;
       
       const newWs = new WebSocket(wsUrl);
-      webSocketRef.current = newWs;
       (newWs as any).__intentionalClose = false;
 
       newWs.onopen = () => {
+        // Assign to the global ref ONLY when the connection is officially open.
+        // This prevents race conditions where other parts of the app might try to use
+        // the ref while the socket is still in the "CONNECTING" state.
+        webSocketRef.current = newWs;
         if (webSocketRef.current !== newWs) return;
         console.info(`[WebSocket] Connection open. Reconnecting: ${isReconnecting}`);
         setWsStatus('open');
@@ -565,6 +568,20 @@ const RecordView: React.FC<RecordViewProps> = ({
         if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
       
         if (webSocketRef.current !== newWs) return;
+
+        // If the server intentionally rejected the connection because one already exists,
+        // do not attempt to reconnect. This breaks the reconnection storm loop.
+        if (event.code === 1008) {
+            console.warn(`[WebSocket] Close received with code 1008 (Policy Violation - likely duplicate connection). Aborting reconnect.`);
+            toast.warning("Another recording tab for this session may be active.");
+            // Ensure we clean up this specific attempt without triggering a full reset.
+            setWsStatus('closed');
+            if (webSocketRef.current === newWs) {
+              webSocketRef.current = null;
+            }
+            if (pendingActionRef.current === 'start') setPendingAction(null);
+            return;
+        }
       
         const intentional = (newWs as any).__intentionalClose || pendingActionRef.current === 'stop';
         const timestamp = new Date().toISOString();
