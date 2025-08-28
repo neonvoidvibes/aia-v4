@@ -96,8 +96,5 @@ export const predefinedThemes: ColorTheme[] = [
     name: "Ridge Glass",
     className: "theme-ridge-glass",
     isDark: true,
-    welcomeMessage: {
-      text: "What is in between?",
-    },
   },
 ];
