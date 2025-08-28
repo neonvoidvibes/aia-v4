@@ -3831,7 +3831,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 <DropdownMenuTrigger asChild>
                                   <button
                                     type="button"
-                                    className="text-sm font-medium opacity-50 hover:opacity-75 transition-opacity px-1 py-1 rounded-md focus:outline-none focus:ring-0"
+                                    className="text-sm opacity-50 hover:opacity-75 transition-opacity px-1 py-1 rounded-md focus:outline-none focus:ring-0"
                                     disabled={!isPageReady || !!pendingAction}
                                     style={{
                                       display: 'flex',
