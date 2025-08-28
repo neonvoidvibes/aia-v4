@@ -66,9 +66,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLocalization } from "@/context/LocalizationContext";
@@ -3790,24 +3794,78 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             {/* Separator line */}
                             <DropdownMenuSeparator />
                             
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                showAndPrepareRecordingControls();
-                              }}
-                              disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
-                              className={cn(
-                                "flex items-center gap-3 px-2 py-2",
-                                micButtonClass,
-                                "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
-                                isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
-                                globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
-                              )}
-                            >
-                              <Mic size={17} className="flex-shrink-0" />
-                              <span className="text-sm whitespace-nowrap">Record meeting</span>
-                            </DropdownMenuItem>
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger
+                                disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
+                                className={cn(
+                                  "flex items-center gap-3 px-2 py-2",
+                                  micButtonClass,
+                                  "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
+                                  isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
+                                  isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
+                                  globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
+                                )}
+                              >
+                                <Mic size={17} className="flex-shrink-0" />
+                                <span className="text-sm whitespace-nowrap">Record meeting</span>
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                  <DropdownMenuItem
+                                    onSelect={(e) => {
+                                      e.preventDefault();
+                                      if (!isBrowserRecording) {
+                                        handleStartRecordingSession();
+                                      } else {
+                                        handleToggleBrowserPause();
+                                      }
+                                    }}
+                                    disabled={!!pendingActionRef.current || globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
+                                    className={cn(
+                                      "flex items-center gap-3 px-2 py-2",
+                                      (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait"
+                                    )}
+                                  >
+                                    {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') ? (
+                                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                                    ) : (
+                                      !isBrowserRecording ? (
+                                        <Play size={17} className="flex-shrink-0 text-[hsl(var(--icon-primary))]" />
+                                      ) : (
+                                        isBrowserPaused ? (
+                                          <Play size={17} className="flex-shrink-0 text-yellow-500 dark:text-yellow-400" />
+                                        ) : (
+                                          <Pause size={17} className="flex-shrink-0 text-[hsl(var(--icon-destructive))]" />
+                                        )
+                                      )
+                                    )}
+                                    <span className="text-sm whitespace-nowrap">
+                                      {!isBrowserRecording ? "Start Recording" : (isBrowserPaused ? "Resume Recording" : "Pause Recording")}
+                                    </span>
+                                  </DropdownMenuItem>
+                                  
+                                  <DropdownMenuItem
+                                    onSelect={(e) => {
+                                      e.preventDefault();
+                                      handleStopRecording();
+                                    }}
+                                    disabled={!isBrowserRecording || !!pendingActionRef.current}
+                                    className={cn(
+                                      "flex items-center gap-3 px-2 py-2",
+                                      !isBrowserRecording && "opacity-50",
+                                      pendingActionRef.current === 'stop' && "opacity-50 cursor-wait"
+                                    )}
+                                  >
+                                    {pendingActionRef.current === 'stop' ? (
+                                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                                    ) : (
+                                      <StopCircle size={17} className="flex-shrink-0" />
+                                    )}
+                                    <span className="text-sm whitespace-nowrap">Stop Recording</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuSubContent>
+                              </DropdownMenuPortal>
+                            </DropdownMenuSub>
                           </DropdownMenuContent>
                         </DropdownMenu>
                         <div className="relative" ref={recordUIRef}>
