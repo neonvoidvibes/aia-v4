@@ -212,7 +212,7 @@ function HomeContent() {
   const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "some" | "latest" | "all">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"none" | "some" | "all">("none");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
-  const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness>(1);
+  const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness>(2);
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
 
   // Fullscreen mode state
@@ -967,7 +967,7 @@ function HomeContent() {
     }
   }, [individualRawTranscriptToggleStates, pageAgentName]);
 
-  // Load and persist transcriptionLanguage (agent-specific)
+  // Load and persist VAD aggressiveness (agent-specific)
   useEffect(() => {
     if (pageAgentName) {
       const key = `vadAggressivenessSetting_${pageAgentName}`;
@@ -975,8 +975,8 @@ function HomeContent() {
       if (savedValue && ["1", "2", "3"].includes(savedValue)) {
         setVadAggressiveness(parseInt(savedValue, 10) as VADAggressiveness);
       } else {
-        setVadAggressiveness(1); // Default to 'Quiet'
-        localStorage.setItem(key, "1");
+        setVadAggressiveness(2); // Default to 'Mid'
+        localStorage.setItem(key, "2");
       }
     }
   }, [pageAgentName]);
