@@ -64,6 +64,7 @@ import { MODEL_GROUPS, MODEL_DISPLAY_NAMES_MAP } from "@/lib/model-map";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -886,7 +887,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => { messagesRef.current = messages; }, [messages]);
 
     
-    const plusMenuRef = useRef<HTMLDivElement>(null);
     const recordUIRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -913,7 +913,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     // NOTE: The 'Simple' view is the standard/default view for the application.
     // All primary UI elements, including the recording timer, are handled in the parent `page.tsx` component.
     // This component manages the chat and recording state logic.
-    const [showPlusMenu, setShowPlusMenu] = useState(false);
     const [showRecordUI, setShowRecordUI] = useState(false); 
     const [recordUIVisible, setRecordUIVisible] = useState(true); 
     const [attachedFiles, setAttachedFiles] = useState<AttachmentFile[]>([]);
@@ -2000,8 +1999,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const showAndPrepareRecordingControls = useCallback(() => {
         debugLog(`[Recording Controls UI] Show/Prepare. Pending: ${pendingActionRef.current}, GlobalRec: ${globalRecordingStatus.isRecording}`);
         if (pendingActionRef.current) return;
-        setShowPlusMenu(false);
-        if (globalRecordingStatus.isRecording && globalRecordingStatus.type === 'long-form-chat') {
+                if (globalRecordingStatus.isRecording && globalRecordingStatus.type === 'long-form-chat') {
              setShowRecordUI(true);
              setRecordUIVisible(true);
              if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
@@ -2416,10 +2414,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                  }
              }
              
-             // Handle plus menu click outside
-             if (showPlusMenu && plusMenuRef.current && !plusMenuRef.current.contains(target)) {
-                 setShowPlusMenu(false);
-             }
          };
          
          document.addEventListener("mousedown", handleClick, true);
@@ -2429,7 +2423,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
              document.removeEventListener("mousedown", handleClick, true);
              document.removeEventListener("touchstart", handleClick, true);
          };
-     }, [showRecordUI, showPlusMenu, hideRecordUI, isBrowserRecordingRef.current, pendingActionRef.current]);
+     }, [showRecordUI, hideRecordUI, isBrowserRecordingRef.current, pendingActionRef.current]);
 
     useEffect(() => { 
          const el = statusRecordingRef.current; if (!el) return;
@@ -2458,7 +2452,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [handleStartRecordingSession, handleToggleBrowserPause]);
 
-    const saveChat = useCallback(() => { console.info("[Save Chat] Initiated."); const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); setShowPlusMenu(false); }, [messages, agentName, eventId]);
+    const saveChat = useCallback(() => { console.info("[Save Chat] Initiated."); const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }, [messages, agentName, eventId]);
 
 
     const executeSaveConversation = useCallback(async () => {
@@ -2660,8 +2654,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [agentName, addErrorMessage, onHistoryRefreshNeeded, savedMessageIds, conversationSaveMarkerMessageId, conversationMemoryId]);
 
     const handleSaveChatToMemory = () => {
-        setShowPlusMenu(false);
-        if (conversationMemoryId) {
+                if (conversationMemoryId) {
             setConfirmationRequest({ type: 'forget-conversation', memoryId: conversationMemoryId });
         } else {
             setConfirmationRequest({ type: 'save-conversation' });
@@ -2676,17 +2669,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setConfirmationRequest({ type: 'save-message', message });
         }
     };
-    const attachDocument = useCallback(() => { debugLog("[Attach Document] Triggered."); fileInputRef.current?.click(); setShowPlusMenu(false); }, []);
+    const attachDocument = useCallback(() => { debugLog("[Attach Document] Triggered."); fileInputRef.current?.click(); }, []);
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) { const newFiles = Array.from(e.target.files).map((file) => ({ id: Math.random().toString(36).substring(2, 9), name: file.name, size: file.size, type: file.type, url: URL.createObjectURL(file), })); setAttachedFiles((prev) => [...prev, ...newFiles]); debugLog("[File Change] Files attached:", newFiles.map(f=>f.name)); } if (fileInputRef.current) fileInputRef.current.value = ""; }, []);
     const removeFile = useCallback((id: string) => { debugLog("[Remove File] Removing file ID:", id); setAttachedFiles((prev) => { const fileToRemove = prev.find((file) => file.id === id); if (fileToRemove?.url) URL.revokeObjectURL(fileToRemove.url); return prev.filter((file) => file.id !== id); }); }, []);
     const handleRecordUIMouseMove = useCallback(() => { if (isBrowserRecordingRef.current) { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); setRecordUIVisible(true); startHideTimeout(); }}, [startHideTimeout]);
-    const handlePlusMenuClick = useCallback((e: React.MouseEvent) => { 
-      e.stopPropagation(); 
-      if (showRecordUI && !isBrowserRecordingRef.current) hideRecordUI(); 
-      
-      // Always toggle plus menu - this is the controls menu, not settings
-      setShowPlusMenu(prev => !prev);
-    }, [showRecordUI, hideRecordUI]);
     const handleMessageInteraction = useCallback((id: string) => {
         if (isMobile) {
             setSelectedMessage(prev => prev === id ? null : id);
@@ -3730,76 +3716,100 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                         />
                       </div>
                       <div className="flex items-center justify-between w-full mt-1">
-                        <div className="relative" ref={plusMenuRef}>
-                          <button type="button" className={cn("p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-button", (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed")} onClick={handlePlusMenuClick} aria-label="More options" disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}>
-                            <SlidersIcon size={24} className="mobile-icon chat-sliders-icon" />
-                          </button>
-                        {showPlusMenu && (
-                            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.2 }} className="absolute left-0 bottom-full mb-2 rounded-xl py-2 px-2 z-10" style={{ backgroundColor: "hsl(var(--input-gray))", boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 15px 15px -5px rgba(0, 0, 0, 0.15), 0 5px 5px -5px rgba(0, 0, 0, 0.1)", display: 'flex', flexDirection: 'column', alignItems: 'stretch', width: '200px' }}>
-                              {/* File attachment - Hidden if workspace config specifies */}
-                              {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
-                                <button type="button" className="text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" onClick={attachDocument} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', margin: '2px 0', borderRadius: '8px', width: '100%', textAlign: 'left', justifyContent: 'flex-start', backgroundColor: 'transparent', border: 'none' }}>
-                                  <Paperclip size={17} style={{ flexShrink: 0 }} />
-                                  <span style={{ fontSize: '14px', whiteSpace: 'nowrap' }}>Add photos & files</span>
-                                </button>
-                              )}
-                              
-                              {/* Separator line */}
-                              {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
-                                <div className="mx-2 h-px my-2 plus-menu-separator" style={{ backgroundColor: "hsl(var(--icon-secondary) / 0.2)" }} />
-                              )}
-                              
-                              <button
-                                type="button"
-                                className={cn(
-                                  "plus-menu-item-with-text ",
-                                  conversationSaveMarkerMessageId
-                                    ? "text-[hsl(var(--save-memory-color))]"
-                                    : "text-[hsl(var(--icon-secondary))]",
-                                  (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading)
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : !conversationSaveMarkerMessageId ? "hover:text-[hsl(var(--icon-primary))]" : ""
-                                )}
-                                onClick={handleSaveChatToMemory}
-                                disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button 
+                              type="button" 
+                              className={cn(
+                                "p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-button",
+                                (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed"
+                              )} 
+                              aria-label="More options" 
+                              disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}
+                            >
+                              <SlidersIcon size={24} className="mobile-icon chat-sliders-icon" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" side="top" className="w-[200px]">
+                            {/* File attachment - Hidden if workspace config specifies */}
+                            {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  attachDocument();
+                                }}
+                                className="flex items-center gap-3 px-2 py-2"
                               >
-                               <Bookmark
-                                  size={17}
-                                  className={cn(
-                                    "mobile-icon-small flex-shrink-0",
-                                    conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
-                                  )}
-                                />
-                                <span className="text-sm whitespace-nowrap">Save to memory</span>
-                              </button>
-                              
-                              <button type="button" className="plus-menu-item-with-text text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] " onClick={saveChat}>
-                                <Download size={17} className="mobile-icon-small flex-shrink-0" />
-                                <span className="text-sm whitespace-nowrap">Download chat</span>
-                              </button>
-                              
-                              {/* Separator line */}
-                              <div className="mx-2 h-px my-2 plus-menu-separator" style={{ backgroundColor: "hsl(var(--icon-secondary) / 0.2)" }} />
-                              
-                              <button
-                                type="button"
+                                <Paperclip size={17} className="flex-shrink-0" />
+                                <span className="text-sm whitespace-nowrap">Add photos & files</span>
+                              </DropdownMenuItem>
+                            )}
+                            
+                            {/* Separator line */}
+                            {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
+                              <DropdownMenuSeparator />
+                            )}
+                            
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleSaveChatToMemory();
+                              }}
+                              disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
+                              className={cn(
+                                "flex items-center gap-3 px-2 py-2",
+                                conversationSaveMarkerMessageId
+                                  ? "text-[hsl(var(--save-memory-color))]"
+                                  : "text-[hsl(var(--icon-secondary))]",
+                                (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading)
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : !conversationSaveMarkerMessageId ? "hover:text-[hsl(var(--icon-primary))]" : ""
+                              )}
+                            >
+                              <Bookmark
+                                size={17}
                                 className={cn(
-                                  "plus-menu-item-with-text ",
-                                  micButtonClass,
-                                  "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                  isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
-                                  isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
-                                  globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
+                                  "flex-shrink-0",
+                                  conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
                                 )}
-                                onClick={showAndPrepareRecordingControls}
-                                disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
-                              >
-                                <Mic size={17} className="mobile-icon-small flex-shrink-0" />
-                                <span className="text-sm whitespace-nowrap">Record meeting</span>
-                              </button>
-                            </motion.div>
-                          )}
-                        </div>
+                              />
+                              <span className="text-sm whitespace-nowrap">Save to memory</span>
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                saveChat();
+                              }}
+                              className="flex items-center gap-3 px-2 py-2"
+                            >
+                              <Download size={17} className="flex-shrink-0" />
+                              <span className="text-sm whitespace-nowrap">Download chat</span>
+                            </DropdownMenuItem>
+                            
+                            {/* Separator line */}
+                            <DropdownMenuSeparator />
+                            
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                showAndPrepareRecordingControls();
+                              }}
+                              disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
+                              className={cn(
+                                "flex items-center gap-3 px-2 py-2",
+                                micButtonClass,
+                                "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
+                                isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
+                                isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
+                                globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              <Mic size={17} className="flex-shrink-0" />
+                              <span className="text-sm whitespace-nowrap">Record meeting</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         <div className="relative" ref={recordUIRef}>
                           {showRecordUI && isBrowserRecording && (
                             <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.3 }} className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" onMouseMove={handleRecordUIMouseMove} onClick={(e) => e.stopPropagation()}>
