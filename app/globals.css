@@ -967,6 +967,7 @@ body {
 
 /* New styles for plus menu items with text */
 .plus-menu-item-with-text {
+  color: hsl(var(--input-field-text-color));
   border-radius: 8px;
   transition: background-color 0.2s ease;
   text-align: left;
@@ -1744,7 +1745,7 @@ button {
   color: hsl(var(--user-input-text)) !important;
 } */
 
-.plus-menu-item { color: hsl(var(--text-secondary)); }
+.plus-menu-item { color: hsl(var(--input-field-text-color)); }
 .plus-menu-item:hover { color: hsl(var(--text-primary)); }
 
 /* Disabled bookmark button styles - higher specificity */
