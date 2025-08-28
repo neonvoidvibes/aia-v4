@@ -27,12 +27,6 @@ export const G_DEFAULT_WELCOME_MESSAGE: WelcomeMessageConfig = {
 export const predefinedThemes: ColorTheme[] = [
   // Light themes
   {
-    name: "White",
-    className: "theme-white",
-    isDark: false,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
-  },
-  {
     name: "Desert Mirage",
     className: "theme-desert-mirage",
     isDark: false,
