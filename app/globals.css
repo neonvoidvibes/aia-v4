@@ -8,57 +8,57 @@
 /* These variables define the default dark theme and are used by Shadcn components */
 :root {
   /* Base colors */
-  --background: 0 0% 12%; /* Dark background */
-  --foreground: 0 0% 100%; /* White foreground */
+  --background: 240 6% 10%; /* Very dark desaturated blue/grey */
+  --foreground: 240 5% 85%; /* Light grey */
 
   /* UI elements */
   --radius: 1.5rem;
-  --input-gray: 0 0% 32%; /* Changed to a darker gray for dark mode input/bubbles */
-  --status-bar: 0 0% 40%;
-  --placeholder-text: 0 0% 55%;
+  --input-gray: 240 6% 15%; /* Darker grey for inputs/bubbles */
+  --status-bar: 240 5% 40%;
+  --placeholder-text: 240 5% 50%;
 
   /* Text colors */
-  --text-primary: 0 0% 100%;
-  --text-secondary: 0 0% 80%;
-  --text-muted: 0 0% 60%;
+  --text-primary: 240 5% 90%;
+  --text-secondary: 240 5% 75%;
+  --text-muted: 240 5% 60%;
 
   /* Shadcn Component Variables (Dark Defaults) */
-  --card: 220 13% 40%; /* Match dark background */
-  --popover: 220 13% 40%;
-  --primary: 0 0% 98%; /* White */
-  --primary-foreground: 0 0% 9%; /* Black */
-  --secondary: 0 0% 14.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%; /* Darker gray for muted elements */
-  --accent: 0 0% 14.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 25%; /* Slightly lighter border */
-  --input: 0 0% 25%;
-  --ring: 0 0% 83.1%;
+  --card: 240 6% 12%;
+  --popover: 240 6% 12%;
+  --primary: 210 80% 60%; /* Muted Electric Blue */
+  --primary-foreground: 240 5% 95%; /* Lighter grey for contrast */
+  --secondary: 240 6% 20%;
+  --secondary-foreground: 240 5% 88%;
+  --muted: 240 6% 18%; /* For TabList background */
+  --accent: 240 6% 22%;
+  --accent-foreground: 210 80% 70%;
+  --destructive: 0 70% 55%; /* Muted Red */
+  --destructive-foreground: 0 0% 95%;
+  --border: 240 6% 25%;
+  --input: 240 6% 25%;
+  --ring: 210 80% 60%;
 
   /* Custom Button State Variables (Defaults adjusted for dark mode first) */
-  --button-active: 0 0% 95%; /* Dark mode active: Near white */
-  --button-active-bg: transparent; /* Dark mode active bg: Transparent */
-  --button-inactive: 0 0% 60%; /* Dark mode inactive: Mid-light gray */
+  --button-active: 240 5% 90%;
+  --button-active-bg: transparent;
+  --button-inactive: 240 5% 65%;
 
   /* New Semantic CSS Variables for UI elements */
   --status-bar-text-color: hsl(var(--status-bar)); /* Color for status bar text */
   --placeholder-text-color: hsl(var(--placeholder-text));
-  --button-submit-bg-active: 0 0% 90%; /* Near white for dark mode active submit button BG */
-  --button-submit-fg-active: 0 0% 10%; /* Dark fg for dark mode active submit button */
-  --button-submit-bg-inactive: 0 0% 25%; /* Darker gray for dark mode inactive submit BG */
-  --button-submit-fg-inactive: 0 0% 60%; /* Lighter gray fg for dark mode inactive submit */
-  --button-submit-bg-stop: 0 0% 35%; /* Themed gray for dark mode stop button BG */
-  --button-submit-fg-stop: 0 0% 90%; /* Light fg for dark mode stop button */
+  --button-submit-bg-active: 210 80% 55%; /* Muted Electric Blue BG */
+  --button-submit-fg-active: 240 5% 95%;   /* Light grey FG */
+  --button-submit-bg-inactive: 240 6% 22%; /* Darker grey BG */
+  --button-submit-fg-inactive: 240 5% 60%;   /* Mid grey FG */
+  --button-submit-bg-stop: 240 6% 30%; /* Themed grey for stop button */
+  --button-submit-fg-stop: 240 5% 90%; /* Light grey for stop button */
   
-  --icon-primary: 0 0% 90%; /* Primary icon color for dark mode */
-  --icon-secondary: 0 0% 70%; /* Secondary icon color for dark mode */
-  --icon-active: 0 0% 100%; /* Active icon color for dark mode (e.g. recording) */
-  --icon-inactive: 0 0% 50%; /* Inactive/disabled icon color for dark mode */
-  --icon-destructive: 0 84.2% 60.2%; /* Destructive icon color */
-  --save-memory-color: 220 85% 75%; /* Added: For saved memory highlights */
+  --icon-primary: 240 5% 88%;
+  --icon-secondary: 240 5% 70%;
+  --icon-active: 210 90% 70%; /* Brighter Electric Blue for recording active */
+  --icon-inactive: 240 5% 50%;
+  --icon-destructive: 0 70% 55%;
+  --save-memory-color: 300 50% 70%; /* Added: For saved memory highlights */
 
   /* NEW: Text color variables for chat interface elements - Default Theme */
   --input-field-text-color: var(--foreground);
@@ -294,57 +294,6 @@
   --assistant-message-text-color: var(--foreground);
 }
 
-/* Midnight Monochrome Theme */
-.theme-midnight-monochrome {
-  --background: 240 6% 10%; /* Very dark desaturated blue/grey */
-  --foreground: 240 5% 85%; /* Light grey */
-  --input-gray: 240 6% 15%; /* Darker grey for inputs/bubbles */
-  --status-bar: 240 5% 40%;
-  --placeholder-text: 240 5% 50%;
-  --text-primary: 240 5% 90%;
-  --text-secondary: 240 5% 75%;
-  --text-muted: 240 5% 60%;
-
-  /* Shadcn variables */
-  --card: 240 6% 12%;
-  --popover: 240 6% 12%;
-  --primary: 210 80% 60%; /* Muted Electric Blue */
-  --primary-foreground: 240 5% 95%; /* Lighter grey for contrast */
-  --secondary: 240 6% 20%;
-  --secondary-foreground: 240 5% 88%;
-  --muted: 240 6% 18%; /* For TabList background */
-  --accent: 240 6% 22%;
-  --accent-foreground: 210 80% 70%;
-  --destructive: 0 70% 55%; /* Muted Red */
-  --destructive-foreground: 0 0% 95%;
-  --border: 240 6% 25%;
-  --input: 240 6% 25%;
-  --ring: 210 80% 60%;
-
-  /* Custom Semantic Variables */
-  --button-submit-bg-active: 210 80% 55%; /* Muted Electric Blue BG */
-  --button-submit-fg-active: 240 5% 95%;   /* Light grey FG */
-  --button-submit-bg-inactive: 240 6% 22%; /* Darker grey BG */
-  --button-submit-fg-inactive: 240 5% 60%;   /* Mid grey FG */
-  --button-submit-bg-stop: 240 6% 30%; /* Themed grey for stop button */
-  --button-submit-fg-stop: 240 5% 90%; /* Light grey for stop button */
-  
-  --icon-primary: 240 5% 88%;
-  --icon-secondary: 240 5% 70%;
-  --icon-active: 210 90% 70%; /* Brighter Electric Blue for recording active */
-  --icon-inactive: 240 5% 50%;
-  --icon-destructive: 0 70% 55%;
-  --save-memory-color: 300 50% 70%; /* Added: For saved memory highlights */
-
-  /* Overrides for specific components if needed for this theme */
-  --button-active: 240 5% 90%;
-  --button-inactive: 240 5% 65%;
-
-  /* NEW: Text color variables for chat interface elements - Midnight Monochrome Theme */
-  --input-field-text-color: var(--foreground);
-  --user-message-text-color: var(--foreground);
-  --assistant-message-text-color: var(--foreground);
-}
 
 
 
@@ -2513,11 +2462,6 @@ button {
   background-color: hsla(90, 60%, 45%, 0.25) !important;
 }
 
-/* Midnight Monochrome theme - Electric blue */
-.theme-midnight-monochrome .scroll-thumb-custom {
-  background-color: hsla(210, 80%, 60%, 0.25) !important;
-}
-
 /* Desert Mirage theme - Deep ochre/burnt orange */
 .theme-desert-mirage .scroll-thumb-custom {
   background-color: hsla(30, 80%, 50%, 0.25) !important;
@@ -2733,14 +2677,19 @@ button {
 }
 
 /* Make top-left header icons (Sidebar toggle, New Chat) green */
-.theme-tenant .absolute.top-\[15px\].left-4 button,
+.theme-tenant button[aria-label="Open sidebar"],
 .theme-tenant button[aria-label="Start new chat"] {
-  color: hsl(var(--input-gray)) !important; /* Green */
+  color: hsl(var(--input-gray)) !important; /* Green static color for both */
 }
 
-.theme-tenant .absolute.top-\[15px\].left-4 button:hover,
+/* Specific hover state for New Chat button */
 .theme-tenant button[aria-label="Start new chat"]:hover {
   color: hsl(var(--input-gray) / 0.8) !important; /* Dimmed green on hover */
+}
+
+/* Specific hover state for Sidebar toggle */
+.theme-tenant button[aria-label="Open sidebar"]:hover {
+  color: hsl(var(--icon-primary)) !important; /* Dimmed white on hover, like the close button */
 }
 
 .theme-moderbyn .chat-input-layout .chat-sliders-icon,

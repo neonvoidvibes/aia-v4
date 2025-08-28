@@ -40,12 +40,6 @@ export const predefinedThemes: ColorTheme[] = [
   },
   // Dark themes
   {
-    name: "Midnight Mono",
-    className: "theme-midnight-monochrome",
-    isDark: true,
-    welcomeMessage: G_DEFAULT_WELCOME_MESSAGE,
-  },
-  {
     name: "Neon",
     className: "theme-neon-sunset",
     isDark: true,
