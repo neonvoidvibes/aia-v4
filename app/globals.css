@@ -1346,8 +1346,8 @@ body {
   background-color: hsl(var(--input-gray) / 0.3); /* Use translucent input gray for all themes */
   color: hsl(var(--button-submit-bg-active)); /* Use active submit button BG color for arrow */
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 28px;   /* was 40px; reduce ~30% */
+  height: 28px;  /* was 40px; reduce ~30% */
   display: flex;
   align-items: center;
   justify-content: center;

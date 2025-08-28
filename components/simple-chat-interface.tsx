@@ -3637,7 +3637,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 // Don't automatically activate minimal padding when clicking scroll-to-bottom
                 scrollToBottom();
               }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
-                <ArrowDown size={24} />
+                <ArrowDown size={18} />
               </button>
             )}
 
