@@ -1953,13 +1953,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Use toast only, no chat system message
         toast.warning(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
         
+        const prevDelay = prevDelayRef.current;
         const delay = nextReconnectDelay(
-          prevDelayRef.current,
+          prevDelay,
           { isRecording: isBrowserRecordingRef.current === true }
         );
         prevDelayRef.current = delay;
         
-        console.log(`[Reconnect] Scheduling attempt ${nextAttempt} in ${delay.toFixed(0)}ms (base: ${RECONNECT_DELAY_BASE_MS}, backoff: ${backoff}x, jitter: ${jitter.toFixed(0)}ms)`);
+        console.log(
+          `[Reconnect] Scheduling attempt ${nextAttempt} in ${Math.round(delay)}ms` +
+          (prevDelay ? ` (prev: ${Math.round(prevDelay)}ms)` : "") +
+          `, recording: ${isBrowserRecordingRef.current === true}`
+        );
     
         reconnectTimeoutRef.current = setTimeout(() => {
             if (!navigator.onLine) {
