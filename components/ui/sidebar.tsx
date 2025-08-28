@@ -194,7 +194,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {!isOpen && (
         <Button onClick={onOpen} variant="ghost" className="p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors">
           {isMobile ? (
-            <ChevronRight className="!h-6 !w-6" />
+            <ChevronRight className="!h-7 !w-7" />
           ) : (
             <SidebarIcon className="!h-5 !w-5" />
           )}
@@ -218,7 +218,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SheetTitle className="text-xl font-bold pl-2 mt-[10px]">River AI</SheetTitle>
               <Button onClick={onClose} variant="ghost" className="p-2 rounded-md">
                 {isMobile ? (
-                  <ChevronLeft className="!h-6 !w-6" />
+                  <ChevronLeft className="!h-7 !w-7" />
                 ) : (
                   <SidebarIcon className="!h-5 !w-5" />
                 )}
