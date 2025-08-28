@@ -3,6 +3,13 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo, ChangeEvent } from "react"
 import { useChat, type Message } from "@ai-sdk/react"
 import { type FetchedFile } from "@/components/FetchedFileListItem"
+import {
+  HEARTBEAT_INTERVAL_MS,
+  PONG_TIMEOUT_MS,
+  MAX_HEARTBEAT_MISSES,
+  adjusted,
+  nextReconnectDelay,
+} from "@/lib/wsPolicy"
 
 // Error message type for UI-specific error handling
 interface ErrorMessage {
@@ -493,12 +500,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isBrowserPaused, setIsBrowserPaused] = useState(false);    
     const [clientRecordingTime, setClientRecordingTime] = useState(0); 
     const [isReconnecting, setIsReconnecting] = useState(false);
-    // Industry-standard reconnection and heartbeat parameters
+    // Industry-standard reconnection parameters
     const MAX_RECONNECT_ATTEMPTS = 10;
-    const RECONNECT_DELAY_BASE_MS = 2500; // Start with a 2.5s base delay
-    const HEARTBEAT_INTERVAL_MS = 15000; // Ping every 15 seconds (reduced from 25s)
-    const PONG_TIMEOUT_MS = 8000; // Wait 8 seconds for a pong response (reduced from 10s)
-    const MAX_HEARTBEAT_MISSES = 2; // Try ping/pong twice before considering connection dead
 
     const wsRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -519,6 +522,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
     
     const reconnectAttemptsRef = useRef(0);
+    const prevDelayRef = useRef<number | null>(null);
+    const stablePongsResetTimerRef = useRef<number | null>(null);
     const heartbeatMissesRef = useRef(0);
     const isStoppingRef = useRef(false);
 
@@ -1774,14 +1779,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 console.info(`[WebSocket] Connection opened for session ${currentSessionId}. Reconnecting: ${isReconnectingRef.current}`);
                 setWsStatus('open');
                 
+                // reset backoff on a clean open
+                reconnectAttemptsRef.current = 0;
+                prevDelayRef.current = null;
+                // reset "stable pongs" timer
+                if (stablePongsResetTimerRef.current) {
+                  clearTimeout(stablePongsResetTimerRef.current);
+                  stablePongsResetTimerRef.current = null;
+                }
+                
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
                 if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
                 heartbeatMissesRef.current = 0; 
                 
                 heartbeatIntervalRef.current = setInterval(() => {
                     if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
-                        if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-                            console.warn("[Heartbeat] Already at max misses, closing connection to trigger reconnect.");
+                        // Do NOT client-close while recording; let the server own the cutoff.
+                        if (!isBrowserRecordingRef.current && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+                            console.warn("[Heartbeat] Already at max misses (not recording), closing connection to trigger reconnect.");
                             newWs.close(1000, "Heartbeat timeout after multiple attempts");
                             return;
                         }
@@ -1794,19 +1809,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             heartbeatMissesRef.current++;
                             console.warn(`[Heartbeat] Pong not received in time (miss ${heartbeatMissesRef.current}/${MAX_HEARTBEAT_MISSES})`);
                             
-                            if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-                                console.error("[Heartbeat] Max heartbeat misses reached. Closing connection to trigger reconnect.");
-                                if (isBrowserRecordingRef.current && !isBrowserPaused) {
-                                    handleToggleBrowserPause(true); 
-                                }
+                            // Do NOT client-close while recording; let the server own the cutoff.
+                            if (!isBrowserRecordingRef.current && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+                                console.error("[Heartbeat] Max heartbeat misses reached (not recording). Closing connection to trigger reconnect.");
                                 newWs.close(1000, "Heartbeat timeout");
                             }
-                        }, PONG_TIMEOUT_MS);
+                        }, adjusted(PONG_TIMEOUT_MS));
 
                     } else if (newWs.readyState !== WebSocket.OPEN && heartbeatIntervalRef.current) {
                         clearInterval(heartbeatIntervalRef.current);
                     }
-                }, HEARTBEAT_INTERVAL_MS);
+                }, adjusted(HEARTBEAT_INTERVAL_MS));
                 
                 if (isReconnectingRef.current) {
                     console.info("[WebSocket onopen] Re-opened during reconnect. Resuming recorder and waiting for pong to finalize state.");
@@ -1830,6 +1843,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
                             heartbeatMissesRef.current = 0; 
                             debugLog("[Heartbeat] Pong received.");
+                            
+                            // after 30s of stable pongs, zero the backoff attempts
+                            if (!stablePongsResetTimerRef.current) {
+                              const t = window.setTimeout(() => {
+                                reconnectAttemptsRef.current = 0;
+                                prevDelayRef.current = null;
+                                stablePongsResetTimerRef.current = null;
+                              }, 30000);
+                              stablePongsResetTimerRef.current = t;
+                            }
 
                             if (isReconnectingRef.current) {
                                 console.info("[WebSocket onmessage] First pong after reconnect received. Finalizing reconnect state.");
@@ -1861,16 +1884,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             newWs.onclose = (event) => {
                 // If the server intentionally rejected the connection because one already exists,
                 // do not attempt to reconnect. This breaks the reconnection storm loop.
+                // 1008 = policy violation (duplicate connection) → do not reconnect
                 if (event.code === 1008) {
                     console.warn(`[WebSocket] Close received with code 1008 (Policy Violation - likely duplicate connection). Aborting reconnect.`);
                     toast.warning("Another recording tab for this session may be active.");
-                    // Ensure we clean up this specific attempt without triggering a full reset.
                     setWsStatus('closed');
                     if (wsRef.current === newWs) {
                       wsRef.current = null;
                     }
+                    setIsReconnecting(false);
+                    reconnectAttemptsRef.current = 0;
+                    prevDelayRef.current = null;
                     if (pendingActionRef.current === 'start') setPendingAction(null);
                     return;
+                }
+                // 1005/1006 = abnormal/no close; treat as transient, avoid long waits
+                if (event.code === 1005 || event.code === 1006) {
+                  prevDelayRef.current = 1000; // bias nextReconnectDelay to ~1s
                 }
 
                 console.info(`[WebSocket] Connection closed for session ${currentSessionId}. Code: ${event.code}, Clean: ${event.wasClean}. Intentional: ${(wsRef.current as any)?.__intentionalClose}`);
@@ -1923,9 +1953,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         // Use toast only, no chat system message
         toast.warning(`Connection lost. Recording paused. Attempting to reconnect (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
         
-        const backoff = Math.pow(2, nextAttempt - 1);
-        const jitter = Math.random() * 1000; // Add up to 1s of random delay
-        const delay = (RECONNECT_DELAY_BASE_MS * backoff) + jitter;
+        const delay = nextReconnectDelay(
+          prevDelayRef.current,
+          { isRecording: isBrowserRecordingRef.current === true }
+        );
+        prevDelayRef.current = delay;
         
         console.log(`[Reconnect] Scheduling attempt ${nextAttempt} in ${delay.toFixed(0)}ms (base: ${RECONNECT_DELAY_BASE_MS}, backoff: ${backoff}x, jitter: ${jitter.toFixed(0)}ms)`);
     

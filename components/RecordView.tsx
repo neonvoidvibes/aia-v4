@@ -7,6 +7,13 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useMobile } from '@/hooks/use-mobile';
 import {
+  HEARTBEAT_INTERVAL_MS,
+  PONG_TIMEOUT_MS,
+  MAX_HEARTBEAT_MISSES,
+  adjusted,
+  nextReconnectDelay,
+} from '@/lib/wsPolicy';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -109,6 +116,8 @@ const RecordView: React.FC<RecordViewProps> = ({
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const reconnectAttemptsRef = useRef(0);
+  const prevDelayRef = useRef<number | null>(null);
+  const stablePongsResetTimerRef = useRef<number | null>(null);
   const isStoppingRef = useRef(false);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -175,12 +184,8 @@ const RecordView: React.FC<RecordViewProps> = ({
     debugLog("[Save Recordings] Persisted", savedRecordingIds.size, "saved recordings to localStorage");
   }, [savedRecordingIds, agentName]);
 
-  // Industry-standard reconnection and heartbeat parameters
+  // Industry-standard reconnection parameters
   const MAX_RECONNECT_ATTEMPTS = 10;
-  const RECONNECT_DELAY_BASE_MS = 2500;
-  const HEARTBEAT_INTERVAL_MS = 25000;
-  const PONG_TIMEOUT_MS = 10000;
-  const MAX_HEARTBEAT_MISSES = 2;
   const heartbeatMissesRef = useRef(0);
   const pingStartTime = useRef<number>(0);
 
@@ -504,26 +509,33 @@ const RecordView: React.FC<RecordViewProps> = ({
         console.info(`[WebSocket] Connection open. Reconnecting: ${isReconnecting}`);
         setWsStatus('open');
         
+        reconnectAttemptsRef.current = 0;
+        prevDelayRef.current = null;
+        if (stablePongsResetTimerRef.current) {
+          clearTimeout(stablePongsResetTimerRef.current);
+          stablePongsResetTimerRef.current = null;
+        }
+        
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
         if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
         heartbeatMissesRef.current = 0;
         
         heartbeatIntervalRef.current = setInterval(() => {
           if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
-            if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-              newWs.close(1000, "Heartbeat timeout");
+            if (!globalRecordingStatusRef.current.isRecording && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+              newWs.close(1000, "Heartbeat timeout (not recording)");
               return;
             }
             pingStartTime.current = Date.now();
             newWs.send(JSON.stringify({action: 'ping'}));
             pongTimeoutRef.current = setTimeout(() => {
               heartbeatMissesRef.current++;
-              if (heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-                newWs.close(1000, "Heartbeat timeout");
+              if (!globalRecordingStatusRef.current.isRecording && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
+                newWs.close(1000, "Heartbeat timeout (not recording)");
               }
-            }, PONG_TIMEOUT_MS);
+            }, adjusted(PONG_TIMEOUT_MS));
           }
-        }, HEARTBEAT_INTERVAL_MS);
+        }, adjusted(HEARTBEAT_INTERVAL_MS));
         
         if (isReconnecting) {
           if (mediaRecorderRef.current?.state === "paused") {
@@ -546,6 +558,17 @@ const RecordView: React.FC<RecordViewProps> = ({
               console.warn('[Network] High latency detected:', rtt);
             }
             heartbeatMissesRef.current = 0;
+            
+            // after 30s of stable pongs, zero the backoff attempts
+            if (!stablePongsResetTimerRef.current) {
+              const t = window.setTimeout(() => {
+                reconnectAttemptsRef.current = 0;
+                prevDelayRef.current = null;
+                stablePongsResetTimerRef.current = null;
+              }, 30000);
+              stablePongsResetTimerRef.current = t;
+            }
+            
             if (isReconnecting) {
               setIsReconnecting(false);
               reconnectAttemptsRef.current = 0;
@@ -571,16 +594,23 @@ const RecordView: React.FC<RecordViewProps> = ({
 
         // If the server intentionally rejected the connection because one already exists,
         // do not attempt to reconnect. This breaks the reconnection storm loop.
+        // 1008 = policy violation (duplicate connection) → do not reconnect
         if (event.code === 1008) {
             console.warn(`[WebSocket] Close received with code 1008 (Policy Violation - likely duplicate connection). Aborting reconnect.`);
             toast.warning("Another recording tab for this session may be active.");
-            // Ensure we clean up this specific attempt without triggering a full reset.
             setWsStatus('closed');
             if (webSocketRef.current === newWs) {
               webSocketRef.current = null;
             }
+            setIsReconnecting(false);
+            reconnectAttemptsRef.current = 0;
+            prevDelayRef.current = null;
             if (pendingActionRef.current === 'start') setPendingAction(null);
             return;
+        }
+        // 1005/1006 = abnormal/no close; treat as transient, avoid long waits
+        if (event.code === 1005 || event.code === 1006) {
+          prevDelayRef.current = 1000; // bias nextReconnectDelay to ~1s
         }
       
         const intentional = (newWs as any).__intentionalClose || pendingActionRef.current === 'stop';
@@ -622,7 +652,11 @@ const RecordView: React.FC<RecordViewProps> = ({
     const attempt = reconnectAttemptsRef.current;
     toast.info(`Connection lost. Paused. Reconnecting (${attempt}/${MAX_RECONNECT_ATTEMPTS})...`);
     
-    const delay = (RECONNECT_DELAY_BASE_MS * Math.pow(2, attempt - 1)) + (Math.random() * 1000);
+    const delay = nextReconnectDelay(
+      prevDelayRef.current,
+      { isRecording: globalRecordingStatusRef.current.isRecording === true }
+    );
+    prevDelayRef.current = delay;
     reconnectTimeoutRef.current = setTimeout(() => {
       const sessionId = currentSessionId;
       if (sessionId) {
