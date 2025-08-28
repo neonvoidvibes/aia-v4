@@ -8,57 +8,57 @@
 /* These variables define the default dark theme and are used by Shadcn components */
 :root {
   /* Base colors */
-  --background: 240 6% 10%; /* Very dark desaturated blue/grey */
-  --foreground: 240 5% 85%; /* Light grey */
+  --background: 0 0% 4%; /* Near-black */
+  --foreground: 0 0% 98%; /* Off-white */
 
   /* UI elements */
   --radius: 1.5rem;
-  --input-gray: 240 6% 15%; /* Darker grey for inputs/bubbles */
-  --status-bar: 240 5% 40%;
-  --placeholder-text: 240 5% 50%;
+  --input-gray: 0 0% 12%; /* Dark gray for input/bubbles */
+  --status-bar: 152 80% 80%; /* Light green for status bar text */
+  --placeholder-text: 0 0% 55%;
 
   /* Text colors */
-  --text-primary: 240 5% 90%;
-  --text-secondary: 240 5% 75%;
-  --text-muted: 240 5% 60%;
+  --text-primary: 0 0% 98%;
+  --text-secondary: 0 0% 80%;
+  --text-muted: 0 0% 60%;
 
   /* Shadcn Component Variables (Dark Defaults) */
-  --card: 240 6% 12%;
-  --popover: 240 6% 12%;
-  --primary: 210 80% 60%; /* Muted Electric Blue */
-  --primary-foreground: 240 5% 95%; /* Lighter grey for contrast */
-  --secondary: 240 6% 20%;
-  --secondary-foreground: 240 5% 88%;
-  --muted: 240 6% 18%; /* For TabList background */
-  --accent: 240 6% 22%;
-  --accent-foreground: 210 80% 70%;
-  --destructive: 0 70% 55%; /* Muted Red */
-  --destructive-foreground: 0 0% 95%;
-  --border: 240 6% 25%;
-  --input: 240 6% 25%;
-  --ring: 210 80% 60%;
+  --card: 0 0% 8%;
+  --popover: 0 0% 8%;
+  --primary: 152 100% 55%; /* Accent Green #16FF93 */
+  --primary-foreground: 0 0% 5%; /* Near-black for text on green */
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 20%;
+  --accent: 152 100% 55%; /* Accent Green #16FF93 */
+  --accent-foreground: 0 0% 5%; /* Near-black for text on green */
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 25%;
+  --input: 0 0% 25%;
+  --ring: 152 100% 55%;
 
   /* Custom Button State Variables (Defaults adjusted for dark mode first) */
-  --button-active: 240 5% 90%;
-  --button-active-bg: transparent;
-  --button-inactive: 240 5% 65%;
+  --button-active: 0 0% 95%; /* Dark mode active: Near white */
+  --button-active-bg: transparent; /* Dark mode active bg: Transparent */
+  --button-inactive: 0 0% 60%; /* Dark mode inactive: Mid-light gray */
 
   /* New Semantic CSS Variables for UI elements */
   --status-bar-text-color: hsl(var(--status-bar)); /* Color for status bar text */
   --placeholder-text-color: hsl(var(--placeholder-text));
-  --button-submit-bg-active: 210 80% 55%; /* Muted Electric Blue BG */
-  --button-submit-fg-active: 240 5% 95%;   /* Light grey FG */
-  --button-submit-bg-inactive: 240 6% 22%; /* Darker grey BG */
-  --button-submit-fg-inactive: 240 5% 60%;   /* Mid grey FG */
-  --button-submit-bg-stop: 240 6% 30%; /* Themed grey for stop button */
-  --button-submit-fg-stop: 240 5% 90%; /* Light grey for stop button */
+  --button-submit-bg-active: 152 100% 55%; /* Accent Green #16FF93 */
+  --button-submit-fg-active: 0 0% 5%; /* Near-black text on submit */
+  --button-submit-bg-inactive: 0 0% 25%;
+  --button-submit-fg-inactive: 0 0% 60%;
+  --button-submit-bg-stop: 0 0% 35%;
+  --button-submit-fg-stop: 0 0% 90%;
   
-  --icon-primary: 240 5% 88%;
-  --icon-secondary: 240 5% 70%;
-  --icon-active: 210 90% 70%; /* Brighter Electric Blue for recording active */
-  --icon-inactive: 240 5% 50%;
-  --icon-destructive: 0 70% 55%;
-  --save-memory-color: 300 50% 70%; /* Added: For saved memory highlights */
+  --icon-primary: 0 0% 90%;
+  --icon-secondary: 0 0% 70%;
+  --icon-active: 152 100% 55%; /* Accent Green for recording active */
+  --icon-inactive: 0 0% 50%;
+  --icon-destructive: 0 84.2% 60.2%;
+  --save-memory-color: 152 80% 70%; /* Lighter shade of accent green */
 
   /* NEW: Text color variables for chat interface elements - Default Theme */
   --input-field-text-color: var(--foreground);
