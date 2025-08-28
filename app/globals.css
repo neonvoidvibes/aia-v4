@@ -852,7 +852,7 @@ body {
   display: flex;
   flex-direction: column;
   background-color: transparent;
-  z-index: 10;
+  z-index: 21;
   position: relative;
   /* Remove min-height to avoid fixed height behavior */
   height: auto; /* Allow it to grow */
@@ -1453,8 +1453,8 @@ body {
   bottom: calc(var(--input-area-height) + 20px) !important; /* Position relative to input area with 20px gap */
   left: 50% !important;
   transform: translateX(-50%);
-  background-color: rgba(128, 128, 128, 0.3); /* Fallback transparent background */
-  color: hsl(var(--text-secondary));
+  background-color: hsl(var(--input-gray) / 0.3); /* Use translucent input gray for all themes */
+  color: hsl(var(--button-submit-bg-active)); /* Use active submit button BG color for arrow */
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -1476,61 +1476,9 @@ body {
     bottom: calc(var(--input-area-height) + 15px) !important; /* Position relative to input area with 15px gap on mobile */
   }
 }
-/* Light mode scroll button styling */
-.light .scroll-to-bottom-button {
-  background-color: rgba(224, 224, 224, 0.3); /* Light gray with transparency */
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-.light .scroll-to-bottom-button:hover {
-  background-color: rgba(208, 208, 208, 0.4); /* Slightly less transparent on hover */
-}
-/* Dark mode scroll button styling */
-.dark .scroll-to-bottom-button {
-  background-color: rgba(66, 71, 93, 0.3); /* Made more transparent */
-  color: hsl(var(--text-secondary)); /* Keep text color */
-  backdrop-filter: blur(4px); /* Optional: Add blur for effect */
-  -webkit-backdrop-filter: blur(4px); /* Safari */
-}
-.dark .scroll-to-bottom-button:hover {
-  background-color: rgba(80, 85, 110, 0.4); /* Made more transparent on hover */
-}
-/* Custom theme overrides for scroll button */
-.theme-neon-sunset .scroll-to-bottom-button {
-  background-color: rgba(59, 39, 77, 0.3); /* Dark indigo with transparency */
-}
-.theme-forest-deep .scroll-to-bottom-button {
-  background-color: rgba(36, 48, 36, 0.3); /* Dark green with transparency */
-}
-.theme-midnight-monochrome .scroll-to-bottom-button {
-  background-color: rgba(33, 35, 44, 0.3); /* Dark grey with transparency */
-}
-.theme-solar-flare .scroll-to-bottom-button {
-  background-color: rgba(219, 196, 166, 0.3); /* Light sandy with transparency */
-}
-.theme-aurora-borealis .scroll-to-bottom-button {
-  background-color: rgba(25, 20, 51, 0.3); /* Dark purple with transparency */
-}
-.theme-desert-mirage .scroll-to-bottom-button {
-  background-color: rgba(201, 188, 172, 0.3); /* Light beige with transparency */
-}
-.theme-folkhemmet .scroll-to-bottom-button {
-  background-color: rgba(185, 209, 229, 0.3); /* Light blue with transparency */
-}
-.theme-mobius .scroll-to-bottom-button {
-  background-color: rgba(22, 59, 74, 0.3); /* Dark Blue/Teal with transparency */
-}
-.theme-moderbyn .scroll-to-bottom-button {
-  background-color: hsla(208, 11%, 40%, 0.5); /* #5B6771 at 50% opacity */
-  color: hsla(0, 0%, 20%, 0.5); /* Dark gray arrow at 50% opacity */
-}
-.theme-moderbyn .scroll-to-bottom-button:hover {
-  background-color: hsla(208, 11%, 40%, 0.6); /* Slightly less transparent on hover */
-  color: hsla(0, 0%, 15%, 0.6);
-}
 
 .scroll-to-bottom-button:hover {
-  filter: brightness(0.95);
+  background-color: hsl(var(--input-gray)); /* Use opaque input gray for all themes on hover */
   transform: translateX(-50%) translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
@@ -1936,8 +1884,6 @@ button {
   color: hsl(var(--icon-secondary)) !important; /* Prevent hover color change when disabled */
   opacity: 0.5 !important;
 }
-.scroll-to-bottom-button { background-color: hsl(var(--input-gray)); color: hsl(var(--text-secondary)); }
-.scroll-to-bottom-button:hover { background-color: hsl(var(--input-gray)); filter: brightness(0.95); }
 
 /* Memory Tab Mobile Adjustments */
 @media (max-width: 768px) {
@@ -2822,7 +2768,7 @@ html body .scroll-to-bottom-button {
   bottom: calc(var(--input-area-height) + 20px) !important; /* Position above input area with gap */
   left: 50% !important; /* Center horizontally */
   transform: translateX(-50%) !important; /* Center horizontally */
-  z-index: 999 !important;
+  z-index: 19 !important;
 }
 
 @media (max-width: 640px) {
