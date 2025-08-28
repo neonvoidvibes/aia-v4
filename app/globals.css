@@ -2549,6 +2549,11 @@ button {
   --assistant-message-text-color: var(--foreground); /* White text for assistant on main bg */
 }
 
+.light .sidebar-bg {
+  background-color: hsl(var(--input-gray));
+  filter: none;
+}
+
 .theme-moderbyn .sidebar-bg {
   background-color: hsl(208 15% 20%);
   filter: none;
