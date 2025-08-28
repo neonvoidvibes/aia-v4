@@ -561,8 +561,8 @@
   --button-submit-fg-stop: 240 5% 95%;
 
   /* Icons */
-  --icon-primary: 210 20% 85%;
-  --icon-secondary: 240 5% 70%;
+  --icon-primary: 210 20% 15%;        /* Dark text color for hover, matching accent-foreground */
+  --icon-secondary: 240 5% 95%;       /* Light grey/white for default, matching foreground */
   --icon-active: 210 20% 95%;
   --icon-inactive: 240 5% 50%;
   --icon-destructive: 0 70% 55%;
