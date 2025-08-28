@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { StreamingTextResponse } from 'ai';
 import { findActiveBackend, formatErrorChunk } from '../proxyUtils'; // Use shared util
 // Import our specific server client helper
 import { createServerActionClient } from '@/utils/supabase/server'
@@ -157,7 +156,7 @@ export async function POST(req: NextRequest) {
         log.error("Server-side session valid but access token missing");
         const errorStreamChunk = formatErrorChunk("Internal Server Error: Failed to retrieve auth token");
         const errorStream = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(errorStreamChunk)); controller.close(); }});
-        return new StreamingTextResponse(errorStream, { status: 500 });
+        return new Response(errorStream, { status: 500, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
 
     const backendResponse = await fetch(backendChatUrl, {

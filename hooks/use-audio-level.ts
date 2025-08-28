@@ -12,7 +12,7 @@ export function useAudioLevel({ stream, audioElement, isActive }: UseAudioLevelP
   const [audioLevel, setAudioLevel] = useState(0)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const dataArrayRef = useRef<Uint8Array | null>(null)
-  const animationRef = useRef<number>()
+  const animationRef = useRef<number | null>(null)
 
   useEffect(() => {
     let audioContext: AudioContext | null = null
@@ -20,7 +20,7 @@ export function useAudioLevel({ stream, audioElement, isActive }: UseAudioLevelP
 
     if (!isActive) {
       setAudioLevel(0)
-      if (animationRef.current) {
+      if (animationRef.current != null) {
         cancelAnimationFrame(animationRef.current)
       }
       return
@@ -80,7 +80,7 @@ export function useAudioLevel({ stream, audioElement, isActive }: UseAudioLevelP
     setupAnalyser()
 
     return () => {
-      if (animationRef.current) {
+      if (animationRef.current != null) {
         cancelAnimationFrame(animationRef.current)
       }
       if (audioContext && audioContext.state !== 'closed') {

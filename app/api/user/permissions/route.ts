@@ -10,6 +10,13 @@ const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url
 
 export const dynamic = 'force-dynamic' // Ensure fresh data on each request
 
+type AgentWorkspaceInfo = {
+  name: string;
+  workspaceId: string | number | null;
+  workspaceName: string | null;
+  workspaceUiConfig: any;
+};
+
 export async function GET(request: Request) {
   // Instantiate client using our helper (handles cookies internally)
   const supabase = await createServerActionClient(); // Use the correct helper, add await
@@ -49,7 +56,7 @@ export async function GET(request: Request) {
     }
 
     // --- PHASE 3: Enhanced agent fetching with workspace support ---
-    let agentsWithWorkspaceInfo = [];
+    let agentsWithWorkspaceInfo: AgentWorkspaceInfo[] = [];
     
     if (isAdminOverride) {
       // Admin users see all agents
@@ -62,12 +69,15 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Failed to fetch agents', details: agentsError.message }, { status: 500 });
       }
       
-      agentsWithWorkspaceInfo = (allAgents || []).map(agent => ({
-        name: agent.name,
-        workspaceId: agent.workspace_id,
-        workspaceName: agent.workspaces?.name || null,
-        workspaceUiConfig: agent.workspaces?.ui_config || {}
-      }));
+      agentsWithWorkspaceInfo = (allAgents || []).map(agent => {
+        const ws = Array.isArray(agent.workspaces) ? agent.workspaces[0] : agent.workspaces;
+        return {
+          name: (agent as any).name,
+          workspaceId: (agent as any).workspace_id,
+          workspaceName: ws?.name || null,
+          workspaceUiConfig: ws?.ui_config || {}
+        } as AgentWorkspaceInfo;
+      });
     } else {
       // Regular users: fetch through user_agent_access and workspace_users
       const { data: permissions, error: dbError } = await supabase
@@ -89,17 +99,18 @@ export async function GET(request: Request) {
       // Extract agent info with workspace data
       agentsWithWorkspaceInfo = (permissions || [])
         .map(p => {
-          const agentData = Array.isArray(p.agents) ? p.agents[0] : p.agents;
+          const agentData = Array.isArray((p as any).agents) ? (p as any).agents[0] : (p as any).agents;
           if (!agentData) return null;
-          
-          return {
+          const ws = Array.isArray(agentData.workspaces) ? agentData.workspaces[0] : agentData.workspaces;
+          const obj: AgentWorkspaceInfo = {
             name: agentData.name,
             workspaceId: agentData.workspace_id,
-            workspaceName: agentData.workspaces?.name || null,
-            workspaceUiConfig: agentData.workspaces?.ui_config || {}
+            workspaceName: ws?.name || null,
+            workspaceUiConfig: ws?.ui_config || {}
           };
+          return obj;
         })
-        .filter(Boolean);
+        .filter((a): a is AgentWorkspaceInfo => a !== null);
     }
  
     logger.info({ agentCount: agentsWithWorkspaceInfo.length }, `Permissions API: User ${user.id} has access`);
@@ -139,10 +150,10 @@ export async function GET(request: Request) {
     }
     
     // --- PHASE 3: Build workspace configurations map ---
-    const workspaceConfigs = {};
+    const workspaceConfigs: Record<string, any> = {};
     agentsWithCapabilities.forEach(agent => {
       if (agent.workspaceId && agent.workspaceUiConfig) {
-        workspaceConfigs[agent.workspaceId] = agent.workspaceUiConfig;
+        workspaceConfigs[String(agent.workspaceId)] = agent.workspaceUiConfig;
       }
     });
     
@@ -150,8 +161,8 @@ export async function GET(request: Request) {
     // IMPORTANT: Always use workspace configuration from Supabase, never hardcode UI logic!
     // Check if any workspace disables agent selector by default
     let defaultHideAgentSelector = false;
-    Object.values(workspaceConfigs).forEach(config => {
-      if (config.hide_agent_selector_default) {
+    Object.values(workspaceConfigs).forEach((config: any) => {
+      if (config?.hide_agent_selector_default) {
         defaultHideAgentSelector = true;
       }
     });

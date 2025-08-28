@@ -78,7 +78,7 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
             <Checkbox 
               id="consent-checkbox" 
               checked={hasAgreed}
-              onCheckedChange={setHasAgreed}
+              onCheckedChange={(checked) => setHasAgreed(checked === true)}
               disabled={isSubmitting}
             />
             <Label 

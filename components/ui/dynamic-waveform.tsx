@@ -18,7 +18,7 @@ export function DynamicWaveform({
   lineCount = 3
 }: DynamicWaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animationRef = useRef<number>()
+  const animationRef = useRef<number | null>(null)
   const timeRef = useRef(0)
 
   useEffect(() => {
@@ -126,7 +126,7 @@ export function DynamicWaveform({
     animationRef.current = requestAnimationFrame(animate)
     
     return () => {
-      if (animationRef.current) {
+      if (animationRef.current != null) {
         cancelAnimationFrame(animationRef.current)
       }
     }
