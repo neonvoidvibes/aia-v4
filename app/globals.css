@@ -2490,18 +2490,6 @@ button {
 /* Folkhemmet theme specific overrides */
 /* FOUNDATIONAL FIX: Component-specific targeting to prevent conflicts */
 
-/* 1. ALL SIDEBAR ELEMENTS (including toggle button) - Dark Blue */
-.theme-folkhemmet .sidebar-bg button,
-.theme-folkhemmet .sidebar-bg button svg,
-.theme-folkhemmet .sidebar-bg .lucide {
-  color: hsl(204 100% 34%) !important;
-}
-
-.theme-folkhemmet .sidebar-bg button:hover,
-.theme-folkhemmet .sidebar-bg button:hover svg,
-.theme-folkhemmet .sidebar-bg button:hover .lucide {
-  color: hsl(204 100% 34% / 0.8) !important; /* Slightly dimmed on hover */
-}
 
 /* 2. SIDEBAR TOGGLE BUTTON (when sidebar is closed) - Dark Blue */
 .theme-folkhemmet button[aria-label="More options"],
@@ -2516,11 +2504,6 @@ button {
   color: hsl(204 100% 34%) !important;
 }
 
-/* 2b. SIDEBAR TOGGLE BUTTON - Override Tailwind hover class with higher specificity */
-.theme-folkhemmet .sidebar-bg ~ div button.hover\:text-\[hsl\(var\(--icon-primary\)\)\]:hover,
-.theme-folkhemmet button.hover\:text-\[hsl\(var\(--icon-primary\)\)\]:hover {
-  color: hsl(204 100% 34%) !important;
-}
 
 /* 3. INPUT FIELD ELEMENTS - Yellow (with component-specific targeting) */
 .theme-folkhemmet .chat-input-layout .chat-sliders-icon,
@@ -2609,21 +2592,6 @@ button {
   color: hsl(var(--icon-primary)) !important; /* Hover: Dimmed White */
 }
 
-/* Make top-left header icons (Sidebar toggle, New Chat) green */
-.theme-tenant button[aria-label="Open sidebar"],
-.theme-tenant button[aria-label="Start new chat"] {
-  color: hsl(var(--input-gray)) !important; /* Green static color for both */
-}
-
-/* Specific hover state for New Chat button */
-.theme-tenant button[aria-label="Start new chat"]:hover {
-  color: hsl(var(--input-gray) / 0.8) !important; /* Dimmed green on hover */
-}
-
-/* Specific hover state for Sidebar toggle */
-.theme-tenant button[aria-label="Open sidebar"]:hover {
-  color: hsl(var(--icon-primary)) !important; /* Dimmed white on hover, like the close button */
-}
 
 .theme-moderbyn .chat-input-layout .chat-sliders-icon,
 .theme-moderbyn .chat-input-layout .plus-menu-item,
