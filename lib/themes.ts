@@ -25,12 +25,6 @@ export const G_DEFAULT_WELCOME_MESSAGE: WelcomeMessageConfig = {
 };
 
 export const predefinedThemes: ColorTheme[] = [
-  // Light themes
-  {
-    name: "Desert Mirage",
-    className: "theme-desert-mirage",
-    isDark: false,
-  },
   // Dark themes
   {
     name: "Neon",
@@ -41,6 +35,12 @@ export const predefinedThemes: ColorTheme[] = [
     name: "Sunset",
     className: "theme-sunset",
     isDark: true,
+  },
+  // Light themes
+  {
+    name: "Desert Mirage",
+    className: "theme-desert-mirage",
+    isDark: false,
   },
   // Project themes
   {
@@ -54,8 +54,6 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: true,
     welcomeMessage: {
       text: "Hur skapar vi värde idag?",
-      fontSize: "3rem",
-      fontWeight: "600",
     },
   },
   {
@@ -64,8 +62,6 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: true,
     welcomeMessage: {
       text: "What wants to transform?",
-      fontSize: "3rem",
-      fontWeight: "600",
     },
   },
   {
@@ -94,8 +90,6 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: true,
     welcomeMessage: {
       text: "Rötterna lyssnar.",
-      fontSize: "3rem",
-      fontWeight: "600",
     },
   },
   {
@@ -104,8 +98,6 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: true,
     welcomeMessage: {
       text: "What is in between?",
-      fontSize: "3rem",
-      fontWeight: "600",
     },
   },
 ];
