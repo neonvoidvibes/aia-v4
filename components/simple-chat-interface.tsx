@@ -3800,9 +3800,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 className={cn(
                                   "flex items-center gap-3 px-2 py-2",
                                   micButtonClass,
-                                  "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
-                                  isBrowserRecording && !isBrowserPaused && "!text-[hsl(var(--icon-destructive))]",
-                                  isBrowserRecording && isBrowserPaused && "!text-yellow-500 dark:!text-yellow-400",
+                                  isBrowserRecording && !isBrowserPaused && "!bg-red-500 !text-white hover:!bg-red-600 hover:!text-white",
+                                  isBrowserRecording && isBrowserPaused && "!bg-yellow-500 !text-black hover:!bg-yellow-600 hover:!text-black",
+                                  !isBrowserRecording && "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
                                   globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
                                 )}
                               >
