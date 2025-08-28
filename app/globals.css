@@ -69,7 +69,7 @@
 /* --- Light Theme Overrides --- */
 .light {
   /* Base colors */
-  --background: 0 0% 75%; /* CHANGED FROM 95% - This will make it a darker gray */
+  --background: 0 0% 98%; /* Near-white background */
   --foreground: 0 0% 10%; /* Dark foreground */
 
   /* UI elements */
@@ -85,18 +85,18 @@
   /* Shadcn Component Variables (Light Overrides) */
   --card: 0 0% 100%; /* Default white card */
   --popover: 0 0% 100%;
-  --primary: 0 0% 9%; /* Black */
-  --primary-foreground: 0 0% 98%; /* White */
+  --primary: 152 100% 55%; /* Accent Green #16FF93 */
+  --primary-foreground: 0 0% 5%; /* Near-black for text on green */
   --secondary: 0 0% 96.1%;
   --secondary-foreground: 0 0% 9%;
   --muted: 0 0% 90%; /* Adjusted muted for tab list bg */
-  --accent: 0 0% 96.1%;
-  --accent-foreground: 0 0% 9%;
+  --accent: 152 100% 55%; /* Accent Green #16FF93 */
+  --accent-foreground: 0 0% 5%; /* Near-black for text on green */
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
   --border: 0 0% 89.8%;
   --input: 0 0% 89.8%;
-  --ring: 0 0% 3.9%;
+  --ring: 152 100% 55%; /* Accent Green #16FF93 */
 
   /* Custom Button State Variables (Light Overrides) */
   --button-active: 0 0% 20%; /* Dark gray icon */
@@ -104,8 +104,8 @@
   --button-inactive: 0 0% 65%; /* Lighter gray */
 
   /* New Semantic CSS Variables for Light Theme */
-  --button-submit-bg-active: 0 0% 20%;   /* Dark gray BG for light mode active submit */
-  --button-submit-fg-active: 0 0% 98%;   /* White fg for light mode active submit */
+  --button-submit-bg-active: 152 100% 55%;   /* Accent Green #16FF93 */
+  --button-submit-fg-active: 0 0% 5%;   /* Near-black for text on green */
   --button-submit-bg-inactive: 0 0% 80%; /* Lighter gray BG for light mode inactive submit */
   --button-submit-fg-inactive: 0 0% 50%; /* Mid gray fg for light mode inactive submit */
   --button-submit-bg-stop: 0 0% 35%;     /* Themed gray for light mode stop button BG */
@@ -113,10 +113,10 @@
 
   --icon-primary: 0 0% 20%;    /* Primary icon color for light mode */
   --icon-secondary: 0 0% 40%;  /* Secondary icon color for light mode */
-  --icon-active: 0 0% 0%;      /* Active icon color for light mode (e.g. recording) */
+  --icon-active: 152 100% 55%;      /* Accent Green #16FF93 for recording active */
   --icon-inactive: 0 0% 70%;   /* Inactive/disabled icon color for light mode */
   /* --icon-destructive uses the default destructive color */
-  --save-memory-color: 220 80% 60%; /* Added: For saved memory highlights */
+  --save-memory-color: 152 80% 50%; /* Darker green for saved memory highlights */
 
   /* NEW: Text color variables for chat interface elements - Light Theme */
   --input-field-text-color: var(--foreground);
