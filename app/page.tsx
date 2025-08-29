@@ -1665,7 +1665,19 @@ function HomeContent() {
   if (!isClient) {
     return (<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Loading...</p></div>);
   }
-  
+
+  // --- PHASE 3: Show consent view if needed (render this first) ---
+  if (needsConsent) {
+    return (
+      <ConsentView
+        workspaceId={needsConsent.workspaceId}
+        workspaceName={needsConsent.workspaceName}
+        onConsentGiven={handleConsentGiven}
+      />
+    );
+  }
+
+  // Then loading/denied states
   if (isAuthorized === null) return (<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Checking authorization...</p></div>);
   if (isAuthorized === false) return (
     <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
@@ -1675,17 +1687,6 @@ function HomeContent() {
       <Button onClick={() => router.push('/login')}>Go to Login</Button>
     </div>
   );
-
-  // --- PHASE 3: Show consent view if needed ---
-  if (needsConsent) {
-    return (
-      <ConsentView 
-        workspaceId={needsConsent.workspaceId}
-        workspaceName={needsConsent.workspaceName}
-        onConsentGiven={handleConsentGiven}
-      />
-    );
-  }
 
   // If user is authorized but no agent is specified in the URL, show agent selector
   if (isAuthorized && !pageAgentName) {
