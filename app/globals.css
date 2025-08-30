@@ -2679,7 +2679,7 @@ button {
 /* Fix scroll button positioning - positioned above input field, fixed position */
 html body .scroll-to-bottom-button {
   position: absolute !important;
-  bottom: calc(var(--input-area-height) + 20px) !important; /* Position above input area with gap */
+  bottom: calc(var(--input-area-height) + 8px) !important; /* Position above input area with gap */
   left: 50% !important; /* Center horizontally */
   transform: translateX(-50%) !important; /* Center horizontally */
   z-index: 19 !important;
@@ -2687,7 +2687,7 @@ html body .scroll-to-bottom-button {
 
 @media (max-width: 640px) {
   html body .scroll-to-bottom-button {
-    bottom: calc(var(--input-area-height) + 15px) !important;
+    bottom: calc(var(--input-area-height) + 2px) !important;
   }
 }
 
