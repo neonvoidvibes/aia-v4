@@ -3855,19 +3855,21 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     disabled={!!pendingActionRef.current || globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
                                     className={cn(
                                       "flex items-center gap-3 px-2 py-2",
-                                      (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait"
+                                      (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait",
+                                      isBrowserRecording && isBrowserPaused && "text-yellow-500 dark:text-yellow-400",
+                                      isBrowserRecording && !isBrowserPaused && "text-destructive"
                                     )}
                                   >
                                     {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') ? (
                                       <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                                     ) : (
                                       !isBrowserRecording ? (
-                                        <Play size={17} className="flex-shrink-0 text-[hsl(var(--icon-primary))]" />
+                                        <Play size={17} className="flex-shrink-0" />
                                       ) : (
                                         isBrowserPaused ? (
-                                          <Play size={17} className="flex-shrink-0 text-yellow-500 dark:text-yellow-400" />
+                                          <Play size={17} className="flex-shrink-0" />
                                         ) : (
-                                          <Pause size={17} className="flex-shrink-0 text-[hsl(var(--icon-destructive))]" />
+                                          <Pause size={17} className="flex-shrink-0" />
                                         )
                                       )
                                     )}
