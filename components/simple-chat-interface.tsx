@@ -628,9 +628,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     }, [currentChatId, onChatIdChange]);
 
-    const chatApiBody = useMemo(() => ({
+  const chatApiBody = useMemo(() => ({
         agent: agentName,
         event: eventId || '0000',
+        // Optional tuning of cross-event signal strength via URL (?signalBias=low|medium|high)
+        signalBias: (typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('signalBias') || 'medium') : 'medium'),
         transcriptListenMode: transcriptListenMode,
         savedTranscriptMemoryMode: savedTranscriptMemoryMode,
         individualMemoryToggleStates: individualMemoryToggleStates,

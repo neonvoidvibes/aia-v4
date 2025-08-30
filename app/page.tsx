@@ -424,7 +424,8 @@ function HomeContent() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      const response = await fetch(`/api/chat/history/list?agentName=${encodeURIComponent(agentToFetch)}`, {
+      const eventParam = (typeof window !== 'undefined') ? (new URLSearchParams(window.location.search).get('event') || '0000') : '0000';
+      const response = await fetch(`/api/chat/history/list?agentName=${encodeURIComponent(agentToFetch)}&event=${encodeURIComponent(eventParam)}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
