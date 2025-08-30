@@ -94,15 +94,17 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleLoadChat = async (chatId: string) => {
     if (onLoadChat) {
+      // On mobile, close the sidebar immediately for a responsive feel.
+      // The chat loading will happen in the background.
+      if (isMobile) {
+        onClose();
+      }
       try {
         // Wait for chat to actually load before switching views
         await onLoadChat(chatId);
         // Only switch to chat view after chat is successfully loaded
         setCurrentView('chat');
-        // Only close sidebar on mobile after selecting chat
-        if (isMobile) {
-          onClose();
-        }
+        // The onClose call was moved to the top for mobile.
       } catch (error) {
         console.error('[Sidebar] Failed to load chat:', error);
         // Don't switch views or close sidebar if loading failed
