@@ -378,6 +378,17 @@
   border-color: hsl(204 100% 54% / 0.3) !important;
 }
 
+/* STT (VOICE INPUT) AREA - Change button backgrounds to light blue accent */
+.theme-folkhemmet .chat-input-layout.bg-primary .mobile-stt-button {
+  background-color: hsl(var(--secondary)) !important;
+  color: hsl(var(--secondary-foreground)) !important; /* Icon color */
+}
+
+.theme-folkhemmet .chat-input-layout button[disabled] .mobile-submit-button {
+  background-color: hsl(var(--secondary)) !important;
+  color: hsl(var(--secondary-foreground)) !important; /* Icon color */
+}
+
 /* Separator lines for Folkhemmet theme - blue as save memory line */
 .theme-folkhemmet .folkhemmet-separator {
   background-color: hsl(var(--save-memory-color));

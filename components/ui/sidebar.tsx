@@ -238,12 +238,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                   Agent <span className="font-bold">{agentName || 'Loading...'}</span>
                 </div>
               )}
-              <div className="text-xs text-muted-foreground">
-                Model <span className="font-bold">{(selectedModel && MODEL_DISPLAY_NAMES_MAP.get(selectedModel)) || selectedModel || 'Loading...'}</span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Transcript <span className="font-bold">{getTranscriptListenModeText()}</span>
-              </div>
+              {/* Model row - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_info?.includes('model') || isAdminOverride) && (
+                <div className="text-xs text-muted-foreground">
+                  Model <span className="font-bold">{(selectedModel && MODEL_DISPLAY_NAMES_MAP.get(selectedModel)) || selectedModel || 'Loading...'}</span>
+                </div>
+              )}
+              {/* Transcript row - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_info?.includes('transcript') || isAdminOverride) && (
+                <div className="text-xs text-muted-foreground">
+                  Transcript <span className="font-bold">{getTranscriptListenModeText()}</span>
+                </div>
+              )}
               {/* Summary row - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_info?.includes('summary') || isAdminOverride) && (
                 <div className="text-xs text-muted-foreground">
