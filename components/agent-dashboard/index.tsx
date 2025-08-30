@@ -11,6 +11,7 @@ import CreateAgentWizard, { type CreateAgentWizardHandle } from './create-agent-
 import { AlertDialogConfirm } from '@/components/ui/alert-dialog-confirm';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft } from 'lucide-react';
+import { useLocalization } from '@/context/LocalizationContext';
 
 interface AgentDashboardProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface AgentDashboardProps {
 }
 
 const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRole }) => {
+  const { t } = useLocalization();
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
   const [wizardKey, setWizardKey] = useState(Date.now());
@@ -157,10 +159,10 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
         isOpen={showCloseConfirm}
         onClose={() => setShowCloseConfirm(false)}
         onConfirm={handleConfirmClose}
-        title="Exit Agent Creation?"
-        message="Are you sure you want to exit? All progress, including chat history and uploaded files for this new agent, will be lost."
-        confirmText="Exit Wizard"
-        cancelText="Cancel"
+        title={t('confirmations.exitAgentWizard.title')}
+        message={t('confirmations.exitAgentWizard.message')}
+        confirmText={t('confirmations.exitAgentWizard.confirm')}
+        cancelText={t('confirmations.exitAgentWizard.cancel')}
         confirmVariant="destructive"
       />
     </>

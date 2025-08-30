@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { manager } from "@/lib/recordingManager";
 import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
 import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm";
+import { useLocalization } from '@/context/LocalizationContext';
 
 interface AgentSelectorMenuProps {
   allowedAgents: string[];
@@ -33,6 +34,7 @@ interface AgentSelectorMenuProps {
 }
 
 const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, currentAgent, userRole, onDashboardClick }) => {
+  const { t } = useLocalization();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useMobile();
@@ -189,10 +191,10 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
           if (pendingAgent) proceedToAgent(pendingAgent);
           setPendingAgent(null);
         }}
-        title="Switch agent while recording?"
-        message="You are currently recording. Switching agents will stop the recording. Do you want to proceed?"
-        confirmText="Stop & Switch"
-        cancelText="Cancel"
+        title={t('confirmations.switchAgentWhileRecording.title')}
+        message={t('confirmations.switchAgentWhileRecording.message')}
+        confirmText={t('confirmations.switchAgentWhileRecording.confirm')}
+        cancelText={t('confirmations.switchAgentWhileRecording.cancel')}
         confirmVariant="destructive"
       />
     </DropdownMenu>

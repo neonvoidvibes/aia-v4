@@ -1,0 +1,115 @@
+{
+  "sidebar": {
+    "newChat": "Ny chatt",
+    "chatHistory": "Chathistorik",
+    "logOut": "Logga ut",
+    "dateLabels": {
+      "today": "Idag",
+      "yesterday": "Igår",
+      "thisWeek": "Denna vecka",
+      "lastWeek": "Förra veckan",
+      "thisMonth": "Denna månad"
+    }
+  },
+  "chatInput": {
+    "placeholder": "Dela eller fråga något"
+  },
+  "controlsMenu": {
+    "addFiles": "Bifoga filer",
+    "saveToMemory": "Spara chatt till minne",
+    "downloadChat": "Ladda ner chatt",
+    "recordMeeting": "Spela in möte",
+    "startRecording": "Starta inspelning",
+    "stopRecording": "Stoppa inspelning",
+    "pauseRecording": "Pausa inspelning"
+  },
+  "chat": {
+    "memorySaved": "Minne sparat"
+  },
+  "tooltips": {
+    "copy": "Kopiera",
+    "copied": "Kopierat!",
+    "edit": "Ändra",
+    "delete": "Radera",
+    "hide": "Göm",
+    "saveMemory": "Spara till minne",
+    "forgetMemory": "Glöm minne",
+    "readAloud": "Läs upp",
+    "collapse": "Kollapsa"
+  },
+  "confirmations": {
+    "startNewChat": {
+      "title": "Starta ny chatt",
+      "message": "Är du säker på att du vill starta en ny chatt? Detta rensar den nuvarande konversationen och stoppar eventuell aktiv inspelning.",
+      "confirm": "Starta ny",
+      "cancel": "Avbryt"
+    },
+    "deleteConversation": {
+      "title": "Är du säker?",
+      "message": "Detta raderar chathistoriken permanent. Åtgärden kan inte ångras.",
+      "confirm": "Radera",
+      "cancel": "Avbryt"
+    },
+    "archiveTranscript": {
+      "title": "Arkivera transkribering",
+      "message": "Är du säker på att du vill arkivera \"{fileName}\"? Detta flyttar filen till ett arkiv och den kommer inte längre att användas för realtidskontext om den inte återställs.",
+      "confirm": "Arkivera",
+      "cancel": "Avbryt"
+    },
+    "saveTranscriptToMemory": {
+      "title": "Spara transkribering till minne",
+      "message": "Detta kommer att sammanfatta transkriberingen och spara den som en ny minnesfil. Originalet flyttas sedan till ett 'sparat' arkiv. Processen kan inte ångras. Fortsätt med \"{fileName}\"?",
+      "confirm": "Bekräfta & Spara",
+      "cancel": "Avbryt"
+    },
+    "forgetChatMemory": {
+      "title": "Glöm minne",
+      "message_prefix": "Är du säker på att du vill permanent glömma detta minne?",
+      "message_suffix": "Är du säker på att du vill permanent glömma detta minne?",
+      "confirm": "Glöm",
+      "cancel": "Avbryt"
+    },
+    "deleteMessage": {
+      "title": "Är du säker?",
+      "message": "Detta raderar meddelandet permanent från denna chatt och alla sparade minnen. Åtgärden kan inte ångras.",
+      "confirm": "Radera",
+      "cancel": "Avbryt"
+    },
+    "confirmMemoryUpdate": {
+      "title": "Bekräfta minnesuppdatering",
+      "confirm": "Bekräfta ändring",
+      "cancel": "Avbryt"
+    },
+    "memoryActions": {
+      "saveMessageTitle": "Bekräfta spara",
+      "forgetTitle": "Bekräfta glöm",
+      "overwriteTitle": "Bekräfta spara",
+      "saveMessage": "Vill du spara detta meddelande till ditt minne?",
+      "saveConversation": "Vill du spara hela konversationen till ditt minne?",
+      "overwriteConversation": "Vill du spara hela konversationen till ditt minne? Detta ersätter den nuvarande sparade versionen och kan inte ångras.",
+      "forgetMessage": "Detta raderar permanent det sparade minnet för detta meddelande. Åtgärden kan inte ångras.",
+      "forgetConversation": "Detta raderar permanent det sparade minnet för denna konversation. Åtgärden kan inte ångras.",
+      "confirmSave": "Spara",
+      "confirmForget": "Glöm",
+      "cancel": "Avbryt"
+    },
+    "clearAllTranscripts": {
+      "title": "Rensa alla transkriberingar",
+      "message": "Är du säker på att du vill rensa alla slutförda transkriberingar? Åtgärden kan inte ångras.",
+      "confirm": "Rensa alla",
+      "cancel": "Avbryt"
+    },
+    "exitAgentWizard": {
+      "title": "Avsluta agentskaparen?",
+      "message": "Är du säker på att du vill avsluta? Alla framsteg, inklusive chathistorik och uppladdade filer för denna nya agent, kommer att gå förlorade.",
+      "confirm": "Avsluta",
+      "cancel": "Avbryt"
+    },
+    "switchAgentWhileRecording": {
+      "title": "Byta agent under inspelning?",
+      "message": "Du spelar för närvarande in. Om du byter agent kommer inspelningen att stoppas. Vill du fortsätta?",
+      "confirm": "Stoppa & Byt",
+      "cancel": "Avbryt"
+    }
+  }
+}

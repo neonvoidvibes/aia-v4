@@ -3861,14 +3861,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 <AlertDialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogTitle>{t('confirmations.deleteMessage.title')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                                This will permanently delete the message from this chat and any saved memories. This action cannot be undone.
+                                {t('confirmations.deleteMessage.message')}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setMessageToDelete(null)}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteMessage}>Delete</AlertDialogAction>
+                            <AlertDialogCancel onClick={() => setMessageToDelete(null)}>{t('confirmations.deleteMessage.cancel')}</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteMessage}>{t('confirmations.deleteMessage.confirm')}</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
@@ -3876,7 +3876,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 <AlertDialog open={!!docUpdateRequest} onOpenChange={(open) => !open && setDocUpdateRequest(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Memory Update</AlertDialogTitle>
+                            <AlertDialogTitle>{t('confirmations.confirmMemoryUpdate.title')}</AlertDialogTitle>
                             <AlertDialogDescription>
                                 {docUpdateRequest?.justification}
                             </AlertDialogDescription>
@@ -3888,8 +3888,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             </div>
                         </div>
                         <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setDocUpdateRequest(null)}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={executeDocUpdate}>Confirm Change</AlertDialogAction>
+                            <AlertDialogCancel onClick={() => setDocUpdateRequest(null)}>{t('confirmations.confirmMemoryUpdate.cancel')}</AlertDialogCancel>
+                            <AlertDialogAction onClick={executeDocUpdate}>{t('confirmations.confirmMemoryUpdate.confirm')}</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
@@ -3898,19 +3898,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     <AlertDialogContent>
                         <AlertDialogHeader>
                             <AlertDialogTitle>
-                                {confirmationRequest?.type === 'overwrite-conversation' ? 'Confirm Save' :
-                                 confirmationRequest?.type.startsWith('forget') ? 'Confirm Forget' : 'Confirm Save'}
+                                {confirmationRequest?.type === 'overwrite-conversation' ? t('confirmations.memoryActions.overwriteTitle') :
+                                 confirmationRequest?.type.startsWith('forget') ? t('confirmations.memoryActions.forgetTitle') : t('confirmations.memoryActions.saveMessageTitle')}
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                                {confirmationRequest?.type === 'save-message' && "Do you want to save this message to your memory?"}
-                                {confirmationRequest?.type === 'save-conversation' && "Do you want to save the entire conversation to your memory?"}
-                                {confirmationRequest?.type === 'overwrite-conversation' && "Do you want to save the entire conversation to your memory? This will replace the current saved version and can’t be undone."}
-                                {confirmationRequest?.type === 'forget-message' && "This will permanently delete the saved memory for this message. This action cannot be undone."}
-                                {confirmationRequest?.type === 'forget-conversation' && "This will permanently delete the saved memory for this conversation. This action cannot be undone."}
+                                {confirmationRequest?.type === 'save-message' && t('confirmations.memoryActions.saveMessage')}
+                                {confirmationRequest?.type === 'save-conversation' && t('confirmations.memoryActions.saveConversation')}
+                                {confirmationRequest?.type === 'overwrite-conversation' && t('confirmations.memoryActions.overwriteConversation')}
+                                {confirmationRequest?.type === 'forget-message' && t('confirmations.memoryActions.forgetMessage')}
+                                {confirmationRequest?.type === 'forget-conversation' && t('confirmations.memoryActions.forgetConversation')}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setConfirmationRequest(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel onClick={() => setConfirmationRequest(null)}>{t('confirmations.memoryActions.cancel')}</AlertDialogCancel>
                             <AlertDialogAction
                                 className={confirmationRequest?.type.startsWith('forget') ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
                                 onClick={() => {
@@ -3927,7 +3927,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     }
                                 }}
                             >
-                                {confirmationRequest?.type.startsWith('forget') ? 'Forget' : 'Save'}
+                                {confirmationRequest?.type.startsWith('forget') ? t('confirmations.memoryActions.confirmForget') : t('confirmations.memoryActions.confirmSave')}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>

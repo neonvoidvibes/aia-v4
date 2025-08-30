@@ -16,7 +16,7 @@
   },
   "controlsMenu": {
     "addFiles": "Add photos & files",
-    "saveToMemory": "Save to memory",
+    "saveToMemory": "Save chat to memory",
     "downloadChat": "Download chat",
     "recordMeeting": "Record meeting",
     "startRecording": "Start recording",
@@ -36,5 +36,80 @@
     "forgetMemory": "Forget Memory",
     "readAloud": "Read Aloud",
     "collapse": "Collapse"
+  },
+  "confirmations": {
+    "startNewChat": {
+      "title": "Start New Chat",
+      "message": "Are you sure you want to start a new chat? This will clear the current conversation and stop any active recording.",
+      "confirm": "Start New",
+      "cancel": "Cancel"
+    },
+    "deleteConversation": {
+      "title": "Are you sure?",
+      "message": "This will permanently delete the chat history. This action cannot be undone.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "archiveTranscript": {
+      "title": "Archive Transcript",
+      "message": "Are you sure you want to archive \"{fileName}\"? This will move the file to an archive location and it will no longer be actively used for real-time context unless restored.",
+      "confirm": "Archive",
+      "cancel": "Cancel"
+    },
+    "saveTranscriptToMemory": {
+      "title": "Save Transcript to Memory",
+      "message": "This will summarize the transcript and save it as a new memory file. The original transcript will then be moved to a 'saved' archive. This process cannot be undone. Proceed with \"{fileName}\"?",
+      "confirm": "Confirm & Save",
+      "cancel": "Cancel"
+    },
+    "forgetChatMemory": {
+      "title": "Forget Memory",
+      "message_prefix": "Are you sure you want to permanently forget this memory?",
+      "message_suffix": "This action cannot be undone.",
+      "confirm": "Forget",
+      "cancel": "Cancel"
+    },
+    "deleteMessage": {
+      "title": "Are you sure?",
+      "message": "This will permanently delete the message from this chat and any saved memories. This action cannot be undone.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "confirmMemoryUpdate": {
+      "title": "Confirm Memory Update",
+      "confirm": "Confirm Change",
+      "cancel": "Cancel"
+    },
+    "memoryActions": {
+      "saveMessageTitle": "Confirm Save",
+      "forgetTitle": "Confirm Forget",
+      "overwriteTitle": "Confirm Save",
+      "saveMessage": "Do you want to save this message to your memory?",
+      "saveConversation": "Do you want to save the entire conversation to your memory?",
+      "overwriteConversation": "Do you want to save the entire conversation to your memory? This will replace the current saved version and can’t be undone.",
+      "forgetMessage": "This will permanently delete the saved memory for this message. This action cannot be undone.",
+      "forgetConversation": "This will permanently delete the saved memory for this conversation. This action cannot be undone.",
+      "confirmSave": "Save",
+      "confirmForget": "Forget",
+      "cancel": "Cancel"
+    },
+    "clearAllTranscripts": {
+      "title": "Clear All Transcripts",
+      "message": "Are you sure you want to clear all completed transcripts? This action cannot be undone.",
+      "confirm": "Clear All",
+      "cancel": "Cancel"
+    },
+    "exitAgentWizard": {
+      "title": "Exit Agent Creation?",
+      "message": "Are you sure you want to exit? All progress, including chat history and uploaded files for this new agent, will be lost.",
+      "confirm": "Exit Wizard",
+      "cancel": "Cancel"
+    },
+    "switchAgentWhileRecording": {
+      "title": "Switch agent while recording?",
+      "message": "You are currently recording. Switching agents will stop the recording. Do you want to proceed?",
+      "confirm": "Stop & Switch",
+      "cancel": "Cancel"
+    }
   }
 }

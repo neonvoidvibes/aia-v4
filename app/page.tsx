@@ -2556,10 +2556,10 @@ function HomeContent() {
         isOpen={showNewChatConfirm}
         onClose={cancelNewChat}
         onConfirm={confirmAndStartNewChat}
-        title="Start New Chat"
-        message="Are you sure you want to start a new chat? This will clear the current conversation and stop any active recording."
-        confirmText="Start New"
-        cancelText="Cancel"
+        title={t('confirmations.startNewChat.title')}
+        message={t('confirmations.startNewChat.message')}
+        confirmText={t('confirmations.startNewChat.confirm')}
+        cancelText={t('confirmations.startNewChat.cancel')}
         confirmVariant="default"
       />
 
@@ -2567,10 +2567,10 @@ function HomeContent() {
         isOpen={showDeleteConfirmation}
         onClose={() => setShowDeleteConfirmation(false)}
         onConfirm={handleDeleteConfirm}
-        title="Are you sure?"
-        message="This will permanently delete the chat history. This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('confirmations.deleteConversation.title')}
+        message={t('confirmations.deleteConversation.message')}
+        confirmText={t('confirmations.deleteConversation.confirm')}
+        cancelText={t('confirmations.deleteConversation.cancel')}
         confirmVariant="destructive"
       />
 
@@ -2578,10 +2578,10 @@ function HomeContent() {
         isOpen={showArchiveConfirmModal}
         onClose={cancelArchiveFile}
         onConfirm={confirmArchiveFile}
-        title="Archive Transcript"
-        message={`Are you sure you want to archive "${fileToArchive?.name}"? This will move the file to an archive location and it will no longer be actively used for real-time context unless restored.`}
-        confirmText="Archive"
-        cancelText="Cancel"
+        title={t('confirmations.archiveTranscript.title')}
+        message={t('confirmations.archiveTranscript.message').replace('{fileName}', fileToArchive?.name || '')}
+        confirmText={t('confirmations.archiveTranscript.confirm')}
+        cancelText={t('confirmations.archiveTranscript.cancel')}
         confirmVariant="destructive"
       />
 
@@ -2589,10 +2589,10 @@ function HomeContent() {
         isOpen={showSaveAsMemoryConfirmModal}
         onClose={cancelSaveAsMemoryFile}
         onConfirm={confirmSaveAsMemoryFile}
-        title="Save Transcript to Memory"
-        message={`This will summarize the transcript and save it as a new memory file. The original transcript will then be moved to a 'saved' archive. This process cannot be undone. Proceed with "${fileToSaveAsMemory?.name}"?`}
-        confirmText="Confirm & Save"
-        cancelText="Cancel"
+        title={t('confirmations.saveTranscriptToMemory.title')}
+        message={t('confirmations.saveTranscriptToMemory.message').replace('{fileName}', fileToSaveAsMemory?.name || '')}
+        confirmText={t('confirmations.saveTranscriptToMemory.confirm')}
+        cancelText={t('confirmations.saveTranscriptToMemory.cancel')}
         confirmVariant="default"
       />
       
@@ -2600,18 +2600,18 @@ function HomeContent() {
         isOpen={showForgetConfirmModal}
         onClose={() => setShowForgetConfirmModal(false)}
         onConfirm={confirmForgetMemory}
-        title="Forget Memory"
+        title={t('confirmations.forgetChatMemory.title')}
         message={
           <span>
-            Are you sure you want to permanently forget this memory?
+            {t('confirmations.forgetChatMemory.message_prefix')}
             <br />
             <strong className="font-semibold text-destructive">{memoryToForget?.summary}</strong>
             <br />
-            This action cannot be undone.
+            {t('confirmations.forgetChatMemory.message_suffix')}
           </span>
         }
-        confirmText="Forget"
-        cancelText="Cancel"
+        confirmText={t('confirmations.forgetChatMemory.confirm')}
+        cancelText={t('confirmations.forgetChatMemory.cancel')}
         confirmVariant="destructive"
       />
 

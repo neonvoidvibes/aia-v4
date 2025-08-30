@@ -3,11 +3,13 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse, CheckCircle2, Clock, StopCircle, RotateCcw, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { useLocalization } from '@/context/LocalizationContext';
 import { Progress } from "@/components/ui/progress"; // Added Progress import
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 import { useMobile } from '@/hooks/use-mobile';
+import { useLocalization } from '@/context/LocalizationContext';
 
 const truncateString = (str: string, maxLength: number) => {
   if (str.length <= maxLength) {
@@ -121,6 +123,7 @@ const clusterSegmentsForDownload = (
 
 
 const FullFileTranscriber: React.FC<FullFileTranscriberProps> = ({ agentName, userName, activeUiConfig }) => { // Added userName and activeUiConfig to props
+  const { t } = useLocalization();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   const [currentRawTranscriptText, setCurrentRawTranscriptText] = useState<string | null>(null);
@@ -1150,15 +1153,15 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Clear All Transcripts</AlertDialogTitle>
+                        <AlertDialogTitle>{t('confirmations.clearAllTranscripts.title')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to clear all completed transcripts? This action cannot be undone.
+                          {t('confirmations.clearAllTranscripts.message')}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>{t('confirmations.clearAllTranscripts.cancel')}</AlertDialogCancel>
                         <AlertDialogAction onClick={clearAllFinishedTranscripts}>
-                          Clear All
+                          {t('confirmations.clearAllTranscripts.confirm')}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
