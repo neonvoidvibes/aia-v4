@@ -3721,14 +3721,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 <div ref={messagesEndRef} />
             </div>
 
-            {showScrollToBottom && !isModalOpen && (
-              <button onClick={() => {
-                // Don't automatically activate minimal padding when clicking scroll-to-bottom
-                scrollToBottom();
-              }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
-                <ArrowDown size={18} />
-              </button>
-            )}
+             {showScrollToBottom && !isModalOpen && (
+               <button onClick={() => {
+                 // Don't automatically activate minimal padding when clicking scroll-to-bottom
+                 scrollToBottom();
+               }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
+                 <ArrowDown />
+               </button>
+             )}
 
             <div className="input-area-container flex-shrink-0">
                 <AlertDialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
