@@ -10,7 +10,7 @@ import { predefinedThemes } from "@/lib/themes" // Import predefined themes
 import { useSearchParams } from "next/navigation" // For agent name (simplified)
 
 export function ThemeToggle() {
-  const { theme, setTheme, themes: availableThemes } = useTheme()
+  const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const isMobile = useMobile()
   const searchParams = useSearchParams();

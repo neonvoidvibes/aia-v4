@@ -20,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from "next-themes";
 import { predefinedThemes } from "@/lib/themes";
 import { Palette } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { manager } from "@/lib/recordingManager";
 import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
 import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm";
