@@ -640,10 +640,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         initialContext: initialContext,
       }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, initialContext]);
 
-    const {
-      messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
-      isLoading, stop, setMessages, append, reload,
-    } = useChat({ 
+  const {
+    messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
+    isLoading, stop, setMessages, append, reload,
+  } = useChat({ 
       api: "/api/proxy-chat",
       body: chatApiBody, 
       sendExtraMessageFields: true,
@@ -652,6 +652,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (agentName) {
           console.log('[Auto-save] TRIGGER: Assistant response finished, calling saveChatHistory()');
           await saveChatHistory();
+        }
+        // Persist latest messages to cache after assistant finishes
+        try {
+          if (currentChatId) {
+            if (!chatCacheRef.current) chatCacheRef.current = new ChatCache();
+            await chatCacheRef.current.init(currentChatId);
+            const filtered = messages.filter((m) => m.role !== 'system');
+            await chatCacheRef.current.upsertMessages(currentChatId, filtered as any, { source: 'local' });
+          }
+        } catch (e) {
+          console.warn('[Cache] upsert after onFinish failed', e);
         }
       },
       onError: (error) => { 
@@ -913,6 +924,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     if (!chatIdAtStartOfSave && result.chatId) {
                         setCurrentChatId(result.chatId);
                         setChatTitle(result.title);
+                        // Also persist current messages to cache under the new chatId
+                        try {
+                            if (!chatCacheRef.current) chatCacheRef.current = new ChatCache();
+                            await chatCacheRef.current.init(result.chatId);
+                            const filtered = currentMessages.filter((m) => m.role !== 'system');
+                            await chatCacheRef.current.upsertMessages(result.chatId, filtered as any, { source: 'local' });
+                        } catch (e) {
+                            console.warn('[Cache] upsert after creating chatId failed', e);
+                        }
                     }
                     // After any successful save, trigger a refresh of the history list
                     if (onHistoryRefreshNeeded) {
@@ -930,6 +950,31 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const messagesRef = useRef<Message[]>(messages);
     useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+    // Debounced cache persistence for local changes (edits, deletes, sends)
+    const cacheDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (!currentChatId) return;
+        // Avoid excessive writes during streaming; debounce lightly
+        if (cacheDebounceRef.current) clearTimeout(cacheDebounceRef.current);
+        cacheDebounceRef.current = setTimeout(async () => {
+            try {
+                if (!chatCacheRef.current) chatCacheRef.current = new ChatCache();
+                await chatCacheRef.current.init(currentChatId);
+                const filtered = messagesRef.current.filter((m) => m.role !== 'system');
+                await chatCacheRef.current.upsertMessages(currentChatId, filtered as any, { source: 'local' });
+            } catch (e) {
+                console.warn('[Cache] debounced upsert failed', e);
+            }
+        }, isLoading ? 300 : 120);
+
+        return () => {
+            if (cacheDebounceRef.current) {
+                clearTimeout(cacheDebounceRef.current);
+                cacheDebounceRef.current = null;
+            }
+        };
+    }, [messages, currentChatId, isLoading]);
 
     
     const recordUIRef = useRef<HTMLDivElement>(null);
