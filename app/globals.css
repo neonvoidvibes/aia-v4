@@ -360,11 +360,13 @@
 
 /* Folkhemmet theme specific overrides */
 /* SIDEBAR CHAT HISTORY - Specific hover colors */
-.theme-folkhemmet .sidebar-bg .group:hover button.text-foreground {
-  color: hsl(var(--foreground));
+/* Rule 1: Set the base hover color for all buttons in the group to dark blue. */
+.theme-folkhemmet .sidebar-bg .group:hover button {
+  color: hsl(var(--foreground)) !important;
 }
 
-.theme-folkhemmet .sidebar-bg .group button.text-foreground:hover {
+/* Rule 2: Specifically for the 'X' button, change its color on direct hover to light blue. */
+.theme-folkhemmet .sidebar-bg .group button.absolute:hover {
   color: hsl(var(--button-inactive)) !important;
 }
 
