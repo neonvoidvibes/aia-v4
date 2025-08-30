@@ -358,6 +358,16 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* Folkhemmet theme specific overrides */
+/* SIDEBAR CHAT HISTORY - Specific hover colors */
+.theme-folkhemmet .sidebar-bg .group:hover button.text-foreground {
+  color: hsl(var(--foreground));
+}
+
+.theme-folkhemmet .sidebar-bg .group button.text-foreground:hover {
+  color: hsl(var(--button-inactive)) !important;
+}
+
 /* Separator lines for Folkhemmet theme - blue as save memory line */
 .theme-folkhemmet .folkhemmet-separator {
   background-color: hsl(var(--save-memory-color));
