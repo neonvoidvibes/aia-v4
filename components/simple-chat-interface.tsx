@@ -2179,6 +2179,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 if (cachedCount) {
                   const filtered = cached.filter((m: Message) => m.role !== 'system');
                   setMessages(filtered);
+                  // Mirror network-load behavior: minimal padding + scroll to bottom
+                  setAssistantResponseComplete(true);
+                  setAssistantJustFinished(false);
+                  userHasScrolledRef.current = true;
+                  setTimeout(() => {
+                    const container = messagesContainerRef.current;
+                    if (container) {
+                      container.scrollTop = container.scrollHeight;
+                    }
+                  }, 50);
                 }
               } catch {}
 
