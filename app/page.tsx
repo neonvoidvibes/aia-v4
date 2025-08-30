@@ -861,14 +861,24 @@ function HomeContent() {
     if (pageAgentName) {
       const key = `transcriptListenModeSetting_${pageAgentName}`;
       const savedMode = localStorage.getItem(key);
-      if (savedMode === "none" || savedMode === "latest" || savedMode === "all") {
-        setTranscriptListenMode(savedMode as "none" | "latest" | "all");
+      // Check for a valid user-saved preference first
+      if (savedMode === "none" || savedMode === "some" || savedMode === "latest" || savedMode === "all") {
+        setTranscriptListenMode(savedMode as "none" | "some" | "latest" | "all");
       } else {
-        setTranscriptListenMode("latest"); // Default to "latest"
-        localStorage.setItem(key, "latest"); // Persist default if invalid or not found
+        // If no user preference, use the workspace default from ui_config
+        const workspaceDefault = activeUiConfig.default_transcript_listen_mode;
+        // Validate the workspace default before applying, otherwise use hardcoded fallback
+        const finalDefault = (workspaceDefault === "none" || workspaceDefault === "some" || workspaceDefault === "latest" || workspaceDefault === "all")
+          ? workspaceDefault
+          : "latest"; // Hardcoded fallback
+        
+        setTranscriptListenMode(finalDefault);
+        // Do not automatically save the workspace default to localStorage,
+        // so that updates from Supabase can be reflected on next session.
+        // A user's explicit change will save to localStorage.
       }
     }
-  }, [pageAgentName]);
+  }, [pageAgentName, activeUiConfig]); // Add activeUiConfig as a dependency
 
   useEffect(() => {
     if (pageAgentName) {
@@ -992,22 +1002,30 @@ function HomeContent() {
     if (pageAgentName) { // Ensure agentName is available
       const key = `transcriptionLanguageSetting_${pageAgentName}`;
       const savedLang = localStorage.getItem(key);
+
+      // 1. Check for a valid user-saved preference in localStorage
       if (savedLang === "en" || savedLang === "sv" || savedLang === "any") {
         setTranscriptionLanguage(savedLang as "en" | "sv" | "any");
-        console.log(`[LangSetting] Loaded '${savedLang}' for agent '${pageAgentName}' from localStorage.`);
+        console.log(`[LangSetting] Loaded user preference '${savedLang}' for agent '${pageAgentName}' from localStorage.`);
       } else {
-        // No valid setting found for this agent, apply default and potentially save it for next time
-        setTranscriptionLanguage("any"); // Initialize localStorage for this agent with default "any"
-        localStorage.setItem(key, "any");
-        console.log(`[LangSetting] No setting found for agent '${pageAgentName}'. Defaulted to 'any' and saved.`);
+        // 2. If no user preference, use the workspace default from ui_config
+        const workspaceDefault = activeUiConfig.default_transcription_language;
+        
+        // 3. Validate the workspace default, otherwise use hardcoded fallback
+        const finalDefault = (workspaceDefault === "en" || workspaceDefault === "sv" || workspaceDefault === "any")
+          ? workspaceDefault
+          : "any"; // Hardcoded fallback
+
+        setTranscriptionLanguage(finalDefault);
+        console.log(`[LangSetting] No user preference for agent '${pageAgentName}'. Applied default: '${finalDefault}' (from ${workspaceDefault ? 'workspace' : 'hardcode'}).`);
+        // Do not save the workspace default to localStorage, allowing it to be updated from Supabase.
       }
     } else {
-      // Optional: Handle case where pageAgentName is not yet set (e.g., on initial load)
-      // For now, we can let it default to "any" as per initial state and rely on pageAgentName update to trigger correct load.
-       setTranscriptionLanguage("any"); // Fallback if no agent context
+       // Fallback if no agent context is available yet
+       setTranscriptionLanguage("any");
        console.log(`[LangSetting] No pageAgentName, defaulting language to 'any'.`);
     }
-  }, [pageAgentName]); // Dependency: pageAgentName
+  }, [pageAgentName, activeUiConfig]); // Dependency: pageAgentName and activeUiConfig
 
   useEffect(() => {
     if (pageAgentName) { // Only save if there's an agent context
