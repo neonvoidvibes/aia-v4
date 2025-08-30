@@ -3799,12 +3799,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
                               className={cn(
                                 "flex items-center gap-3 px-2 py-2",
-                                conversationSaveMarkerMessageId
-                                  ? "text-[hsl(var(--save-memory-color))]"
-                                  : "text-[hsl(var(--icon-secondary))]",
-                                (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading)
-                                  ? "opacity-50 cursor-not-allowed"
-                                  : !conversationSaveMarkerMessageId ? "hover:text-[hsl(var(--icon-primary))]" : ""
+                                conversationSaveMarkerMessageId && "text-[hsl(var(--save-memory-color))]",
+                                (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading) && "opacity-50 cursor-not-allowed"
                               )}
                             >
                               <Bookmark
@@ -3839,7 +3835,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   micButtonClass,
                                   isBrowserRecording && !isBrowserPaused && "!bg-red-500 !text-white hover:!bg-red-600 hover:!text-white",
                                   isBrowserRecording && isBrowserPaused && "!bg-yellow-500 !text-black hover:!bg-yellow-600 hover:!text-black",
-                                  !isBrowserRecording && "text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]",
                                   globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
                                 )}
                               >
