@@ -466,6 +466,7 @@ function HomeContent() {
         objectiveFunctions: false,
         agentDocuments: false,
       });
+      setChatHistory([]);
     }
 
     setPageAgentName(agentParam);
