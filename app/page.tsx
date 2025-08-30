@@ -68,6 +68,7 @@ interface ChatHistoryItem {
   updatedAt: string;
   agentId: string;
   agentName: string;
+  eventId?: string; // may be absent for legacy rows
   hasSavedMessages?: boolean;
   isConversationSaved?: boolean;
 }
@@ -1796,6 +1797,7 @@ function HomeContent() {
         setCurrentView={setCurrentView}
         setShowSettings={setShowSettings}
         agentName={pageAgentName || undefined}
+        currentEventId={pageEventId || undefined}
         selectedModel={selectedModel}
         onNewChat={handleNewChatFromSidebar}
         onLoadChat={async (chatId: string) => {

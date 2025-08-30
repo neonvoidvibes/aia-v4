@@ -37,6 +37,7 @@ interface ChatHistoryItem {
   updatedAt: string;
   agentId: string;
   agentName: string;
+  eventId?: string;
   hasSavedMessages?: boolean;
   isConversationSaved?: boolean;
 }
@@ -49,6 +50,7 @@ interface SidebarProps {
   setCurrentView: (view: View) => void;
   setShowSettings: (show: boolean) => void;
   agentName?: string;
+  currentEventId?: string;
   selectedModel?: string;
   onNewChat?: () => void;
   onLoadChat?: (chatId: string) => Promise<void>;
@@ -74,6 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   setCurrentView,
   setShowSettings,
   agentName,
+  currentEventId,
   selectedModel,
   onNewChat,
   onLoadChat,
@@ -91,6 +94,35 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const { t, language } = useLocalization();
+  const [flattenAll, setFlattenAll] = useState(false);
+  const [expandedEvents, setExpandedEvents] = useState<Record<string, boolean>>({});
+  const [visibleCountByEvent, setVisibleCountByEvent] = useState<Record<string, number>>({});
+
+  const eventLabel = (e?: string) => {
+    return (!e || e === '0000') ? 'Shared' : e;
+  };
+
+  // Initialize expanded state from localStorage and defaults
+  useEffect(() => {
+    const events = Array.from(new Set((chatHistory || []).map(c => c.eventId || '0000')));
+    const next: Record<string, boolean> = {};
+    const counts: Record<string, number> = {};
+    events.forEach(ev => {
+      const key = `${agentName || 'agent'}:${ev}:collapsed`;
+      const stored = localStorage.getItem(key);
+      const isCurrent = ev === (currentEventId || '0000');
+      const collapsed = stored != null ? stored === 'true' : !isCurrent; // expand current by default, collapse others
+      next[ev] = !collapsed; // store expanded flag
+      counts[ev] = 20; // initial visible count
+    });
+    setExpandedEvents(next);
+    setVisibleCountByEvent(counts);
+  }, [agentName, currentEventId, chatHistory]);
+
+  const setEventExpanded = (ev: string, expanded: boolean) => {
+    setExpandedEvents(prev => ({ ...prev, [ev]: expanded }));
+    try { localStorage.setItem(`${agentName || 'agent'}:${ev}:collapsed`, (!expanded).toString()); } catch {}
+  };
 
   const handleLoadChat = async (chatId: string) => {
     if (onLoadChat) {
@@ -197,6 +229,23 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     return groups;
   };
+
+  const groupByEvent = (chats: ChatHistoryItem[]) => {
+    const groups: Record<string, ChatHistoryItem[]> = {};
+    chats.forEach(c => {
+      const ev = c.eventId || '0000';
+      if (!groups[ev]) groups[ev] = [];
+      groups[ev].push(c);
+    });
+    // Sort each group by updatedAt desc
+    Object.keys(groups).forEach(ev => {
+      groups[ev].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    });
+    return groups;
+  };
+
+  const uniqueEvents = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
+  const hasOnlyShared = uniqueEvents.length <= 1 && uniqueEvents[0] === '0000';
   
   return (
     <div className={className}>
@@ -310,58 +359,99 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex-1 overflow-y-auto">
                {chatHistory.length > 0 ? (
                  <div className="space-y-2">
-                   {Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
-                     <div key={section}>
-                       <div className="px-2 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">
-                         {section}
+                   {/* Controls when multiple events */}
+                   {(!hasOnlyShared && uniqueEvents.length > 1) && (
+                     <div className="px-2 pb-1 flex items-center justify-between">
+                       <Button variant="ghost" className="h-7 px-2 rounded-sm" onClick={() => setFlattenAll(v => !v)}>
+                         {flattenAll ? 'Grouped by event' : 'All sub-teams'}
+                       </Button>
+                       <div className="space-x-1">
+                         <Button variant="ghost" className="h-7 px-2 rounded-sm" onClick={() => uniqueEvents.forEach(ev => setEventExpanded(ev, true))}>Expand all</Button>
+                         <Button variant="ghost" className="h-7 px-2 rounded-sm" onClick={() => uniqueEvents.forEach(ev => setEventExpanded(ev, false))}>Collapse all</Button>
                        </div>
-                       <div className="space-y-0.5">
-                         {chats.map((chat) => (
-                           <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
-                               <Button
-                               variant="ghost"
-                               className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground"
-                               onClick={() => handleLoadChat(chat.id)}
-                             >
-                              <div className="truncate">
-                                {chat.title}
-                              </div>
-                            </Button>
-                            <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
-                              {(chat.isConversationSaved || chat.hasSavedMessages) && (
-                                <div
-                                  className={cn(
-                                    "absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0",
-                                    chat.isConversationSaved
-                                      ? "bg-[hsl(var(--save-memory-color))]"
-                                      : "border border-[hsl(var(--save-memory-color))]"
-                                  )}
-                                  style={{
-                                    borderColor: chat.hasSavedMessages && !chat.isConversationSaved ? 'hsl(var(--save-memory-color))' : undefined,
-                                  }}
-                                />
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteChat(chat.id);
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                null
-              )}
+                     </div>
+                   )}
+
+                   {/* Flat list mode */}
+                   {((hasOnlyShared || flattenAll) && (
+                     Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
+                       <div key={section}>
+                         <div className="px-2 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">{section}</div>
+                         <div className="space-y-0.5">
+                           {chats.map(chat => (
+                             <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
+                               <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                                 <div className="truncate">
+                                   {chat.title}
+                                 </div>
+                                 {/* Event chip */}
+                                 {!hasOnlyShared && (
+                                   <span className="ml-2 inline-flex items-center rounded-full bg-accent/20 text-accent px-2 py-0.5 text-[10px]">{eventLabel(chat.eventId)}</span>
+                                 )}
+                               </Button>
+                               <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
+                                 {(chat.isConversationSaved || chat.hasSavedMessages) && (
+                                   <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
+                                 )}
+                                 <Button variant="ghost" size="icon" className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
+                                   <X className="h-4 w-4" />
+                                 </Button>
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     ))
+                   ))}
+
+                   {/* Grouped by event */}
+                   {(!hasOnlyShared && !flattenAll) && (
+                     Object.entries(groupByEvent(chatHistory)).sort((a,b) => (a[0] === (currentEventId||'0000') ? -1 : b[0] === (currentEventId||'0000') ? 1 : a[0].localeCompare(b[0]))).map(([ev, chats]) => {
+                       const expanded = expandedEvents[ev] ?? (ev === (currentEventId || '0000'));
+                       const visibleCount = visibleCountByEvent[ev] ?? 20;
+                       return (
+                         <div key={ev} className={cn("mx-2 mb-2 border border-[hsl(var(--accent))]/50 rounded-sm", expanded ? "bg-[hsl(var(--accent))]/5" : "bg-transparent") }>
+                           <button
+                             className="w-full flex items-center justify-between px-2 py-1.5 text-sm hover:bg-accent/10 rounded-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                             aria-expanded={expanded}
+                             onClick={() => setEventExpanded(ev, !expanded)}
+                           >
+                             <div className="flex items-center gap-2">
+                               <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+                               <span className="font-medium truncate">{eventLabel(ev)}</span>
+                             </div>
+                             <span className="ml-2 inline-flex items-center rounded-full bg-accent/20 text-accent px-2 py-0.5 text-[10px]">{chats.length}</span>
+                           </button>
+                           {expanded && (
+                             <div className="space-y-0.5 px-1 pb-1">
+                               {chats.slice(0, visibleCount).map(chat => (
+                                 <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
+                                   <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                                     <div className="truncate">{chat.title}</div>
+                                   </Button>
+                                   <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
+                                     {(chat.isConversationSaved || chat.hasSavedMessages) && (
+                                       <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
+                                     )}
+                                     <Button variant="ghost" size="icon" className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
+                                       <X className="h-4 w-4" />
+                                     </Button>
+                                   </div>
+                                 </div>
+                               ))}
+                               {chats.length > visibleCount && (
+                                 <div className="px-1 pb-1">
+                                   <Button variant="ghost" className="h-7 px-2 rounded-sm" onClick={() => setVisibleCountByEvent(prev => ({ ...prev, [ev]: prev[ev] + 20 }))}>Show more</Button>
+                                 </div>
+                               )}
+                             </div>
+                           )}
+                         </div>
+                       );
+                     })
+                   )}
+                 </div>
+               ) : null}
             </div>
           </div>
           <div className="mt-auto pt-4 border-t border-border/50 -mx-4 px-4">
