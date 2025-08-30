@@ -370,6 +370,14 @@
   color: hsl(var(--button-inactive)) !important;
 }
 
+/* SIDEBAR SEPARATORS - Change to lighter accent blue */
+.theme-folkhemmet .sidebar-bg .bg-border\/50 {
+  background-color: hsl(204 100% 54% / 0.3) !important;
+}
+.theme-folkhemmet .sidebar-bg .border-border\/50 {
+  border-color: hsl(204 100% 54% / 0.3) !important;
+}
+
 /* Separator lines for Folkhemmet theme - blue as save memory line */
 .theme-folkhemmet .folkhemmet-separator {
   background-color: hsl(var(--save-memory-color));
