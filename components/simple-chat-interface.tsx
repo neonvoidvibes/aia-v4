@@ -931,7 +931,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [messageToDelete, setMessageToDelete] = useState<UIMessage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [collapsedMessages, setCollapsedMessages] = useState<Set<string>>(new Set());
-  const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation' | 'forget-message' | 'forget-conversation'; message?: Message; memoryId?: string; } | null>(null);
+  const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation' | 'forget-message' | 'forget-conversation' | 'overwrite-conversation'; message?: Message; memoryId?: string; } | null>(null);
   const [docUpdateRequest, setDocUpdateRequest] = useState<{ doc_name: string; content: string; justification?: string; } | null>(null);
     const [isUpdatingDoc, setIsUpdatingDoc] = useState(false);
     const isMobile = useMobile();
@@ -2517,10 +2517,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             onHistoryRefreshNeeded();
         }
 
-        if (onHistoryRefreshNeeded) {
-            onHistoryRefreshNeeded();
-        }
-
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) throw new Error("Authentication error. Cannot save memory.");
@@ -2568,7 +2564,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } finally {
             setConfirmationRequest(null);
         }
-    }, [agentName, addErrorMessage, onHistoryRefreshNeeded, savedMessageIds, conversationSaveMarkerMessageId, conversationMemoryId]);
+    }, [agentName, addErrorMessage, onHistoryRefreshNeeded, currentChatId, chatTitle, conversationSaveMarkerMessageId, conversationMemoryId, supabase.auth]);
 
     const executeSaveMessage = useCallback(async (message: Message) => {
         debugLog("[Save Message to Memory] Executing after confirmation for message:", message.id);
@@ -2656,10 +2652,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             setConversationMemoryId(null);
         }
 
-    if (onHistoryRefreshNeeded) {
-        onHistoryRefreshNeeded();
-    }
-
         if (onHistoryRefreshNeeded) {
             onHistoryRefreshNeeded();
         }
@@ -2692,11 +2684,88 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } finally {
             setConfirmationRequest(null);
         }
-    }, [agentName, addErrorMessage, onHistoryRefreshNeeded, savedMessageIds, conversationSaveMarkerMessageId, conversationMemoryId]);
+    }, [agentName, addErrorMessage, onHistoryRefreshNeeded, savedMessageIds, conversationSaveMarkerMessageId, conversationMemoryId, supabase.auth]);
+
+    const executeOverwriteConversation = useCallback(async () => {
+        debugLog("[Overwrite Chat Memory] Executing after confirmation.");
+        const currentMessages = messagesRef.current;
+        if (!agentName || currentMessages.length === 0 || !currentChatId) {
+            addErrorMessage('Cannot save memory: Chat is empty or has not been initialized.');
+            setConfirmationRequest(null);
+            return;
+        }
+
+        const lastMessageId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null;
+        const originalSaveMarker = conversationSaveMarkerMessageId;
+        const originalMemoryId = conversationMemoryId;
+
+        // Optimistic UI update
+        if (lastMessageId) {
+            setConversationSaveMarkerMessageId(lastMessageId);
+        }
+
+        const toastId = `overwrite-memory-${currentChatId}`;
+        toast.loading("Saving...", { id: toastId });
+
+        if (onHistoryRefreshNeeded) {
+            onHistoryRefreshNeeded();
+        }
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) throw new Error("Authentication error. Cannot save memory.");
+
+            // First, save/update the chat history in Supabase. This is idempotent.
+            const historyResponse = await fetch('/api/chat/history/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                body: JSON.stringify({
+                    agent: agentName,
+                    messages: currentMessages,
+                    chatId: currentChatId,
+                    title: chatTitle,
+                    lastMessageId: lastMessageId,
+                }),
+            });
+            const historyResult = await historyResponse.json();
+            if (!historyResponse.ok || !historyResult.success) throw new Error(historyResult.error || "Failed to update chat history before overwrite.");
+
+            // Now, call save-chat which handles the overwrite logic (delete->upsert)
+            const memoryResponse = await fetch('/api/memory/save-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                body: JSON.stringify({
+                    agentName: agentName,
+                    messages: currentMessages,
+                    sessionId: currentChatId, // sessionId on backend is the chatId
+                    savedAt: new Date().toISOString()
+                }),
+            });
+            
+            const memResult = await memoryResponse.json();
+            if (!memoryResponse.ok) {
+                throw new Error(memResult.error || "Failed to overwrite intelligent memory.");
+            }
+            
+            if (memResult.log_id) {
+                setConversationMemoryId(memResult.log_id);
+            }
+
+            toast.success("Saved chat overwritten.", { id: toastId });
+        } catch (error: any) {
+            console.error('[Overwrite Memory] Error:', error);
+            toast.error("Couldn’t overwrite the saved chat. Try again.", { id: toastId });
+            // Revert UI optimistically
+            setConversationSaveMarkerMessageId(originalSaveMarker);
+            setConversationMemoryId(originalMemoryId);
+        } finally {
+            setConfirmationRequest(null);
+        }
+    }, [agentName, addErrorMessage, onHistoryRefreshNeeded, currentChatId, chatTitle, conversationSaveMarkerMessageId, conversationMemoryId, supabase.auth]);
 
     const handleSaveChatToMemory = () => {
-                if (conversationMemoryId) {
-            setConfirmationRequest({ type: 'forget-conversation', memoryId: conversationMemoryId });
+        if (conversationMemoryId) {
+            setConfirmationRequest({ type: 'overwrite-conversation', memoryId: conversationMemoryId });
         } else {
             setConfirmationRequest({ type: 'save-conversation' });
         }
@@ -3682,11 +3751,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     <AlertDialogContent>
                         <AlertDialogHeader>
                             <AlertDialogTitle>
-                                {confirmationRequest?.type.startsWith('forget') ? 'Confirm Forget' : 'Confirm Save'}
+                                {confirmationRequest?.type === 'overwrite-conversation' ? 'Confirm Save' :
+                                 confirmationRequest?.type.startsWith('forget') ? 'Confirm Forget' : 'Confirm Save'}
                             </AlertDialogTitle>
                             <AlertDialogDescription>
                                 {confirmationRequest?.type === 'save-message' && "Do you want to save this message to your memory?"}
                                 {confirmationRequest?.type === 'save-conversation' && "Do you want to save the entire conversation to your memory?"}
+                                {confirmationRequest?.type === 'overwrite-conversation' && "Do you want to save the entire conversation to your memory? This will replace the current saved version and can’t be undone."}
                                 {confirmationRequest?.type === 'forget-message' && "This will permanently delete the saved memory for this message. This action cannot be undone."}
                                 {confirmationRequest?.type === 'forget-conversation' && "This will permanently delete the saved memory for this conversation. This action cannot be undone."}
                             </AlertDialogDescription>
@@ -3700,6 +3771,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         executeSaveMessage(confirmationRequest.message);
                                     } else if (confirmationRequest?.type === 'save-conversation') {
                                         executeSaveConversation();
+                                    } else if (confirmationRequest?.type === 'overwrite-conversation') {
+                                        executeOverwriteConversation();
                                     } else if (confirmationRequest?.type === 'forget-message' && confirmationRequest.memoryId && confirmationRequest.message) {
                                         executeForgetMemory(confirmationRequest.memoryId, 'message', confirmationRequest.message.id);
                                     } else if (confirmationRequest?.type === 'forget-conversation' && confirmationRequest.memoryId) {
