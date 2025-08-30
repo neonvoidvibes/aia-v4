@@ -141,15 +141,48 @@ const formatAssistantMessage = (text: string): string => {
         }
     );
 
-    // Block elements (processed first, line by line)
+    // Code blocks (line-by-line parsing to handle nesting). This must run first.
+    const linesForCodeProcessing = html.split('\n');
+    let inCodeBlock = false;
+    let codeBlockContent = '';
+    let codeBlockLang = '';
+    let processedHtmlWithCodeBlocks = '';
+
+    for (const line of linesForCodeProcessing) {
+        if (line.trim().startsWith('```')) {
+            if (inCodeBlock) {
+                // End of code block
+                inCodeBlock = false;
+                const langHtml = codeBlockLang ? `<div class="code-language">${codeBlockLang}</div>` : '';
+                processedHtmlWithCodeBlocks += `<pre>${langHtml}<code>${codeBlockContent.trimEnd()}</code></pre>`;
+                codeBlockContent = '';
+                codeBlockLang = '';
+            } else {
+                // Start of code block
+                inCodeBlock = true;
+                codeBlockLang = line.trim().substring(3);
+            }
+        } else if (inCodeBlock) {
+            codeBlockContent += line + '\n';
+        } else {
+            processedHtmlWithCodeBlocks += line + '\n';
+        }
+    }
+    // Handle unclosed code block at end of message
+    if (inCodeBlock) {
+        const langHtml = codeBlockLang ? `<div class="code-language">${codeBlockLang}</div>` : '';
+        processedHtmlWithCodeBlocks += `<pre>${langHtml}<code>${codeBlockContent.trimEnd()}</code></pre>`;
+    }
+    html = processedHtmlWithCodeBlocks.trimEnd();
+    
+    // Block elements (processed after code blocks)
     // Headers
+    html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-    // Custom rule: Treat a line that is only bold as a header to solve layout issues.
-    html = html.replace(/^\s*\*\*(.*)\*\*\s*$/gim, '<h3>$1</h3>');
-    // Custom rule: Treat a line that is only bold as a header to solve layout issues.
-    html = html.replace(/^\*\*(.*)\*\*$/gim, '<h3>$1</h3>');
+    // Custom rule: Treat a line that is only bold as a paragraph for block-level display.
+    html = html.replace(/^\s*\*\*(.*?)\*\*\s*$/gm, '<p><strong>$1</strong></p>');
     
     // Horizontal Rule
     html = html.replace(/^\s*---*\s*$/gm, '<hr />');
@@ -260,19 +293,6 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/<\/ol>\s*<ol>/g, '');
     html = html.replace(/<\/ul>\s*<ul class="checklist">/g, '');
 
-    // Code blocks with language identifier
-    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, codeContent) => {
-        const langHtml = lang ? `<div class="code-language">${lang}</div>` : '';
-        const trimmedContent = codeContent.replace(/^\n/, '').trimEnd();
-        return `<pre>${langHtml}<code>${trimmedContent}</code></pre>`;
-    });
-
-    // Fallback for code blocks without language
-    html = html.replace(/```([\s\S]*?)```/g, (match, codeContent) => {
-        const trimmedContent = codeContent.replace(/^\n/, '').trimEnd();
-        return `<pre><code>${trimmedContent}</code></pre>`;
-    });
-
     // Block-style single-line code
     html = html.replace(/^\s*`([^`\n]+?)`\s*$/gm, '<div class="code-block-wrapper"><code>$1</code></div>');
 
@@ -345,8 +365,8 @@ const formatAssistantMessage = (text: string): string => {
 
     // Newlines to <br>, but be careful not to add them inside list structures or other blocks
     const finalHtml = html.replace(/\n/g, '<br />')
-        .replace(/(<br \/>\s*)*<((h[1-3]|ul|ol|li|div|pre|blockquote|hr|table))/g, '<$2') // remove all <br>s before block elements
-        .replace(/(<\/(h[1-3]|ul|ol|li|div|pre|blockquote|hr|table)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
+        .replace(/(<br \/>\s*)*<((h[1-4]|p|ul|ol|li|div|pre|blockquote|hr|table))/g, '<$2') // remove all <br>s before block elements
+        .replace(/(<\/(h[1-4]|p|ul|ol|li|div|pre|blockquote|hr|table)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
     
     // Build footnotes block (if any). Allow links and inline `code` inside footnotes.
     let footnotesHtml = "";

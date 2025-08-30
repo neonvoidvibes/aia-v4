@@ -320,7 +320,7 @@
   --primary-foreground: 0 0% 100%; /* White */
   --secondary: 204 70% 93%; /* Very light, clean blue */
   --secondary-foreground: 204 100% 34%; /* IKEA Blue text/icons on light blue secondary */
-  --muted: 204 50% 95%; /* Very light, almost neutral blue-gray for inactive tabs */
+  --muted: 0 0% 90%; /* Light gray for inactive tabs/toggles */
   --accent: 51 95% 51%; /* IKEA Yellow */
   --accent-foreground: 45 100% 20%; /* Dark, warm brown/black for text on yellow */
   --destructive: 0 75% 55%; /* Vibrant red */
