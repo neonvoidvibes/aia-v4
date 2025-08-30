@@ -880,12 +880,6 @@ function HomeContent() {
     }
   }, [pageAgentName, activeUiConfig]); // Add activeUiConfig as a dependency
 
-  useEffect(() => {
-    if (pageAgentName) {
-      const key = `transcriptListenModeSetting_${pageAgentName}`;
-      localStorage.setItem(key, transcriptListenMode);
-    }
-  }, [transcriptListenMode, pageAgentName]);
 
   // Load and persist savedTranscriptMemoryMode (agent-specific)
   useEffect(() => {
@@ -1027,13 +1021,6 @@ function HomeContent() {
     }
   }, [pageAgentName, activeUiConfig]); // Dependency: pageAgentName and activeUiConfig
 
-  useEffect(() => {
-    if (pageAgentName) { // Only save if there's an agent context
-      const key = `transcriptionLanguageSetting_${pageAgentName}`;
-      localStorage.setItem(key, transcriptionLanguage);
-      console.log(`[LangSetting] Saved '${transcriptionLanguage}' for agent '${pageAgentName}' to localStorage.`);
-    }
-  }, [transcriptionLanguage, pageAgentName]); // Dependencies: transcriptionLanguage, pageAgentName
 
   // Load/persist "Use Chat Memory" toggle state
   useEffect(() => {
@@ -2113,7 +2100,14 @@ function HomeContent() {
                         value={transcriptionLanguage}
                         onValueChange={(value) => {
                           if (value === "en" || value === "sv" || value === "any") {
-                            setTranscriptionLanguage(value as "en" | "sv" | "any");
+                            const newLang = value as "en" | "sv" | "any";
+                            setTranscriptionLanguage(newLang);
+                            // Manually save user's explicit choice to localStorage
+                            if (pageAgentName) {
+                              const key = `transcriptionLanguageSetting_${pageAgentName}`;
+                              localStorage.setItem(key, newLang);
+                              console.log(`[LangSetting] User saved '${newLang}' for agent '${pageAgentName}' to localStorage.`);
+                            }
                           }
                         }}
                         className="rounded-md bg-muted p-1"
@@ -2156,6 +2150,11 @@ function HomeContent() {
                             if (value) {
                               const newMode = value as "none" | "some" | "latest" | "all";
                               setTranscriptListenMode(newMode);
+                              // Manually save user's explicit choice to localStorage
+                              if (pageAgentName) {
+                                const key = `transcriptListenModeSetting_${pageAgentName}`;
+                                localStorage.setItem(key, newMode);
+                              }
                               // When an explicit mode is chosen, clear manual overrides
                               if (newMode !== 'some') {
                                 setIndividualRawTranscriptToggleStates({});
