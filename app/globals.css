@@ -2053,8 +2053,7 @@ button {
 }
 
 .sidebar-bg {
-  background-color: hsl(var(--background));
-  filter: brightness(0.8);
+  background-color: hsl(var(--sidebar-background));
 }
 
 /* Sidebar font styling to match user and assistant messages */
@@ -2489,15 +2488,6 @@ button {
   --assistant-message-text-color: var(--foreground); /* White text for assistant on main bg */
 }
 
-.light .sidebar-bg {
-  background-color: hsl(var(--input-gray));
-  filter: none;
-}
-
-.theme-moderbyn .sidebar-bg {
-  background-color: hsl(208 15% 20%);
-  filter: none;
-}
 
 /* Folkhemmet theme specific overrides */
 /* FOUNDATIONAL FIX: Component-specific targeting to prevent conflicts */
