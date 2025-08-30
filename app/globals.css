@@ -1458,7 +1458,7 @@ body {
 .ai-bubble h3 { font-size: 1.2em; } /* ~17px */
 
 .ai-bubble h4 {
-  font-weight: 700; /* bold */
+  font-weight: 600; /* semi-bold */
 }
 
 .ai-bubble ul, .ai-bubble ol {
