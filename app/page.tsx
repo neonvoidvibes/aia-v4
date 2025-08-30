@@ -647,12 +647,7 @@ function HomeContent() {
     }
   }, [historyNeedsRefresh, pageAgentName, fetchChatHistory]);
 
-  // This effect will re-fetch chat history when the sidebar is opened.
-  useEffect(() => {
-    if (isSidebarOpen && pageAgentName) {
-      fetchChatHistory(pageAgentName);
-    }
-  }, [isSidebarOpen, pageAgentName, fetchChatHistory]);
+  // Removed: avoid re-fetching history on every sidebar open to prevent flicker
 
   const handleDeleteInitiated = (chatId: string) => {
     setChatIdToDelete(chatId);
