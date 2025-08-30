@@ -3799,18 +3799,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
                               className={cn(
                                 "flex items-center gap-3 px-2 py-2",
-                                conversationSaveMarkerMessageId && "text-[hsl(var(--save-memory-color))]",
                                 (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading) && "opacity-50 cursor-not-allowed"
                               )}
                             >
                               <Bookmark
                                 size={17}
                                 className={cn(
-                                  "flex-shrink-0",
-                                  conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
+                                  "flex-shrink-0"
                                 )}
                               />
-                              <span className="text-sm whitespace-nowrap">{t('controlsMenu.saveToMemory')}</span>
+                             <span className="text-sm whitespace-nowrap">{t('controlsMenu.saveToMemory')}</span>
                             </DropdownMenuItem>
                             
                             {/* Download chat - Hidden if workspace config specifies */}
