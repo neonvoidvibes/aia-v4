@@ -237,6 +237,28 @@ function HomeContent() {
 
   // State for chat history loading
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
+  const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Effect to manage loading spinner visibility with a delay
+  useEffect(() => {
+    if (isChatLoading) {
+      loadingTimerRef.current = setTimeout(() => {
+        setShowLoadingSpinner(true);
+      }, 1000); // 1-second delay
+    } else {
+      if (loadingTimerRef.current) {
+        clearTimeout(loadingTimerRef.current);
+      }
+      setShowLoadingSpinner(false);
+    }
+
+    return () => {
+      if (loadingTimerRef.current) {
+        clearTimeout(loadingTimerRef.current);
+      }
+    };
+  }, [isChatLoading]);
 
   // New global state for recording status
   type RecordingType = 'long-form-note' | 'long-form-chat' | 'press-to-talk' | null;
@@ -743,15 +765,28 @@ function HomeContent() {
     setPreviousActiveTab(value); 
   };
 
+  const startNewChatFlow = async () => {
+    console.log("Starting new chat flow");
+    setIsChatLoading(true);
+    try {
+      await chatInterfaceRef.current?.startNewChat();
+      setCurrentChatId(null);
+      setCurrentView('chat');
+    } catch (error) {
+      console.error("Error starting new chat flow:", error);
+      toast.error("Failed to start a new chat.");
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
   const handleNewChatRequest = () => {
-      if (chatInterfaceRef.current && chatInterfaceRef.current.getMessagesCount() > 0) {
-          setShowNewChatConfirm(true);
-      } else {
-          console.log("No messages, calling startNewChat directly");
-          chatInterfaceRef.current?.startNewChat();
-          setCurrentChatId(null);
-          setCurrentView('chat');
-      }
+    if (chatInterfaceRef.current && chatInterfaceRef.current.getMessagesCount() > 0) {
+      setShowNewChatConfirm(true);
+    } else {
+      console.log("No messages, starting new chat directly");
+      startNewChatFlow();
+    }
   };
 
   const handleIndividualMemoryToggleChange = (checked: boolean, fileKey: string) => {
@@ -821,18 +856,14 @@ function HomeContent() {
   };
 
   const confirmAndStartNewChat = () => {
-      console.log("Modal confirmed, calling startNewChat via ref");
-      chatInterfaceRef.current?.startNewChat();
-      setCurrentChatId(null);
-      setCurrentView('chat');
-      setShowNewChatConfirm(false);
+    console.log("Modal confirmed, starting new chat flow");
+    startNewChatFlow();
+    setShowNewChatConfirm(false);
   };
 
   const handleNewChatFromSidebar = () => {
-      console.log("New chat requested from sidebar");
-      chatInterfaceRef.current?.startNewChat();
-      setCurrentChatId(null);
-      setCurrentView('chat');
+    console.log("New chat requested from sidebar, starting flow");
+    startNewChatFlow();
   };
 
   const cancelNewChat = () => {
@@ -1859,7 +1890,7 @@ function HomeContent() {
         </header>
         
         <main className="flex-1 flex flex-col relative">
-      {isChatLoading && (
+      {showLoadingSpinner && (
         <div className="flex-1 flex items-center justify-center absolute inset-0 bg-background z-30">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
