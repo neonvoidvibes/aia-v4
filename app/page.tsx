@@ -335,6 +335,7 @@ function HomeContent() {
 
   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
   const [pageEventId, setPageEventId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null); // Add state for user ID
   const [userName, setUserName] = useState<string | null>(null);
   const [allowedAgents, setAllowedAgents] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -465,6 +466,7 @@ function HomeContent() {
 
         const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
         setUserName(name);
+        setUserId(session.user.id); // Set the user ID
 
         if (agentParam) {
           // Agent is in URL, validate it
@@ -813,34 +815,34 @@ function HomeContent() {
   }, [hasOpenSection]);
   
   const handleAgentThemeChange = useCallback((newThemeValue: string) => {
-      if (pageAgentName) {
-        const agentThemeKey = `agent-theme-${pageAgentName}`;
+      if (pageAgentName && userId) {
+        const agentThemeKey = `agent-theme-${pageAgentName}_${userId}`;
         localStorage.setItem(agentThemeKey, newThemeValue);
         if (predefinedThemes.some(t => t.className === newThemeValue)) {
-            localStorage.setItem(`agent-custom-theme-${pageAgentName}`, newThemeValue);
+            localStorage.setItem(`agent-custom-theme-${pageAgentName}_${userId}`, newThemeValue);
         } else {
-            localStorage.removeItem(`agent-custom-theme-${pageAgentName}`);
+            localStorage.removeItem(`agent-custom-theme-${pageAgentName}_${userId}`);
         }
         setTheme(newThemeValue);
         setCurrentAgentTheme(newThemeValue);
       }
-  }, [pageAgentName, setTheme]);
+  }, [pageAgentName, userId, setTheme]);
 
   useEffect(() => {
-    if (pageAgentName) {
-      const agentThemeKey = `agent-theme-${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const agentThemeKey = `agent-theme-${pageAgentName}_${userId}`;
       const savedAgentTheme = localStorage.getItem(agentThemeKey);
       if (savedAgentTheme) {
         setTheme(savedAgentTheme);
         setCurrentAgentTheme(savedAgentTheme);
         if (predefinedThemes.some(t => t.className === savedAgentTheme)) {
-            localStorage.setItem(`agent-custom-theme-${pageAgentName}`, savedAgentTheme);
+            localStorage.setItem(`agent-custom-theme-${pageAgentName}_${userId}`, savedAgentTheme);
         }
       } else {
         setCurrentAgentTheme(theme);
       }
     }
-  }, [pageAgentName, setTheme, theme]); 
+  }, [pageAgentName, userId, setTheme, theme]);
 
   useEffect(() => {
     const savedCanvasEnabled = localStorage.getItem("canvasViewEnabled");
@@ -858,8 +860,8 @@ function HomeContent() {
 
   // Load and persist transcriptListenMode (agent-specific)
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `transcriptListenModeSetting_${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
       const savedMode = localStorage.getItem(key);
       // Check for a valid user-saved preference first
       if (savedMode === "none" || savedMode === "some" || savedMode === "latest" || savedMode === "all") {
@@ -878,13 +880,13 @@ function HomeContent() {
         // A user's explicit change will save to localStorage.
       }
     }
-  }, [pageAgentName, activeUiConfig]); // Add activeUiConfig as a dependency
+  }, [pageAgentName, userId, activeUiConfig]); // Add userId and activeUiConfig as a dependency
 
 
   // Load and persist savedTranscriptMemoryMode (agent-specific)
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `savedTranscriptMemoryModeSetting_${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `savedTranscriptMemoryModeSetting_${pageAgentName}_${userId}`;
       const savedMode = localStorage.getItem(key);
       if (savedMode === "none" || savedMode === "some" || savedMode === "all") {
         setSavedTranscriptMemoryMode(savedMode as "none" | "some" | "all");
@@ -892,19 +894,19 @@ function HomeContent() {
         setSavedTranscriptMemoryMode("none"); // Default if no agent-specific setting found
       }
     }
-  }, [pageAgentName]);
+  }, [pageAgentName, userId]);
 
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `savedTranscriptMemoryModeSetting_${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `savedTranscriptMemoryModeSetting_${pageAgentName}_${userId}`;
       localStorage.setItem(key, savedTranscriptMemoryMode);
     }
-  }, [savedTranscriptMemoryMode, pageAgentName]);
+  }, [savedTranscriptMemoryMode, pageAgentName, userId]);
 
   // Load and persist individual memory toggle states (agent-specific)
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `individualMemoryToggleStates_${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `individualMemoryToggleStates_${pageAgentName}_${userId}`;
       const savedStates = localStorage.getItem(key);
       if (savedStates) {
         try {
@@ -916,14 +918,14 @@ function HomeContent() {
         }
       }
     }
-  }, [pageAgentName]);
+  }, [pageAgentName, userId]);
 
   useEffect(() => {
-    if (pageAgentName && Object.keys(individualMemoryToggleStates).length > 0) {
-      const key = `individualMemoryToggleStates_${pageAgentName}`;
+    if (pageAgentName && userId && Object.keys(individualMemoryToggleStates).length > 0) {
+      const key = `individualMemoryToggleStates_${pageAgentName}_${userId}`;
       localStorage.setItem(key, JSON.stringify(individualMemoryToggleStates));
     }
-  }, [individualMemoryToggleStates, pageAgentName]);
+  }, [individualMemoryToggleStates, pageAgentName, userId]);
 
   // Auto-switch memory mode to 'some' when an individual toggle is turned on
   useEffect(() => {
@@ -949,8 +951,8 @@ function HomeContent() {
 
   // Load and persist individual raw transcript toggle states (agent-specific)
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `individualRawTranscriptToggleStates_${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `individualRawTranscriptToggleStates_${pageAgentName}_${userId}`;
       const savedStates = localStorage.getItem(key);
       if (savedStates) {
         try {
@@ -962,39 +964,38 @@ function HomeContent() {
         }
       }
     }
-  }, [pageAgentName]);
+  }, [pageAgentName, userId]);
 
   useEffect(() => {
-    if (pageAgentName && Object.keys(individualRawTranscriptToggleStates).length > 0) {
-      const key = `individualRawTranscriptToggleStates_${pageAgentName}`;
+    if (pageAgentName && userId && Object.keys(individualRawTranscriptToggleStates).length > 0) {
+      const key = `individualRawTranscriptToggleStates_${pageAgentName}_${userId}`;
       localStorage.setItem(key, JSON.stringify(individualRawTranscriptToggleStates));
     }
-  }, [individualRawTranscriptToggleStates, pageAgentName]);
+  }, [individualRawTranscriptToggleStates, pageAgentName, userId]);
 
   // Load and persist VAD aggressiveness (agent-specific)
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `vadAggressivenessSetting_${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `vadAggressivenessSetting_${pageAgentName}_${userId}`;
       const savedValue = localStorage.getItem(key);
       if (savedValue && ["1", "2", "3"].includes(savedValue)) {
         setVadAggressiveness(parseInt(savedValue, 10) as VADAggressiveness);
       } else {
         setVadAggressiveness(2); // Default to 'Mid'
-        localStorage.setItem(key, "2");
       }
     }
-  }, [pageAgentName]);
+  }, [pageAgentName, userId]);
 
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `vadAggressivenessSetting_${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `vadAggressivenessSetting_${pageAgentName}_${userId}`;
       localStorage.setItem(key, vadAggressiveness.toString());
     }
-  }, [vadAggressiveness, pageAgentName]);
+  }, [vadAggressiveness, pageAgentName, userId]);
 
   useEffect(() => {
-    if (pageAgentName) { // Ensure agentName is available
-      const key = `transcriptionLanguageSetting_${pageAgentName}`;
+    if (pageAgentName && userId) { // Ensure agentName and userId are available
+      const key = `transcriptionLanguageSetting_${pageAgentName}_${userId}`;
       const savedLang = localStorage.getItem(key);
 
       // 1. Check for a valid user-saved preference in localStorage
@@ -1017,24 +1018,24 @@ function HomeContent() {
     } else {
        // Fallback if no agent context is available yet
        setTranscriptionLanguage("any");
-       console.log(`[LangSetting] No pageAgentName, defaulting language to 'any'.`);
+       console.log(`[LangSetting] No pageAgentName or userId, defaulting language to 'any'.`);
     }
-  }, [pageAgentName, activeUiConfig]); // Dependency: pageAgentName and activeUiConfig
+  }, [pageAgentName, userId, activeUiConfig]); // Dependency: pageAgentName, userId, and activeUiConfig
 
 
   // Load/persist "Use Chat Memory" toggle state
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `useChatMemory_${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `useChatMemory_${pageAgentName}_${userId}`;
       const savedValue = localStorage.getItem(key);
       setUseChatMemory(savedValue === 'true');
     }
-  }, [pageAgentName]);
+  }, [pageAgentName, userId]);
 
   const handleUseChatMemoryChange = (checked: boolean) => {
     setUseChatMemory(checked);
-    if (pageAgentName) {
-      localStorage.setItem(`useChatMemory_${pageAgentName}`, String(checked));
+    if (pageAgentName && userId) {
+      localStorage.setItem(`useChatMemory_${pageAgentName}_${userId}`, String(checked));
     }
   };
 
@@ -1069,8 +1070,8 @@ function HomeContent() {
 
   // Load and persist selectedModel (agent-specific)
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `agent-model-${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `agent-model-${pageAgentName}_${userId}`;
       const savedModel = localStorage.getItem(key);
       if (savedModel) {
         setSelectedModel(savedModel);
@@ -1079,20 +1080,20 @@ function HomeContent() {
         setSelectedModel('claude-sonnet-4-20250514');
       }
     }
-  }, [pageAgentName]);
+  }, [pageAgentName, userId]);
 
   const handleModelChange = (model: string) => {
     setSelectedModel(model);
-    if (pageAgentName) {
-      const key = `agent-model-${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `agent-model-${pageAgentName}_${userId}`;
       localStorage.setItem(key, model);
     }
   };
   
   // Load and persist temperature (agent-specific)
   useEffect(() => {
-    if (pageAgentName) {
-      const key = `agent-temperature-${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `agent-temperature-${pageAgentName}_${userId}`;
       const savedTemp = localStorage.getItem(key);
       if (savedTemp !== null && !isNaN(parseFloat(savedTemp))) {
         setTemperature(parseFloat(savedTemp));
@@ -1100,13 +1101,13 @@ function HomeContent() {
         setTemperature(0.7); // Default if not set or invalid
       }
     }
-  }, [pageAgentName]);
+  }, [pageAgentName, userId]);
 
   const handleTemperatureChange = (value: number[]) => {
     const newTemp = value[0];
     setTemperature(newTemp);
-    if (pageAgentName) {
-      const key = `agent-temperature-${pageAgentName}`;
+    if (pageAgentName && userId) {
+      const key = `agent-temperature-${pageAgentName}_${userId}`;
       localStorage.setItem(key, newTemp.toString());
     }
   };
@@ -2103,8 +2104,8 @@ function HomeContent() {
                             const newLang = value as "en" | "sv" | "any";
                             setTranscriptionLanguage(newLang);
                             // Manually save user's explicit choice to localStorage
-                            if (pageAgentName) {
-                              const key = `transcriptionLanguageSetting_${pageAgentName}`;
+                            if (pageAgentName && userId) {
+                              const key = `transcriptionLanguageSetting_${pageAgentName}_${userId}`;
                               localStorage.setItem(key, newLang);
                               console.log(`[LangSetting] User saved '${newLang}' for agent '${pageAgentName}' to localStorage.`);
                             }
@@ -2151,8 +2152,8 @@ function HomeContent() {
                               const newMode = value as "none" | "some" | "latest" | "all";
                               setTranscriptListenMode(newMode);
                               // Manually save user's explicit choice to localStorage
-                              if (pageAgentName) {
-                                const key = `transcriptListenModeSetting_${pageAgentName}`;
+                              if (pageAgentName && userId) {
+                                const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
                                 localStorage.setItem(key, newMode);
                               }
                               // When an explicit mode is chosen, clear manual overrides
