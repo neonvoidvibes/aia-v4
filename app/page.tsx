@@ -24,6 +24,7 @@ import { useMobile } from "@/hooks/use-mobile"
 import { Separator } from "@/components/ui/separator"; // Import Separator
 import { toast } from "sonner"; // Import toast for notifications
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useLocalization } from "@/context/LocalizationContext";
 import enTranslations from "@/lib/localization/en.json";
 // Use both Dropdown and Sheet components
@@ -231,6 +232,9 @@ function HomeContent() {
   });
 
   const [noteRecordingTime, setNoteRecordingTime] = useState(0);
+
+  // State for chat history loading
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   // New global state for recording status
   type RecordingType = 'long-form-note' | 'long-form-chat' | 'press-to-talk' | null;
@@ -1732,8 +1736,13 @@ function HomeContent() {
         onNewChat={handleNewChatFromSidebar}
         onLoadChat={async (chatId: string) => {
           if (chatInterfaceRef.current) {
-            await chatInterfaceRef.current.loadChatHistory(chatId);
-            setCurrentChatId(chatId);
+            setIsChatLoading(true);
+            try {
+              await chatInterfaceRef.current.loadChatHistory(chatId);
+              setCurrentChatId(chatId);
+            } finally {
+              setIsChatLoading(false);
+            }
           }
         }}
         currentChatId={currentChatId || undefined}
@@ -1830,7 +1839,13 @@ function HomeContent() {
           </div>
         </header>
         
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col relative">
+      {isChatLoading && (
+        <div className="flex-1 flex items-center justify-center absolute inset-0 bg-background z-30">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      <div className={cn("flex flex-col flex-1", isChatLoading && "invisible")}>
         {/* Keep SimpleChatInterface always mounted but hidden when not active to preserve state */}
         <div className={currentView === "chat" ? "flex flex-col flex-1" : "hidden"}>
             <SimpleChatInterface
@@ -1921,7 +1936,8 @@ function HomeContent() {
                 <p className="text-sm">You can enable it in the settings menu.</p>
             </div>
         )}
-        </main>
+      </div>
+    </main>
       </div>
 
       {showSettings && !showS3FileViewer && (
