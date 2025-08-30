@@ -320,13 +320,13 @@
   --primary-foreground: 0 0% 100%; /* White */
   --secondary: 204 70% 93%; /* Very light, clean blue */
   --secondary-foreground: 204 100% 34%; /* IKEA Blue text/icons on light blue secondary */
-  --muted: 0 0% 90%; /* Light gray for inactive tabs/toggles */
+  --muted: 204 50% 95%; /* Very light, almost neutral blue-gray for inactive tabs */
   --accent: 51 95% 51%; /* IKEA Yellow */
   --accent-foreground: 45 100% 20%; /* Dark, warm brown/black for text on yellow */
   --destructive: 0 75% 55%; /* Vibrant red */
   --destructive-foreground: 0 0% 100%; /* White */
   --border: 204 60% 88%; /* Lighter, noticeable blue-gray border */
-  --input: 0 0% 100%; /* White input fields */
+  --input: 204 60% 88%; /* Light blue to match border for visibility */
   --ring: hsl(var(--accent)); /* IKEA Yellow for focus rings */
 
   /* Custom Button State Variables */
@@ -393,6 +393,11 @@
 .theme-folkhemmet .folkhemmet-separator {
   background-color: hsl(var(--save-memory-color));
   opacity: 0.5;
+}
+
+/* Target smaller toggle groups inside settings tabs for Folkhemmet theme */
+.theme-folkhemmet .tab-content-inner .bg-muted {
+  background-color: hsl(0 0% 90%); /* Light gray */
 }
 
 .theme-folkhemmet .header-workspace-title {
