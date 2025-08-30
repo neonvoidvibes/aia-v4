@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { UploadCloud, FileText, Loader2, Download, XCircle, Trash2, ListCollapse, CheckCircle2, Clock, StopCircle, RotateCcw, RefreshCw } from 'lucide-react';
+import { UploadCloud, FileText, Download, XCircle, Trash2, ListCollapse, CheckCircle2, Clock, StopCircle, RotateCcw, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { useLocalization } from '@/context/LocalizationContext';
@@ -9,7 +9,6 @@ import { Progress } from "@/components/ui/progress"; // Added Progress import
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 import { useMobile } from '@/hooks/use-mobile';
-import { useLocalization } from '@/context/LocalizationContext';
 
 const truncateString = (str: string, maxLength: number) => {
   if (str.length <= maxLength) {
