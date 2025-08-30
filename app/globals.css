@@ -657,7 +657,7 @@ body {
   /* Use CSS variables for background */
   background: var(
     --app-background,
-    linear-gradient(to bottom, hsl(var(--background) / 0.9), hsl(var(--background) / 1))
+    hsl(var(--background))
   );
   color: hsl(var(--foreground));
   height: 100vh; /* Fixed height for proper flex calculations */
