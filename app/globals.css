@@ -395,6 +395,11 @@
   opacity: 0.5;
 }
 
+.theme-folkhemmet .header-workspace-title {
+  color: hsl(var(--foreground));
+  opacity: 0.5;
+}
+
 
 /* Tenant Theme */
 .theme-tenant {
