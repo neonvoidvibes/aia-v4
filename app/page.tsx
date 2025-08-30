@@ -59,6 +59,8 @@ import AgentSelectorMenu from "@/components/ui/agent-selector";
 import { MODEL_GROUPS } from "@/lib/model-map";
 import AgentDashboard from "@/components/agent-dashboard"; // New import
 import ConsentView from "@/components/consent-view"; // Phase 3 import
+import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
+import { manager as recordingManager } from "@/lib/recordingManager";
 
 interface ChatHistoryItem {
   id: string;
@@ -248,6 +250,23 @@ function HomeContent() {
     isRecording: false,
     type: null,
   });
+
+  // Persistent Recording: attach/subscribe
+  useEffect(() => {
+    if (!isRecordingPersistenceEnabled()) return;
+    const st = recordingManager.getState();
+    if (st.sessionId) {
+      recordingManager.attachToExisting(st.sessionId).catch(() => {});
+    }
+    const unsub = recordingManager.subscribe((s) => {
+      const active = s.sessionId && (s.phase === 'starting' || s.phase === 'active' || s.phase === 'suspended');
+      setGlobalRecordingStatus((prev) => ({
+        isRecording: !!active,
+        type: s.type === 'note' ? 'long-form-note' : s.type === 'chat' ? 'long-form-chat' : prev.type,
+      }));
+    });
+    return () => { unsub(); };
+  }, []);
 
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);

@@ -85,6 +85,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLocalization } from "@/context/LocalizationContext";
 import { ActionTooltip } from "@/components/ui/action-tooltip";
+import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
+import { manager as recordingManager } from "@/lib/recordingManager";
 
 // Voice ID for ElevenLabs TTS.
 const ELEVENLABS_VOICE_ID = "aSLKtNoVBZlxQEMsnGL2"; // "Sanna Hartfield"
@@ -620,6 +622,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => {
         if (onChatIdChange) {
             onChatIdChange(currentChatId);
+        }
+        if (isRecordingPersistenceEnabled() && currentChatId) {
+          try { recordingManager.setCurrentChat(currentChatId); } catch {}
         }
     }, [currentChatId, onChatIdChange]);
 
@@ -1289,6 +1294,11 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
 
     useEffect(() => {
+        if (isRecordingPersistenceEnabled()) {
+            // Manager-driven timer handles updates when persistence is enabled
+            if (localRecordingTimerRef.current) clearInterval(localRecordingTimerRef.current);
+            return () => { if (localRecordingTimerRef.current) clearInterval(localRecordingTimerRef.current); };
+        }
         if (isBrowserRecording && !isBrowserPaused) {
             if (localRecordingTimerRef.current) clearInterval(localRecordingTimerRef.current);
             localRecordingTimerRef.current = setInterval(() => {
@@ -1567,6 +1577,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const handleStopRecording = useCallback(async (e?: React.MouseEvent, dueToError: boolean = false) => {
         e?.stopPropagation(); 
+        if (isRecordingPersistenceEnabled()) {
+            try { await recordingManager.stop(); } catch {}
+            return;
+        }
         const currentWsState = wsRef.current?.readyState;
         const currentMediaRecorderState = mediaRecorderRef.current?.state;
         console.info(`[Stop Recording] Initiated. Error: ${dueToError}. WS=${wsStatus}(${currentWsState}), MR=${currentMediaRecorderState}, Session=${sessionId}, Pending: ${pendingActionRef.current}`);
@@ -2071,7 +2085,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const showAndPrepareRecordingControls = useCallback(() => {
         debugLog(`[Recording Controls UI] Show/Prepare. Pending: ${pendingActionRef.current}, GlobalRec: ${globalRecordingStatus.isRecording}`);
         if (pendingActionRef.current) return;
-                if (globalRecordingStatus.isRecording && globalRecordingStatus.type === 'long-form-chat') {
+        if (isRecordingPersistenceEnabled()) {
+          const st = recordingManager.getState();
+          const active = st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended');
+          if (!active) {
+            if (!agentName) { addErrorMessage('Agent information is missing. Cannot start recording.'); return; }
+            try {
+              recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: agentName || undefined, eventId });
+            } catch (e:any) {
+              addErrorMessage(`Error: ${e?.message || 'Failed to start recording'}`);
+            }
+          }
+          return; // No extra UI per spec
+        }
+        if (globalRecordingStatus.isRecording && globalRecordingStatus.type === 'long-form-chat') {
              setShowRecordUI(true);
              setRecordUIVisible(true);
              if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
@@ -2085,7 +2112,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
      useImperativeHandle(ref, () => ({
         startNewChat: async (options) => {
              console.info("[New Chat] Imperative handle called.");
-             if (isBrowserRecordingRef.current || sessionId) {
+             if (!isRecordingPersistenceEnabled() && (isBrowserRecordingRef.current || sessionId)) {
                 console.info("[New Chat] Active recording detected, stopping it first.");
                 await handleStopRecording(undefined, false); 
              }
@@ -2230,7 +2257,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
               const chatData = response && response.status !== 304 ? await response.json() : null;
               
-              if (isBrowserRecordingRef.current || sessionId) {
+              if (!isRecordingPersistenceEnabled() && (isBrowserRecordingRef.current || sessionId)) {
                 await handleStopRecording(undefined, false);
               }
 
@@ -2575,14 +2602,45 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const handlePlayPauseMicClick = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (pendingActionRef.current) return;
+        if (isRecordingPersistenceEnabled()) {
+            showAndPrepareRecordingControls();
+            return;
+        }
         if (!isBrowserRecordingRef.current) {
             await handleStartRecordingSession();
         } else {
             handleToggleBrowserPause();
         }
-    }, [handleStartRecordingSession, handleToggleBrowserPause]);
+    }, [handleStartRecordingSession, handleToggleBrowserPause, showAndPrepareRecordingControls]);
 
     const saveChat = useCallback(() => { console.info("[Save Chat] Initiated."); const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }, [messages, agentName, eventId]);
+
+    // When persistence is enabled, mirror manager state into existing UI controls
+    useEffect(() => {
+        if (!isRecordingPersistenceEnabled()) return;
+        let timer: any = null;
+        const startTick = (startedAt?: number) => {
+            if (timer) clearInterval(timer);
+            const base = startedAt || Date.now();
+            // initialize immediately
+            setClientRecordingTime(Math.max(0, Math.floor((Date.now() - base) / 1000)));
+            timer = setInterval(() => {
+                const st = recordingManager.getState();
+                const t0 = st.startedAt || base;
+                setClientRecordingTime(Math.max(0, Math.floor((Date.now() - t0) / 1000)));
+            }, 1000);
+        };
+        const stopTick = () => { if (timer) { clearInterval(timer); timer = null; } setClientRecordingTime(0); };
+
+        const unsub = recordingManager.subscribe((s) => {
+            const active = !!(s.sessionId && (s.phase === 'starting' || s.phase === 'active' || s.phase === 'suspended'));
+            setIsBrowserRecording(active);
+            setIsBrowserPaused(false);
+            if (active) startTick(s.startedAt);
+            else stopTick();
+        });
+        return () => { if (timer) clearInterval(timer); unsub(); };
+    }, []);
 
 
     const executeSaveConversation = useCallback(async () => {
@@ -4009,10 +4067,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   <DropdownMenuItem
                                     onSelect={(e) => {
                                       e.preventDefault();
-                                      if (!isBrowserRecording) {
-                                        handleStartRecordingSession();
+                                      if (isRecordingPersistenceEnabled()) {
+                                        showAndPrepareRecordingControls();
                                       } else {
-                                        handleToggleBrowserPause();
+                                        if (!isBrowserRecording) {
+                                          handleStartRecordingSession();
+                                        } else {
+                                          handleToggleBrowserPause();
+                                        }
                                       }
                                     }}
                                     disabled={!!pendingActionRef.current || globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}

@@ -21,6 +21,9 @@ import { useTheme } from "next-themes";
 import { predefinedThemes } from "@/lib/themes";
 import { Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { manager } from "@/lib/recordingManager";
+import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
+import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm";
 
 interface AgentSelectorMenuProps {
   allowedAgents: string[];
@@ -34,6 +37,8 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
   const searchParams = useSearchParams();
   const isMobile = useMobile();
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingAgent, setPendingAgent] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
   const { theme, setTheme } = useTheme();
 
   const [isThemeOpen, setIsThemeOpen] = useState(false);
@@ -56,18 +61,29 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
     }
   }, [isMobile, isThemeOpen]);
 
+  const proceedToAgent = (newAgent: string) => {
+    // Force close menu first to prevent state issues
+    setIsOpen(false);
+    // Use setTimeout to ensure state update completes before navigation
+    setTimeout(() => {
+      const currentParams = new URLSearchParams(searchParams.toString());
+      currentParams.set('agent', newAgent);
+      router.push(`/?${currentParams.toString()}`);
+    }, 0);
+  };
+
   const handleAgentChange = (newAgent: string) => {
-    if (newAgent && newAgent !== currentAgent) {
-      // Force close menu first to prevent state issues
-      setIsOpen(false);
-      
-      // Use setTimeout to ensure state update completes before navigation
-      setTimeout(() => {
-        const currentParams = new URLSearchParams(searchParams.toString());
-        currentParams.set('agent', newAgent);
-        router.push(`/?${currentParams.toString()}`);
-      }, 0);
+    if (!newAgent || newAgent === currentAgent) return;
+    if (isRecordingPersistenceEnabled()) {
+      const st = manager.getState();
+      const active = st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended');
+      if (active) {
+        setPendingAgent(newAgent);
+        setShowConfirm(true);
+        return;
+      }
     }
+    proceedToAgent(newAgent);
   };
   
   const handleThemeChange = (newTheme: string) => {
@@ -161,6 +177,24 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
           ))}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
+      <AlertDialogConfirm
+        isOpen={showConfirm}
+        onClose={() => { setShowConfirm(false); setPendingAgent(null); }}
+        onConfirm={async () => {
+          setShowConfirm(false);
+          const st = manager.getState();
+          if (st.sessionId) {
+            try { await manager.stop(); } catch {}
+          }
+          if (pendingAgent) proceedToAgent(pendingAgent);
+          setPendingAgent(null);
+        }}
+        title="Switch agent while recording?"
+        message="You are currently recording. Switching agents will stop the recording. Do you want to proceed?"
+        confirmText="Stop & Switch"
+        cancelText="Cancel"
+        confirmVariant="destructive"
+      />
     </DropdownMenu>
   );
 };
