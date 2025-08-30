@@ -252,7 +252,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
             <div className="mt-10 flex flex-col space-y-1 -ml-2">
-              <Button variant="ghost" className="justify-start rounded-md" onClick={handleNewChat}>
+              <Button variant="ghost" className="justify-start rounded-xs" onClick={handleNewChat}>
                 <SquarePen className="mr-3 h-5 w-5" />
                 {t('sidebar.newChat')}
               </Button>
@@ -262,21 +262,21 @@ const Sidebar: React.FC<SidebarProps> = ({
               {/* NEVER hardcode UI logic - always check activeUiConfig from workspaces.ui_config */}
               {/* Chat link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('chat') || isAdminOverride) && (
-                <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('chat')}>
+                <Button variant="ghost" className="justify-start rounded-xs" onClick={() => handleNavigationClick('chat')}>
                   <MessageSquare className="mr-3 h-5 w-5" />
                   Chat
                 </Button>
               )}
               {/* Record link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('record') || isAdminOverride) && (
-                <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('record')}>
+                <Button variant="ghost" className="justify-start rounded-xs" onClick={() => handleNavigationClick('record')}>
                   <Disc className="mr-3 h-5 w-5" />
                   Record Note
                 </Button>
               )}
               {/* Transcribe link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('transcribe') || isAdminOverride) && (
-                <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('transcribe')}>
+                <Button variant="ghost" className="justify-start rounded-xs" onClick={() => handleNavigationClick('transcribe')}>
                   <AudioLines className="mr-3 h-5 w-5" />
                   Transcribe
                 </Button>
@@ -288,7 +288,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
               {/* Settings link - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_links?.includes('settings') || isAdminOverride) && (
-                <Button variant="ghost" className="justify-start rounded-md" onClick={handleShowSettings}>
+                <Button variant="ghost" className="justify-start rounded-xs" onClick={handleShowSettings}>
                   <Settings className="mr-3 h-5 w-5" />
                   Settings
                 </Button>
@@ -308,13 +308,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                         {section}
                       </div>
                       <div className="space-y-0.5">
-                        {chats.map((chat) => (
-                          <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent pr-2">
-                              <Button
-                              variant="ghost"
-                              className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0"
-                              onClick={() => handleLoadChat(chat.id)}
-                            >
+                         {chats.map((chat) => (
+                           <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
+                               <Button
+                               variant="ghost"
+                               className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0"
+                               onClick={() => handleLoadChat(chat.id)}
+                             >
                               <div className="truncate">
                                 {chat.title}
                               </div>
@@ -359,7 +359,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
           <div className="mt-auto pt-4 border-t border-border/50 -mx-4 px-4">
-            <Button variant="ghost" className="w-full justify-start rounded-md" onClick={onLogout}>
+            <Button variant="ghost" className="w-full justify-start rounded-xs" onClick={onLogout}>
               <LogOut className="mr-3 h-5 w-5" />
               {t('sidebar.logOut')}
             </Button>
