@@ -727,6 +727,7 @@ function HomeContent() {
           console.log("No messages, calling startNewChat directly");
           chatInterfaceRef.current?.startNewChat();
           setCurrentChatId(null);
+          setCurrentView('chat');
       }
   };
 
@@ -800,6 +801,7 @@ function HomeContent() {
       console.log("Modal confirmed, calling startNewChat via ref");
       chatInterfaceRef.current?.startNewChat();
       setCurrentChatId(null);
+      setCurrentView('chat');
       setShowNewChatConfirm(false);
   };
 
@@ -807,6 +809,7 @@ function HomeContent() {
       console.log("New chat requested from sidebar");
       chatInterfaceRef.current?.startNewChat();
       setCurrentChatId(null);
+      setCurrentView('chat');
   };
 
   const cancelNewChat = () => {
