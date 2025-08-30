@@ -312,7 +312,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                            <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
                                <Button
                                variant="ghost"
-                               className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-zinc-600"
+                               className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground"
                                onClick={() => handleLoadChat(chat.id)}
                              >
                               <div className="truncate">
@@ -336,7 +336,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-zinc-600"
+                                className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onDeleteChat(chat.id);
