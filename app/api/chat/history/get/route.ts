@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import crypto from 'node:crypto';
 import { createServerActionClient } from '@/utils/supabase/server';
 import { findActiveBackend, formatErrorResponse } from '@/app/api/proxyUtils';
 
@@ -48,7 +49,25 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await backendResponse.json();
-    return NextResponse.json(data);
+
+    // Compute a stable ETag from key fields (id, last_message_at, messages summary)
+    const chatIdForHash = String(data?.id ?? chatId);
+    const lastMessageAt = String(data?.last_message_at ?? data?.updatedAt ?? '');
+    const messages = Array.isArray(data?.messages) ? data.messages : [];
+    const lastMsgId = messages.length ? String(messages[messages.length - 1]?.id ?? '') : '';
+    const lastMsgAt = messages.length ? String(messages[messages.length - 1]?.createdAt ?? '') : '';
+    const payloadForHash = `${chatIdForHash}|${lastMessageAt}|${messages.length}|${lastMsgId}|${lastMsgAt}`;
+    const etag = 'W/"' + crypto.createHash('sha1').update(payloadForHash).digest('hex') + '"';
+
+    const ifNoneMatch = req.headers.get('if-none-match');
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      return new NextResponse(null, { status: 304, headers: { ETag: etag } });
+    }
+
+    const res = NextResponse.json(data);
+    res.headers.set('ETag', etag);
+    res.headers.set('Cache-Control', 'private, no-store');
+    return res;
 
   } catch (error: any) {
     console.error("[Chat History Get] Error in GET handler:", error);

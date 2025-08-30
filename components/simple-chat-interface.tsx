@@ -58,6 +58,7 @@ import { useMobile } from "@/hooks/use-mobile"
 import { useTheme } from "next-themes"
 import { motion } from "framer-motion"
 import { useSearchParams } from 'next/navigation';
+import { ChatCache } from "@/lib/chat-cache";
 import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE, type WelcomeMessageConfig } from "@/lib/themes";
 import { createClient } from '@/utils/supabase/client'
 import ThinkingIndicator from "@/components/ui/ThinkingIndicator"
@@ -495,8 +496,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
-  const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
-  const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
+    const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
+    const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
+    // Chat cache instance
+    const chatCacheRef = useRef<ChatCache | null>(null);
     
     // State for reasoning models
     const [isThinking, setIsThinking] = useState(false);
@@ -748,6 +751,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.info(`[ChatInterface] Ready for agent: ${agentName}, event: ${eventId || 'N/A'}`);
         }
     }, [agentName, eventId, isPageReady]);
+
+    // Initialize chat cache once on mount; keep currently opened chat hot
+    useEffect(() => {
+        if (!chatCacheRef.current) chatCacheRef.current = new ChatCache();
+        chatCacheRef.current.init(currentChatId || undefined).catch(() => {});
+        // no deps: run once
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Start thinking timer when loading begins for reasoning models
     useEffect(() => {
@@ -2150,23 +2161,64 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 timestamp: new Date().toISOString()
             });
             try {
+              // Ensure cache exists and mark this chat as current/hot
+              if (!chatCacheRef.current) chatCacheRef.current = new ChatCache();
+              await chatCacheRef.current.init(chatId);
+
               const { data: { session } } = await supabase.auth.getSession();
               if (!session?.access_token) {
                 addErrorMessage('Authentication required to load chat history.');
                 return;
               }
 
-              const response = await fetch(`/api/chat/history/get?chatId=${encodeURIComponent(chatId)}`, {
-                headers: {
-                  'Authorization': `Bearer ${session.access_token}`,
-                },
-              });
+              // Render immediately from cache (mem → disk → UI)
+              let cachedCount = 0;
+              try {
+                const { messages: cached } = await chatCacheRef.current.getPage(chatId, 'latest');
+                cachedCount = cached?.length || 0;
+                if (cachedCount) {
+                  const filtered = cached.filter((m: Message) => m.role !== 'system');
+                  setMessages(filtered);
+                }
+              } catch {}
 
-              if (!response.ok) {
-                throw new Error(`Failed to load chat: ${response.statusText}`);
+              // Conditional fetch with ETag for SWR
+              const performFetch = async () => {
+                const headers: Record<string, string> = { 'Authorization': `Bearer ${session.access_token}` };
+                try {
+                  const etag = await chatCacheRef.current!.loadEtag(chatId);
+                  if (etag) headers['If-None-Match'] = etag;
+                } catch {}
+
+                const response = await fetch(`/api/chat/history/get?chatId=${encodeURIComponent(chatId)}`, { headers });
+                if (response.status !== 304 && !response.ok) {
+                  throw new Error(`Failed to load chat: ${response.statusText}`);
+                }
+                return response;
+              };
+
+              // If we have cached messages, fire-and-forget SWR; else await network for cold start
+              let response: Response | null = null;
+              if (cachedCount > 0) {
+                performFetch()
+                  .then(async (resp) => {
+                    if (resp.status === 304) return;
+                    const data = await resp.json();
+                    if (data?.messages && Array.isArray(data.messages)) {
+                      const filtered = (data.messages as any[]).filter((m) => m.role !== 'system');
+                      setMessages(filtered as any);
+                      try {
+                        const etag = resp.headers.get('ETag') || (data as any)?.etag;
+                        await chatCacheRef.current!.upsertMessages(chatId, data.messages as any, { source: 'net', etag: etag || undefined });
+                      } catch {}
+                    }
+                  })
+                  .catch((e) => console.warn('[Load Chat History] background refresh failed', e));
+              } else {
+                response = await performFetch();
               }
 
-              const chatData = await response.json();
+              const chatData = response && response.status !== 304 ? await response.json() : null;
               
               if (isBrowserRecordingRef.current || sessionId) {
                 await handleStopRecording(undefined, false);
@@ -2183,23 +2235,30 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
               console.log("[Load Chat History] SETTING CHAT STATE:", {
                 oldChatId: currentChatId,
-                newChatId: chatData.id,
+                newChatId: chatData?.id ?? chatId,
                 oldTitle: chatTitle,
-                newTitle: chatData.title,
+                newTitle: chatData?.title,
                 timestamp: new Date().toISOString()
               });
               
-              setCurrentChatId(chatData.id);
-              setChatTitle(chatData.title);
+              setCurrentChatId(chatData?.id ?? chatId);
+              if (chatData?.title) setChatTitle(chatData.title);
 
-              if (chatData.messages && Array.isArray(chatData.messages)) {
+              if (chatData?.messages && Array.isArray(chatData.messages)) {
                 // Clear system messages immediately when loading chat history
                 const filteredMessages = chatData.messages.filter((msg: Message) => msg.role !== "system");
                 setMessages(filteredMessages);
-                console.info("[Load Chat History] LOADED", filteredMessages.length, "messages for chat:", chatData.id, "(system messages cleared)");
+                // Persist to cache
+                if (response) {
+                  try {
+                    const etag = response.headers.get('ETag') || (chatData as any)?.etag;
+                    await chatCacheRef.current.upsertMessages(chatId, chatData.messages as any, { source: 'net', etag: etag || undefined });
+                  } catch (e) { console.warn('[Load Chat History] cache upsert failed', e); }
+                }
+                console.info("[Load Chat History] LOADED", filteredMessages.length, "messages for chat:", chatData.id ?? chatId, "(system messages cleared)");
                 console.log("[Load Chat History] COMPLETED LOAD STATE:", {
-                    finalChatId: chatData.id,
-                    finalTitle: chatData.title,
+                    finalChatId: chatData?.id ?? chatId,
+                    finalTitle: chatData?.title ?? chatTitle,
                     messageCount: filteredMessages.length,
                     timestamp: new Date().toISOString()
                 });
@@ -2223,14 +2282,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               }
 
               // Populate saved states from the loaded data
-              if (chatData.savedMessageIds && Object.keys(chatData.savedMessageIds).length > 0) {
+              if (chatData?.savedMessageIds && Object.keys(chatData.savedMessageIds).length > 0) {
                 const newSavedMessages = new Map(Object.entries(chatData.savedMessageIds).map(([id, info]) => [id, { savedAt: new Date((info as any).savedAt), memoryId: (info as any).memoryId }]));
                 setSavedMessageIds(newSavedMessages);
                 console.info("[Load Chat History] Loaded", newSavedMessages.size, "saved messages.");
               }
               
               // Correctly handle the conversation saved state, removing the dependency on `isSaved`
-              if (chatData.last_message_id_at_save) {
+              if (chatData?.last_message_id_at_save) {
                 setConversationSaveMarkerMessageId(chatData.last_message_id_at_save);
                 console.info("[Load Chat History] Loaded conversation save marker at message ID:", chatData.last_message_id_at_save);
                 if (chatData.conversationMemoryId) {
