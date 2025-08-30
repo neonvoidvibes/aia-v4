@@ -2175,7 +2175,7 @@ function HomeContent() {
                               }
                             }
                           }}
-                          className="rounded-md bg-muted p-0.5"
+                          className="rounded-md bg-muted p-1"
                           aria-label="Transcript listen mode"
                           id="transcript-listen-toggle-group"
                         >
@@ -2241,7 +2241,7 @@ function HomeContent() {
                               }
                             }
                           }}
-                          className="rounded-md bg-muted p-0.5"
+                          className="rounded-md bg-muted p-1"
                           aria-label="Saved transcript memory mode"
                           id="saved-transcript-memory-toggle"
                         >
