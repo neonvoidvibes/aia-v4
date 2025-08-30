@@ -358,6 +358,12 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* Separator lines for Folkhemmet theme - blue as save memory line */
+.theme-folkhemmet .folkhemmet-separator {
+  background-color: hsl(var(--save-memory-color));
+  opacity: 0.5;
+}
+
 
 /* Tenant Theme */
 .theme-tenant {

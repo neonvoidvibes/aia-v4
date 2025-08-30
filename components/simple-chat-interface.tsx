@@ -3772,24 +3772,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" side="top" className="w-[200px]">
-                            {/* File attachment - Hidden if workspace config specifies */}
-                            {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
-                              <DropdownMenuItem
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  attachDocument();
-                                }}
-                                className="flex items-center gap-3 px-2 py-2"
-                              >
-                                <Paperclip size={17} className="flex-shrink-0" />
-                                <span className="text-sm whitespace-nowrap">{t('controlsMenu.addFiles')}</span>
-                              </DropdownMenuItem>
-                            )}
-                            
-                            {/* Separator line */}
-                            {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
-                              <DropdownMenuSeparator />
-                            )}
+                             {/* File attachment - Hidden if workspace config specifies */}
+                             {(!activeUiConfig.hide_plus_menu_items?.includes('add_files') || isAdminOverride) && (
+                               <DropdownMenuItem
+                                 onSelect={(e) => {
+                                   e.preventDefault();
+                                   attachDocument();
+                                 }}
+                                 className="flex items-center gap-3 px-2 py-2"
+                               >
+                                 <Paperclip size={17} className="flex-shrink-0" />
+                                 <span className="text-sm whitespace-nowrap">{t('controlsMenu.addFiles')}</span>
+                               </DropdownMenuItem>
+                             )}
+                             
+                             {/* Separator line */}
+                             {(!activeUiConfig.hide_plus_menu_items?.includes('add_files') || isAdminOverride) && (
+                               <DropdownMenuSeparator />
+                             )}
                             
                             <DropdownMenuItem
                               onSelect={(e) => {
@@ -3813,16 +3813,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <span className="text-sm whitespace-nowrap">{t('controlsMenu.saveToMemory')}</span>
                             </DropdownMenuItem>
                             
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                saveChat();
-                              }}
-                              className="flex items-center gap-3 px-2 py-2"
-                            >
-                              <Download size={17} className="flex-shrink-0" />
-                              <span className="text-sm whitespace-nowrap">{t('controlsMenu.downloadChat')}</span>
-                            </DropdownMenuItem>
+                            {/* Download chat - Hidden if workspace config specifies */}
+                            {(!activeUiConfig.hide_plus_menu_items?.includes('download_chat') || isAdminOverride) && (
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  saveChat();
+                                }}
+                                className="flex items-center gap-3 px-2 py-2"
+                              >
+                                <Download size={17} className="flex-shrink-0" />
+                                <span className="text-sm whitespace-nowrap">{t('controlsMenu.downloadChat')}</span>
+                              </DropdownMenuItem>
+                            )}
                             
                             {/* Separator line */}
                             <DropdownMenuSeparator />
