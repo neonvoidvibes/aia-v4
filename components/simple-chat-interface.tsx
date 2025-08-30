@@ -913,6 +913,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     messages: currentMessages,
                     chatId: chatIdAtStartOfSave,
                     title: chatTitle,
+                    event: eventId || '0000',
                     clientSessionId: clientSessionIdRef.current,
                 }),
             });
@@ -2724,6 +2725,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     chatId: currentChatId,
                     title: chatTitle,
                     lastMessageId: lastMessageId,
+                    event: eventId || '0000',
                 }),
             });
             const result = await response.json();
@@ -2736,6 +2738,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     agentName: agentName,
                     messages: currentMessages,
                     sessionId: currentChatId,
+                    eventId: eventId || '0000',
                     savedAt: new Date().toISOString()
                 }),
             });
@@ -2919,6 +2922,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     chatId: currentChatId,
                     title: chatTitle,
                     lastMessageId: lastMessageId,
+                    event: eventId || '0000',
                 }),
             });
             const historyResult = await historyResponse.json();
