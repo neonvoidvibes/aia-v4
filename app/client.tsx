@@ -56,7 +56,7 @@ export default function ClientLayout({
           <TooltipProvider delayDuration={100}>
             <ThemeProvider
               attribute="class"
-              defaultTheme="dark"
+              defaultTheme="system"
               enableSystem={true} // Enable system theme
               themes={allThemeNames} // Provide all available theme names
             >

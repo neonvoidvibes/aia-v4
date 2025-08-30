@@ -91,13 +91,17 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     if (currentAgent) {
-        const agentThemeKey = `agent-theme-${currentAgent}`;
+      try {
+        const userId = localStorage.getItem('currentUserId');
+        const agentThemeKey = userId ? `agent-theme-${currentAgent}_${userId}` : `agent-theme-${currentAgent}`;
+        const customKey = userId ? `agent-custom-theme-${currentAgent}_${userId}` : `agent-custom-theme-${currentAgent}`;
         localStorage.setItem(agentThemeKey, newTheme);
         if (predefinedThemes.some(t => t.className === newTheme)) {
-            localStorage.setItem(`agent-custom-theme-${currentAgent}`, newTheme);
+          localStorage.setItem(customKey, newTheme);
         } else {
-            localStorage.removeItem(`agent-custom-theme-${currentAgent}`);
+          localStorage.removeItem(customKey);
         }
+      } catch {}
     }
   };
 

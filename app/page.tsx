@@ -518,6 +518,10 @@ function HomeContent() {
         const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
         setUserName(name);
         setUserId(session.user.id); // Set the user ID
+        try {
+          // Expose current user id for client-only components that need per-user persistence
+          localStorage.setItem('currentUserId', session.user.id);
+        } catch {}
 
         if (agentParam) {
           // Agent is in URL, validate it
@@ -901,19 +905,32 @@ function HomeContent() {
 
   useEffect(() => {
     if (pageAgentName && userId) {
-      const agentThemeKey = `agent-theme-${pageAgentName}_${userId}`;
-      const savedAgentTheme = localStorage.getItem(agentThemeKey);
+      const perUserKey = `agent-theme-${pageAgentName}_${userId}`;
+      const legacyKey = `agent-theme-${pageAgentName}`;
+      let savedAgentTheme = localStorage.getItem(perUserKey);
+
+      // Migrate legacy, agent-only saved theme if present
+      if (!savedAgentTheme) {
+        const legacy = localStorage.getItem(legacyKey);
+        if (legacy) {
+          try { localStorage.setItem(perUserKey, legacy); } catch {}
+          savedAgentTheme = legacy;
+        }
+      }
+
       if (savedAgentTheme) {
         setTheme(savedAgentTheme);
         setCurrentAgentTheme(savedAgentTheme);
         if (predefinedThemes.some(t => t.className === savedAgentTheme)) {
-            localStorage.setItem(`agent-custom-theme-${pageAgentName}_${userId}`, savedAgentTheme);
+          localStorage.setItem(`agent-custom-theme-${pageAgentName}_${userId}`, savedAgentTheme);
         }
       } else {
-        setCurrentAgentTheme(theme);
+        // No saved theme for this agent+user: default to System
+        setTheme('system');
+        setCurrentAgentTheme('system');
       }
     }
-  }, [pageAgentName, userId, setTheme, theme]);
+  }, [pageAgentName, userId, setTheme]);
 
   useEffect(() => {
     const savedCanvasEnabled = localStorage.getItem("canvasViewEnabled");

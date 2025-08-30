@@ -21,14 +21,37 @@ export function ThemeToggle() {
     setMounted(true)
   }, [])
 
-  const getAgentSpecificThemeKey = () => agentName ? `agent-theme-${agentName}` : null;
+  const getAgentSpecificThemeKey = () => {
+    if (!agentName) return null;
+    try {
+      const userId = localStorage.getItem('currentUserId');
+      return userId ? `agent-theme-${agentName}_${userId}` : `agent-theme-${agentName}`; // fallback to legacy
+    } catch {
+      return `agent-theme-${agentName}`;
+    }
+  };
+
+  const getAgentCustomThemeKey = () => {
+    if (!agentName) return null;
+    try {
+      const userId = localStorage.getItem('currentUserId');
+      return userId ? `agent-custom-theme-${agentName}_${userId}` : `agent-custom-theme-${agentName}`;
+    } catch {
+      return `agent-custom-theme-${agentName}`;
+    }
+  };
 
   const handleThemeChange = (value: string) => {
     if (value) {
       const agentThemeKey = getAgentSpecificThemeKey();
       if (value === "custom") {
         // When "Custom" is clicked, try to load the agent's last known custom theme
-        let lastCustomThemeForAgent = localStorage.getItem(`agent-custom-theme-${agentName}`);
+        const customKey = getAgentCustomThemeKey();
+        const legacyCustomKey = agentName ? `agent-custom-theme-${agentName}` : null;
+        let lastCustomThemeForAgent = customKey ? localStorage.getItem(customKey) : null;
+        if (!lastCustomThemeForAgent && legacyCustomKey) {
+          lastCustomThemeForAgent = localStorage.getItem(legacyCustomKey);
+        }
         if (!lastCustomThemeForAgent || !predefinedThemes.find(t => t.className === lastCustomThemeForAgent)) {
           // Default to first predefined custom theme if none stored or invalid
           lastCustomThemeForAgent = predefinedThemes[0]?.className || 'dark'; // Fallback to dark if no custom
@@ -37,12 +60,16 @@ export function ThemeToggle() {
         if (agentThemeKey) {
           localStorage.setItem(agentThemeKey, lastCustomThemeForAgent);
         }
+        if (customKey) {
+          localStorage.setItem(customKey, lastCustomThemeForAgent);
+        }
       } else {
         setTheme(value);
         if (agentThemeKey) {
           localStorage.setItem(agentThemeKey, value);
           // If user explicitly selects light/dark/system, clear the specific "custom" preference for this agent
-          localStorage.removeItem(`agent-custom-theme-${agentName}`);
+          const customKey = getAgentCustomThemeKey();
+          if (customKey) localStorage.removeItem(customKey);
         }
       }
     }

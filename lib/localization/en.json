@@ -40,13 +40,13 @@
   "confirmations": {
     "startNewChat": {
       "title": "Start New Chat",
-      "message": "Are you sure you want to start a new chat? This will clear the current conversation and stop any active recording.",
+      "message": "Are you sure you want to start a new chat? This will clear the current conversation.",
       "confirm": "Start New",
       "cancel": "Cancel"
     },
     "deleteConversation": {
       "title": "Are you sure?",
-      "message": "This will permanently delete the chat history. This action cannot be undone.",
+      "message": "This will permanently delete the chat conversation. This action cannot be undone.",
       "confirm": "Delete",
       "cancel": "Cancel"
     },
@@ -71,7 +71,7 @@
     },
     "deleteMessage": {
       "title": "Are you sure?",
-      "message": "This will permanently delete the message from this chat and any saved memories. This action cannot be undone.",
+      "message": "This will permanently delete the message from this chat and saved memories. This action cannot be undone.",
       "confirm": "Delete",
       "cancel": "Cancel"
     },

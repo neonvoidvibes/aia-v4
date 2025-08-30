@@ -40,13 +40,13 @@
   "confirmations": {
     "startNewChat": {
       "title": "Starta ny chatt",
-      "message": "Är du säker på att du vill starta en ny chatt? Detta rensar den nuvarande konversationen och stoppar eventuell aktiv inspelning.",
+      "message": "Är du säker på att du vill starta en ny chatt? Detta rensar den nuvarande konversationen.",
       "confirm": "Starta ny",
       "cancel": "Avbryt"
     },
     "deleteConversation": {
       "title": "Är du säker?",
-      "message": "Detta raderar chathistoriken permanent. Åtgärden kan inte ångras.",
+      "message": "Detta raderar chatkonversationen permanent. Åtgärden kan inte ångras.",
       "confirm": "Radera",
       "cancel": "Avbryt"
     },
@@ -71,7 +71,7 @@
     },
     "deleteMessage": {
       "title": "Är du säker?",
-      "message": "Detta raderar meddelandet permanent från denna chatt och alla sparade minnen. Åtgärden kan inte ångras.",
+      "message": "Detta raderar meddelandet permanent från denna chatt och sparade minnen. Åtgärden kan inte ångras.",
       "confirm": "Radera",
       "cancel": "Avbryt"
     },
