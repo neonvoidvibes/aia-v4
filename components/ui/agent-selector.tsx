@@ -110,7 +110,7 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
   };
 
   const triggerButton = (
-    <Button variant="ghost" className="h-auto p-0 text-sm font-medium text-foreground opacity-50 hover:opacity-100 focus:ring-0 hover:bg-transparent">
+    <Button variant="ghost" className="h-auto p-0 text-sm font-medium text-foreground opacity-50 hover:opacity-100 hover:text-foreground focus:ring-0 hover:bg-transparent">
       {currentAgent}
     </Button>
   );
