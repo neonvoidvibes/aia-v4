@@ -344,7 +344,7 @@
   --icon-active: hsl(var(--accent)); /* IKEA Yellow */
   --icon-inactive: 204 25% 70%; /* Light, visible blue-gray */
   /* --icon-destructive uses the default destructive color from above */
-  --save-memory-color: 110 51% 39%; /* Added: For saved memory highlights */
+  --save-memory-color: 211 56% 47%; /* #357ABC - For saved memory highlights */
 
   /* NEW: Text color variables for chat interface elements - Folkhemmet Theme */
   --input-field-text-color: var(--user-input-text);

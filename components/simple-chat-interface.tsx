@@ -3605,16 +3605,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <div className="absolute inset-0 flex items-center" aria-hidden="true">
                                 <div className="w-full border-t border-[hsl(var(--save-memory-color))] opacity-50"></div>
                               </div>
-                              <div className="relative flex justify-center items-center">
-                                <button
-                                  onClick={handleSaveChatToMemory}
-                                  className="flex items-center bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))] hover:opacity-80 transition-opacity"
-                                  aria-label="Forget conversation memory"
-                                >
-                                  <Bookmark className="h-3 w-3 mr-2" />
-                                  <span>Memory saved</span>
-                                </button>
-                              </div>
+                                            <div className="relative flex justify-center items-center">
+                                              <button
+                                                onClick={handleSaveChatToMemory}
+                                                className="flex items-center bg-transparent px-2 text-xs text-[hsl(var(--save-memory-color))] hover:opacity-80 transition-opacity"
+                                                aria-label="Forget conversation memory"
+                                              >
+                                                <Bookmark className="h-3 w-3 mr-2" />
+                                                <span>Memory saved</span>
+                                              </button>
+                                            </div>
                             </div>
                           )}
                         </React.Fragment>
