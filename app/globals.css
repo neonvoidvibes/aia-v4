@@ -52,6 +52,7 @@
   --button-submit-fg-inactive: 0 0% 60%;
   --button-submit-bg-stop: 0 0% 35%;
   --button-submit-fg-stop: 0 0% 90%;
+  --sidebar-background: 0 0% 8%; /* Slightly lighter than main bg */
   
   --icon-primary: 0 0% 90%;
   --icon-secondary: 0 0% 70%;
@@ -110,6 +111,7 @@
   --button-submit-fg-inactive: 0 0% 50%; /* Mid gray fg for light mode inactive submit */
   --button-submit-bg-stop: 0 0% 35%;     /* Themed gray for light mode stop button BG */
   --button-submit-fg-stop: 0 0% 95%;     /* White fg for light mode stop button */
+  --sidebar-background: 0 0% 95%; /* Slightly darker than main bg */
 
   --icon-primary: 0 0% 20%;    /* Primary icon color for light mode */
   --icon-secondary: 0 0% 40%;  /* Secondary icon color for light mode */
@@ -161,6 +163,7 @@
   --button-submit-fg-inactive: 270 80% 70%;   /* Muted orange FG */
   --button-submit-bg-stop: 260 40% 35%; /* Themed indigo for stop button */
   --button-submit-fg-stop: 270 90% 85%; /* Light orange for stop button */
+  --sidebar-background: 260 50% 10%;
   
   --icon-primary: 30 100% 85%;
   --icon-secondary: 270 80% 75%;
@@ -216,6 +219,7 @@
   --button-submit-fg-inactive: 90 25% 60%;   /* Muted moss green FG */
   --button-submit-bg-stop: 120 20% 28%; /* Themed dark green for stop button */
   --button-submit-fg-stop: 90 30% 85%; /* Light moss for stop button */
+  --sidebar-background: 120 25% 12%;
   
   --icon-primary: 90 30% 88%;
   --icon-secondary: 90 25% 70%;
@@ -271,6 +275,7 @@
   --button-submit-fg-inactive: 25 40% 50%;   /* Muted terracotta FG */
   --button-submit-bg-stop: 30 40% 55%; /* Themed terracotta for stop button */
   --button-submit-fg-stop: 40 30% 95%; /* Light beige for stop button */
+  --sidebar-background: 35 35% 88%;
   
   --icon-primary: 25 55% 30%;
   --icon-secondary: 25 35% 45%;
@@ -338,6 +343,7 @@
   --button-submit-fg-inactive: 204 80% 37%; /* Readable gray */
   --button-submit-bg-stop: 204 70% 50%; /* Themed blue for stop button */
   --button-submit-fg-stop: 0 0% 100%; /* White for stop button */
+  --sidebar-background: 204 70% 93%;
   
   --icon-primary: 51 95% 51%; /* Yellow for input field icons */
   --icon-secondary: 204 100% 34%; /* Dark blue for sidebar icons */
@@ -392,6 +398,7 @@
   --button-submit-fg-inactive: 211 20% 50%;
   --button-submit-bg-stop: 211 30% 50%;
   --button-submit-fg-stop: 0 0% 95%;
+  --sidebar-background: 47 83% 95%;
 
   --icon-primary: 0 0% 85%; /* Dimmed White for hover/active icons */
   --icon-secondary: 0 0% 100%; /* White for default icons */
@@ -439,6 +446,7 @@
   --button-submit-fg-inactive: 240 5% 60%;
   --button-submit-bg-stop: 194 23% 40%;
   --button-submit-fg-stop: 240 5% 91%;
+  --sidebar-background: 200 54% 15%;
 
   --icon-primary: 240 5% 91%;
   --icon-secondary: 240 5% 70%;
@@ -503,6 +511,7 @@
   --button-submit-fg-inactive: 0 0% 80%;
   --button-submit-bg-stop: 285 35% 30%;
   --button-submit-fg-stop: 0 0% 98%;
+  --sidebar-background: 285 45% 16%;
 
   /* Icons */
   --icon-primary: 330 90% 75%;
@@ -559,6 +568,7 @@
   --button-submit-fg-inactive: 240 5% 70%;
   --button-submit-bg-stop: 240 6% 25%;
   --button-submit-fg-stop: 240 5% 95%;
+  --sidebar-background: 240 6% 12%;
 
   /* Icons */
   --icon-primary: 210 20% 15%;        /* Dark text color for hover, matching accent-foreground */
@@ -615,6 +625,7 @@
   --button-submit-fg-inactive: 0 0% 70%;
   --button-submit-bg-stop: 0 0% 30%;
   --button-submit-fg-stop: 0 0% 98%;
+  --sidebar-background: 0 0% 8%;
 
   /* Icons */
   --icon-primary: 0 0% 95%;
@@ -2462,6 +2473,7 @@ button {
   --button-submit-fg-inactive: 0 0% 90%;
   --button-submit-bg-stop: 208 11% 45%;
   --button-submit-fg-stop: 0 0% 98%;
+  --sidebar-background: 208 15% 20%;
 
   /* Icons */
   --icon-primary: 30 58% 65%;

@@ -15,6 +15,7 @@ type AgentWorkspaceInfo = {
   workspaceId: string | number | null;
   workspaceName: string | null;
   workspaceUiConfig: any;
+  language: string | null;
 };
 
 export async function GET(request: Request) {
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
       // Admin users see all agents
       const { data: allAgents, error: agentsError } = await supabase
         .from('agents')
-        .select('name, workspace_id, workspaces(id, name, ui_config)');
+        .select('name, language, workspace_id, workspaces(id, name, ui_config)');
       
       if (agentsError) {
         logger.error(`Permissions API: Error fetching all agents for admin user ${user.id}:`, agentsError);
@@ -75,7 +76,8 @@ export async function GET(request: Request) {
           name: (agent as any).name,
           workspaceId: (agent as any).workspace_id,
           workspaceName: ws?.name || null,
-          workspaceUiConfig: ws?.ui_config || {}
+          workspaceUiConfig: ws?.ui_config || {},
+          language: (agent as any).language || 'en'
         } as AgentWorkspaceInfo;
       });
     } else {
@@ -83,12 +85,13 @@ export async function GET(request: Request) {
       const { data: permissions, error: dbError } = await supabase
         .from('user_agent_access')
         .select(`
-          agents!inner ( 
-            name, 
+          agents!inner (
+            name,
+            language,
             workspace_id,
             workspaces(id, name, ui_config)
           )
-        `) 
+        `)
         .eq('user_id', user.id);
 
       if (dbError) {
@@ -106,7 +109,8 @@ export async function GET(request: Request) {
             name: agentData.name,
             workspaceId: agentData.workspace_id,
             workspaceName: ws?.name || null,
-            workspaceUiConfig: ws?.ui_config || {}
+            workspaceUiConfig: ws?.ui_config || {},
+            language: agentData.language || 'en'
           };
           return obj;
         })
@@ -149,6 +153,23 @@ export async function GET(request: Request) {
         }
     }
     
+    // --- Fetch language configurations for agents ---
+    const languageConfigs: Record<string, any> = {};
+    const languageCodes = Array.from(new Set(agentsWithCapabilities.map(a => a.language).filter(Boolean)));
+    if (languageCodes.length > 0) {
+      const { data: langRows, error: langError } = await supabase
+        .from('ui_languages')
+        .select('code, config')
+        .in('code', languageCodes);
+      if (langError) {
+        logger.error('Permissions API: Error fetching language configs:', langError);
+      } else {
+        (langRows || []).forEach(row => {
+          languageConfigs[row.code] = row.config || {};
+        });
+      }
+    }
+
     // --- PHASE 3: Build workspace configurations map ---
     const workspaceConfigs: Record<string, any> = {};
     agentsWithCapabilities.forEach(agent => {
@@ -170,11 +191,12 @@ export async function GET(request: Request) {
     const showAgentSelector = isAdminOverride || (!defaultHideAgentSelector && agentsWithCapabilities.length > 1);
     
     // --- PHASE 3: Return the rich permissions data structure ---
-    return NextResponse.json({ 
+    return NextResponse.json({
       isAdminOverride,
       showAgentSelector,
       agents: agentsWithCapabilities,
       workspaceConfigs,
+      languageConfigs,
       userRole,
       // Legacy support for existing code
       allowedAgents: agentsWithCapabilities.map(a => ({ name: a.name, capabilities: a.capabilities }))

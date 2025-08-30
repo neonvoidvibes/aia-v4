@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
+import { useLocalization } from '@/context/LocalizationContext';
 
 type View = "chat" | "transcribe" | "record" | "canvas";
 
@@ -89,6 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeUiConfig = {},
 }) => {
   const isMobile = useIsMobile();
+  const { t, language } = useLocalization();
 
   const handleLoadChat = async (chatId: string) => {
     if (onLoadChat) {
@@ -165,22 +167,27 @@ const Sidebar: React.FC<SidebarProps> = ({
       const chatDateOnly = new Date(chatDate.getFullYear(), chatDate.getMonth(), chatDate.getDate());
 
       if (chatDateOnly.getTime() === today.getTime()) {
-        if (!groups['Today']) groups['Today'] = [];
-        groups['Today'].push(chat);
+        const label = t('sidebar.dateLabels.today');
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(chat);
       } else if (chatDateOnly.getTime() === yesterday.getTime()) {
-        if (!groups['Yesterday']) groups['Yesterday'] = [];
-        groups['Yesterday'].push(chat);
+        const label = t('sidebar.dateLabels.yesterday');
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(chat);
       } else if (chatDateOnly >= thisWeekStart) {
-        if (!groups['This Week']) groups['This Week'] = [];
-        groups['This Week'].push(chat);
+        const label = t('sidebar.dateLabels.thisWeek');
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(chat);
       } else if (chatDateOnly >= lastWeekStart) {
-        if (!groups['Last Week']) groups['Last Week'] = [];
-        groups['Last Week'].push(chat);
+        const label = t('sidebar.dateLabels.lastWeek');
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(chat);
       } else if (chatDateOnly >= thisMonthStart) {
-        if (!groups['This Month']) groups['This Month'] = [];
-        groups['This Month'].push(chat);
+        const label = t('sidebar.dateLabels.thisMonth');
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(chat);
       } else {
-        const monthName = chatDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
+        const monthName = chatDate.toLocaleDateString(language === 'sv' ? 'sv-SE' : undefined, { month: 'long', year: 'numeric' });
         if (!groups[monthName]) groups[monthName] = [];
         groups[monthName].push(chat);
       }
@@ -247,7 +254,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="mt-10 flex flex-col space-y-1 -ml-2">
               <Button variant="ghost" className="justify-start rounded-md" onClick={handleNewChat}>
                 <SquarePen className="mr-3 h-5 w-5" />
-                New Chat
+                {t('sidebar.newChat')}
               </Button>
               {/* Top separator - Always visible after "New Chat" */}
               <Separator className="my-2 bg-border/50" />
@@ -290,7 +297,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div className="flex-1 flex flex-col min-h-0">
             <div className="px-2 pt-4 pb-4 text-sm opacity-50">
-              Chat History
+              {t('sidebar.chatHistory')}
             </div>
             <div className="flex-1 overflow-y-auto">
               {chatHistory.length > 0 ? (
@@ -302,7 +309,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                       <div className="space-y-0.5">
                         {chats.map((chat) => (
-                          <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent/50 pr-2">
+                          <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent pr-2">
                               <Button
                               variant="ghost"
                               className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0"
@@ -354,7 +361,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="mt-auto pt-4 border-t border-border/50 -mx-4 px-4">
             <Button variant="ghost" className="w-full justify-start rounded-md" onClick={onLogout}>
               <LogOut className="mr-3 h-5 w-5" />
-              Log Out
+              {t('sidebar.logOut')}
             </Button>
           </div>
         </SheetContent>

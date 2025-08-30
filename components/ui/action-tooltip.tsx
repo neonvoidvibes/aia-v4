@@ -34,7 +34,7 @@ export function ActionTooltip({
   side = 'bottom',
   align = 'center',
 }: ActionTooltipProps) {
-  const t = useLocalization();
+  const { t } = useLocalization();
   // `label` prop takes precedence over `labelKey`
   const displayText = label || (labelKey ? t(labelKey) : '');
 

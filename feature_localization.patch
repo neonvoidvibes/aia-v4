@@ -1,0 +1,1501 @@
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/app/api/user/permissions/route.ts b/app/api/user/permissions/route.ts
+index dbbeefde438e7723225578b454e59af9f1d85dbd..fa1ba76df127aac7cde98d599c2afdfa8417bcf6 100644
+--- a/app/api/user/permissions/route.ts
++++ b/app/api/user/permissions/route.ts
+@@ -1,188 +1,210 @@
+ // Use the server client utility we created
+ import { createServerActionClient } from '@/utils/supabase/server';
+ import { NextResponse } from 'next/server';
+ import { logger } from '@/lib/logger'; // Import the logger
+ // import type { Database } from '@/types/supabase'; // Comment out or remove if types not generated
+ import { findActiveBackend } from '@/app/api/proxyUtils'; // Import the backend finder
+ 
+ const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
+ const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
+ 
+ export const dynamic = 'force-dynamic' // Ensure fresh data on each request
+ 
+ type AgentWorkspaceInfo = {
+   name: string;
+   workspaceId: string | number | null;
+   workspaceName: string | null;
+   workspaceUiConfig: any;
++  language: string | null;
+ };
+ 
+ export async function GET(request: Request) {
+   // Instantiate client using our helper (handles cookies internally)
+   const supabase = await createServerActionClient(); // Use the correct helper, add await
+   try {
+     // Get the current user securely
+     const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+     if (userError || !user) {
+       logger.warn('Permissions API: Unauthorized access attempt.');
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+     }
+  
+     logger.info(`Permissions API: Fetching permissions for user ${user.id}`);
+ 
+     // --- PHASE 3: Fetch user role first to determine admin override ---
+     let userRole = 'user'; // Default role
+     let isAdminOverride = false;
+     try {
+         const { data: roleData, error: roleError } = await supabase
+             .from('user_roles')
+             .select('role')
+             .eq('user_id', user.id)
+             .single();
+ 
+         if (roleError && roleError.code !== 'PGRST116') { // PGRST116: no rows found, which is not an error here
+             throw roleError;
+         }
+         
+         if (roleData) {
+             userRole = roleData.role;
+         }
+         
+         // Check if user is admin or super user for override
+         isAdminOverride = userRole === 'admin' || userRole === 'super user';
+     } catch(roleError) {
+         logger.warn({ error: roleError }, `Permissions API: Could not fetch role for user ${user.id}, defaulting to 'user'.`);
+     }
+ 
+     // --- PHASE 3: Enhanced agent fetching with workspace support ---
+     let agentsWithWorkspaceInfo: AgentWorkspaceInfo[] = [];
+     
+     if (isAdminOverride) {
+       // Admin users see all agents
+       const { data: allAgents, error: agentsError } = await supabase
+         .from('agents')
+-        .select('name, workspace_id, workspaces(id, name, ui_config)');
++        .select('name, language, workspace_id, workspaces(id, name, ui_config)');
+       
+       if (agentsError) {
+         logger.error(`Permissions API: Error fetching all agents for admin user ${user.id}:`, agentsError);
+         return NextResponse.json({ error: 'Failed to fetch agents', details: agentsError.message }, { status: 500 });
+       }
+       
+       agentsWithWorkspaceInfo = (allAgents || []).map(agent => {
+         const ws = Array.isArray(agent.workspaces) ? agent.workspaces[0] : agent.workspaces;
+         return {
+           name: (agent as any).name,
+           workspaceId: (agent as any).workspace_id,
+           workspaceName: ws?.name || null,
+-          workspaceUiConfig: ws?.ui_config || {}
++          workspaceUiConfig: ws?.ui_config || {},
++          language: (agent as any).language || 'en'
+         } as AgentWorkspaceInfo;
+       });
+     } else {
+       // Regular users: fetch through user_agent_access and workspace_users
+       const { data: permissions, error: dbError } = await supabase
+         .from('user_agent_access')
+         .select(`
+-          agents!inner ( 
+-            name, 
++          agents!inner (
++            name,
++            language,
+             workspace_id,
+             workspaces(id, name, ui_config)
+           )
+-        `) 
++        `)
+         .eq('user_id', user.id);
+ 
+       if (dbError) {
+         console.error(`Permissions API: Database error fetching permissions for user ${user.id}:`, dbError);
+         return NextResponse.json({ error: 'Failed to fetch permissions', details: dbError.message }, { status: 500 })
+       }
+ 
+       // Extract agent info with workspace data
+       agentsWithWorkspaceInfo = (permissions || [])
+         .map(p => {
+           const agentData = Array.isArray((p as any).agents) ? (p as any).agents[0] : (p as any).agents;
+           if (!agentData) return null;
+           const ws = Array.isArray(agentData.workspaces) ? agentData.workspaces[0] : agentData.workspaces;
+           const obj: AgentWorkspaceInfo = {
+             name: agentData.name,
+             workspaceId: agentData.workspace_id,
+             workspaceName: ws?.name || null,
+-            workspaceUiConfig: ws?.ui_config || {}
++            workspaceUiConfig: ws?.ui_config || {},
++            language: agentData.language || 'en'
+           };
+           return obj;
+         })
+         .filter((a): a is AgentWorkspaceInfo => a !== null);
+     }
+  
+     logger.info({ agentCount: agentsWithWorkspaceInfo.length }, `Permissions API: User ${user.id} has access`);
+  
+     // --- BATCH CAPABILITIES CHECK ---
+     const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+     const agentNames = agentsWithWorkspaceInfo.map(a => a.name);
+     let agentsWithCapabilities = agentsWithWorkspaceInfo.map(agent => ({
+         ...agent,
+         capabilities: { pinecone_index_exists: false } // Default to false
+     }));
+ 
+     if (activeBackendUrl && agentNames.length > 0) {
+         try {
+             const { data: { session } } = await supabase.auth.getSession();
+             const capabilitiesResponse = await fetch(`${activeBackendUrl}/api/agents/capabilities`, {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                     'Authorization': `Bearer ${session?.access_token}`,
+                 },
+                 body: JSON.stringify({ agent_names: agentNames })
+             });
+ 
+             if (capabilitiesResponse.ok) {
+                 const capabilitiesData = await capabilitiesResponse.json();
+                 agentsWithCapabilities = agentsWithWorkspaceInfo.map(agent => ({
+                     ...agent,
+                     capabilities: capabilitiesData[agent.name] || { pinecone_index_exists: false }
+                 }));
+             } else {
+                 logger.error("Permissions API: Failed to fetch agent capabilities from backend.");
+             }
+         } catch (e) {
+             logger.error({ error: e }, `Permissions API: Error fetching agent capabilities.`);
+         }
+     }
+-    
++
++    // --- Fetch language configurations for agents ---
++    const languageConfigs: Record<string, any> = {};
++    const languageCodes = Array.from(new Set(agentsWithCapabilities.map(a => a.language).filter(Boolean)));
++    if (languageCodes.length > 0) {
++      const { data: langRows, error: langError } = await supabase
++        .from('ui_languages')
++        .select('code, config')
++        .in('code', languageCodes);
++      if (langError) {
++        logger.error('Permissions API: Error fetching language configs:', langError);
++      } else {
++        (langRows || []).forEach(row => {
++          languageConfigs[row.code] = row.config || {};
++        });
++      }
++    }
++
+     // --- PHASE 3: Build workspace configurations map ---
+     const workspaceConfigs: Record<string, any> = {};
+     agentsWithCapabilities.forEach(agent => {
+       if (agent.workspaceId && agent.workspaceUiConfig) {
+         workspaceConfigs[String(agent.workspaceId)] = agent.workspaceUiConfig;
+       }
+     });
+     
+     // --- PHASE 3: Determine if agent selector should be shown ---
+     // IMPORTANT: Always use workspace configuration from Supabase, never hardcode UI logic!
+     // Check if any workspace disables agent selector by default
+     let defaultHideAgentSelector = false;
+     Object.values(workspaceConfigs).forEach((config: any) => {
+       if (config?.hide_agent_selector_default) {
+         defaultHideAgentSelector = true;
+       }
+     });
+     
+     const showAgentSelector = isAdminOverride || (!defaultHideAgentSelector && agentsWithCapabilities.length > 1);
+     
+     // --- PHASE 3: Return the rich permissions data structure ---
+-    return NextResponse.json({ 
++    return NextResponse.json({
+       isAdminOverride,
+       showAgentSelector,
+       agents: agentsWithCapabilities,
+       workspaceConfigs,
++      languageConfigs,
+       userRole,
+       // Legacy support for existing code
+       allowedAgents: agentsWithCapabilities.map(a => ({ name: a.name, capabilities: a.capabilities }))
+     }, { status: 200 });
+  
+   } catch (error) {
+     logger.error({ error }, 'Permissions API: Unexpected error');
+     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+     return NextResponse.json({ error: 'Internal server error', details: errorMessage }, { status: 500 });
+   }
+ }
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/app/page.tsx b/app/page.tsx
+index 8a52ee6237cc893f1ee44ef0a7c4d1ff1a54c156..9eced7fbcddebf09ebd053535f20b34c1bcff527 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -2,50 +2,52 @@
+ 
+ import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
+ import { useRouter, useSearchParams } from 'next/navigation';
+ import dynamic from 'next/dynamic';
+ import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2, SquarePen, LogOut } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2, SquarePen, LogOut
+ import Sidebar from "@/components/ui/sidebar";
+ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
+ import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+ import { createClient } from '@/utils/supabase/client';
+ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+ import { ThemeToggle } from "@/components/theme-toggle"
+ import DocumentUpload from "@/components/document-upload"
+ import SimpleChatInterface, { type ChatInterfaceHandle } from "@/components/simple-chat-interface"
+ import FullFileTranscriber from "@/components/FullFileTranscriber"; // Added for new Transcribe tab
+ import { EnvWarning } from "@/components/env-warning"
+ import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm" // New import
+ import CollapsibleSection from "@/components/collapsible-section"
+ import type { AttachmentFile } from "@/components/file-attachment-minimal"
+ import FetchedFileListItem, { type FetchedFile } from "@/components/FetchedFileListItem"
+ import FileEditor from "@/components/file-editor";
+ import { useMobile } from "@/hooks/use-mobile"
+ import { Separator } from "@/components/ui/separator"; // Import Separator
+ import { toast } from "sonner"; // Import toast for notifications
+ import { Button } from "@/components/ui/button";
++import { useLocalization } from "@/context/LocalizationContext";
++import enTranslations from "@/lib/localization/en.json";
+ // Use both Dropdown and Sheet components
+ import {
+   DropdownMenu,
+   DropdownMenuTrigger,
+   DropdownMenuContent,
+   DropdownMenuRadioGroup,
+   DropdownMenuRadioItem,
+   DropdownMenuSeparator
+ } from "@/components/ui/dropdown-menu";
+ import {
+   Sheet,
+   SheetContent,
+   SheetHeader,
+   SheetTitle,
+   SheetTrigger,
+ } from "@/components/ui/sheet"
+ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+ import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
+ import { useTheme } from "next-themes"; // Import useTheme
+ import ViewSwitcher from "@/components/ui/view-switcher";
+ import RecordView from "@/components/RecordView";
+ import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; 
+ import { Switch } from "@/components/ui/switch"; 
+ import { Label } from "@/components/ui/label"; 
+ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; 
+diff --git a/app/page.tsx b/app/page.tsx
+index 8a52ee6237cc893f1ee44ef0a7c4d1ff1a54c156..9eced7fbcddebf09ebd053535f20b34c1bcff527 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -319,63 +321,66 @@ function HomeContent() {
+   }, []);
+ 
+ 
+   // Flags to track if data has been fetched for the current agent/event
+   const [fetchedDataFlags, setFetchedDataFlags] = useState({
+     transcriptions: false,
+     baseSystemPrompts: false,
+     agentSystemPrompts: false,
+     baseFrameworks: false,
+     agentPrimaryContext: false, 
+     savedSummaries: false, // Added savedSummaries here
+     rawSavedS3TranscriptsFetched: false, // New flag for raw saved transcripts
+     pineconeMemory: false,
+     objectiveFunctions: false,
+     agentDocuments: false,
+   });
+ 
+   const [pageAgentName, setPageAgentName] = useState<string | null>(null);
+   const [pageEventId, setPageEventId] = useState<string | null>(null);
+   const [userName, setUserName] = useState<string | null>(null);
+   const [allowedAgents, setAllowedAgents] = useState<string[]>([]);
+   const [userRole, setUserRole] = useState<string | null>(null);
+   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+   const [authError, setAuthError] = useState<string | null>(null);
+   const [showAgentDashboard, setShowAgentDashboard] = useState(false);
++  const { setTranslations, setLanguage, t } = useLocalization();
+   
+   // --- PHASE 3: New state management for dynamic workspaces ---
+   const [permissionsData, setPermissionsData] = useState<{
+     isAdminOverride: boolean;
+     showAgentSelector: boolean;
+     agents: Array<{
+       name: string;
+       workspaceId: string | null;
+       workspaceName: string | null;
+       workspaceUiConfig: any;
++      language: string | null;
+       capabilities: { pinecone_index_exists: boolean };
+     }>;
+     workspaceConfigs: Record<string, any>;
++    languageConfigs: Record<string, any>;
+     userRole: string;
+   } | null>(null);
+   const [currentAgent, setCurrentAgent] = useState<string | null>(null);
+   const [activeUiConfig, setActiveUiConfig] = useState<any>({});
+   const [needsConsent, setNeedsConsent] = useState<{
+     workspaceId: string;
+     workspaceName: string;
+   } | null>(null);
+   const supabase = createClient();
+   const router = useRouter();
+ 
+   const fetchChatHistory = useCallback(async (agentToFetch: string) => {
+     if (!agentToFetch || isSidebarLockedRef.current) return;
+     
+     setIsLoadingHistory(true);
+     try {
+       const { data: { session } } = await supabase.auth.getSession();
+       if (!session?.access_token) return;
+ 
+       const response = await fetch(`/api/chat/history/list?agentName=${encodeURIComponent(agentToFetch)}`, {
+         headers: {
+           'Authorization': `Bearer ${session.access_token}`,
+         },
+       });
+ 
+diff --git a/app/page.tsx b/app/page.tsx
+index 8a52ee6237cc893f1ee44ef0a7c4d1ff1a54c156..9eced7fbcddebf09ebd053535f20b34c1bcff527 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -521,65 +526,73 @@ function HomeContent() {
+             console.log(`Redirecting to last used agent: ${lastUsedAgent}`);
+             router.push(`/?agent=${lastUsedAgent}&event=0000`);
+             // The component will re-render with the new URL, so we don't need to set isAuthorized here.
+           } else {
+             // No valid last used agent, show the selector
+             console.log("Authorization Check: User authenticated, no valid last agent. Will show selector.");
+             setCurrentAgent(null);
+             setIsAuthorized(true);
+           }
+         }
+       } catch (error) {
+         console.error("Authorization Check: Error during permission flow:", error);
+         const message = error instanceof Error ? error.message : "An unknown error occurred while checking permissions.";
+         setAuthError(message);
+         setIsAuthorized(false);
+       }
+     };
+ 
+     checkAuthAndPermissions();
+   }, [searchParams, supabase.auth, router, pageAgentName, pageEventId, fetchChatHistory]);
+ 
+   // --- PHASE 3: Dynamic UI config updates ---
+   useEffect(() => {
+     if (permissionsData && currentAgent) {
+       const agentData = permissionsData.agents.find(a => a.name === currentAgent);
+-      if (agentData && agentData.workspaceId && permissionsData.workspaceConfigs[agentData.workspaceId]) {
+-        const workspaceConfig = permissionsData.workspaceConfigs[agentData.workspaceId];
+-        setActiveUiConfig(workspaceConfig);
+-        
+-        // Apply theme override if specified (admin users can override)
+-        if (workspaceConfig.theme_override && !permissionsData.isAdminOverride) {
+-          setTheme(workspaceConfig.theme_override);
++      if (agentData) {
++        if (agentData.workspaceId && permissionsData.workspaceConfigs[agentData.workspaceId]) {
++          const workspaceConfig = permissionsData.workspaceConfigs[agentData.workspaceId];
++          setActiveUiConfig(workspaceConfig);
++
++          // Apply theme override if specified (admin users can override)
++          if (workspaceConfig.theme_override && !permissionsData.isAdminOverride) {
++            setTheme(workspaceConfig.theme_override);
++          }
++        } else {
++          setActiveUiConfig({});
+         }
+-      } else {
+-        setActiveUiConfig({});
++
++        // Update language translations
++        const langCode = agentData.language || 'en';
++        const langConfig = permissionsData.languageConfigs?.[langCode] || {};
++        setTranslations({ ...enTranslations, ...langConfig });
++        setLanguage(langCode);
+       }
+     } else {
+       setActiveUiConfig({});
+     }
+-  }, [permissionsData, currentAgent, setTheme]);
++  }, [permissionsData, currentAgent, setTheme, setTranslations, setLanguage]);
+ 
+   // --- PHASE 3: Handle consent completion ---
+   const handleConsentGiven = () => {
+     setNeedsConsent(null);
+     // Re-run authorization check to proceed with the agent
+     if (currentAgent) {
+       setIsAuthorized(true);
+     }
+   };
+ 
+   // Refs
+   const tabContentRef = useRef<HTMLDivElement>(null);
+   const chatInterfaceRef = useRef<ChatInterfaceHandle>(null);
+   const memoryTabRef = useRef<HTMLDivElement>(null);
+   const isMobile = useMobile();
+ 
+   useEffect(() => {
+     if (historyNeedsRefresh && pageAgentName) {
+       fetchChatHistory(pageAgentName).then(() => {
+         setHistoryNeedsRefresh(false);
+       });
+     }
+   }, [historyNeedsRefresh, pageAgentName, fetchChatHistory]);
+ 
+   // This effect will re-fetch chat history when the sidebar is opened.
+diff --git a/app/page.tsx b/app/page.tsx
+index 8a52ee6237cc893f1ee44ef0a7c4d1ff1a54c156..9eced7fbcddebf09ebd053535f20b34c1bcff527 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -2409,51 +2422,51 @@ function HomeContent() {
+                     
+                     <div className="flex items-center justify-center">
+                       <Button
+                         variant="outline"
+                         onClick={handleClearS3Cache}
+                         disabled={isClearingCache}
+                       >
+                         {isClearingCache ? (
+                           <>
+                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                             Reloading...
+                           </>
+                         ) : (
+                           "Reload S3 Cache"
+                         )}
+                       </Button>
+                     </div>
+                     
+                     <div className="flex items-center justify-center pt-4">
+                       <Button
+                         variant="destructive"
+                         onClick={handleLogout}
+                         className="w-full sm:w-auto"
+                       >
+                         <LogOut className="mr-2 h-4 w-4" />
+-                        Log Out
++                        {t('sidebar.logOut')}
+                       </Button>
+                     </div>
+ 
+                   </div>
+                 </TabsContent>
+               </div>
+             </Tabs>
+           </DialogContent>
+         </Dialog>
+       )}
+       
+       {showAgentDashboard && (userRole === 'admin' || userRole === 'super user') && (
+         <AgentDashboard
+           isOpen={showAgentDashboard}
+           onClose={() => setShowAgentDashboard(false)}
+           userRole={userRole}
+         />
+       )}
+ 
+       <AlertDialogConfirm
+         isOpen={showNewChatConfirm}
+         onClose={cancelNewChat}
+         onConfirm={confirmAndStartNewChat}
+         title="Start New Chat"
+         message="Are you sure you want to start a new chat? This will clear the current conversation and stop any active recording."
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/components/simple-chat-interface.tsx b/components/simple-chat-interface.tsx
+index f9fc425af2a1f7897a8368707b29040912a4d4e6..cc9eb1794e547598e5b90bc93e1ea59b3c42ae7f 100644
+--- a/components/simple-chat-interface.tsx
++++ b/components/simple-chat-interface.tsx
+@@ -437,51 +437,51 @@ const formatTime = (seconds: number): string => {
+ };
+ 
+ const formatThoughtDuration = (totalSeconds: number): string => {
+   const minutes = Math.floor(totalSeconds / 60);
+   const seconds = totalSeconds % 60;
+   if (minutes > 0) {
+     return `${minutes} minute${minutes > 1 ? 's' : ''} and ${seconds.toFixed(1)} seconds`;
+   }
+   return `${seconds.toFixed(1)} seconds`;
+ };
+ 
+ const formatTimestamp = (date: Date | undefined): string => {
+   if (!date) return '';
+   const d = new Date(date);
+   const year = d.getFullYear();
+   const month = (d.getMonth() + 1).toString().padStart(2, '0');
+   const day = d.getDate().toString().padStart(2, '0');
+   const hours = d.getHours().toString().padStart(2, '0');
+   const minutes = d.getMinutes().toString().padStart(2, '0');
+   return `${year}.${month}.${day} ${hours}:${minutes}`;
+ };
+ 
+ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
+   function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+ 
+-    const t = useLocalization();
++    const { t } = useLocalization();
+ 
+     let searchParams;
+     try {
+       searchParams = useSearchParams();
+     } catch (error) {
+       console.warn('useSearchParams failed, falling back to null', error);
+       searchParams = null;
+     }
+     const [agentName, setAgentName] = useState<string | null>(null);
+     const [eventId, setEventId] = useState<string | null>(null);
+   const [isPageReady, setIsPageReady] = useState(false); 
+   const lastAppendedErrorRef = useRef<string | null>(null);
+   const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
+   const textareaRef = useRef<HTMLTextAreaElement>(null);
+   const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
+   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
+   const [generatingProposalForMessageId, setGeneratingProposalForMessageId] = useState<string | null>(null);
+     
+     // State for reasoning models
+     const [isThinking, setIsThinking] = useState(false);
+     const [thinkingTime, setThinkingTime] = useState(0);
+     const [thoughtDurations, setThoughtDurations] = useState<Record<string, number>>({});
+     const thinkingTimerRef = useRef<NodeJS.Timeout | null>(null);
+     const thinkingStartTimeRef = useRef<number | null>(null);
+     const thinkingForMessageIdRef = useRef<string | null>(null);
+diff --git a/components/simple-chat-interface.tsx b/components/simple-chat-interface.tsx
+index f9fc425af2a1f7897a8368707b29040912a4d4e6..cc9eb1794e547598e5b90bc93e1ea59b3c42ae7f 100644
+--- a/components/simple-chat-interface.tsx
++++ b/components/simple-chat-interface.tsx
+@@ -3590,51 +3590,51 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
+                               )}
+                               {isLoading && !isUpdatingDoc && !isGeneratingProposal && (!isThinking || selectedModel !== 'gemini-2.5-pro') && selectedModel !== 'gpt-5' && selectedModel !== 'gpt-5-mini' && messageThoughtDuration === undefined && (() => {
+                                 // Hide thinking dot immediately when assistant starts responding
+                                 const lastMessage = combinedMessages[combinedMessages.length - 1];
+                                 const assistantIsResponding = lastMessage?.role === 'assistant' && isLoading;
+                                 return !assistantIsResponding;
+                               })() && (
+                                 <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="thinking-indicator flex self-start mb-4 mt-1 ml-1">
+                                   <span className="thinking-dot"></span>
+                                 </motion.div>
+                               )}
+                             </>
+                           )}
+                           {shouldShowSaveMarker && (
+                             <div className="relative py-4 my-8 text-center">
+                               <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                 <div className="w-full border-t border-[hsl(var(--save-memory-color))] opacity-50"></div>
+                               </div>
+                                                           <div className="relative flex justify-center items-center">
+                                                             <button
+                                                               onClick={handleSaveChatToMemory}
+                                                               className="flex items-center bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))] hover:opacity-80 transition-opacity"
+                                                               aria-label="Forget conversation memory"
+                                                             >
+                                                               <Bookmark className="h-3 w-3 mr-2" />
+-                                                              <span>Memory saved</span>
++                                                              <span>{t('chat.memorySaved')}</span>
+                                                             </button>
+                                                           </div>
+                             </div>
+                           )}
+                         </React.Fragment>
+                       );
+                     })}
+                     
+                     {/* Indicator for document updates, shown at the end of the chat flow */}
+                     {isUpdatingDoc && (
+                         <div className="flex self-start mb-1 mt-1">
+                             <ThinkingIndicator text="Working" showTime={false} />
+                         </div>
+                     )}
+                   </div>
+                 )}
+                 <div ref={messagesEndRef} />
+             </div>
+ 
+             {showScrollToBottom && !isModalOpen && (
+               <button onClick={() => {
+                 // Don't automatically activate minimal padding when clicking scroll-to-bottom
+                 scrollToBottom();
+               }} className="scroll-to-bottom-button" aria-label="Scroll to bottom">
+                 <ArrowDown size={18} />
+diff --git a/components/simple-chat-interface.tsx b/components/simple-chat-interface.tsx
+index f9fc425af2a1f7897a8368707b29040912a4d4e6..cc9eb1794e547598e5b90bc93e1ea59b3c42ae7f 100644
+--- a/components/simple-chat-interface.tsx
++++ b/components/simple-chat-interface.tsx
+@@ -3726,198 +3726,198 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
+                       <PressToTalkUI
+                       onCancel={handleCancelPressToTalk}
+                       onSubmit={handleSubmitPressToTalk}
+                       recordingTime={pressToTalkTime}
+                     />
+                   ) : ( // Regular input view
+                     <div className={cn("chat-input-layout bg-input-gray rounded-[1.8rem] md:rounded-[1.4rem] py-3 px-3 flex flex-col")}>
+                       <div className="w-full flex items-center" style={{ minHeight: '48px' }}>
+                         <textarea
+                           ref={textareaRef}
+                           value={input}
+                           onChange={handleTextAreaInput}
+                           onKeyDown={(e) => {
+                             // On mobile, Enter creates new line (like Shift+Enter on desktop)
+                             if (isMobile && e.key === "Enter" && !e.shiftKey) {
+                               return; // Allow default behavior (new line)
+                             }
+                             
+                             if (e.key === "Enter" && !e.shiftKey) {
+                               e.preventDefault();
+                               if (input.trim() || attachedFiles.length > 0) {
+                                   onSubmit(e as any);
+                               }
+                             }
+                           }}
+-                          placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : (activeUiConfig.chat_input_placeholder || "Share or ask anything"))}
++                          placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : (activeUiConfig.chat_input_placeholder || t('chatInput.placeholder')))}
+                           className="chat-textarea w-full bg-transparent px-2 outline-none resize-none placeholder:text-[hsl(var(--placeholder-text-color))] dark:placeholder:text-zink-500"
+                           disabled={!isPageReady || !!pendingAction || pressToTalkState !== 'idle'}
+                           aria-label="Chat input"
+                           rows={1}
+                           style={{ height: 'auto', overflowY: 'hidden' }}
+                         />
+                       </div>
+                       <div className="flex items-center justify-between w-full mt-1">
+                         <DropdownMenu>
+                           <DropdownMenuTrigger asChild>
+                             <button 
+                               type="button" 
+                               className={cn(
+                                 "p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-plus-button",
+                                 (pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle') && "opacity-50 cursor-not-allowed"
+                               )} 
+                               aria-label="More options" 
+                               disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}
+                             >
+                               <SlidersIcon size={24} className="mobile-icon chat-sliders-icon" />
+                             </button>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent align="start" side="top" className="w-[200px]">
+                             {/* File attachment - Hidden if workspace config specifies */}
+                             {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
+                               <DropdownMenuItem
+                                 onSelect={(e) => {
+                                   e.preventDefault();
+                                   attachDocument();
+                                 }}
+                                 className="flex items-center gap-3 px-2 py-2"
+                               >
+                                 <Paperclip size={17} className="flex-shrink-0" />
+-                                <span className="text-sm whitespace-nowrap">Add photos & files</span>
++                                <span className="text-sm whitespace-nowrap">{t('controlsMenu.addFiles')}</span>
+                               </DropdownMenuItem>
+                             )}
+                             
+                             {/* Separator line */}
+                             {(!activeUiConfig.disable_file_attachments || isAdminOverride) && (
+                               <DropdownMenuSeparator />
+                             )}
+                             
+                             <DropdownMenuItem
+                               onSelect={(e) => {
+                                 e.preventDefault();
+                                 handleSaveChatToMemory();
+                               }}
+                               disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
+                               className={cn(
+                                 "flex items-center gap-3 px-2 py-2",
+                                 conversationSaveMarkerMessageId && "text-[hsl(var(--save-memory-color))]",
+                                 (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading) && "opacity-50 cursor-not-allowed"
+                               )}
+                             >
+                               <Bookmark
+                                 size={17}
+                                 className={cn(
+                                   "flex-shrink-0",
+                                   conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
+                                 )}
+                               />
+-                              <span className="text-sm whitespace-nowrap">Save to memory</span>
++                              <span className="text-sm whitespace-nowrap">{t('controlsMenu.saveToMemory')}</span>
+                             </DropdownMenuItem>
+                             
+                             <DropdownMenuItem
+                               onSelect={(e) => {
+                                 e.preventDefault();
+                                 saveChat();
+                               }}
+                               className="flex items-center gap-3 px-2 py-2"
+                             >
+                               <Download size={17} className="flex-shrink-0" />
+-                              <span className="text-sm whitespace-nowrap">Download chat</span>
++                              <span className="text-sm whitespace-nowrap">{t('controlsMenu.downloadChat')}</span>
+                             </DropdownMenuItem>
+                             
+                             {/* Separator line */}
+                             <DropdownMenuSeparator />
+                             
+                             <DropdownMenuSub>
+                               <DropdownMenuSubTrigger
+                                 disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
+                                 className={cn(
+                                   "flex items-center gap-3 px-2 py-2",
+                                   micButtonClass,
+                                   isBrowserRecording && !isBrowserPaused && "!bg-red-500 !text-white hover:!bg-red-600 hover:!text-white",
+                                   isBrowserRecording && isBrowserPaused && "!bg-yellow-500 !text-black hover:!bg-yellow-600 hover:!text-black",
+                                   globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
+                                 )}
+                               >
+                                 <Mic size={17} className="flex-shrink-0" />
+-                                <span className="text-sm whitespace-nowrap">Record meeting</span>
++                                <span className="text-sm whitespace-nowrap">{t('controlsMenu.recordMeeting')}</span>
+                               </DropdownMenuSubTrigger>
+                               <DropdownMenuPortal>
+                                 <DropdownMenuSubContent>
+                                   <DropdownMenuItem
+                                     onSelect={(e) => {
+                                       e.preventDefault();
+                                       if (!isBrowserRecording) {
+                                         handleStartRecordingSession();
+                                       } else {
+                                         handleToggleBrowserPause();
+                                       }
+                                     }}
+                                     disabled={!!pendingActionRef.current || globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
+                                     className={cn(
+                                       "flex items-center gap-3 px-2 py-2",
+                                       (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait",
+                                       isBrowserRecording && isBrowserPaused && "text-yellow-500 dark:text-yellow-400",
+                                       isBrowserRecording && !isBrowserPaused && "text-destructive"
+                                     )}
+                                   >
+                                     {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') ? (
+                                       <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                                     ) : (
+                                       !isBrowserRecording ? (
+                                         <Play size={17} className="flex-shrink-0" />
+                                       ) : (
+                                         isBrowserPaused ? (
+                                           <Play size={17} className="flex-shrink-0" />
+                                         ) : (
+                                           <Pause size={17} className="flex-shrink-0" />
+                                         )
+                                       )
+                                     )}
+                                     <span className="text-sm whitespace-nowrap">
+-                                      {!isBrowserRecording ? "Start Recording" : (isBrowserPaused ? "Resume Recording" : "Pause Recording")}
++                                      {!isBrowserRecording ? t('controlsMenu.startRecording') : (isBrowserPaused ? t('controlsMenu.startRecording') : t('controlsMenu.pauseRecording'))}
+                                     </span>
+                                   </DropdownMenuItem>
+                                   
+                                   <DropdownMenuItem
+                                     onSelect={(e) => {
+                                       e.preventDefault();
+                                       handleStopRecording();
+                                     }}
+                                     disabled={!isBrowserRecording || !!pendingActionRef.current}
+                                     className={cn(
+                                       "flex items-center gap-3 px-2 py-2",
+                                       !isBrowserRecording && "opacity-50",
+                                       pendingActionRef.current === 'stop' && "opacity-50 cursor-wait"
+                                     )}
+                                   >
+                                     {pendingActionRef.current === 'stop' ? (
+                                       <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                                     ) : (
+                                       <StopCircle size={17} className="flex-shrink-0" />
+                                     )}
+-                                    <span className="text-sm whitespace-nowrap">Stop Recording</span>
++                                    <span className="text-sm whitespace-nowrap">{t('controlsMenu.stopRecording')}</span>
+                                   </DropdownMenuItem>
+                                 </DropdownMenuSubContent>
+                               </DropdownMenuPortal>
+                             </DropdownMenuSub>
+                           </DropdownMenuContent>
+                         </DropdownMenu>
+                         <div className="relative" ref={recordUIRef}>
+                           {showRecordUI && isBrowserRecording && (
+                             <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: recordUIVisible ? 1 : 0, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} transition={{ duration: 0.3 }} className="absolute bottom-full mb-3 bg-input-gray rounded-full py-2 px-3 shadow-lg z-10 flex items-center gap-2 record-ui" onMouseMove={handleRecordUIMouseMove} onClick={(e) => e.stopPropagation()}>
+                               <button type="button" className={cn("p-1 record-ui-button mobile-record-button", (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait")} onClick={handlePlayPauseMicClick} disabled={!!pendingActionRef.current} aria-label={isBrowserPaused ? "Resume recording" : "Pause recording"}>
+                                 {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream')
+                                   ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))] mobile-spinner" />
+                                   : (isBrowserPaused
+                                     ? <Play size={20} className="text-yellow-500 dark:text-yellow-400 mobile-icon" />
+                                     : <Pause size={20} className="text-[hsl(var(--icon-destructive))] mobile-icon" />
+                                   )
+                                 }
+                               </button>
+                               <button type="button" className={cn("p-1 record-ui-button mobile-record-button", pendingActionRef.current === 'stop' && "opacity-50 cursor-wait")} onClick={handleStopRecording} disabled={!!pendingActionRef.current} aria-label="Stop recording">
+                                 {pendingActionRef.current === 'stop'
+                                   ? <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--icon-inactive))] mobile-spinner" />
+                                   : <StopCircle size={20} className="text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] mobile-icon"/>
+                                 }
+                               </button>
+                               <span ref={recordControlsTimerDisplayRef} className="text-sm font-medium text-[hsl(var(--text-secondary))] ml-1">{formatTime(clientRecordingTime)}</span>
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/components/ui/action-tooltip.tsx b/components/ui/action-tooltip.tsx
+index 3f9aa3892b5f248b82b204e3945808aadaf2fe43..f2df074396edb02b3f8d49e51a1c35720c86144f 100644
+--- a/components/ui/action-tooltip.tsx
++++ b/components/ui/action-tooltip.tsx
+@@ -12,49 +12,49 @@ interface ActionTooltipProps {
+   label?: string; // For dynamic labels like "Copied!"
+   labelKey?: string; // For static, translatable labels
+   children: React.ReactNode;
+   side?: 'top' | 'right' | 'bottom' | 'left';
+   align?: 'start' | 'center' | 'end';
+ }
+ 
+ /**
+  * A standardized tooltip component for action icons.
+  * This should be used for all icon-based tooltips to ensure UI consistency.
+  * It uses a centralized string dictionary for labels to prepare for future localization.
+  *
+  * @param label - A direct string label. Takes precedence over labelKey.
+  * @param labelKey - The key for the label string (e.g., "tooltips.copy").
+  * @param children - The trigger element for the tooltip (usually a button with an icon).
+  * @param side - The preferred side of the trigger to render against.
+  * @param align - The preferred alignment against the trigger.
+  */
+ export function ActionTooltip({
+   label,
+   labelKey,
+   children,
+   side = 'bottom',
+   align = 'center',
+ }: ActionTooltipProps) {
+-  const t = useLocalization();
++  const { t } = useLocalization();
+   // `label` prop takes precedence over `labelKey`
+   const displayText = label || (labelKey ? t(labelKey) : '');
+ 
+   // If there's no label text to display, don't wrap the children in a tooltip.
+   if (!displayText) {
+     return <>{children}</>;
+   }
+ 
+   return (
+     <Tooltip>
+       <TooltipTrigger asChild>{children}</TooltipTrigger>
+       <TooltipContent
+         side={side}
+         align={align}
+         sideOffset={6}
+         className="rounded-md bg-zinc-900 text-white px-2.5 py-1 text-xs font-semibold border-none"
+         collisionPadding={10}
+       >
+         <p>{displayText}</p>
+       </TooltipContent>
+     </Tooltip>
+   );
+ }
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/components/ui/sidebar.tsx b/components/ui/sidebar.tsx
+index 80f1d6769f62d3567adc0c18833073b82e84076c..ed80507ba7019c349643f578e9bb5eab5b26ec5d 100644
+--- a/components/ui/sidebar.tsx
++++ b/components/ui/sidebar.tsx
+@@ -5,50 +5,51 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './sh
+ import { useIsMobile } from './use-mobile';
+ import { createClient } from '@/utils/supabase/client';
+ import { MODEL_DISPLAY_NAMES_MAP } from '@/lib/model-map';
+ import {
+   MessageCircle,
+   Settings,
+   X,
+   PlusSquare,
+   Sidebar as SidebarIcon,
+   Waves,
+   LayoutGrid,
+   Pencil,
+   MessageSquare,
+   SquarePen,
+   AudioLines,
+   ChevronRight,
+   ChevronLeft,
+   History,
+   Clock,
+   Loader2,
+   Disc,
+   LogOut,
+ } from 'lucide-react';
+ import { cn } from '@/lib/utils';
+ import { toast } from "sonner";
++import { useLocalization } from '@/context/LocalizationContext';
+ 
+ type View = "chat" | "transcribe" | "record" | "canvas";
+ 
+ interface ChatHistoryItem {
+   id: string;
+   title:string;
+   updatedAt: string;
+   agentId: string;
+   agentName: string;
+   hasSavedMessages?: boolean;
+   isConversationSaved?: boolean;
+ }
+ 
+ interface SidebarProps {
+   isOpen: boolean;
+   onClose: () => void;
+   onOpen: () => void;
+   className?: string;
+   setCurrentView: (view: View) => void;
+   setShowSettings: (show: boolean) => void;
+   agentName?: string;
+   selectedModel?: string;
+   onNewChat?: () => void;
+   onLoadChat?: (chatId: string) => Promise<void>;
+   currentChatId?: string;
+diff --git a/components/ui/sidebar.tsx b/components/ui/sidebar.tsx
+index 80f1d6769f62d3567adc0c18833073b82e84076c..ed80507ba7019c349643f578e9bb5eab5b26ec5d 100644
+--- a/components/ui/sidebar.tsx
++++ b/components/ui/sidebar.tsx
+@@ -67,50 +68,51 @@ interface SidebarProps {
+ 
+ const Sidebar: React.FC<SidebarProps> = ({
+   isOpen,
+   onClose,
+   onOpen,
+   className,
+   setCurrentView,
+   setShowSettings,
+   agentName,
+   selectedModel,
+   onNewChat,
+   onLoadChat,
+   currentChatId,
+   chatHistory,
+   isLoadingHistory,
+   onDeleteChat,
+   transcriptListenMode,
+   savedTranscriptMemoryMode,
+   individualMemoryToggleStates,
+   individualRawTranscriptToggleStates,
+   onLogout,
+   isAdminOverride = false,
+   activeUiConfig = {},
+ }) => {
+   const isMobile = useIsMobile();
++  const { t, language } = useLocalization();
+ 
+   const handleLoadChat = async (chatId: string) => {
+     if (onLoadChat) {
+       try {
+         // Wait for chat to actually load before switching views
+         await onLoadChat(chatId);
+         // Only switch to chat view after chat is successfully loaded
+         setCurrentView('chat');
+         // Only close sidebar on mobile after selecting chat
+         if (isMobile) {
+           onClose();
+         }
+       } catch (error) {
+         console.error('[Sidebar] Failed to load chat:', error);
+         // Don't switch views or close sidebar if loading failed
+         // The error handling is already done in the loadChatHistory function
+       }
+     }
+   };
+ 
+   // Helper functions for navigation items that auto-close sidebar on mobile
+   const handleNavigationClick = (view: View) => {
+     setCurrentView(view);
+     // Auto-close sidebar on mobile for navigation items
+     if (isMobile) {
+diff --git a/components/ui/sidebar.tsx b/components/ui/sidebar.tsx
+index 80f1d6769f62d3567adc0c18833073b82e84076c..ed80507ba7019c349643f578e9bb5eab5b26ec5d 100644
+--- a/components/ui/sidebar.tsx
++++ b/components/ui/sidebar.tsx
+@@ -143,66 +145,71 @@ const Sidebar: React.FC<SidebarProps> = ({
+     if (savedTranscriptMemoryMode === 'some' && individualMemoryToggleStates && Object.values(individualMemoryToggleStates).some(v => v)) {
+       return 'Some';
+     }
+     return 'None';
+   };
+ 
+   const getTranscriptListenModeText = () => {
+     return transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
+   };
+ 
+   const groupChatsByDate = (chats: ChatHistoryItem[]) => {
+     const now = new Date();
+     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+     const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+     const thisWeekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+     const lastWeekStart = new Date(thisWeekStart.getTime() - (7 * 24 * 60 * 60 * 1000));
+     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+ 
+     const groups: { [key: string]: ChatHistoryItem[] } = {};
+ 
+     chats.forEach(chat => {
+       const chatDate = new Date(chat.updatedAt);
+       const chatDateOnly = new Date(chatDate.getFullYear(), chatDate.getMonth(), chatDate.getDate());
+ 
+       if (chatDateOnly.getTime() === today.getTime()) {
+-        if (!groups['Today']) groups['Today'] = [];
+-        groups['Today'].push(chat);
++        const label = t('sidebar.dateLabels.today');
++        if (!groups[label]) groups[label] = [];
++        groups[label].push(chat);
+       } else if (chatDateOnly.getTime() === yesterday.getTime()) {
+-        if (!groups['Yesterday']) groups['Yesterday'] = [];
+-        groups['Yesterday'].push(chat);
++        const label = t('sidebar.dateLabels.yesterday');
++        if (!groups[label]) groups[label] = [];
++        groups[label].push(chat);
+       } else if (chatDateOnly >= thisWeekStart) {
+-        if (!groups['This Week']) groups['This Week'] = [];
+-        groups['This Week'].push(chat);
++        const label = t('sidebar.dateLabels.thisWeek');
++        if (!groups[label]) groups[label] = [];
++        groups[label].push(chat);
+       } else if (chatDateOnly >= lastWeekStart) {
+-        if (!groups['Last Week']) groups['Last Week'] = [];
+-        groups['Last Week'].push(chat);
++        const label = t('sidebar.dateLabels.lastWeek');
++        if (!groups[label]) groups[label] = [];
++        groups[label].push(chat);
+       } else if (chatDateOnly >= thisMonthStart) {
+-        if (!groups['This Month']) groups['This Month'] = [];
+-        groups['This Month'].push(chat);
++        const label = t('sidebar.dateLabels.thisMonth');
++        if (!groups[label]) groups[label] = [];
++        groups[label].push(chat);
+       } else {
+-        const monthName = chatDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
++        const monthName = chatDate.toLocaleDateString(language === 'sv' ? 'sv-SE' : undefined, { month: 'long', year: 'numeric' });
+         if (!groups[monthName]) groups[monthName] = [];
+         groups[monthName].push(chat);
+       }
+     });
+ 
+     return groups;
+   };
+   
+   return (
+     <div className={className}>
+       {!isOpen && (
+         <Button onClick={onOpen} variant="ghost" className="p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] hover:bg-transparent transition-colors" aria-label="Open sidebar">
+           {isMobile ? (
+             <ChevronRight className="!h-7 !w-7" />
+           ) : (
+             <SidebarIcon className="!h-5 !w-5" />
+           )}
+         </Button>
+       )}
+       <Sheet modal={isMobile} open={isOpen} onOpenChange={(open) => {
+         if (open) {
+           onOpen();
+         } else {
+           if (isMobile) {
+             onClose();
+diff --git a/components/ui/sidebar.tsx b/components/ui/sidebar.tsx
+index 80f1d6769f62d3567adc0c18833073b82e84076c..ed80507ba7019c349643f578e9bb5eab5b26ec5d 100644
+--- a/components/ui/sidebar.tsx
++++ b/components/ui/sidebar.tsx
+@@ -225,94 +232,94 @@ const Sidebar: React.FC<SidebarProps> = ({
+               </Button>
+             </SheetHeader>
+             <div className="px-2 mt-2 mb-2">
+               {/* Agent row - Hidden if workspace config specifies */}
+               {(!activeUiConfig.hide_sidebar_info?.includes('agent') || isAdminOverride) && (
+                 <div className="text-xs text-muted-foreground">
+                   Agent <span className="font-bold">{agentName || 'Loading...'}</span>
+                 </div>
+               )}
+               <div className="text-xs text-muted-foreground">
+                 Model <span className="font-bold">{(selectedModel && MODEL_DISPLAY_NAMES_MAP.get(selectedModel)) || selectedModel || 'Loading...'}</span>
+               </div>
+               <div className="text-xs text-muted-foreground">
+                 Transcript <span className="font-bold">{getTranscriptListenModeText()}</span>
+               </div>
+               {/* Summary row - Hidden if workspace config specifies */}
+               {(!activeUiConfig.hide_sidebar_info?.includes('summary') || isAdminOverride) && (
+                 <div className="text-xs text-muted-foreground">
+                   Summary <span className="font-bold">{getSummaryModeText()}</span>
+                 </div>
+               )}
+             </div>
+             <div className="mt-10 flex flex-col space-y-1 -ml-2">
+               <Button variant="ghost" className="justify-start rounded-md" onClick={handleNewChat}>
+                 <SquarePen className="mr-3 h-5 w-5" />
+-                New Chat
++                {t('sidebar.newChat')}
+               </Button>
+               {/* Top separator - Always visible after "New Chat" */}
+               <Separator className="my-2 bg-border/50" />
+               {/* === ALL UI VISIBILITY CONTROLLED BY SUPABASE WORKSPACE CONFIG === */}
+               {/* NEVER hardcode UI logic - always check activeUiConfig from workspaces.ui_config */}
+               {/* Chat link - Hidden if workspace config specifies */}
+               {(!activeUiConfig.hide_sidebar_links?.includes('chat') || isAdminOverride) && (
+                 <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('chat')}>
+                   <MessageSquare className="mr-3 h-5 w-5" />
+                   Chat
+                 </Button>
+               )}
+               {/* Record link - Hidden if workspace config specifies */}
+               {(!activeUiConfig.hide_sidebar_links?.includes('record') || isAdminOverride) && (
+                 <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('record')}>
+                   <Disc className="mr-3 h-5 w-5" />
+                   Record Note
+                 </Button>
+               )}
+               {/* Transcribe link - Hidden if workspace config specifies */}
+               {(!activeUiConfig.hide_sidebar_links?.includes('transcribe') || isAdminOverride) && (
+                 <Button variant="ghost" className="justify-start rounded-md" onClick={() => handleNavigationClick('transcribe')}>
+                   <AudioLines className="mr-3 h-5 w-5" />
+                   Transcribe
+                 </Button>
+               )}
+               {/* Bottom separator - Hidden if workspace config specifies */}
+               {/* This separator only shows when at least one sidebar link is visible */}
+               {(!activeUiConfig.hide_sidebar_separators || isAdminOverride) && (
+                 <Separator className="my-2 bg-border/50" />
+               )}
+               {/* Settings link - Hidden if workspace config specifies */}
+               {(!activeUiConfig.hide_sidebar_links?.includes('settings') || isAdminOverride) && (
+                 <Button variant="ghost" className="justify-start rounded-md" onClick={handleShowSettings}>
+                   <Settings className="mr-3 h-5 w-5" />
+                   Settings
+                 </Button>
+               )}
+             </div>
+           </div>
+           <div className="flex-1 flex flex-col min-h-0">
+             <div className="px-2 pt-4 pb-4 text-sm opacity-50">
+-              Chat History
++              {t('sidebar.chatHistory')}
+             </div>
+             <div className="flex-1 overflow-y-auto">
+               {chatHistory.length > 0 ? (
+                 <div className="space-y-2">
+                   {Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
+                     <div key={section}>
+                       <div className="px-2 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">
+                         {section}
+                       </div>
+                       <div className="space-y-0.5">
+                         {chats.map((chat) => (
+                           <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent/50 pr-2">
+                               <Button
+                               variant="ghost"
+                               className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0"
+                               onClick={() => handleLoadChat(chat.id)}
+                             >
+                               <div className="truncate">
+                                 {chat.title}
+                               </div>
+                             </Button>
+                             <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
+                               {(chat.isConversationSaved || chat.hasSavedMessages) && (
+                                 <div
+                                   className={cn(
+diff --git a/components/ui/sidebar.tsx b/components/ui/sidebar.tsx
+index 80f1d6769f62d3567adc0c18833073b82e84076c..ed80507ba7019c349643f578e9bb5eab5b26ec5d 100644
+--- a/components/ui/sidebar.tsx
++++ b/components/ui/sidebar.tsx
+@@ -332,35 +339,35 @@ const Sidebar: React.FC<SidebarProps> = ({
+                                 className="absolute h-8 w-8 opacity-0 group-hover:opacity-100"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   onDeleteChat(chat.id);
+                                 }}
+                               >
+                                 <X className="h-4 w-4" />
+                               </Button>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   ))}
+                 </div>
+               ) : (
+                 <div className="px-4 py-2 text-sm text-muted-foreground">
+                   No chat history yet
+                 </div>
+               )}
+             </div>
+           </div>
+           <div className="mt-auto pt-4 border-t border-border/50 -mx-4 px-4">
+             <Button variant="ghost" className="w-full justify-start rounded-md" onClick={onLogout}>
+               <LogOut className="mr-3 h-5 w-5" />
+-              Log Out
++              {t('sidebar.logOut')}
+             </Button>
+           </div>
+         </SheetContent>
+       </Sheet>
+     </div>
+   );
+ };
+ 
+ export default Sidebar;
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/context/LocalizationContext.tsx b/context/LocalizationContext.tsx
+index 534fadd9dd07073f2f454332d3efb2ddd3ab8a51..859ed562376e4c693ecbf5bbe77914b5446a4487 100644
+--- a/context/LocalizationContext.tsx
++++ b/context/LocalizationContext.tsx
+@@ -1,45 +1,55 @@
+ "use client";
+ 
+-import React, { createContext, useContext, ReactNode } from 'react';
+-import translations from '@/lib/localization/en.json'; // Import the strings
++import React, { createContext, useContext, ReactNode, useState } from 'react';
++import defaultTranslations from '@/lib/localization/en.json'; // Default to English
+ 
+ // Define a type for the translation function
+ type TFunction = (key: string) => string;
+ 
++interface LocalizationContextValue {
++    t: TFunction;
++    setTranslations: (t: Record<string, any>) => void;
++    language: string;
++    setLanguage: (code: string) => void;
++}
++
+ // Create the context
+-const LocalizationContext = createContext<TFunction | undefined>(undefined);
++const LocalizationContext = createContext<LocalizationContextValue | undefined>(undefined);
+ 
+ // Helper function to get nested values from the JSON object
+ function getNestedValue(obj: any, key: string): string {
+     return key.split('.').reduce((acc, part) => acc && acc[part], obj) || key;
+ }
+ 
+ /**
+  * Provides a translation function 't' to all child components.
+  * This should wrap the main application layout.
+  */
+ export function LocalizationProvider({ children }: { children: ReactNode }) {
++    const [translations, setTranslations] = useState<Record<string, any>>(defaultTranslations);
++    const [language, setLanguage] = useState<string>('en');
++
+     const t: TFunction = (key: string) => {
+         return getNestedValue(translations, key);
+     };
+ 
+     return (
+-        <LocalizationContext.Provider value={t}>
++        <LocalizationContext.Provider value={{ t, setTranslations, language, setLanguage }}>
+             {children}
+         </LocalizationContext.Provider>
+     );
+ }
+ 
+ /**
+  * Custom hook to access the translation function 't' from any component.
+  * Must be used within a LocalizationProvider.
+- * @example const t = useLocalization();
++ * @example const { t } = useLocalization();
+  *          <p>{t('some.key')}</p>
+  */
+ export function useLocalization() {
+     const context = useContext(LocalizationContext);
+     if (context === undefined) {
+         throw new Error('useLocalization must be used within a LocalizationProvider');
+     }
+     return context;
+ }
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/lib/localization/en.json b/lib/localization/en.json
+index 26be95d6f8da3e91cb0aff5878242a59cc2dde6f..bfabb75a567d91b7228788a9ae7a5b57f83189e5 100644
+--- a/lib/localization/en.json
++++ b/lib/localization/en.json
+@@ -1,13 +1,40 @@
+ {
++  "sidebar": {
++    "newChat": "New Chat",
++    "chatHistory": "Chat History",
++    "logOut": "Log Out",
++    "dateLabels": {
++      "today": "Today",
++      "yesterday": "Yesterday",
++      "thisWeek": "This Week",
++      "lastWeek": "Last Week",
++      "thisMonth": "This Month"
++    }
++  },
++  "chatInput": {
++    "placeholder": "Share or ask anything"
++  },
++  "controlsMenu": {
++    "addFiles": "Add photos & files",
++    "saveToMemory": "Save to memory",
++    "downloadChat": "Download chat",
++    "recordMeeting": "Record meeting",
++    "startRecording": "Start recording",
++    "stopRecording": "Stop recording",
++    "pauseRecording": "Pause recording"
++  },
++  "chat": {
++    "memorySaved": "Memory saved"
++  },
+   "tooltips": {
+     "copy": "Copy",
+     "copied": "Copied!",
+     "edit": "Edit",
+     "delete": "Delete",
+     "hide": "Hide",
+     "saveMemory": "Save to Memory",
+     "forgetMemory": "Forget Memory",
+     "readAloud": "Read Aloud",
+     "collapse": "Collapse"
+   }
+ }
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a//dev/null b/supabase/ui_languages.en.json
+index 0000000000000000000000000000000000000000..bfabb75a567d91b7228788a9ae7a5b57f83189e5 100644
+--- a//dev/null
++++ b/supabase/ui_languages.en.json
+@@ -0,0 +1,40 @@
++{
++  "sidebar": {
++    "newChat": "New Chat",
++    "chatHistory": "Chat History",
++    "logOut": "Log Out",
++    "dateLabels": {
++      "today": "Today",
++      "yesterday": "Yesterday",
++      "thisWeek": "This Week",
++      "lastWeek": "Last Week",
++      "thisMonth": "This Month"
++    }
++  },
++  "chatInput": {
++    "placeholder": "Share or ask anything"
++  },
++  "controlsMenu": {
++    "addFiles": "Add photos & files",
++    "saveToMemory": "Save to memory",
++    "downloadChat": "Download chat",
++    "recordMeeting": "Record meeting",
++    "startRecording": "Start recording",
++    "stopRecording": "Stop recording",
++    "pauseRecording": "Pause recording"
++  },
++  "chat": {
++    "memorySaved": "Memory saved"
++  },
++  "tooltips": {
++    "copy": "Copy",
++    "copied": "Copied!",
++    "edit": "Edit",
++    "delete": "Delete",
++    "hide": "Hide",
++    "saveMemory": "Save to Memory",
++    "forgetMemory": "Forget Memory",
++    "readAloud": "Read Aloud",
++    "collapse": "Collapse"
++  }
++}
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a//dev/null b/supabase/ui_languages.sql
+index 0000000000000000000000000000000000000000..e9d02b7d5d23b9803ef9c98910588de7b1ccd005 100644
+--- a//dev/null
++++ b/supabase/ui_languages.sql
+@@ -0,0 +1,9 @@
++-- Create table for language-specific UI labels
++create table if not exists ui_languages (
++    code text primary key,
++    config jsonb not null
++);
++
++-- Add language column to agents table with default English
++alter table agents
++    add column if not exists language text not null default 'en';
+ 
+EOF
+)
+
+=======
+
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a//dev/null b/supabase/ui_languages.sv.json
+index 0000000000000000000000000000000000000000..6bc44287007d03fe7def68a31bb342783e633ab1 100644
+--- a//dev/null
++++ b/supabase/ui_languages.sv.json
+@@ -0,0 +1,40 @@
++{
++  "sidebar": {
++    "newChat": "Ny chat",
++    "chatHistory": "Chathistorik",
++    "logOut": "Logga ut",
++    "dateLabels": {
++      "today": "Idag",
++      "yesterday": "Igår",
++      "thisWeek": "Denna vecka",
++      "lastWeek": "Förra veckan",
++      "thisMonth": "Denna månad"
++    }
++  },
++  "chatInput": {
++    "placeholder": "Dela eller fråga något"
++  },
++  "controlsMenu": {
++    "addFiles": "Bifoga filer",
++    "saveToMemory": "Spara till minne",
++    "downloadChat": "Ladda ner chat",
++    "recordMeeting": "Spela in möte",
++    "startRecording": "Starta inspelning",
++    "stopRecording": "Stoppa inspelning",
++    "pauseRecording": "Pausa inspelning"
++  },
++  "chat": {
++    "memorySaved": "Minne sparat"
++  },
++  "tooltips": {
++    "copy": "Kopiera",
++    "copied": "Kopierat!",
++    "edit": "Ändra",
++    "delete": "Radera",
++    "hide": "Göm",
++    "saveMemory": "Spara till minne",
++    "forgetMemory": "Glöm minne",
++    "readAloud": "Läs upp",
++    "collapse": "Kollapsa"
++  }
++}
+ 
+EOF
+)
+
+=======

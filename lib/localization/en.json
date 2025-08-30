@@ -1,4 +1,31 @@
 {
+  "sidebar": {
+    "newChat": "New Chat",
+    "chatHistory": "Chat History",
+    "logOut": "Log Out",
+    "dateLabels": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This Week",
+      "lastWeek": "Last Week",
+      "thisMonth": "This Month"
+    }
+  },
+  "chatInput": {
+    "placeholder": "Share or ask anything"
+  },
+  "controlsMenu": {
+    "addFiles": "Add photos & files",
+    "saveToMemory": "Save to memory",
+    "downloadChat": "Download chat",
+    "recordMeeting": "Record meeting",
+    "startRecording": "Start recording",
+    "stopRecording": "Stop recording",
+    "pauseRecording": "Pause recording"
+  },
+  "chat": {
+    "memorySaved": "Memory saved"
+  },
   "tooltips": {
     "copy": "Copy",
     "copied": "Copied!",

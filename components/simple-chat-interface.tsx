@@ -459,7 +459,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
   function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
-    const t = useLocalization();
+    const { t } = useLocalization();
 
     let searchParams;
     try {
@@ -3612,7 +3612,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                                               aria-label="Forget conversation memory"
                                                             >
                                                               <Bookmark className="h-3 w-3 mr-2" />
-                                                              <span>Memory saved</span>
+                                                              <span>{t('chat.memorySaved')}</span>
                                                             </button>
                                                           </div>
                             </div>
@@ -3748,7 +3748,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               }
                             }
                           }}
-                          placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : (activeUiConfig.chat_input_placeholder || "Share or ask anything"))}
+                          placeholder={pressToTalkState === 'transcribing' ? "Transcribing..." : (!isPageReady ? "Waiting for Agent/Event..." : (activeUiConfig.chat_input_placeholder || t('chatInput.placeholder')))}
                           className="chat-textarea w-full bg-transparent px-2 outline-none resize-none placeholder:text-[hsl(var(--placeholder-text-color))] dark:placeholder:text-zink-500"
                           disabled={!isPageReady || !!pendingAction || pressToTalkState !== 'idle'}
                           aria-label="Chat input"
@@ -3782,7 +3782,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 className="flex items-center gap-3 px-2 py-2"
                               >
                                 <Paperclip size={17} className="flex-shrink-0" />
-                                <span className="text-sm whitespace-nowrap">Add photos & files</span>
+                                <span className="text-sm whitespace-nowrap">{t('controlsMenu.addFiles')}</span>
                               </DropdownMenuItem>
                             )}
                             
@@ -3810,7 +3810,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   conversationSaveMarkerMessageId && "stroke-[hsl(var(--save-memory-color))]"
                                 )}
                               />
-                              <span className="text-sm whitespace-nowrap">Save to memory</span>
+                              <span className="text-sm whitespace-nowrap">{t('controlsMenu.saveToMemory')}</span>
                             </DropdownMenuItem>
                             
                             <DropdownMenuItem
@@ -3821,7 +3821,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               className="flex items-center gap-3 px-2 py-2"
                             >
                               <Download size={17} className="flex-shrink-0" />
-                              <span className="text-sm whitespace-nowrap">Download chat</span>
+                              <span className="text-sm whitespace-nowrap">{t('controlsMenu.downloadChat')}</span>
                             </DropdownMenuItem>
                             
                             {/* Separator line */}
@@ -3839,7 +3839,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 )}
                               >
                                 <Mic size={17} className="flex-shrink-0" />
-                                <span className="text-sm whitespace-nowrap">Record meeting</span>
+                                <span className="text-sm whitespace-nowrap">{t('controlsMenu.recordMeeting')}</span>
                               </DropdownMenuSubTrigger>
                               <DropdownMenuPortal>
                                 <DropdownMenuSubContent>
@@ -3874,7 +3874,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       )
                                     )}
                                     <span className="text-sm whitespace-nowrap">
-                                      {!isBrowserRecording ? "Start Recording" : (isBrowserPaused ? "Resume Recording" : "Pause Recording")}
+                                      {!isBrowserRecording ? t('controlsMenu.startRecording') : (isBrowserPaused ? t('controlsMenu.startRecording') : t('controlsMenu.pauseRecording'))}
                                     </span>
                                   </DropdownMenuItem>
                                   
@@ -3895,7 +3895,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     ) : (
                                       <StopCircle size={17} className="flex-shrink-0" />
                                     )}
-                                    <span className="text-sm whitespace-nowrap">Stop Recording</span>
+                                    <span className="text-sm whitespace-nowrap">{t('controlsMenu.stopRecording')}</span>
                                   </DropdownMenuItem>
                                 </DropdownMenuSubContent>
                               </DropdownMenuPortal>

@@ -24,6 +24,8 @@ import { useMobile } from "@/hooks/use-mobile"
 import { Separator } from "@/components/ui/separator"; // Import Separator
 import { toast } from "sonner"; // Import toast for notifications
 import { Button } from "@/components/ui/button";
+import { useLocalization } from "@/context/LocalizationContext";
+import enTranslations from "@/lib/localization/en.json";
 // Use both Dropdown and Sheet components
 import {
   DropdownMenu,
@@ -342,6 +344,7 @@ function HomeContent() {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [showAgentDashboard, setShowAgentDashboard] = useState(false);
+  const { setTranslations, setLanguage, t } = useLocalization();
   
   // --- PHASE 3: New state management for dynamic workspaces ---
   const [permissionsData, setPermissionsData] = useState<{
@@ -352,9 +355,11 @@ function HomeContent() {
       workspaceId: string | null;
       workspaceName: string | null;
       workspaceUiConfig: any;
+      language: string | null;
       capabilities: { pinecone_index_exists: boolean };
     }>;
     workspaceConfigs: Record<string, any>;
+    languageConfigs: Record<string, any>;
     userRole: string;
   } | null>(null);
   const [currentAgent, setCurrentAgent] = useState<string | null>(null);
@@ -545,21 +550,29 @@ function HomeContent() {
   useEffect(() => {
     if (permissionsData && currentAgent) {
       const agentData = permissionsData.agents.find(a => a.name === currentAgent);
-      if (agentData && agentData.workspaceId && permissionsData.workspaceConfigs[agentData.workspaceId]) {
-        const workspaceConfig = permissionsData.workspaceConfigs[agentData.workspaceId];
-        setActiveUiConfig(workspaceConfig);
-        
-        // Apply theme override if specified (admin users can override)
-        if (workspaceConfig.theme_override && !permissionsData.isAdminOverride) {
-          setTheme(workspaceConfig.theme_override);
+      if (agentData) {
+        if (agentData.workspaceId && permissionsData.workspaceConfigs[agentData.workspaceId]) {
+          const workspaceConfig = permissionsData.workspaceConfigs[agentData.workspaceId];
+          setActiveUiConfig(workspaceConfig);
+
+          // Apply theme override if specified (admin users can override)
+          if (workspaceConfig.theme_override && !permissionsData.isAdminOverride) {
+            setTheme(workspaceConfig.theme_override);
+          }
+        } else {
+          setActiveUiConfig({});
         }
-      } else {
-        setActiveUiConfig({});
+
+        // Update language translations
+        const langCode = agentData.language || 'en';
+        const langConfig = permissionsData.languageConfigs?.[langCode] || {};
+        setTranslations({ ...enTranslations, ...langConfig });
+        setLanguage(langCode);
       }
     } else {
       setActiveUiConfig({});
     }
-  }, [permissionsData, currentAgent, setTheme]);
+  }, [permissionsData, currentAgent, setTheme, setTranslations, setLanguage]);
 
   // --- PHASE 3: Handle consent completion ---
   const handleConsentGiven = () => {
@@ -2449,7 +2462,7 @@ function HomeContent() {
                         className="w-full sm:w-auto"
                       >
                         <LogOut className="mr-2 h-4 w-4" />
-                        Log Out
+                        {t('sidebar.logOut')}
                       </Button>
                     </div>
 
