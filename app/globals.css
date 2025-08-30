@@ -1404,7 +1404,7 @@ body {
 /* Scroll to bottom button */
 .scroll-to-bottom-button {
   position: absolute !important;
-  bottom: calc(var(--input-area-height) + 10px) !important; /* Position relative to input area with 10px gap */
+  bottom: calc(var(--input-area-height) + 8px) !important; /* Position relative to input area with 8px gap */
   left: 50% !important;
   transform: translateX(-50%);
   background-color: hsl(var(--input-gray) / 0.3); /* Use translucent input gray for all themes */
@@ -1432,7 +1432,7 @@ body {
 /* Mobile positioning for scroll button */
 @media (max-width: 640px) {
   .scroll-to-bottom-button {
-    bottom: calc(var(--input-area-height) + 5px) !important; /* Position relative to input area with 5px gap on mobile */
+    bottom: calc(var(--input-area-height) + 2px) !important; /* Position relative to input area with 2px gap on mobile */
   }
 }
 
