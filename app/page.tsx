@@ -1999,6 +1999,7 @@ function HomeContent() {
         activeUiConfig={activeUiConfig}
         eventLabels={eventLabels}
         workspaceId={(permissionsData && currentAgent) ? (permissionsData.agents.find((a: any) => a.name === currentAgent)?.workspaceId) : undefined}
+        workspaceName={(permissionsData && currentAgent) ? (permissionsData.agents.find((a: any) => a.name === currentAgent)?.workspaceName || undefined) : undefined}
       />
       
       {/* New Chat icon positioned right of sidebar */}

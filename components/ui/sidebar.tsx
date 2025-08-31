@@ -76,6 +76,7 @@ interface SidebarProps {
   // Current workspace scope (for policy drawer)
   workspaceId?: string;
   workspaceSlug?: string;
+  workspaceName?: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -104,6 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   eventLabels = {},
   workspaceId,
   workspaceSlug,
+  workspaceName,
 }) => {
   const isMobile = useIsMobile();
   const { t, language } = useLocalization();
@@ -164,6 +166,18 @@ const Sidebar: React.FC<SidebarProps> = ({
             .from('workspace_consent_configs')
             .select('*')
             .eq('workspace_slug', workspaceSlug)
+            .eq('is_active', true)
+            .order('version', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          data = bySlug.data;
+        }
+        // Heuristic fallback for IKEA workspace by name match when slug not provided
+        if (!data && !workspaceSlug && workspaceName && /ikea/i.test(workspaceName)) {
+          const bySlug = await supabase
+            .from('workspace_consent_configs')
+            .select('*')
+            .eq('workspace_slug', 'ikea-pilot')
             .eq('is_active', true)
             .order('version', { ascending: false })
             .limit(1)
