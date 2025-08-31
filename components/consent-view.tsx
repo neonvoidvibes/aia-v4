@@ -224,7 +224,7 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
         <CardHeader className="pb-2">
           <CardTitle className="text-2xl">{title}</CardTitle>
           <CardDescription>
-            Please review and accept the terms for {workspaceName}
+            Granska och godkänn villkoren för {workspaceName}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-4 pt-2">
@@ -255,15 +255,15 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
             </div>
           )}
 
-          <div className="flex items-start gap-3">
+          <div className="flex items-center gap-2">
             <Checkbox
               id="consent-checkbox"
               checked={hasAgreed}
               onCheckedChange={(checked) => setHasAgreed(checked === true)}
               disabled={isSubmitting || (requireScrollToEnd && !isAtBottom)}
             />
-            <div className="space-y-1.5">
-              <Label htmlFor="consent-checkbox" className="text-sm font-medium leading-none">
+            <div className="space-y-1">
+              <Label htmlFor="consent-checkbox" className="text-[15px] font-medium leading-snug">
                 Jag godkänner villkoren och integritetspolicyn
               </Label>
               {requireScrollToEnd && !isAtBottom && (
