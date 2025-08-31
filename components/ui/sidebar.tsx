@@ -67,6 +67,8 @@ interface SidebarProps {
   // --- PHASE 3: Workspace UI configuration ---
   isAdminOverride?: boolean;
   activeUiConfig?: any;
+  // Optional mapping of event_id -> display label
+  eventLabels?: Record<string, string>;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -92,6 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   isAdminOverride = false,
   activeUiConfig = {},
+  eventLabels = {},
 }) => {
   const isMobile = useIsMobile();
   const { t, language } = useLocalization();
@@ -100,7 +103,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [visibleCountByEvent, setVisibleCountByEvent] = useState<Record<string, number>>({});
 
   const eventLabel = (e?: string) => {
-    return (!e || e === '0000') ? 'Shared' : e;
+    if (!e || e === '0000') return eventLabels['0000'] || 'Shared';
+    return eventLabels[e] || e;
   };
 
   // Initialize expanded state from localStorage and defaults

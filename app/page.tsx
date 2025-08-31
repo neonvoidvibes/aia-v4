@@ -399,6 +399,8 @@ function HomeContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [showAgentDashboard, setShowAgentDashboard] = useState(false);
   const { setTranslations, setLanguage, t } = useLocalization();
+  // Event labels mapping (from Supabase agents.event_labels)
+  const [eventLabels, setEventLabels] = useState<Record<string, string>>({});
   // Events cache key (depends on pageAgentName) — defined after pageAgentName state
   const eventsCacheKey = useMemo(() => pageAgentName ? `events_cache_${pageAgentName}` : null, [pageAgentName]);
   
@@ -456,6 +458,30 @@ function HomeContent() {
   useEffect(() => {
     setAvailableEvents(null);
     setEventFetchError(null);
+  }, [pageAgentName]);
+
+  // Fetch event labels for the current agent (if present in Supabase)
+  useEffect(() => {
+    const run = async () => {
+      if (!pageAgentName) { setEventLabels({}); return; }
+      try {
+        const res = await fetch(`/api/agents/event-labels?agentName=${encodeURIComponent(pageAgentName)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const labels = (data && typeof data === 'object' && data.event_labels) ? data.event_labels : data;
+          if (labels && typeof labels === 'object') {
+            setEventLabels(labels as Record<string, string>);
+          } else {
+            setEventLabels({});
+          }
+        } else {
+          setEventLabels({});
+        }
+      } catch {
+        setEventLabels({});
+      }
+    };
+    run();
   }, [pageAgentName]);
 
   // Proactively fetch events when agent is available (prevents hidden dropdown due to empty chat history)
@@ -1937,6 +1963,7 @@ function HomeContent() {
         // --- PHASE 3: Workspace UI props ---
         isAdminOverride={permissionsData?.isAdminOverride}
         activeUiConfig={activeUiConfig}
+        eventLabels={eventLabels}
       />
       
       {/* New Chat icon positioned right of sidebar */}
@@ -1989,7 +2016,7 @@ function HomeContent() {
                           className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold hover:opacity-90"
                           aria-label="Select event"
                         >
-                          <span className="truncate max-w-[160px]">{eventLabel(pageEventId)}</span>
+                          <span className="truncate max-w-[160px]">{labelForEvent(pageEventId)}</span>
                           <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
@@ -2028,7 +2055,7 @@ function HomeContent() {
                           className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold hover:opacity-90"
                           aria-label="Select event"
                         >
-                          <span className="truncate max-w-[160px]">{eventLabel(pageEventId)}</span>
+                          <span className="truncate max-w-[160px]">{labelForEvent(pageEventId)}</span>
                           <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
@@ -2076,7 +2103,7 @@ function HomeContent() {
                           className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[140px] truncate font-semibold hover:opacity-90"
                           aria-label="Select event"
                         >
-                          <span className="truncate max-w-[100px]">{eventLabel(pageEventId)}</span>
+                          <span className="truncate max-w-[100px]">{labelForEvent(pageEventId)}</span>
                           <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
