@@ -379,8 +379,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                          <div className="px-2 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">{section}</div>
                          <div className="space-y-0.5">
                            {chats.map(chat => (
-                             <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
-                               <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                             <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent pr-2">
+                               <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
                                  <div className="truncate">
                                    {chat.title}
                                  </div>
@@ -410,7 +410,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                        const expanded = expandedEvents[ev] ?? (ev === (currentEventId || '0000'));
                        const visibleCount = visibleCountByEvent[ev] ?? 20;
                        return (
-                         <div key={ev} className={cn("mx-2 mb-2 border border-[hsl(var(--accent))]/50 rounded-sm", expanded ? "bg-[hsl(var(--accent))]/5" : "bg-transparent") }>
+                         <div key={ev} className={cn("-mx-2 mb-2 border border-[hsl(var(--accent))]/50 rounded-sm", expanded ? "bg-[hsl(var(--accent))]/5" : "bg-transparent") }>
                            <button
                              className="w-full flex items-center justify-between px-2 py-1.5 text-sm hover:bg-accent/10 rounded-sm focus:outline-none focus:ring-2 focus:ring-accent"
                              aria-expanded={expanded}
@@ -423,10 +423,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                              <span className="ml-2 inline-flex items-center rounded-full bg-accent/20 text-accent px-2 py-0.5 text-[10px]">{chats.length}</span>
                            </button>
                            {expanded && (
-                             <div className="space-y-0.5 px-1 pb-1">
+                             <div className="space-y-0.5 px-2 pb-1">
                                {chats.slice(0, visibleCount).map(chat => (
-                                 <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
-                                   <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                                 <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent pr-2">
+                                   <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
                                      <div className="truncate">{chat.title}</div>
                                    </Button>
                                    <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
