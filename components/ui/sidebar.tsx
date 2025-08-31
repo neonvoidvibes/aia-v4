@@ -369,8 +369,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                          onValueChange={(v) => v && setFlattenAll(v === 'all')}
                          className="gap-1"
                        >
-                         <ToggleGroupItem value="grouped" className="rounded-sm px-3 py-1 text-xs">Grouped chats</ToggleGroupItem>
-                         <ToggleGroupItem value="all" className="rounded-sm px-3 py-1 text-xs">All chats</ToggleGroupItem>
+                         <ToggleGroupItem value="grouped" className="rounded-sm px-3 py-1 text-xs">Grouped</ToggleGroupItem>
+                         <ToggleGroupItem value="all" className="rounded-sm px-3 py-1 text-xs">All</ToggleGroupItem>
                        </ToggleGroup>
                      </div>
                    )}
@@ -413,9 +413,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                        const expanded = expandedEvents[ev] ?? (ev === (currentEventId || '0000'));
                        const visibleCount = visibleCountByEvent[ev] ?? 20;
                        return (
-                         <div key={ev} className={cn("-mx-2 mb-2") }>
+                         <div key={ev} className={cn("mb-2") }>
                            <button
-                             className="w-full flex items-center justify-between px-2 py-1.5 text-sm hover:bg-accent/10 rounded-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                             className="w-full flex items-center justify-between px-2 py-1.5 text-sm hover:bg-accent/10 rounded-xs"
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
