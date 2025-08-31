@@ -206,6 +206,8 @@ function HomeContent() {
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [eventFetchError, setEventFetchError] = useState<string | null>(null);
+  const EVENTS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+  const eventsCacheKey = useMemo(() => pageAgentName ? `events_cache_${pageAgentName}` : null, [pageAgentName]);
   
   
   // Lifted state for CanvasView
@@ -486,15 +488,60 @@ function HomeContent() {
     setIsLoadingEvents(true);
     setEventFetchError(null);
     try {
-      // Prefer server-side auth via API route; cookies are forwarded
+      // Seed from local cache (fast path)
+      if (eventsCacheKey) {
+        try {
+          const raw = localStorage.getItem(eventsCacheKey);
+          if (raw) {
+            const cached = JSON.parse(raw) as { events: string[]; ts: number };
+            if (cached?.events && Array.isArray(cached.events)) {
+              const fresh = Date.now() - (cached.ts || 0) < EVENTS_CACHE_TTL_MS;
+              if (fresh) setAvailableEvents(cached.events);
+            }
+          }
+        } catch {}
+      }
+
+      // Authoritative fetch via proxy route
+      let ok = false;
+      let events: string[] = [];
       const res = await fetch(`/api/s3-proxy/list-events?agentName=${encodeURIComponent(pageAgentName)}`);
-      if (!res.ok) {
+      if (res.ok) {
+        const data: { events?: string[] } = await res.json();
+        events = Array.from(new Set([...(data.events || [])])).sort();
+        ok = true;
+      } else if (res.status === 404) {
+        // Fallback for older backends: list by prefix and derive event IDs
+        const fallbackPrefix = `organizations/river/agents/${pageAgentName}/events/`;
+        const res2 = await fetch(`/api/s3-proxy/list?prefix=${encodeURIComponent(fallbackPrefix)}`);
+        if (!res2.ok) {
+          const t2 = await res2.text().catch(() => '');
+          throw new Error(t2 || `Failed to list events via fallback (${res2.status})`);
+        }
+        const files: Array<{ s3Key?: string; Key?: string }> = await res2.json();
+        const setEv = new Set<string>();
+        for (const f of files || []) {
+          const key = (f as any).s3Key || (f as any).Key || '';
+          const idx = key.indexOf('/events/');
+          if (idx >= 0) {
+            const tail = key.substring(idx + '/events/'.length);
+            const ev = tail.split('/')[0];
+            if (ev) setEv.add(ev);
+          }
+        }
+        events = Array.from(setEv).sort();
+        ok = true;
+      } else {
         const text = await res.text().catch(() => '');
         throw new Error(text || `Failed to list events (${res.status})`);
       }
-      const data: { events?: string[] } = await res.json();
-      const events = Array.from(new Set([...(data.events || [])])).sort();
-      setAvailableEvents(events);
+
+      if (ok) {
+        setAvailableEvents(events);
+        if (eventsCacheKey) {
+          try { localStorage.setItem(eventsCacheKey, JSON.stringify({ events, ts: Date.now() })); } catch {}
+        }
+      }
     } catch (e: any) {
       console.error('Failed to fetch events from S3:', e);
       setEventFetchError(e?.message || 'Failed to load events');
@@ -502,7 +549,7 @@ function HomeContent() {
     } finally {
       setIsLoadingEvents(false);
     }
-  }, [pageAgentName, isLoadingEvents]);
+  }, [pageAgentName, isLoadingEvents, eventsCacheKey]);
 
   const handleEventChange = useCallback((newEventId: string) => {
     if (!pageAgentName) return;
