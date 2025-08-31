@@ -10,37 +10,7 @@ import { createServerActionClient } from '@/utils/supabase/server'
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
 
-async function findActiveBackend(urls: string[]): Promise<string | null> {
-    if (!urls || urls.length === 0) {
-        console.error("[Recording Proxy Util] No backend URLs configured.");
-        urls = ['http://127.0.0.1:5001'];
-    }
-    console.log("[Recording Proxy Util] Checking potential backend URLs:", urls);
-    for (const baseUrl of urls) {
-        const healthUrl = `${baseUrl}/api/health`;
-        try {
-            console.log(`[Recording Proxy Util] Pinging ${healthUrl}...`);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
-            const response = await fetch(healthUrl, { method: 'GET', signal: controller.signal });
-            clearTimeout(timeoutId);
-            if (response.ok) {
-                console.log(`[Recording Proxy Util] Success: ${baseUrl} is active.`);
-                return baseUrl;
-            } else {
-                console.warn(`[Recording Proxy Util] ${baseUrl} responded with status ${response.status}`);
-            }
-        } catch (error: any) {
-             if (error.name === 'AbortError') {
-                 console.warn(`[Recording Proxy Util] Timeout connecting to ${healthUrl}`);
-             } else {
-                 console.warn(`[Recording Proxy Util] Error connecting to ${healthUrl}: ${error.message}`);
-             }
-        }
-    }
-    console.error("[Recording Proxy Util] No active backend found among:", urls);
-    return null;
-}
+import { getBackendUrl } from '@/app/api/proxyUtils';
 
 function formatErrorResponse(message: string, status: number): NextResponse {
     return NextResponse.json({ status: "error", message: message }, { status: status });
@@ -62,7 +32,7 @@ export async function GET(req: NextRequest) {
     console.log(`[API /api/recording-proxy] GET Authenticated user: ${user.id}`);
     // --- End Authentication ---
 
-    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
         return formatErrorResponse("Could not connect to backend for recording status.", 503);
     }
@@ -112,7 +82,7 @@ export async function POST(req: NextRequest) {
         return formatErrorResponse("Unauthorized", 401);
     }
 
-    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
         return formatErrorResponse("Backend service not available", 503);
     }

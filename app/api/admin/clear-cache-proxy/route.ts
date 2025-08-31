@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerActionClient } from '@/utils/supabase/server';
 import { supabaseAdmin } from '@/utils/supabase/service';
-import { findActiveBackend, formatErrorResponse } from '@/app/api/proxyUtils';
+import { getBackendUrl, formatErrorResponse } from '@/app/api/proxyUtils';
 
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.warn("[API Admin] CRITICAL: SUPABASE_SERVICE_ROLE_KEY is not set. Admin functionality will be disabled.");
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       return formatErrorResponse("Missing 'scope' in request body (e.g., agentName or 'all')", 400);
     }
 
-    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
       return formatErrorResponse("Could not connect to backend to clear cache.", 503);
     }

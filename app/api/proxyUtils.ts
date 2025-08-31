@@ -41,11 +41,11 @@ export async function findActiveBackend(urls: string[]): Promise<string | null> 
     // console.log("[Proxy Util] Checking potential backend URLs concurrently:", urls);
 
     const healthCheckPromises = urls.map(baseUrl => {
-        const healthUrl = `${baseUrl}/api/health`;
+        const healthUrl = `${baseUrl}/healthz`;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
             controller.abort();
-        }, 30000); // Increased timeout to 30s to allow for cold starts on services like Render
+        }, 5000);
 
         return fetch(healthUrl, { method: 'GET', signal: controller.signal })
             .finally(() => clearTimeout(timeoutId));
@@ -102,9 +102,20 @@ export function formatErrorChunk(errorMsg: string): string {
 // export function formatTextChunk(text: string): string { ... }
 
 // A new function to get the backend URL
+let _backendCache: { url: string | null; ts: number } = { url: null, ts: 0 };
+const BACKEND_CACHE_TTL_MS = 90_000; // 90 seconds
+
 export async function getBackendUrl(): Promise<string | null> {
     const backendUrls = (process.env.BACKEND_API_URLS || '').split(',').map(url => url.trim()).filter(Boolean);
-    return findActiveBackend(backendUrls);
+    const now = Date.now();
+    if (_backendCache.url && (now - _backendCache.ts) < BACKEND_CACHE_TTL_MS) {
+        return _backendCache.url;
+    }
+    const url = await findActiveBackend(backendUrls);
+    if (url) {
+        _backendCache = { url, ts: now };
+    }
+    return url;
 }
 
 interface ProxyApiRouteRequestParams {

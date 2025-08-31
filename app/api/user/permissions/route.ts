@@ -3,7 +3,7 @@ import { createServerActionClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger'; // Import the logger
 // import type { Database } from '@/types/supabase'; // Comment out or remove if types not generated
-import { findActiveBackend } from '@/app/api/proxyUtils'; // Import the backend finder
+import { getBackendUrl } from '@/app/api/proxyUtils'; // Use cached backend finder
 
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
@@ -120,7 +120,7 @@ export async function GET(request: Request) {
     logger.info({ agentCount: agentsWithWorkspaceInfo.length }, `Permissions API: User ${user.id} has access`);
  
     // --- BATCH CAPABILITIES CHECK ---
-    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const activeBackendUrl = await getBackendUrl();
     const agentNames = agentsWithWorkspaceInfo.map(a => a.name);
     let agentsWithCapabilities = agentsWithWorkspaceInfo.map(agent => ({
         ...agent,

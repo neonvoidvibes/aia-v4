@@ -23,7 +23,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     try {
-        const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+        const activeBackendUrl = await getBackendUrl();
         if (!activeBackendUrl) {
           console.error('[API /chat/history/delete] No active backend found.');
           return formatErrorResponse("Could not connect to backend for conversation deletion.", 503);
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+        const activeBackendUrl = await getBackendUrl();
         if (!activeBackendUrl) {
           console.error('[API /chat/history/delete] No active backend found.');
           return formatErrorResponse("Could not connect to backend for message deletion.", 503);

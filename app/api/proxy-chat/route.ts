@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { findActiveBackend, formatErrorChunk } from '../proxyUtils'; // Use shared util
+import { getBackendUrl, formatErrorChunk } from '../proxyUtils'; // Use shared util
 // Import our specific server client helper
 import { createServerActionClient } from '@/utils/supabase/server'
 import { createRequestLogger, sanitizeForLogging } from '@/lib/logger';
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     // --- End Authentication ---
 
     // --- Find Active Backend URL ---
-    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const activeBackendUrl = await getBackendUrl();
 
     if (!activeBackendUrl) {
         const errorMsg = `Could not connect to any configured backend: ${POTENTIAL_BACKEND_URLS.join(', ')}. Please ensure the backend server is running and accessible.`;

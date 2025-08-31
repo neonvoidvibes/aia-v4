@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerActionClient } from '@/utils/supabase/server';
-import { findActiveBackend, formatErrorResponse } from '@/app/api/proxyUtils';
+import { getBackendUrl, formatErrorResponse } from '@/app/api/proxyUtils';
 
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     // Log the S3 key being processed
     console.log(`[S3 Proxy ManageFile] Managing file with S3 Key: ${s3Key}`);
 
-    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
       return formatErrorResponse("Could not connect to backend for S3 file management.", 503);
     }

@@ -1,7 +1,7 @@
 // app/api/transcription/start-job/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerActionClient } from '@/utils/supabase/server';
-import { findActiveBackend, formatErrorResponse } from '@/app/api/proxyUtils';
+import { getBackendUrl, formatErrorResponse } from '@/app/api/proxyUtils';
 
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(u => u.trim()).filter(Boolean);
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       return formatErrorResponse('Missing required fields: agentName, s3Key, originalFilename', 400);
     }
 
-    const backend = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const backend = await getBackendUrl();
     if (!backend) return formatErrorResponse('Could not connect to backend to start job.', 503);
 
     const resp = await fetch(`${backend}/api/transcription/start-job-from-s3`, {

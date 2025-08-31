@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerActionClient } from '@/utils/supabase/server'; // For server-side auth
-import { findActiveBackend, formatErrorResponse } from '@/app/api/proxyUtils'; // Shared utils
+import { getBackendUrl, formatErrorResponse } from '@/app/api/proxyUtils'; // Shared utils
 
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     // timeWindowLabel is optional and might have a default on the backend
 
     // 3. Find active Python backend
-    const activeBackendUrl = await findActiveBackend(POTENTIAL_BACKEND_URLS);
+    const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
       return formatErrorResponse("Could not connect to backend for canvas insights.", 503);
     }
