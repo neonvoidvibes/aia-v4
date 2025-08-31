@@ -363,8 +363,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                    {/* Controls when multiple events */}
                    {(!hasOnlyShared && uniqueEvents.length > 1) && (
                      <div className="px-2 pb-1 flex items-center justify-start">
-                       <div className="relative w-[200px] h-8 bg-accent/10 rounded-sm p-1">
-                         <div className={cn("absolute top-1 bottom-1 w-1/2 rounded-sm bg-accent transition-transform", flattenAll ? "translate-x-full" : "translate-x-0")}></div>
+                       <div className="relative w-[200px] h-8 bg-background rounded-sm p-1">
+                         <div className={cn("absolute top-1 bottom-1 w-1/2 rounded-sm bg-accent transition-transform", flattenAll ? "translate-x-0" : "translate-x-full")}></div>
                          <div className="relative grid grid-cols-2 h-full">
                            <button className={cn("z-10 text-xs rounded-sm", flattenAll ? "text-accent-foreground" : "text-foreground/70")}
                              onClick={() => setFlattenAll(true)}>
@@ -420,10 +420,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                              <div className="flex items-center gap-2">
-                               <span className="font-medium truncate">{eventLabel(ev)}</span>
+                               <span className="text-muted-foreground font-medium truncate">{eventLabel(ev)}</span>
                              </div>
-                             <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
-                           </button>
+                             <ChevronRight className={cn("mr-1 h-4 w-4 transition-transform", expanded && "rotate-90")} />
+                          </button>
                            {expanded && (
                              <div className="space-y-0.5 px-0 pb-1">
                                {Object.entries(groupChatsByDate(chats)).map(([dateLabel, items]) => (
