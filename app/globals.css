@@ -373,10 +373,10 @@
 .theme-folkhemmet .header-workspace-title [aria-label="Select event"] {
   /* Lighter accent blue = #357ABC (see --save-memory-color) */
   background-color: hsl(var(--save-memory-color)) !important;
-  color: hsl(var(--accent)) !important;
+  color: hsl(0 0% 100%) !important; /* White text */
 }
 .theme-folkhemmet .header-workspace-title .opacity-70 { opacity: 1 !important; }
-.theme-folkhemmet .header-workspace-title [aria-label="Select event"] svg { color: hsl(var(--accent)) !important; }
+.theme-folkhemmet .header-workspace-title [aria-label="Select event"] svg { color: hsl(0 0% 100%) !important; }
 
 /* SIDEBAR CHAT HISTORY - Specific hover colors */
 /* Rule 1: Set the base hover color for all buttons in the group to dark blue. */
@@ -394,10 +394,10 @@
   background-color: hsl(var(--save-memory-color)) !important;
   color: hsl(var(--accent)) !important;
 }
-/* Exception: category headers should never fill or change text color on hover */
+/* Category title hover: subtle dimmed blue background */
 .theme-folkhemmet .sidebar-bg .sidebar-event-header:hover,
 .theme-folkhemmet .sidebar-event-header:hover {
-  background-color: transparent !important;
+  background-color: hsl(var(--save-memory-color) / 0.12) !important;
   color: hsl(var(--save-memory-color)) !important;
 }
 
@@ -466,10 +466,10 @@
 /* Ensure event tag styles apply in all header variants (not only inside .header-workspace-title) */
 .theme-folkhemmet [aria-label="Select event"] {
   background-color: hsl(var(--save-memory-color)) !important; /* #357ABC */
-  color: hsl(var(--accent)) !important; /* Yellow text */
+  color: hsl(0 0% 100%) !important; /* White text */
 }
 .theme-folkhemmet [aria-label="Select event"] svg {
-  color: hsl(var(--accent)) !important;
+  color: hsl(0 0% 100%) !important;
 }
 .theme-folkhemmet [aria-label="Select event"] .opacity-70 { opacity: 1 !important; }
 
