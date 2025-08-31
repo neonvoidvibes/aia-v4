@@ -484,6 +484,12 @@ function HomeContent() {
     run();
   }, [pageAgentName]);
 
+  // Resolve display label for an event ID using Supabase-provided labels
+  const labelForEvent = useCallback((e?: string | null) => {
+    if (!e || e === '0000') return eventLabels['0000'] || 'Shared';
+    return eventLabels[e] || e;
+  }, [eventLabels]);
+
   // Proactively fetch events when agent is available (prevents hidden dropdown due to empty chat history)
   useEffect(() => {
     if (pageAgentName) {
