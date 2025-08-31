@@ -357,27 +357,27 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="px-2 pt-4 pb-4 text-sm opacity-50">
               {t('sidebar.chatHistory')}
             </div>
+            {/* Toggle placed outside the scroll area so it persists while scrolling */}
+            {(!hasOnlyShared && uniqueEvents.length > 1) && (
+              <div className="px-2 pb-2 flex items-center justify-start">
+                <div className="relative w-[220px] h-8 bg-background rounded-sm p-1">
+                  <div className={cn("absolute top-1 bottom-1 w-1/2 rounded-sm bg-accent transition-transform", flattenAll ? "translate-x-0" : "translate-x-full")}></div>
+                  <div className="relative grid grid-cols-2 h-full">
+                    <button className={cn("z-10 text-xs rounded-sm", flattenAll ? "text-accent-foreground" : "text-foreground/70")}
+                      onClick={() => setFlattenAll(true)}>
+                      All chats
+                    </button>
+                    <button className={cn("z-10 text-xs rounded-sm ml-1", !flattenAll ? "text-accent-foreground" : "text-foreground/70")}
+                      onClick={() => setFlattenAll(false)}>
+                      Grouped
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto">
                {chatHistory.length > 0 ? (
                  <div className="space-y-2">
-                   {/* Controls when multiple events */}
-                   {(!hasOnlyShared && uniqueEvents.length > 1) && (
-                     <div className="px-2 pb-1 flex items-center justify-start">
-                       <div className="relative w-[200px] h-8 bg-background rounded-sm p-1">
-                         <div className={cn("absolute top-1 bottom-1 w-1/2 rounded-sm bg-accent transition-transform", flattenAll ? "translate-x-0" : "translate-x-full")}></div>
-                         <div className="relative grid grid-cols-2 h-full">
-                           <button className={cn("z-10 text-xs rounded-sm", flattenAll ? "text-accent-foreground" : "text-foreground/70")}
-                             onClick={() => setFlattenAll(true)}>
-                             All chats
-                           </button>
-                           <button className={cn("z-10 text-xs rounded-sm", !flattenAll ? "text-accent-foreground" : "text-foreground/70")}
-                             onClick={() => setFlattenAll(false)}>
-                             Grouped
-                           </button>
-                         </div>
-                       </div>
-                     </div>
-                   )}
 
                    {/* Flat list mode */}
                    {((hasOnlyShared || flattenAll) && (
@@ -415,15 +415,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                        return (
                          <div key={ev} className={cn("mb-2") }>
                            <button
-                             className="w-full flex items-center justify-between px-2 py-1.5 pr-8 text-sm hover:bg-accent/10 rounded-xs"
+                             className="w-full flex items-center justify-between px-2 py-1.5 pr-10 text-sm hover:bg-accent/10 rounded-xs bg-background"
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                              <div className="flex items-center gap-2">
-                               <span className="text-muted-foreground font-medium truncate">{eventLabel(ev)}</span>
+                               <span className="text-accent font-medium truncate">{eventLabel(ev)}</span>
                              </div>
-                             <ChevronRight className={cn("mr-1 h-4 w-4 transition-transform", expanded && "rotate-90")} />
-                          </button>
+                             <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+                           </button>
                            {expanded && (
                              <div className="space-y-0.5 px-0 pb-1">
                                {Object.entries(groupChatsByDate(chats)).map(([dateLabel, items]) => (
