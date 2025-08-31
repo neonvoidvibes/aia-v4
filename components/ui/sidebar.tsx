@@ -540,10 +540,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                          <div key={ev} className={cn("mb-2") }>
                           <button
                             className={cn(
-                              "group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm rounded-xs",
-                              expanded ? "bg-accent text-accent-foreground" : "bg-background hover:bg-accent/10"
+                              "sidebar-event-header group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm rounded-xs hover:bg-accent/10"
                             )}
                              aria-expanded={expanded}
+                             data-expanded={expanded ? 'true' : 'false'}
+                             data-selected={(ev === (currentEventId || '0000')) ? 'true' : 'false'}
+                             data-teamspace={ev === '0000' ? 'true' : 'false'}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                           <div className="flex items-center gap-2">
@@ -552,7 +554,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                               expanded ? "text-accent-foreground" : "text-muted-foreground"
                             )}>{eventLabel(ev)}</span>
                           </div>
-                          <ChevronRight className={cn("absolute right-3 h-4 w-4 transition-transform", expanded && "rotate-90")} />
+                          <ChevronRight className={cn("absolute right-[13px] h-5 w-5 transition-transform", expanded && "rotate-90")} />
                            </button>
                            {expanded && (
                              <div className="space-y-0.5 px-0 pb-1">
