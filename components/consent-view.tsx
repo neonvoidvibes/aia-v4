@@ -113,21 +113,7 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
     return html
   }
 
-  // Extract and highlight the "Kort sammanfattning" section if present
-  const { summaryMarkdown, restMarkdown } = useMemo(() => {
-    const marker = "## Kort sammanfattning"
-    const full = contentMarkdown || ""
-    const idx = full.indexOf(marker)
-    if (idx === -1) return { summaryMarkdown: "", restMarkdown: full }
-    const start = idx
-    const after = full.indexOf("\n## ", start + marker.length)
-    const end = after === -1 ? full.length : after
-    const summary = full.slice(start, end).trim()
-    const before = full.slice(0, start).trim()
-    const afterMd = end < full.length ? full.slice(end).trim() : ""
-    const rest = [before, afterMd].filter(Boolean).join("\n\n")
-    return { summaryMarkdown: summary, restMarkdown: rest }
-  }, [contentMarkdown])
+  // Render full markdown content in original order (no extraction)
 
   useEffect(() => {
     const supabase = createClient()
@@ -179,6 +165,13 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
     load()
   }, [workspaceId])
 
+  // Recalculate bottom state after content renders
+  useEffect(() => {
+    if (!isLoadingContent) {
+      requestAnimationFrame(() => handleScroll())
+    }
+  }, [isLoadingContent, contentMarkdown])
+
   const handleConsent = async () => {
     if (!hasAgreed) {
       toast.error("Please agree to the terms before continuing.");
@@ -223,53 +216,43 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }
 
-  const summaryHtml = useMemo(() => renderMarkdown(summaryMarkdown), [summaryMarkdown])
-  const restHtml = useMemo(() => renderMarkdown(restMarkdown), [restMarkdown])
+  const fullHtml = useMemo(() => renderMarkdown(contentMarkdown), [contentMarkdown])
 
   return (
     <div className="w-full flex items-center justify-center min-h-screen bg-background px-4">
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
+      <Card className="w-full max-w-3xl max-h-[92vh] flex flex-col">
+        <CardHeader className="pb-2">
           <CardTitle className="text-2xl">{title}</CardTitle>
           <CardDescription>
             Please review and accept the terms for {workspaceName}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="flex-1 flex flex-col gap-4 pt-2">
           {isLoadingContent ? (
             <div className="flex items-center text-muted-foreground"><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Loading policy…</div>
           ) : (
-            <>
-              {summaryMarkdown && (
-                <div className="rounded-md border border-border bg-muted/40 p-4">
-                  <div className="text-sm font-semibold mb-2">Viktig sammanfattning</div>
-                  <div className="text-[15px] leading-relaxed policy-markdown" dangerouslySetInnerHTML={{ __html: summaryHtml }} />
-                </div>
-              )}
-
-              <div className="relative">
-                <div
-                  ref={scrollRef}
-                  onScroll={handleScroll}
-                  className="max-h-[60vh] overflow-auto rounded-md border border-border p-4 bg-muted/20"
-                >
-                  <div className="text-[15px] leading-relaxed space-y-3 policy-markdown" dangerouslySetInnerHTML={{ __html: restHtml }} />
-                </div>
-                {!isAtBottom && (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
-                )}
-                {!isAtBottom && (
-                  <button
-                    type="button"
-                    onClick={scrollToEnd}
-                    className="absolute bottom-3 right-3 inline-flex items-center rounded-full bg-primary text-primary-foreground shadow hover:opacity-90 transition-opacity h-10 w-10 justify-center"
-                    aria-label="Scroll to end"
-                  >
-                    <ChevronDown className="h-5 w-5" />
-                  </button>
-                )}
+            <div className="relative">
+              <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                className="max-h-[62vh] md:max-h-[66vh] overflow-auto rounded-md border border-border p-4 bg-muted/20"
+              >
+                <div className="text-[15px] leading-relaxed space-y-3 policy-markdown pb-12" dangerouslySetInnerHTML={{ __html: fullHtml }} />
               </div>
-            </>
+              {!isAtBottom && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent rounded-b-md" />
+              )}
+              {!isAtBottom && (
+                <button
+                  type="button"
+                  onClick={scrollToEnd}
+                  className="absolute bottom-3 right-3 inline-flex items-center rounded-full bg-primary text-primary-foreground shadow hover:opacity-90 transition-opacity h-10 w-10 justify-center"
+                  aria-label="Scroll to end"
+                >
+                  <ChevronDown className="h-5 w-5" />
+                </button>
+              )}
+            </div>
           )}
 
           <div className="flex items-start gap-3">
