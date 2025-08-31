@@ -754,9 +754,23 @@ function HomeContent() {
           const workspaceConfig = permissionsData.workspaceConfigs[agentData.workspaceId];
           setActiveUiConfig(workspaceConfig);
 
-          // Apply theme override if specified (admin users can override)
-          if (workspaceConfig.theme_override && !permissionsData.isAdminOverride) {
+          // Apply workspace theme override (workspace > user > system)
+          if (workspaceConfig.theme_override) {
             setTheme(workspaceConfig.theme_override);
+            setCurrentAgentTheme(workspaceConfig.theme_override);
+          }
+          // Apply workspace model override if provided
+          if (workspaceConfig.default_model) {
+            setSelectedModel(workspaceConfig.default_model);
+          }
+          // Apply workspace transcript + summary overrides if provided
+          const tlm = workspaceConfig.default_transcript_listen_mode;
+          if (tlm === 'none' || tlm === 'some' || tlm === 'latest' || tlm === 'all') {
+            setTranscriptListenMode(tlm);
+          }
+          const smm = workspaceConfig.default_saved_transcript_memory_mode;
+          if (smm === 'none' || smm === 'some' || smm === 'all') {
+            setSavedTranscriptMemoryMode(smm);
           }
         } else {
           setActiveUiConfig({});
@@ -1034,6 +1048,12 @@ function HomeContent() {
   }, [hasOpenSection]);
   
   const handleAgentThemeChange = useCallback((newThemeValue: string) => {
+      // If workspace enforces a theme, ignore user selection
+      if (activeUiConfig?.theme_override) {
+        setTheme(activeUiConfig.theme_override);
+        setCurrentAgentTheme(activeUiConfig.theme_override);
+        return;
+      }
       if (pageAgentName && userId) {
         const agentThemeKey = `agent-theme-${pageAgentName}_${userId}`;
         localStorage.setItem(agentThemeKey, newThemeValue);
@@ -1045,10 +1065,16 @@ function HomeContent() {
         setTheme(newThemeValue);
         setCurrentAgentTheme(newThemeValue);
       }
-  }, [pageAgentName, userId, setTheme]);
+  }, [pageAgentName, userId, setTheme, activeUiConfig?.theme_override]);
 
   useEffect(() => {
     if (pageAgentName && userId) {
+      // If workspace enforces a theme, apply and skip user override
+      if (activeUiConfig?.theme_override) {
+        setTheme(activeUiConfig.theme_override);
+        setCurrentAgentTheme(activeUiConfig.theme_override);
+        return;
+      }
       const perUserKey = `agent-theme-${pageAgentName}_${userId}`;
       const legacyKey = `agent-theme-${pageAgentName}`;
       let savedAgentTheme = localStorage.getItem(perUserKey);
@@ -1074,7 +1100,7 @@ function HomeContent() {
         setCurrentAgentTheme('system');
       }
     }
-  }, [pageAgentName, userId, setTheme]);
+  }, [pageAgentName, userId, setTheme, activeUiConfig?.theme_override]);
 
   useEffect(() => {
     const savedCanvasEnabled = localStorage.getItem("canvasViewEnabled");
@@ -1090,43 +1116,42 @@ function HomeContent() {
     }
   }, [isCanvasViewEnabled, currentView]);
 
-  // Load and persist transcriptListenMode (agent-specific)
+  // Enforce transcriptListenMode from workspace if provided; otherwise use saved or fallback
   useEffect(() => {
     if (pageAgentName && userId) {
+      const enforced = activeUiConfig?.default_transcript_listen_mode;
+      if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') {
+        setTranscriptListenMode(enforced);
+        return;
+      }
       const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
       const savedMode = localStorage.getItem(key);
-      // Check for a valid user-saved preference first
-      if (savedMode === "none" || savedMode === "some" || savedMode === "latest" || savedMode === "all") {
-        setTranscriptListenMode(savedMode as "none" | "some" | "latest" | "all");
+      if (savedMode === 'none' || savedMode === 'some' || savedMode === 'latest' || savedMode === 'all') {
+        setTranscriptListenMode(savedMode as any);
       } else {
-        // If no user preference, use the workspace default from ui_config
-        const workspaceDefault = activeUiConfig.default_transcript_listen_mode;
-        // Validate the workspace default before applying, otherwise use hardcoded fallback
-        const finalDefault = (workspaceDefault === "none" || workspaceDefault === "some" || workspaceDefault === "latest" || workspaceDefault === "all")
-          ? workspaceDefault
-          : "latest"; // Hardcoded fallback
-        
-        setTranscriptListenMode(finalDefault);
-        // Do not automatically save the workspace default to localStorage,
-        // so that updates from Supabase can be reflected on next session.
-        // A user's explicit change will save to localStorage.
+        setTranscriptListenMode('latest');
       }
     }
-  }, [pageAgentName, userId, activeUiConfig]); // Add userId and activeUiConfig as a dependency
+  }, [pageAgentName, userId, activeUiConfig]);
 
 
-  // Load and persist savedTranscriptMemoryMode (agent-specific)
+  // Enforce savedTranscriptMemoryMode from workspace if provided; otherwise use saved or fallback
   useEffect(() => {
     if (pageAgentName && userId) {
+      const enforced = activeUiConfig?.default_saved_transcript_memory_mode;
+      if (enforced === 'none' || enforced === 'some' || enforced === 'all') {
+        setSavedTranscriptMemoryMode(enforced);
+        return;
+      }
       const key = `savedTranscriptMemoryModeSetting_${pageAgentName}_${userId}`;
       const savedMode = localStorage.getItem(key);
-      if (savedMode === "none" || savedMode === "some" || savedMode === "all") {
-        setSavedTranscriptMemoryMode(savedMode as "none" | "some" | "all");
+      if (savedMode === 'none' || savedMode === 'some' || savedMode === 'all') {
+        setSavedTranscriptMemoryMode(savedMode as any);
       } else {
-        setSavedTranscriptMemoryMode("none"); // Default if no agent-specific setting found
+        setSavedTranscriptMemoryMode('none');
       }
     }
-  }, [pageAgentName, userId]);
+  }, [pageAgentName, userId, activeUiConfig]);
 
   useEffect(() => {
     if (pageAgentName && userId) {
@@ -1300,19 +1325,22 @@ function HomeContent() {
     setIsFullscreen(true);
   }, []);
 
-  // Load and persist selectedModel (agent-specific)
+  // Enforce model from workspace if provided; otherwise use saved or fallback
   useEffect(() => {
     if (pageAgentName && userId) {
+      if (activeUiConfig?.default_model) {
+        setSelectedModel(activeUiConfig.default_model);
+        return;
+      }
       const key = `agent-model-${pageAgentName}_${userId}`;
       const savedModel = localStorage.getItem(key);
       if (savedModel) {
         setSelectedModel(savedModel);
       } else {
-        // Default to claude if no setting is found for this agent
         setSelectedModel('claude-sonnet-4-20250514');
       }
     }
-  }, [pageAgentName, userId]);
+  }, [pageAgentName, userId, activeUiConfig]);
 
   const handleModelChange = (model: string) => {
     setSelectedModel(model);
