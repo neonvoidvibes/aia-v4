@@ -419,16 +419,17 @@ const Sidebar: React.FC<SidebarProps> = ({
                        return (
                          <div key={ev} className={cn("mb-2") }>
                            <button
-                             className="group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm hover:bg-accent/10 rounded-xs bg-background"
+                             className={cn(
+                               "group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm rounded-xs bg-background",
+                               expanded ? "bg-accent/10" : "hover:bg-accent/10"
+                             )}
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                              <div className="flex items-center gap-2">
-                               <span className={cn("font-medium truncate",
-                                 expanded ? "text-accent" : "text-muted-foreground group-hover:text-accent"
-                               )}>{eventLabel(ev)}</span>
+                               <span className="font-medium truncate">{eventLabel(ev)}</span>
                              </div>
-                             <ChevronRight className={cn("absolute right-3 h-4 w-4 transition-transform", expanded && "rotate-90")} />
+                             <ChevronRight className={cn("absolute right-4 h-4 w-4 transition-transform", expanded && "rotate-90")} />
                            </button>
                            {expanded && (
                              <div className="space-y-0.5 px-0 pb-1">
