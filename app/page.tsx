@@ -202,6 +202,10 @@ function HomeContent() {
   const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe" | "record">("chat");
   const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Event menu state
+  const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [eventFetchError, setEventFetchError] = useState<string | null>(null);
   
   // Lifted state for CanvasView
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
@@ -273,6 +277,8 @@ function HomeContent() {
     isRecording: false,
     type: null,
   });
+
+  const eventLabel = useCallback((e?: string | null) => (!e || e === '0000') ? 'Shared' : e, []);
 
   // Persistent Recording: attach/subscribe
   useEffect(() => {
@@ -441,6 +447,41 @@ function HomeContent() {
       setIsLoadingHistory(false);
     }
   }, [supabase.auth]);
+
+  // Reset cached events when agent changes
+  useEffect(() => {
+    setAvailableEvents(null);
+    setEventFetchError(null);
+  }, [pageAgentName]);
+
+  const fetchAvailableEvents = useCallback(async () => {
+    if (!pageAgentName || isLoadingEvents) return;
+    setIsLoadingEvents(true);
+    setEventFetchError(null);
+    try {
+      // Prefer server-side auth via API route; cookies are forwarded
+      const res = await fetch(`/api/s3-proxy/list-events?agentName=${encodeURIComponent(pageAgentName)}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(text || `Failed to list events (${res.status})`);
+      }
+      const data: { events?: string[] } = await res.json();
+      const events = Array.from(new Set([...(data.events || [])])).sort();
+      setAvailableEvents(events);
+    } catch (e: any) {
+      console.error('Failed to fetch events from S3:', e);
+      setEventFetchError(e?.message || 'Failed to load events');
+      setAvailableEvents([]);
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  }, [pageAgentName, isLoadingEvents]);
+
+  const handleEventChange = useCallback((newEventId: string) => {
+    if (!pageAgentName) return;
+    // Preserve other params (only agent and event are used heavily)
+    router.push(`/?agent=${encodeURIComponent(pageAgentName)}&event=${encodeURIComponent(newEventId)}`);
+  }, [router, pageAgentName]);
 
   useEffect(() => {
     if (historyNeedsRefresh && pageAgentName) {
@@ -1870,9 +1911,37 @@ function HomeContent() {
                   const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
                   const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
                   return multiple && pageEventId ? (
-                    <span className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold">
-                      {pageEventId === '0000' ? 'Shared' : pageEventId}
-                    </span>
+                    <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold hover:opacity-90"
+                          aria-label="Select event"
+                        >
+                          <span className="truncate max-w-[160px]">{eventLabel(pageEventId)}</span>
+                          <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
+                        <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
+                          {/* Always include Shared at top */}
+                          <DropdownMenuRadioItem value="0000">Shared</DropdownMenuRadioItem>
+                          <DropdownMenuSeparator />
+                          {isLoadingEvents && (
+                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
+                              Loading events...
+                            </DropdownMenuRadioItem>
+                          )}
+                          {(!isLoadingEvents && eventFetchError) && (
+                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
+                              {eventFetchError}
+                            </DropdownMenuRadioItem>
+                          )}
+                          {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
+                            <DropdownMenuRadioItem key={ev} value={ev}>{ev}</DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : null;
                 })()}
               </div>
@@ -1885,9 +1954,36 @@ function HomeContent() {
                   const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
                   const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
                   return multiple && pageEventId ? (
-                    <span className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold">
-                      {pageEventId === '0000' ? 'Shared' : pageEventId}
-                    </span>
+                    <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold hover:opacity-90"
+                          aria-label="Select event"
+                        >
+                          <span className="truncate max-w-[160px]">{eventLabel(pageEventId)}</span>
+                          <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
+                        <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
+                          <DropdownMenuRadioItem value="0000">Shared</DropdownMenuRadioItem>
+                          <DropdownMenuSeparator />
+                          {isLoadingEvents && (
+                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
+                              Loading events...
+                            </DropdownMenuRadioItem>
+                          )}
+                          {(!isLoadingEvents && eventFetchError) && (
+                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
+                              {eventFetchError}
+                            </DropdownMenuRadioItem>
+                          )}
+                          {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
+                            <DropdownMenuRadioItem key={ev} value={ev}>{ev}</DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : null;
                 })()}
               </div>
