@@ -237,7 +237,7 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
                 onScroll={handleScroll}
                 className="max-h-[62vh] md:max-h-[66vh] overflow-auto rounded-md border border-border p-4 bg-muted/20"
               >
-                <div className="text-[15px] leading-relaxed space-y-3 policy-markdown pb-12" dangerouslySetInnerHTML={{ __html: fullHtml }} />
+                <div className="text-[15px] leading-relaxed space-y-3 policy-markdown pb-16" dangerouslySetInnerHTML={{ __html: fullHtml }} />
               </div>
               {!isAtBottom && (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent rounded-b-md" />
@@ -255,38 +255,46 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="consent-checkbox"
-              checked={hasAgreed}
-              onCheckedChange={(checked) => setHasAgreed(checked === true)}
-              disabled={isSubmitting || (requireScrollToEnd && !isAtBottom)}
-            />
-            <div className="space-y-1">
-              <Label htmlFor="consent-checkbox" className="text-[15px] font-medium leading-snug">
-                Jag godkänner villkoren och integritetspolicyn
-              </Label>
-              {requireScrollToEnd && !isAtBottom && (
-                <div className="text-xs text-muted-foreground">Scrolla till slutet för att aktivera godkännandet.</div>
-              )}
+          <div className="sticky bottom-0 z-10 -mx-6 px-6 pt-3 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 border-t">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="consent-checkbox"
+                  checked={hasAgreed}
+                  onCheckedChange={(checked) => setHasAgreed(checked === true)}
+                  disabled={isSubmitting || (requireScrollToEnd && !isAtBottom)}
+                  className="h-[18px] w-[18px] rounded-[3px] mt-1"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="consent-checkbox" className="text-[15px] font-medium leading-snug">
+                    Jag godkänner villkoren och integritetspolicyn
+                  </Label>
+                  {requireScrollToEnd && (
+                    !isAtBottom ? (
+                      <div className="text-xs text-muted-foreground">Scrolla till slutet för att aktivera godkännandet.</div>
+                    ) : (
+                      <div className="text-xs text-transparent select-none" aria-hidden="true">&nbsp;</div>
+                    )
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center">
+                <Button
+                  onClick={handleConsent}
+                  disabled={!hasAgreed || isSubmitting}
+                  className="min-w-[160px]"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Bearbetar…
+                    </>
+                  ) : (
+                    "Godkänn och fortsätt"
+                  )}
+                </Button>
+              </div>
             </div>
-          </div>
-
-          <div className="flex justify-end">
-            <Button
-              onClick={handleConsent}
-              disabled={!hasAgreed || isSubmitting}
-              className="min-w-[160px]"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Bearbetar…
-                </>
-              ) : (
-                "Godkänn och fortsätt"
-              )}
-            </Button>
           </div>
         </CardContent>
       </Card>
