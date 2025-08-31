@@ -50,8 +50,8 @@ import {
   RotateCcw, // Added for retry functionality
   Waves,
   History,
+  Plus,
 } from "lucide-react"
-import { SlidersIcon } from "@/components/ui/sliders-icon";
 import FileAttachmentMinimal, { type AttachmentFile } from "./file-attachment-minimal"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useMobile } from "@/hooks/use-mobile"
@@ -4041,7 +4041,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               aria-label="More options" 
                               disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}
                             >
-                              <SlidersIcon size={24} className="mobile-icon chat-sliders-icon" />
+                              <Plus size={24} strokeWidth={1.55} className="mobile-icon chat-sliders-icon" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" side="top" className="w-[200px]">
