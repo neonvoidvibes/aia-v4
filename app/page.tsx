@@ -2053,22 +2053,18 @@ function HomeContent() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                 ) : null}
-                {(!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
+                {(!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) ? (
                   <AgentSelectorMenu
                     allowedAgents={allowedAgents}
                     currentAgent={pageAgentName}
                     userRole={userRole}
                     onDashboardClick={() => setShowAgentDashboard(true)}
                   />
+                ) : (
+                  <div className="text-sm font-medium header-workspace-title truncate max-w-[160px]">
+                    {permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}
+                  </div>
                 )}
-              </div>
-            )}
-            {/* Mobile Agent Name (when selector hidden) - Use workspace name from Supabase */}
-            {isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
-              <div className="absolute right-6">
-                <div className="text-sm font-medium header-workspace-title">
-                  {permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}
-                </div>
               </div>
             )}
           </div>
