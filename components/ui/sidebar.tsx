@@ -362,7 +362,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className="px-2 pb-3 mb-1 flex items-center gap-3 text-xs">
                 <button
                   className={cn(
-                    flattenAll ? "text-accent" : "text-muted-foreground hover:text-foreground"
+                    flattenAll ? "text-foreground font-semibold" : "text-foreground/50 font-normal hover:text-foreground"
                   )}
                   onClick={() => setFlattenAll(true)}
                 >
@@ -371,7 +371,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-muted-foreground">|</span>
                 <button
                   className={cn(
-                    !flattenAll ? "text-accent" : "text-muted-foreground hover:text-foreground"
+                    !flattenAll ? "text-foreground font-semibold" : "text-foreground/50 font-normal hover:text-foreground"
                   )}
                   onClick={() => setFlattenAll(false)}
                 >
