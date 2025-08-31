@@ -401,9 +401,9 @@
   color: hsl(var(--save-memory-color)) !important;
 }
 
-/* Rule 2: Specifically for the 'X' button, change its color on direct hover to light blue. */
+/* Rule 2: Specifically for the 'X' button, set hover color to yellow accent */
 .theme-folkhemmet .sidebar-bg .group button.absolute:hover {
-  color: hsl(var(--button-inactive)) !important;
+  color: hsl(var(--accent)) !important;
 }
 
 /* SIDEBAR SEPARATORS - Change to lighter accent blue */
@@ -458,10 +458,20 @@
   background-color: hsl(0 0% 90%); /* Light gray */
 }
 
+/* Remove dimming in header area */
 .theme-folkhemmet .header-workspace-title {
   color: hsl(var(--foreground));
-  opacity: 0.5;
+  opacity: 1 !important;
 }
+/* Ensure event tag styles apply in all header variants (not only inside .header-workspace-title) */
+.theme-folkhemmet [aria-label="Select event"] {
+  background-color: hsl(var(--save-memory-color)) !important; /* #357ABC */
+  color: hsl(var(--accent)) !important; /* Yellow text */
+}
+.theme-folkhemmet [aria-label="Select event"] svg {
+  color: hsl(var(--accent)) !important;
+}
+.theme-folkhemmet [aria-label="Select event"] .opacity-70 { opacity: 1 !important; }
 
 
 /* Tenant Theme */
