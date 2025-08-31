@@ -426,10 +426,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
-                             <div className="flex items-center gap-2">
-                               <span className="font-medium truncate">{eventLabel(ev)}</span>
-                             </div>
-                             <ChevronRight className={cn("absolute right-4 h-4 w-4 transition-transform", expanded && "rotate-90")} />
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "font-medium truncate rounded-xs px-2 py-0.5",
+                              expanded ? "bg-accent text-accent-foreground" : "group-hover:bg-accent group-hover:text-accent-foreground"
+                            )}>{eventLabel(ev)}</span>
+                          </div>
+                          <ChevronRight className={cn("absolute right-3 h-4 w-4 transition-transform", expanded && "rotate-90")} />
                            </button>
                            {expanded && (
                              <div className="space-y-0.5 px-0 pb-1">
