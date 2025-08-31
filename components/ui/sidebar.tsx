@@ -382,12 +382,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                    {/* Flat list mode */}
                    {((hasOnlyShared || flattenAll) && (
                      Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
-                       <div key={section}>
-                         <div className="px-2 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">{section}</div>
-                         <div className="space-y-0.5">
-                           {chats.map(chat => (
-                             <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
-                               <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                         <div key={section}>
+                           <div className="px-2 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">{section}</div>
+                           <div className="space-y-0.5">
+                             {chats.map(chat => (
+                             <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent pr-2">
+                               <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
                                  <div className="truncate">
                                    {chat.title}
                                  </div>
@@ -415,14 +415,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                        return (
                          <div key={ev} className={cn("mb-2") }>
                            <button
-                             className="w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm hover:bg-accent/10 rounded-xs bg-background"
+                             className="relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm hover:bg-accent/10 rounded-sm bg-background"
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                              <div className="flex items-center gap-2">
                                <span className="text-accent font-medium truncate">{eventLabel(ev)}</span>
                              </div>
-                             <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+                             <ChevronRight className={cn("absolute right-2 h-4 w-4 transition-transform", expanded && "rotate-90")} />
                            </button>
                            {expanded && (
                              <div className="space-y-0.5 px-0 pb-1">
@@ -430,8 +430,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                  <div key={dateLabel}>
                                    <div className="px-2 py-1 text-xs text-muted-foreground opacity-50">{dateLabel}</div>
                                    {items.slice(0, visibleCount).map(chat => (
-                                     <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
-                                       <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                                     <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent pr-2">
+                                       <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
                                          <div className="truncate">{chat.title}</div>
                                        </Button>
                                        <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
