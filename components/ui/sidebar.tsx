@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from './button';
 import { Separator } from './separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './sheet';
@@ -24,7 +24,11 @@ import {
   Loader2,
   Disc,
   LogOut,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from "sonner";
@@ -69,6 +73,9 @@ interface SidebarProps {
   activeUiConfig?: any;
   // Optional mapping of event_id -> display label
   eventLabels?: Record<string, string>;
+  // Current workspace scope (for policy drawer)
+  workspaceId?: string;
+  workspaceSlug?: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -95,12 +102,22 @@ const Sidebar: React.FC<SidebarProps> = ({
   isAdminOverride = false,
   activeUiConfig = {},
   eventLabels = {},
+  workspaceId,
+  workspaceSlug,
 }) => {
   const isMobile = useIsMobile();
   const { t, language } = useLocalization();
   const [flattenAll, setFlattenAll] = useState(false);
   const [expandedEvents, setExpandedEvents] = useState<Record<string, boolean>>({});
   const [visibleCountByEvent, setVisibleCountByEvent] = useState<Record<string, number>>({});
+  // Policy overlay state & refs
+  const [isPolicyOpen, setIsPolicyOpen] = useState(false);
+  const [isPolicyDialogOpen, setIsPolicyDialogOpen] = useState(false);
+  const [policyTitle, setPolicyTitle] = useState<string>('Integritetspolicy');
+  const [policyMarkdown, setPolicyMarkdown] = useState<string>('');
+  const historyScrollRef = useRef<HTMLDivElement | null>(null);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const [drawerHeight, setDrawerHeight] = useState<number>(0);
 
   const eventLabel = (e?: string) => {
     if (!e || e === '0000') return eventLabels['0000'] || t('sidebar.teamspace');
@@ -123,6 +140,90 @@ const Sidebar: React.FC<SidebarProps> = ({
     setExpandedEvents(next);
     setVisibleCountByEvent(counts);
   }, [agentName, currentEventId, chatHistory]);
+
+  const [hasPolicy, setHasPolicy] = useState(false);
+  // Load policy content for current workspace — optional UI enhancement
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const supabase = createClient();
+        let data: any = null;
+        if (workspaceId) {
+          const byId = await supabase
+            .from('workspace_consent_configs')
+            .select('*')
+            .eq('workspace_id', workspaceId)
+            .eq('is_active', true)
+            .order('version', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          data = byId.data;
+        }
+        if (!data && workspaceSlug) {
+          const bySlug = await supabase
+            .from('workspace_consent_configs')
+            .select('*')
+            .eq('workspace_slug', workspaceSlug)
+            .eq('is_active', true)
+            .order('version', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          data = bySlug.data;
+        }
+        if (data) {
+          setPolicyTitle(data.title || 'Integritetspolicy');
+          setPolicyMarkdown(data.content_markdown || '');
+          setHasPolicy(true);
+        } else {
+          setHasPolicy(false);
+        }
+      } catch {}
+    };
+    load();
+  }, [workspaceId, workspaceSlug]);
+
+  // Measure drawer and pad chat list so last item stays visible
+  useEffect(() => {
+    if (!drawerRef.current) return;
+    const obs = new ResizeObserver(() => {
+      setDrawerHeight(drawerRef.current?.offsetHeight || 0);
+    });
+    obs.observe(drawerRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (historyScrollRef.current) {
+      historyScrollRef.current.style.paddingBottom = drawerHeight ? `${drawerHeight + 8}px` : '';
+    }
+  }, [drawerHeight]);
+
+  // Minimal markdown renderer (headings, bold, lists, inline code)
+  const renderMarkdown = (md: string): string => {
+    if (!md) return '';
+    const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let html = '';
+    const lines = md.replace(/\r\n?/g, '\n').split('\n');
+    let inCode = false, inUL = false, inOL = false; let buf: string[] = [];
+    const flush = () => { if (buf.length) { html += `<p class="mb-3 leading-relaxed">${buf.join(' ')}</p>`; buf = []; } };
+    const closeLists = () => { if (inUL) { html += '</ul>'; inUL = false; } if (inOL) { html += '</ol>'; inOL = false; } };
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+      if (line.startsWith('```') || line.startsWith('~~~')) { if (!inCode) { flush(); closeLists(); inCode = true; html += '<pre class="mb-3"><code>'; } else { inCode = false; html += '</code></pre>'; } continue; }
+      if (inCode) { html += `${escape(raw)}\n`; continue; }
+      const h = line.match(/^(#{1,3})\s+(.*)$/); if (h) { flush(); closeLists(); const lvl=h[1].length; const size=lvl===1?'text-2xl':lvl===2?'text-xl':'text-lg'; const mt=lvl===1?'mt-1':'mt-6'; html += `<h${lvl} class="${size} font-semibold ${mt} mb-2">${escape(h[2])}</h${lvl}>`; continue; }
+      const ul = line.match(/^[-•]\s+(.*)$/); if (ul) { flush(); if (!inUL) { closeLists(); html += '<ul class="list-disc pl-5 space-y-1 mb-3">'; inUL = true; } html += `<li>${escape(ul[1])}</li>`; continue; }
+      const ol = line.match(/^\d+[\.)]\s+(.*)$/); if (ol) { flush(); if (!inOL) { closeLists(); html += '<ol class="list-decimal pl-5 space-y-1 mb-3">'; inOL = true; } html += `<li>${escape(ol[1])}</li>`; continue; }
+      if (line.trim() === '') { closeLists(); flush(); continue; }
+      const code = escape(line).replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-muted text-muted-foreground">$1</code>');
+      const strong = code.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      const em = strong.replace(/(^|\W)\*([^*]+)\*(?=\W|$)/g, '$1<em>$2</em>');
+      buf.push(em);
+    }
+    closeLists(); flush();
+    return html;
+  };
+  const policyHtml = useMemo(() => renderMarkdown(policyMarkdown), [policyMarkdown]);
 
   const setEventExpanded = (ev: string, expanded: boolean) => {
     setExpandedEvents(prev => ({ ...prev, [ev]: expanded }));
@@ -276,6 +377,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           side="left"
           className={`p-4 sidebar-bg border-r-0 flex flex-col h-full ${isMobile ? 'w-[80vw]' : 'w-64'}`}
         >
+          <div className="h-full flex flex-col">
           <div>
             <SheetHeader className="flex flex-row items-center justify-between -mt-2">
               <SheetTitle className="text-xl font-bold pl-2 mt-[10px]">River AI</SheetTitle>
@@ -357,7 +459,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
           </div>
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col min-h-0 relative">
             <div className="px-2 pt-4 pb-4 text-sm opacity-50">
               {t('sidebar.chatHistory')}
             </div>
@@ -383,9 +485,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto">
-               {chatHistory.length > 0 ? (
-                 <div className="space-y-2">
+            <div ref={historyScrollRef} className="flex-1 overflow-y-auto">
+                {chatHistory.length > 0 ? (
+                  <div className="space-y-2">
 
                    {/* Flat list mode */}
                    {((hasOnlyShared || flattenAll) && (
@@ -475,11 +577,76 @@ const Sidebar: React.FC<SidebarProps> = ({
                ) : null}
             </div>
           </div>
-          <div className="mt-auto pt-4 border-t border-border/50 -mx-4 px-4">
-            <Button variant="ghost" className="w-full justify-start rounded-xs" onClick={onLogout}>
-              <LogOut className="mr-3 h-5 w-5" />
-              {t('sidebar.logOut')}
-            </Button>
+          
+
+          {/* Bottom drawer anchored (single top border, expands upward) */}
+          <div ref={drawerRef} className="absolute left-0 right-0 bottom-0 -mx-4 px-4">
+            <div className="bg-background border-t border-border/60">
+              {/* Expanded content grows upward above the bottom row */}
+              {hasPolicy && (
+              <div className={`overflow-hidden transition-[max-height] duration-200 ${isPolicyOpen ? 'max-h-[180px]' : 'max-h-0'}`}>
+                <div className="py-2">
+                  <div className="px-4">
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setIsPolicyDialogOpen(true)}
+                        className="flex items-center gap-3 px-4 py-2 text-sm rounded-xs hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span className="truncate">Integritetspolicy</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Collapse policy"
+                        className="p-2 text-foreground/60 hover:text-foreground"
+                        onClick={() => setIsPolicyOpen(false)}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              )}
+              {/* Bottom row with Logout on left, chevron on right */}
+              <div className="h-12 flex items-center justify-between px-4">
+                <Button variant="ghost" className="flex-1 justify-start rounded-xs px-4" onClick={onLogout}>
+                  <LogOut className="mr-3 h-5 w-5" />
+                  {t('sidebar.logOut')}
+                </Button>
+                {hasPolicy && !isPolicyOpen && (
+                <button
+                  type="button"
+                  aria-label="Toggle policy"
+                  className="p-2 text-foreground/60 hover:text-foreground"
+                  onClick={() => setIsPolicyOpen(v => !v)}
+                >
+                  {isPolicyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Policy modal: read-only, consent disabled */}
+          <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>
+            <DialogContent className="max-w-3xl w-[92vw] sm:w-full">
+              <DialogHeader>
+                <DialogTitle className="truncate">{policyTitle}</DialogTitle>
+              </DialogHeader>
+              <div className="max-h-[65vh] overflow-auto rounded-md border border-border p-4 bg-muted/20">
+                <div className="text-[15px] leading-relaxed space-y-3" dangerouslySetInnerHTML={{ __html: policyHtml }} />
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 opacity-50">
+                  <input type="checkbox" disabled checked className="h-4 w-4" />
+                  <span className="text-sm">Jag godkänner villkoren och integritetspolicyn</span>
+                </div>
+                <Button disabled className="min-w-[140px] opacity-50">Godkänn</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           </div>
         </SheetContent>
       </Sheet>

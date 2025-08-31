@@ -1998,6 +1998,7 @@ function HomeContent() {
         isAdminOverride={permissionsData?.isAdminOverride}
         activeUiConfig={activeUiConfig}
         eventLabels={eventLabels}
+        workspaceId={(permissionsData && currentAgent) ? (permissionsData.agents.find((a: any) => a.name === currentAgent)?.workspaceId) : undefined}
       />
       
       {/* New Chat icon positioned right of sidebar */}
