@@ -207,7 +207,6 @@ function HomeContent() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [eventFetchError, setEventFetchError] = useState<string | null>(null);
   const EVENTS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-  const eventsCacheKey = useMemo(() => pageAgentName ? `events_cache_${pageAgentName}` : null, [pageAgentName]);
   
   
   // Lifted state for CanvasView
@@ -400,6 +399,8 @@ function HomeContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [showAgentDashboard, setShowAgentDashboard] = useState(false);
   const { setTranslations, setLanguage, t } = useLocalization();
+  // Events cache key (depends on pageAgentName) — defined after pageAgentName state
+  const eventsCacheKey = useMemo(() => pageAgentName ? `events_cache_${pageAgentName}` : null, [pageAgentName]);
   
   // --- PHASE 3: New state management for dynamic workspaces ---
   const [permissionsData, setPermissionsData] = useState<{
