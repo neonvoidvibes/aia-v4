@@ -207,6 +207,7 @@ function HomeContent() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [eventFetchError, setEventFetchError] = useState<string | null>(null);
   
+  
   // Lifted state for CanvasView
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
   const [isCanvasLoading, setIsCanvasLoading] = useState(false);
@@ -453,6 +454,32 @@ function HomeContent() {
     setAvailableEvents(null);
     setEventFetchError(null);
   }, [pageAgentName]);
+
+  // Proactively fetch events when agent is available (prevents hidden dropdown due to empty chat history)
+  useEffect(() => {
+    if (pageAgentName) {
+      fetchAvailableEvents().catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageAgentName]);
+
+  // Event visibility helpers (place after chatHistory/pageAgentName vars are declared)
+  const hasMultipleEvents = useMemo(() => {
+    if (availableEvents) {
+      const list = availableEvents;
+      return list.length > 1 || (list.length === 1 && list[0] !== '0000');
+    }
+    // Fallback: infer from URL or chat history
+    if (pageEventId && pageEventId !== '0000') return true;
+    const events = Array.from(new Set((chatHistory || []).map(c => c.eventId || '0000')));
+    return events.length > 1 || (events.length === 1 && events[0] !== '0000');
+  }, [availableEvents, chatHistory, pageEventId]);
+
+  // ikea-pilot override: always show the event dropdown for this workspace/agent
+  const shouldShowEventDropdown = useMemo(() => {
+    if (pageAgentName === 'ikea-pilot') return true;
+    return hasMultipleEvents && !!pageEventId;
+  }, [pageAgentName, hasMultipleEvents, pageEventId]);
 
   const fetchAvailableEvents = useCallback(async () => {
     if (!pageAgentName || isLoadingEvents) return;
@@ -1906,11 +1933,8 @@ function HomeContent() {
                   userRole={userRole}
                   onDashboardClick={() => setShowAgentDashboard(true)}
                 />
-                {/* Only show event chip if there are multiple events (beyond only 0000) */}
-                {(() => {
-                  const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
-                  const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
-                  return multiple && pageEventId ? (
+                {/* Event dropdown (uses S3 events when available) */}
+                {shouldShowEventDropdown ? (
                     <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
                       <DropdownMenuTrigger asChild>
                         <button
@@ -1942,18 +1966,14 @@ function HomeContent() {
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  ) : null;
-                })()}
+                ) : null}
               </div>
             )}
             {/* Desktop Agent Name (when selector hidden) - Use workspace name from Supabase */}
             {!isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
               <div className="text-sm font-medium header-workspace-title flex items-center gap-2">
                 <span>{permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}</span>
-                {(() => {
-                  const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
-                  const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
-                  return multiple && pageEventId ? (
+                {shouldShowEventDropdown ? (
                     <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
                       <DropdownMenuTrigger asChild>
                         <button
@@ -1984,8 +2004,7 @@ function HomeContent() {
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  ) : null;
-                })()}
+                ) : null}
               </div>
             )}
             {!isMobile && !pageAgentName && (
@@ -2000,12 +2019,9 @@ function HomeContent() {
 
             {/* Right side: Agent name (mobile) */}
             {/* Mobile Agent Selector - Use workspace config only, no hardcoded logic */}
-            {isMobile && pageAgentName && (!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
+            {isMobile && pageAgentName && (
               <div className="absolute right-6 flex items-center gap-2" style={{ marginTop: '2px' }}>
-                {(() => {
-                  const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
-                  const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
-                  return multiple && pageEventId ? (
+                {shouldShowEventDropdown ? (
                     <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
                       <DropdownMenuTrigger asChild>
                         <button
@@ -2036,14 +2052,15 @@ function HomeContent() {
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  ) : null;
-                })()}
-                <AgentSelectorMenu
-                  allowedAgents={allowedAgents}
-                  currentAgent={pageAgentName}
-                  userRole={userRole}
-                  onDashboardClick={() => setShowAgentDashboard(true)}
-                />
+                ) : null}
+                {(!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
+                  <AgentSelectorMenu
+                    allowedAgents={allowedAgents}
+                    currentAgent={pageAgentName}
+                    userRole={userRole}
+                    onDashboardClick={() => setShowAgentDashboard(true)}
+                  />
+                )}
               </div>
             )}
             {/* Mobile Agent Name (when selector hidden) - Use workspace name from Supabase */}
