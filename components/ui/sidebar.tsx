@@ -26,6 +26,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from "sonner";
 import { useLocalization } from '@/context/LocalizationContext';
 
@@ -361,14 +362,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                  <div className="space-y-2">
                    {/* Controls when multiple events */}
                    {(!hasOnlyShared && uniqueEvents.length > 1) && (
-                     <div className="px-2 pb-1 flex items-center justify-between">
-                       <Button variant="ghost" className="h-7 px-2 rounded-sm" onClick={() => setFlattenAll(v => !v)}>
-                         {flattenAll ? 'Grouped by event' : 'All sub-teams'}
-                       </Button>
-                       <div className="space-x-1">
-                         <Button variant="ghost" className="h-7 px-2 rounded-sm" onClick={() => uniqueEvents.forEach(ev => setEventExpanded(ev, true))}>Expand all</Button>
-                         <Button variant="ghost" className="h-7 px-2 rounded-sm" onClick={() => uniqueEvents.forEach(ev => setEventExpanded(ev, false))}>Collapse all</Button>
-                       </div>
+                     <div className="px-2 pb-1 flex items-center justify-start">
+                       <ToggleGroup
+                         type="single"
+                         value={flattenAll ? 'all' : 'grouped'}
+                         onValueChange={(v) => v && setFlattenAll(v === 'all')}
+                         className="gap-1"
+                       >
+                         <ToggleGroupItem value="grouped" className="rounded-sm px-3 py-1 text-xs">Grouped chats</ToggleGroupItem>
+                         <ToggleGroupItem value="all" className="rounded-sm px-3 py-1 text-xs">All chats</ToggleGroupItem>
+                       </ToggleGroup>
                      </div>
                    )}
 
@@ -410,17 +413,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                        const expanded = expandedEvents[ev] ?? (ev === (currentEventId || '0000'));
                        const visibleCount = visibleCountByEvent[ev] ?? 20;
                        return (
-                         <div key={ev} className={cn("-mx-2 mb-2 border border-[hsl(var(--accent))]/50 rounded-sm", expanded ? "bg-[hsl(var(--accent))]/5" : "bg-transparent") }>
+                         <div key={ev} className={cn("-mx-2 mb-2") }>
                            <button
                              className="w-full flex items-center justify-between px-2 py-1.5 text-sm hover:bg-accent/10 rounded-sm focus:outline-none focus:ring-2 focus:ring-accent"
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                              <div className="flex items-center gap-2">
-                               <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
                                <span className="font-medium truncate">{eventLabel(ev)}</span>
                              </div>
-                             <span className="ml-2 inline-flex items-center rounded-full bg-accent/20 text-accent px-2 py-0.5 text-[10px]">{chats.length}</span>
+                             <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
                            </button>
                            {expanded && (
                              <div className="space-y-0.5 px-2 pb-1">
