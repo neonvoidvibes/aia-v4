@@ -363,15 +363,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                    {/* Controls when multiple events */}
                    {(!hasOnlyShared && uniqueEvents.length > 1) && (
                      <div className="px-2 pb-1 flex items-center justify-start">
-                       <ToggleGroup
-                         type="single"
-                         value={flattenAll ? 'all' : 'grouped'}
-                         onValueChange={(v) => v && setFlattenAll(v === 'all')}
-                         className="gap-1"
-                       >
-                         <ToggleGroupItem value="grouped" className="rounded-sm px-3 py-1 text-xs">Grouped</ToggleGroupItem>
-                         <ToggleGroupItem value="all" className="rounded-sm px-3 py-1 text-xs">All</ToggleGroupItem>
-                       </ToggleGroup>
+                       <div className="relative w-[200px] h-8 bg-accent/10 rounded-sm p-1">
+                         <div className={cn("absolute top-1 bottom-1 w-1/2 rounded-sm bg-accent transition-transform", flattenAll ? "translate-x-full" : "translate-x-0")}></div>
+                         <div className="relative grid grid-cols-2 h-full">
+                           <button className={cn("z-10 text-xs rounded-sm", flattenAll ? "text-accent-foreground" : "text-foreground/70")}
+                             onClick={() => setFlattenAll(true)}>
+                             All chats
+                           </button>
+                           <button className={cn("z-10 text-xs rounded-sm", !flattenAll ? "text-accent-foreground" : "text-foreground/70")}
+                             onClick={() => setFlattenAll(false)}>
+                             Grouped
+                           </button>
+                         </div>
+                       </div>
                      </div>
                    )}
 
@@ -411,7 +415,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                        return (
                          <div key={ev} className={cn("mb-2") }>
                            <button
-                             className="w-full flex items-center justify-between px-2 py-1.5 text-sm hover:bg-accent/10 rounded-xs"
+                             className="w-full flex items-center justify-between px-2 py-1.5 pr-8 text-sm hover:bg-accent/10 rounded-xs"
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
@@ -422,19 +426,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                            </button>
                            {expanded && (
                              <div className="space-y-0.5 px-0 pb-1">
-                               {chats.slice(0, visibleCount).map(chat => (
-                                 <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
-                                   <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
-                                     <div className="truncate">{chat.title}</div>
-                                   </Button>
-                                   <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
-                                     {(chat.isConversationSaved || chat.hasSavedMessages) && (
-                                       <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
-                                     )}
-                                     <Button variant="ghost" size="icon" className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
-                                       <X className="h-4 w-4" />
-                                     </Button>
-                                   </div>
+                               {Object.entries(groupChatsByDate(chats)).map(([dateLabel, items]) => (
+                                 <div key={dateLabel}>
+                                   <div className="px-2 py-1 text-xs text-muted-foreground opacity-50">{dateLabel}</div>
+                                   {items.slice(0, visibleCount).map(chat => (
+                                     <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
+                                       <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                                         <div className="truncate">{chat.title}</div>
+                                       </Button>
+                                       <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
+                                         {(chat.isConversationSaved || chat.hasSavedMessages) && (
+                                           <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
+                                         )}
+                                         <Button variant="ghost" size="icon" className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
+                                           <X className="h-4 w-4" />
+                                         </Button>
+                                       </div>
+                                     </div>
+                                   ))}
                                  </div>
                                ))}
                                {chats.length > visibleCount && (

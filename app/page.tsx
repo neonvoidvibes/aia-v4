@@ -1865,22 +1865,31 @@ function HomeContent() {
                   userRole={userRole}
                   onDashboardClick={() => setShowAgentDashboard(true)}
                 />
-                {pageEventId && (
-                  <span className="inline-flex items-center rounded-full bg-accent/20 text-accent px-2 py-0.5 text-xs max-w-[200px] truncate">
-                    {pageEventId === '0000' ? 'Shared' : pageEventId}
-                  </span>
-                )}
+                {/* Only show event chip if there are multiple events (beyond only 0000) */}
+                {(() => {
+                  const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
+                  const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
+                  return multiple && pageEventId ? (
+                    <span className="inline-flex items-center rounded-full bg-accent/10 text-muted-foreground px-2 py-0.5 text-xs max-w-[200px] truncate">
+                      {pageEventId === '0000' ? 'Shared' : pageEventId}
+                    </span>
+                  ) : null;
+                })()}
               </div>
             )}
             {/* Desktop Agent Name (when selector hidden) - Use workspace name from Supabase */}
             {!isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
               <div className="text-sm font-medium header-workspace-title flex items-center gap-2">
                 <span>{permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}</span>
-                {pageEventId && (
-                  <span className="inline-flex items-center rounded-full bg-accent/20 text-accent px-2 py-0.5 text-xs max-w-[200px] truncate">
-                    {pageEventId === '0000' ? 'Shared' : pageEventId}
-                  </span>
-                )}
+                {(() => {
+                  const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
+                  const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
+                  return multiple && pageEventId ? (
+                    <span className="inline-flex items-center rounded-full bg-accent/10 text-muted-foreground px-2 py-0.5 text-xs max-w-[200px] truncate">
+                      {pageEventId === '0000' ? 'Shared' : pageEventId}
+                    </span>
+                  ) : null;
+                })()}
               </div>
             )}
             {!isMobile && !pageAgentName && (
