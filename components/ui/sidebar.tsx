@@ -359,20 +359,24 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
             {/* Toggle placed outside the scroll area so it persists while scrolling */}
             {(!hasOnlyShared && uniqueEvents.length > 1) && (
-              <div className="px-2 pb-3 mb-1 flex items-center justify-start">
-                <div className="relative w-[240px] h-8 bg-background rounded-sm p-1">
-                  <div className={cn("absolute top-1 bottom-1 w-1/2 rounded-sm bg-accent transition-transform", flattenAll ? "translate-x-0" : "translate-x-full")}></div>
-                  <div className="relative grid grid-cols-2 h-full">
-                    <button className={cn("z-10 text-xs rounded-sm", flattenAll ? "text-accent-foreground" : "text-foreground/70")}
-                      onClick={() => setFlattenAll(true)}>
-                      All chats
-                    </button>
-                    <button className={cn("z-10 text-xs rounded-sm ml-1", !flattenAll ? "text-accent-foreground" : "text-foreground/70")}
-                      onClick={() => setFlattenAll(false)}>
-                      Grouped
-                    </button>
-                  </div>
-                </div>
+              <div className="px-2 pb-3 mb-1 flex items-center gap-3 text-xs">
+                <button
+                  className={cn(
+                    flattenAll ? "text-accent" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => setFlattenAll(true)}
+                >
+                  All chats
+                </button>
+                <span className="text-muted-foreground">|</span>
+                <button
+                  className={cn(
+                    !flattenAll ? "text-accent" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => setFlattenAll(false)}
+                >
+                  Grouped
+                </button>
               </div>
             )}
             <div className="flex-1 overflow-y-auto">
@@ -386,8 +390,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                            <div className="px-2 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">{section}</div>
                            <div className="space-y-0.5">
                              {chats.map(chat => (
-                             <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent pr-2">
-                               <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                             <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
+                               <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
                                  <div className="truncate">
                                    {chat.title}
                                  </div>
@@ -415,14 +419,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                        return (
                          <div key={ev} className={cn("mb-2") }>
                            <button
-                             className="relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm hover:bg-accent/10 rounded-sm bg-background"
+                             className="group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm hover:bg-accent/10 rounded-xs bg-background"
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                              <div className="flex items-center gap-2">
-                               <span className="text-accent font-medium truncate">{eventLabel(ev)}</span>
+                               <span className={cn("font-medium truncate",
+                                 expanded ? "text-accent" : "text-muted-foreground group-hover:text-accent"
+                               )}>{eventLabel(ev)}</span>
                              </div>
-                             <ChevronRight className={cn("absolute right-2 h-4 w-4 transition-transform", expanded && "rotate-90")} />
+                             <ChevronRight className={cn("absolute right-3 h-4 w-4 transition-transform", expanded && "rotate-90")} />
                            </button>
                            {expanded && (
                              <div className="space-y-0.5 px-0 pb-1">
@@ -430,8 +436,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                  <div key={dateLabel}>
                                    <div className="px-2 py-1 text-xs text-muted-foreground opacity-50">{dateLabel}</div>
                                    {items.slice(0, visibleCount).map(chat => (
-                                     <div key={chat.id} className="group flex items-center justify-between w-full rounded-sm hover:bg-accent pr-2">
-                                       <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-sm min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                                     <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
+                                       <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
                                          <div className="truncate">{chat.title}</div>
                                        </Button>
                                        <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
