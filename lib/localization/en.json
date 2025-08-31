@@ -64,7 +64,7 @@
     },
     "forgetChatMemory": {
       "title": "Forget Memory",
-      "message_prefix": "Are you sure you want to permanently forget this memory?",
+      "message_prefix": "Are you sure you want us to permanently forget this memory?",
       "message_suffix": "This action cannot be undone.",
       "confirm": "Forget",
       "cancel": "Cancel"
@@ -84,9 +84,9 @@
       "saveMessageTitle": "Confirm Save",
       "forgetTitle": "Confirm Forget",
       "overwriteTitle": "Confirm Save",
-      "saveMessage": "Do you want to save this message to your memory?",
-      "saveConversation": "Do you want to save the entire conversation to your memory?",
-      "overwriteConversation": "Do you want to save the entire conversation to your memory? This will replace the current saved version and can’t be undone.",
+      "saveMessage": "Do you want to save this message to our memory?",
+      "saveConversation": "Do you want to save the entire conversation to our memory?",
+      "overwriteConversation": "Do you want to save the entire conversation to our memory? This will replace the current saved version and can’t be undone.",
       "forgetMessage": "This will permanently delete the saved memory for this message. This action cannot be undone.",
       "forgetConversation": "This will permanently delete the saved memory for this conversation. This action cannot be undone.",
       "confirmSave": "Save",

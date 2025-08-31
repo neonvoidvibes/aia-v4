@@ -2001,7 +2001,43 @@ function HomeContent() {
             {/* Right side: Agent name (mobile) */}
             {/* Mobile Agent Selector - Use workspace config only, no hardcoded logic */}
             {isMobile && pageAgentName && (!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
-              <div className="absolute right-6" style={{ marginTop: '2px' }}>
+              <div className="absolute right-6 flex items-center gap-2" style={{ marginTop: '2px' }}>
+                {(() => {
+                  const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
+                  const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
+                  return multiple && pageEventId ? (
+                    <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[140px] truncate font-semibold hover:opacity-90"
+                          aria-label="Select event"
+                        >
+                          <span className="truncate max-w-[100px]">{eventLabel(pageEventId)}</span>
+                          <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-56" side="bottom" align="end" collisionPadding={8}>
+                        <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
+                          <DropdownMenuRadioItem value="0000">Shared</DropdownMenuRadioItem>
+                          <DropdownMenuSeparator />
+                          {isLoadingEvents && (
+                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
+                              Loading events...
+                            </DropdownMenuRadioItem>
+                          )}
+                          {(!isLoadingEvents && eventFetchError) && (
+                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
+                              {eventFetchError}
+                            </DropdownMenuRadioItem>
+                          )}
+                          {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
+                            <DropdownMenuRadioItem key={ev} value={ev}>{ev}</DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null;
+                })()}
                 <AgentSelectorMenu
                   allowedAgents={allowedAgents}
                   currentAgent={pageAgentName}
