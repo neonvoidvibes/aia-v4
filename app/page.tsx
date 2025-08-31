@@ -486,9 +486,9 @@ function HomeContent() {
 
   // Resolve display label for an event ID using Supabase-provided labels
   const labelForEvent = useCallback((e?: string | null) => {
-    if (!e || e === '0000') return eventLabels['0000'] || 'Shared';
+    if (!e || e === '0000') return eventLabels['0000'] || t('sidebar.teamspace');
     return eventLabels[e] || e;
-  }, [eventLabels]);
+  }, [eventLabels, t]);
 
   // Proactively fetch events when agent is available (prevents hidden dropdown due to empty chat history)
   useEffect(() => {
@@ -2029,7 +2029,7 @@ function HomeContent() {
                       <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
                         <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
                           {/* Always include Shared at top */}
-                          <DropdownMenuRadioItem value="0000">Shared</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="0000">{labelForEvent('0000')}</DropdownMenuRadioItem>
                           <DropdownMenuSeparator />
                           {isLoadingEvents && (
                             <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
@@ -2042,7 +2042,7 @@ function HomeContent() {
                             </DropdownMenuRadioItem>
                           )}
                           {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
-                            <DropdownMenuRadioItem key={ev} value={ev}>{ev}</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem key={ev} value={ev}>{labelForEvent(ev)}</DropdownMenuRadioItem>
                           ))}
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
@@ -2067,7 +2067,7 @@ function HomeContent() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
                         <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                          <DropdownMenuRadioItem value="0000">Shared</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="0000">{labelForEvent('0000')}</DropdownMenuRadioItem>
                           <DropdownMenuSeparator />
                           {isLoadingEvents && (
                             <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
@@ -2080,7 +2080,7 @@ function HomeContent() {
                             </DropdownMenuRadioItem>
                           )}
                           {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
-                            <DropdownMenuRadioItem key={ev} value={ev}>{ev}</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem key={ev} value={ev}>{labelForEvent(ev)}</DropdownMenuRadioItem>
                           ))}
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
@@ -2115,7 +2115,7 @@ function HomeContent() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56" side="bottom" align="end" collisionPadding={8}>
                         <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                          <DropdownMenuRadioItem value="0000">Shared</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="0000">{labelForEvent('0000')}</DropdownMenuRadioItem>
                           <DropdownMenuSeparator />
                           {isLoadingEvents && (
                             <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
@@ -2128,7 +2128,7 @@ function HomeContent() {
                             </DropdownMenuRadioItem>
                           )}
                           {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
-                            <DropdownMenuRadioItem key={ev} value={ev}>{ev}</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem key={ev} value={ev}>{labelForEvent(ev)}</DropdownMenuRadioItem>
                           ))}
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>

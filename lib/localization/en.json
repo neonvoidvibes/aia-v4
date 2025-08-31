@@ -2,6 +2,9 @@
   "sidebar": {
     "newChat": "New Chat",
     "chatHistory": "Chat History",
+    "teamspace": "Teamspace",
+    "allChats": "All my chats",
+    "groupedChats": "Grouped chats",
     "logOut": "Log Out",
     "dateLabels": {
       "today": "Today",

@@ -1,7 +1,10 @@
 {
   "sidebar": {
     "newChat": "Ny chatt",
-    "chatHistory": "Chathistorik",
+    "chatHistory": "Chatthistorik",
+    "teamspace": "Teamspace",
+    "allChats": "Alla chattar",
+    "groupedChats": "Grupperade",
     "logOut": "Logga ut",
     "dateLabels": {
       "today": "Idag",

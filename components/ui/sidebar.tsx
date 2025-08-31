@@ -103,7 +103,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [visibleCountByEvent, setVisibleCountByEvent] = useState<Record<string, number>>({});
 
   const eventLabel = (e?: string) => {
-    if (!e || e === '0000') return eventLabels['0000'] || 'Shared';
+    if (!e || e === '0000') return eventLabels['0000'] || t('sidebar.teamspace');
     return eventLabels[e] || e;
   };
 
@@ -370,7 +370,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   )}
                   onClick={() => setFlattenAll(true)}
                 >
-                  All chats
+                  {t('sidebar.allChats')}
                 </button>
                 <span className="text-muted-foreground">|</span>
                 <button
@@ -379,7 +379,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   )}
                   onClick={() => setFlattenAll(false)}
                 >
-                  Grouped
+                  {t('sidebar.groupedChats')}
                 </button>
               </div>
             )}
