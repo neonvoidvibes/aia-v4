@@ -368,6 +368,30 @@
   color: hsl(var(--accent-foreground));
 }
 
+/* Sidebar event header hover text color adjustments per theme */
+/* Dark, River, and Sunset: for OPENED sections, ensure light (foreground) text on hover */
+.dark .sidebar-event-header[data-expanded="true"]:hover,
+.theme-river .sidebar-event-header[data-expanded="true"]:hover,
+.theme-sunset .sidebar-event-header[data-expanded="true"]:hover {
+  color: hsl(var(--foreground)) !important;
+}
+.dark .sidebar-event-header[data-expanded="true"]:hover span,
+.theme-river .sidebar-event-header[data-expanded="true"]:hover span,
+.theme-sunset .sidebar-event-header[data-expanded="true"]:hover span {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Tenant: for OPENED sections, ensure main dark (foreground) text on hover */
+.theme-tenant .sidebar-event-header[data-expanded="true"]:hover,
+.theme-tenant .sidebar-event-header[data-expanded="true"]:hover span {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Desert Mirage: for BOTH closed and opened, use subtle background on hover */
+.theme-desert-mirage .sidebar-event-header:hover {
+  background-color: hsl(var(--muted)) !important;
+}
+
 /* Folkhemmet theme specific overrides */
 /* Header event tag: light blue bg, yellow text; remove dim opacity */
 .theme-folkhemmet .header-workspace-title [aria-label="Select event"] {
