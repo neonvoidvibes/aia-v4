@@ -388,8 +388,13 @@
 }
 
 /* Desert Mirage: for BOTH closed and opened, use subtle background on hover */
-.theme-desert-mirage .sidebar-event-header:hover {
-  background-color: hsl(var(--muted)) !important;
+.theme-desert-mirage .sidebar-event-header:hover,
+.theme-desert-mirage .sidebar-bg .sidebar-event-header:hover,
+.theme-desert-mirage .sidebar-event-header[data-expanded="true"]:hover,
+.theme-desert-mirage .sidebar-event-header[data-expanded="false"]:hover {
+  /* Match the opened state’s subtle background for consistency */
+  background-color: hsl(var(--accent)) !important;
+  background-image: none !important; /* Neutralize any utility background styles */
 }
 
 /* Folkhemmet theme specific overrides */
