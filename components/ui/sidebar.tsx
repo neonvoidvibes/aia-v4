@@ -418,18 +418,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                        const visibleCount = visibleCountByEvent[ev] ?? 20;
                        return (
                          <div key={ev} className={cn("mb-2") }>
-                           <button
-                             className={cn(
-                               "group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm rounded-xs bg-background",
-                               expanded ? "bg-accent/10" : "hover:bg-accent/10"
-                             )}
+                          <button
+                            className={cn(
+                              "group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm rounded-xs",
+                              expanded ? "bg-accent text-accent-foreground" : "bg-background hover:bg-accent/10"
+                            )}
                              aria-expanded={expanded}
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                           <div className="flex items-center gap-2">
                             <span className={cn(
-                              "font-medium truncate rounded-xs px-2 py-0.5",
-                              expanded ? "bg-accent text-accent-foreground" : "group-hover:bg-accent group-hover:text-accent-foreground"
+                              "font-medium truncate",
+                              expanded ? "text-accent-foreground" : "text-muted-foreground"
                             )}>{eventLabel(ev)}</span>
                           </div>
                           <ChevronRight className={cn("absolute right-3 h-4 w-4 transition-transform", expanded && "rotate-90")} />

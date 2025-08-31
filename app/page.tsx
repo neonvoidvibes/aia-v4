@@ -1870,7 +1870,7 @@ function HomeContent() {
                   const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
                   const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
                   return multiple && pageEventId ? (
-                    <span className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate">
+                    <span className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold">
                       {pageEventId === '0000' ? 'Shared' : pageEventId}
                     </span>
                   ) : null;
@@ -1885,7 +1885,7 @@ function HomeContent() {
                   const events = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
                   const multiple = events.length > 1 || (events.length === 1 && events[0] !== '0000');
                   return multiple && pageEventId ? (
-                    <span className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate">
+                    <span className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold">
                       {pageEventId === '0000' ? 'Shared' : pageEventId}
                     </span>
                   ) : null;
