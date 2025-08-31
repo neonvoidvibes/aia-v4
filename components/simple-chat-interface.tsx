@@ -2794,6 +2794,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     agentName: agentName,
                     messages: [message],
                     sessionId: `message_${message.id}_${Date.now()}`,
+                    eventId: eventId || '0000',
                     savedAt: newSaveDate.toISOString()
                 }),
             });
@@ -2936,6 +2937,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     agentName: agentName,
                     messages: currentMessages,
                     sessionId: currentChatId, // sessionId on backend is the chatId
+                    eventId: eventId || '0000',
                     savedAt: new Date().toISOString()
                 }),
             });

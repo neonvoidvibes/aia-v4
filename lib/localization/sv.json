@@ -64,8 +64,8 @@
     },
     "forgetChatMemory": {
       "title": "Glöm minne",
-      "message_prefix": "Är du säker på att du vill permanent glömma detta minne?",
-      "message_suffix": "Är du säker på att du vill permanent glömma detta minne?",
+      "message_prefix": "Är du säker på att ni vill permanent glömma detta minne?",
+      "message_suffix": "Är du säker på att ni vill permanent glömma detta minne?",
       "confirm": "Glöm",
       "cancel": "Avbryt"
     },
@@ -84,9 +84,9 @@
       "saveMessageTitle": "Bekräfta spara",
       "forgetTitle": "Bekräfta glöm",
       "overwriteTitle": "Bekräfta spara",
-      "saveMessage": "Vill du spara detta meddelande till ditt minne?",
-      "saveConversation": "Vill du spara hela konversationen till ditt minne?",
-      "overwriteConversation": "Vill du spara hela konversationen till ditt minne? Detta ersätter den nuvarande sparade versionen och kan inte ångras.",
+      "saveMessage": "Vill du spara detta meddelande till ert minne?",
+      "saveConversation": "Vill du spara hela konversationen till ert minne?",
+      "overwriteConversation": "Vill du spara hela konversationen till ert minne? Detta ersätter den nuvarande sparade versionen och kan inte ångras.",
       "forgetMessage": "Detta raderar permanent det sparade minnet för detta meddelande. Åtgärden kan inte ångras.",
       "forgetConversation": "Detta raderar permanent det sparade minnet för denna konversation. Åtgärden kan inte ångras.",
       "confirmSave": "Spara",
