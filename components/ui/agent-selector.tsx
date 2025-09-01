@@ -23,6 +23,7 @@ import { Palette } from "lucide-react";
 import { manager } from "@/lib/recordingManager";
 import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
 import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm";
+import { toast } from 'sonner';
 import { useLocalization } from '@/context/LocalizationContext';
 
 interface AgentSelectorMenuProps {
@@ -188,6 +189,7 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
         onClose={() => { setShowConfirm(false); setPendingAgent(null); }}
         onConfirm={async () => {
           setShowConfirm(false);
+          toast.info('Stopping recording to switch agent...');
           // Ask parent to stop recording across modes (persistent and non-persistent)
           try {
             if (onRequestStopRecording) {

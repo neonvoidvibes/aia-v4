@@ -3010,6 +3010,7 @@ function HomeContent() {
         onClose={() => { setShowSwitchWhileRecordingConfirm(false); setPendingEventId(null); }}
         onConfirm={async () => {
           setShowSwitchWhileRecordingConfirm(false);
+          toast.info('Stopping recording to switch agent...');
           // Stop recording across modes
           try { if (isRecordingPersistenceEnabled()) { await recordingManager.stop(); } } catch {}
           try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'event-switch' }); bc.close(); } catch {}
