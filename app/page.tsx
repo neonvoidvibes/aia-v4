@@ -2086,7 +2086,7 @@ function HomeContent() {
       {/* New Chat icon positioned right of sidebar */}
       <button
         onClick={handleNewChatRequest}
-        className="absolute top-[17px] left-[42px] md:left-[60px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
+        className="top-left-icon absolute top-[17px] left-[42px] md:left-[60px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
         aria-label="Start new chat"
         title="Start new chat"
       >

@@ -417,10 +417,20 @@
   color: hsl(0 0% 0%) !important; /* black */
 }
 
-/* Tenant: selected row text/actions should use accent (light yellow) */
+/* Tenant: selected row text/actions should match the light yellow used in the sidebar background */
 .theme-tenant .sidebar-bg .bg-accent,
 .theme-tenant .sidebar-bg .bg-accent .chat-row-actions {
-  color: hsl(var(--accent)) !important;
+  color: hsl(var(--sidebar-background)) !important;
+}
+
+/* Tenant: top-left UI icons use main green (foreground) instead of white */
+.theme-tenant .top-left-icon,
+.theme-tenant .top-left-icon .lucide {
+  color: hsl(var(--foreground)) !important; /* Main green */
+}
+.theme-tenant .top-left-icon:hover,
+.theme-tenant .top-left-icon:hover .lucide {
+  color: hsl(var(--foreground)) !important;
 }
 
 /* Folkhemmet: On hover of non-selected items, make text and X dark blue */
