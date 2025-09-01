@@ -593,11 +593,18 @@ function HomeContent() {
     }
   }, [pageAgentName, isLoadingEvents, eventsCacheKey]);
 
+  const [showSwitchWhileRecordingConfirm, setShowSwitchWhileRecordingConfirm] = useState(false);
+  const [pendingEventId, setPendingEventId] = useState<string | null>(null);
+
   const handleEventChange = useCallback((newEventId: string) => {
     if (!pageAgentName) return;
-    // Preserve other params (only agent and event are used heavily)
+    if (globalRecordingStatus.isRecording) {
+      setPendingEventId(newEventId);
+      setShowSwitchWhileRecordingConfirm(true);
+      return;
+    }
     router.push(`/?agent=${encodeURIComponent(pageAgentName)}&event=${encodeURIComponent(newEventId)}`);
-  }, [router, pageAgentName]);
+  }, [router, pageAgentName, globalRecordingStatus.isRecording]);
 
   // After switching URL to the conversation's original agent/event, load that chat
   useEffect(() => {
@@ -2124,6 +2131,11 @@ function HomeContent() {
                   currentAgent={pageAgentName}
                   userRole={userRole}
                   onDashboardClick={() => setShowAgentDashboard(true)}
+                  isRecordingActive={globalRecordingStatus.isRecording}
+                  onRequestStopRecording={async () => {
+                    try { if (isRecordingPersistenceEnabled()) { await recordingManager.stop(); } } catch {}
+                    try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'agent-switch' }); bc.close(); } catch {}
+                  }}
                 />
                 {/* Event dropdown (uses S3 events when available) */}
                 {shouldShowEventDropdown ? (
@@ -2251,6 +2263,11 @@ function HomeContent() {
                     currentAgent={pageAgentName}
                     userRole={userRole}
                     onDashboardClick={() => setShowAgentDashboard(true)}
+                    isRecordingActive={globalRecordingStatus.isRecording}
+                    onRequestStopRecording={async () => {
+                      try { if (isRecordingPersistenceEnabled()) { await recordingManager.stop(); } } catch {}
+                      try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'agent-switch' }); bc.close(); } catch {}
+                    }}
                   />
                 ) : (
                   <div className="text-sm font-medium header-workspace-title truncate max-w-[160px]">
@@ -2984,6 +3001,27 @@ function HomeContent() {
         }
         confirmText={t('confirmations.forgetChatMemory.confirm')}
         cancelText={t('confirmations.forgetChatMemory.cancel')}
+        confirmVariant="destructive"
+      />
+
+      {/* Confirm switching agent/event while recording */}
+      <AlertDialogConfirm
+        isOpen={showSwitchWhileRecordingConfirm}
+        onClose={() => { setShowSwitchWhileRecordingConfirm(false); setPendingEventId(null); }}
+        onConfirm={async () => {
+          setShowSwitchWhileRecordingConfirm(false);
+          // Stop recording across modes
+          try { if (isRecordingPersistenceEnabled()) { await recordingManager.stop(); } } catch {}
+          try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'event-switch' }); bc.close(); } catch {}
+          if (pendingEventId && pageAgentName) {
+            router.push(`/?agent=${encodeURIComponent(pageAgentName)}&event=${encodeURIComponent(pendingEventId)}`);
+            setPendingEventId(null);
+          }
+        }}
+        title={t('confirmations.switchAgentWhileRecording.title')}
+        message={t('confirmations.switchAgentWhileRecording.message')}
+        confirmText={t('confirmations.switchAgentWhileRecording.confirm')}
+        cancelText={t('confirmations.switchAgentWhileRecording.cancel')}
         confirmVariant="destructive"
       />
 

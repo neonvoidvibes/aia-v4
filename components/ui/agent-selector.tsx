@@ -30,9 +30,11 @@ interface AgentSelectorMenuProps {
   currentAgent: string;
   userRole?: string | null;
   onDashboardClick?: () => void;
+  isRecordingActive?: boolean; // also block when non-persistent recording is active
+  onRequestStopRecording?: () => Promise<void> | void; // parent can handle stop across modes
 }
 
-const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, currentAgent, userRole, onDashboardClick }) => {
+const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, currentAgent, userRole, onDashboardClick, isRecordingActive = false, onRequestStopRecording }) => {
   const { t } = useLocalization();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,14 +77,13 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
 
   const handleAgentChange = (newAgent: string) => {
     if (!newAgent || newAgent === currentAgent) return;
-    if (isRecordingPersistenceEnabled()) {
-      const st = manager.getState();
-      const active = st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended');
-      if (active) {
-        setPendingAgent(newAgent);
-        setShowConfirm(true);
-        return;
-      }
+    // Block switch if either persistent or non-persistent recording is active
+    const st = isRecordingPersistenceEnabled() ? manager.getState() : { sessionId: null, phase: 'idle' } as any;
+    const persistentActive = !!(st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended'));
+    if (persistentActive || isRecordingActive) {
+      setPendingAgent(newAgent);
+      setShowConfirm(true);
+      return;
     }
     proceedToAgent(newAgent);
   };
@@ -187,10 +188,15 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
         onClose={() => { setShowConfirm(false); setPendingAgent(null); }}
         onConfirm={async () => {
           setShowConfirm(false);
-          const st = manager.getState();
-          if (st.sessionId) {
-            try { await manager.stop(); } catch {}
-          }
+          // Ask parent to stop recording across modes (persistent and non-persistent)
+          try {
+            if (onRequestStopRecording) {
+              await onRequestStopRecording();
+            } else {
+              const st = manager.getState();
+              if (st.sessionId) { try { await manager.stop(); } catch {} }
+            }
+          } catch {}
           if (pendingAgent) proceedToAgent(pendingAgent);
           setPendingAgent(null);
         }}

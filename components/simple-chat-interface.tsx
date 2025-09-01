@@ -2689,6 +2689,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     useEffect(() => { return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }; }, []); 
 
+    // Listen for cross-component stop requests (e.g., agent/event switch)
+    useEffect(() => {
+        // Only needed in non-persistence mode; persistence has its own manager wiring
+        if (isRecordingPersistenceEnabled()) return;
+        let bc: BroadcastChannel | null = null;
+        try {
+            bc = new BroadcastChannel('recording');
+            bc.onmessage = (ev) => {
+                const msg = ev?.data;
+                if (msg && msg.kind === 'stop:request' && isBrowserRecordingRef.current) {
+                    // stop gracefully
+                    handleStopRecording(undefined, false);
+                }
+            };
+        } catch {}
+        return () => { try { bc?.close(); } catch {} };
+    }, [handleStopRecording]);
+
     const handlePlayPauseMicClick = useCallback(async (e?: React.MouseEvent) => {
         // Allow invocation from menu items where we don't have a real MouseEvent
         e?.stopPropagation?.();
