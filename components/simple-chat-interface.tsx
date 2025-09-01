@@ -4216,7 +4216,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               parts.push(formatTimeHMS(clientRecordingTime));
                             } else {
                               // Not actively recording but listening mode enabled
-                              let line = 'Listening';
+                              let line = 'Listening: Ready';
                               if (listeningInfo.mode === 'many' && listeningInfo.additional && listeningInfo.additional > 0) {
                                 line += ` +${listeningInfo.additional} more`;
                               }
