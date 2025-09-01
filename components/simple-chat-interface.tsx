@@ -4208,7 +4208,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               if (!active) return null;
                               return (
                                 <span className="ml-2 inline-flex items-center text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
-                                  Live
+                                  <span className="text-[hsl(var(--accent))]">Live</span>
                                 </span>
                               );
                             }
@@ -4254,9 +4254,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             }
                             return (
                               <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
-                                {parts.map((p, i) => (
-                                  <span key={i}>{p}</span>
-                                ))}
+                                {parts.map((p, i) => {
+                                  if (p.startsWith('Listening live')) {
+                                    const rest = p.slice('Listening live'.length);
+                                    return (
+                                      <span key={i}>
+                                        Listening <span className="text-[hsl(var(--accent))]">live</span>{rest}
+                                      </span>
+                                    );
+                                  } else if (p.startsWith('Listening to latest')) {
+                                    const rest = p.slice('Listening to latest'.length);
+                                    return (
+                                      <span key={i}>
+                                        Listening to <span className="text-[hsl(var(--accent))]">latest</span>{rest}
+                                      </span>
+                                    );
+                                  }
+                                  return <span key={i}>{p}</span>;
+                                })}
                               </span>
                             );
                           })()}
