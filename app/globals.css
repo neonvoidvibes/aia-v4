@@ -65,6 +65,10 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
+
+  /* Input status tokens */
+  --status-text-highlight-color: var(--accent);        /* default highlight for "latest"/"live" */
+  --status-text-rest-color: var(--text-secondary);     /* default for the rest of the string */
 }
 
 /* --- Light Theme Overrides --- */
@@ -124,6 +128,10 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
+
+  /* Input status tokens (Light) */
+  --status-text-highlight-color: var(--accent);       /* solid */
+  --status-text-rest-color: var(--text-secondary);
 }
 
 /* --- Custom Themes --- */
@@ -180,6 +188,10 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
+
+  /* Input status tokens (Neon Sunset) */
+  --status-text-highlight-color: var(--button-submit-bg-active);
+  --status-text-rest-color: var(--text-secondary);
 }
 
 
@@ -236,6 +248,10 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
+
+  /* Input status tokens (Forest Deep) */
+  --status-text-highlight-color: var(--button-submit-bg-active);
+  --status-text-rest-color: var(--text-secondary);
 }
 
 
@@ -292,6 +308,10 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
+
+  /* Input status tokens (Desert Mirage) */
+  --status-text-highlight-color: var(--button-submit-bg-active);
+  --status-text-rest-color: var(--text-secondary);
 }
 
 /* Folkhemmet Theme */
@@ -356,6 +376,10 @@
   --input-field-text-color: var(--user-input-text);
   --user-message-text-color: var(--user-input-text);
   --assistant-message-text-color: var(--foreground);
+
+  /* Input status tokens (Folkhemmet) */
+  /* Keep highlight (yellow via default/--accent); adjust the rest to light accent blue */
+  --status-text-rest-color: var(--save-memory-color);
 }
 
 /* Generic sidebar event header styling (standardized across themes) */
@@ -538,10 +562,18 @@
   --input-field-text-color: 0 0% 98%; /* White text on Green input field */
   --user-message-text-color: 0 0% 98%; /* White text on Green user bubble */
   --assistant-message-text-color: 168 20% 30%; /* Darker Green text for assistant on White background */
+
+  /* Input status tokens (Tenant) */
+  --status-text-highlight-color: var(--button-submit-bg-active);
+  --status-text-rest-color: var(--text-secondary);
 }
 
 /* Mobius Theme */
 .theme-mobius {
+  /* Input status tokens (Mobius) */
+  --status-text-highlight-color: var(--button-submit-bg-active);
+  --status-text-rest-color: var(--text-secondary);
+
   --background: 200 54% 19%; /* Very Dark Blue/Teal */
   --foreground: 240 5% 91%; /* Very Light Gray/Off-white */
   --input-gray: 220 1% 37%; /* Dark Gray */
@@ -653,6 +685,10 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
+
+  /* Input status tokens (Sunset) */
+  --status-text-highlight-color: var(--button-submit-bg-active);
+  --status-text-rest-color: var(--text-secondary);
 }
 
 /* Ridge Glass Theme */
@@ -710,6 +746,10 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
+
+  /* Input status tokens (Ridge Glass) */
+  --status-text-highlight-color: var(--button-submit-bg-active);
+  --status-text-rest-color: var(--text-secondary);
 }
 
 /* River Theme */
@@ -2629,6 +2669,11 @@ button {
   --input-field-text-color: 30 58% 15%; /* Dark brown for text on light bubble */
   --user-message-text-color: 30 58% 15%;  /* Dark brown for text on light bubble */
   --assistant-message-text-color: var(--foreground); /* White text for assistant on main bg */
+
+  /* Input status tokens (Moderbyn) */
+  --status-text-highlight-color: var(--button-submit-bg-active);
+  /* lighter accent brown for the rest */
+  --status-text-rest-color: var(--accent);
 }
 
 
