@@ -1006,6 +1006,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const filesForNextMessageRef = useRef<AttachmentFile[]>([]);
     const timerDisplayRef = useRef<HTMLSpanElement>(null); 
     const recordControlsTimerDisplayRef = useRef<HTMLSpanElement>(null); 
+    // Pause accounting for persistence-driven recording timer
+    const pausedAccumMsRef = useRef(0);
+    const pausedStartRef = useRef<number | null>(null);
+    const prevPausedRef = useRef(false);
     const pendingActionRef = useRef<string | null>(null); 
     const clientSessionIdRef = useRef<string | null>(null);
     // Guard concurrent chat loads to prevent race conditions/merges
@@ -2721,15 +2725,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     useEffect(() => {
         if (!isRecordingPersistenceEnabled()) return;
         let timer: any = null;
+        let baseMs = Date.now();
         const startTick = (startedAt?: number) => {
             if (timer) clearInterval(timer);
-            const base = startedAt || Date.now();
+            baseMs = startedAt || Date.now();
             // initialize immediately
-            setClientRecordingTime(Math.max(0, Math.floor((Date.now() - base) / 1000)));
+            const initialPausedMs = pausedAccumMsRef.current + (pausedStartRef.current ? (Date.now() - pausedStartRef.current) : 0);
+            setClientRecordingTime(Math.max(0, Math.floor((Date.now() - baseMs - initialPausedMs) / 1000)));
             timer = setInterval(() => {
                 const st = recordingManager.getState();
-                const t0 = st.startedAt || base;
-                setClientRecordingTime(Math.max(0, Math.floor((Date.now() - t0) / 1000)));
+                // While paused, freeze the display (no increments)
+                if (st.paused) return;
+                const pausedSoFar = pausedAccumMsRef.current + (pausedStartRef.current ? (Date.now() - pausedStartRef.current) : 0);
+                const t0 = st.startedAt || baseMs;
+                setClientRecordingTime(Math.max(0, Math.floor((Date.now() - t0 - pausedSoFar) / 1000)));
             }, 1000);
         };
         const stopTick = () => { if (timer) { clearInterval(timer); timer = null; } setClientRecordingTime(0); };
@@ -2738,8 +2747,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             const active = !!(s.sessionId && (s.phase === 'starting' || s.phase === 'active' || s.phase === 'suspended'));
             setIsBrowserRecording(active);
             setIsBrowserPaused(!!s.paused);
+            // Track pause/resume transitions to accumulate paused duration
+            if (s.paused && !prevPausedRef.current) {
+                pausedStartRef.current = Date.now();
+            } else if (!s.paused && prevPausedRef.current) {
+                if (pausedStartRef.current) {
+                    pausedAccumMsRef.current += Date.now() - pausedStartRef.current;
+                    pausedStartRef.current = null;
+                }
+            }
+            prevPausedRef.current = !!s.paused;
+
             if (active) startTick(s.startedAt);
-            else stopTick();
+            else {
+                // Reset pause accounting when session ends
+                pausedAccumMsRef.current = 0;
+                pausedStartRef.current = null;
+                prevPausedRef.current = false;
+                stopTick();
+            }
         });
         return () => { if (timer) clearInterval(timer); unsub(); };
     }, []);
