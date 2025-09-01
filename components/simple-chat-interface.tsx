@@ -3024,6 +3024,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         }
     };
 
+    // When clicking the in-chat saved marker/bookmark line, prefer the forget flow if already saved
+    const handleToggleConversationMemoryFromMarker = () => {
+        if (conversationMemoryId) {
+            setConfirmationRequest({ type: 'forget-conversation', memoryId: conversationMemoryId });
+        } else {
+            setConfirmationRequest({ type: 'save-conversation' });
+        }
+    };
+
     const handleSaveMessageToMemory = (message: Message) => {
         const savedInfo = savedMessageIds.get(message.id);
         if (savedInfo && savedInfo.memoryId !== 'pending') {
@@ -3929,9 +3938,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               </div>
                                                           <div className="relative flex justify-center items-center">
                                                             <button
-                                                              onClick={handleSaveChatToMemory}
+                                                              onClick={handleToggleConversationMemoryFromMarker}
                                                               className="flex items-center bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--save-memory-color))] hover:opacity-80 transition-opacity"
-                                                              aria-label="Forget conversation memory"
+                                                              aria-label={conversationMemoryId ? "Forget conversation memory" : "Save conversation to memory"}
                                                             >
                                                               <Bookmark className="h-3 w-3 mr-2" />
                                                               <span>{t('chat.memorySaved')}</span>
