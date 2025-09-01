@@ -2684,8 +2684,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     useEffect(() => { return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }; }, []); 
 
-    const handlePlayPauseMicClick = useCallback(async (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handlePlayPauseMicClick = useCallback(async (e?: React.MouseEvent) => {
+        // Allow invocation from menu items where we don't have a real MouseEvent
+        e?.stopPropagation?.();
         if (pendingActionRef.current) return;
         if (isRecordingPersistenceEnabled()) {
             const st = recordingManager.getState();
@@ -4179,11 +4180,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               </DropdownMenuSubTrigger>
                               <DropdownMenuPortal>
                                 <DropdownMenuSubContent>
-                                  <DropdownMenuItem
+                            <DropdownMenuItem
                                     onSelect={(e) => {
                                       e.preventDefault();
                                       if (isRecordingPersistenceEnabled()) {
-                                        showAndPrepareRecordingControls();
+                                        // Toggle via recording manager (start/pause/resume)
+                                        handlePlayPauseMicClick();
                                       } else {
                                         if (!isBrowserRecording) {
                                           handleStartRecordingSession();
