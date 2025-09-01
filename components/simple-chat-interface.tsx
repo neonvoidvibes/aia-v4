@@ -4219,13 +4219,17 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             const parts: string[] = [];
                             const total = Math.max(0, listeningInfo.total);
                             const more = Math.max(0, total - 1);
+                            const latestKey = rawTranscriptFiles && rawTranscriptFiles.length > 0 ? rawTranscriptFiles[0].s3Key : undefined;
+                            const includesLatestFromSome = (
+                              transcriptListenMode === 'some' && !!latestKey && !!individualRawTranscriptToggleStates && !!(individualRawTranscriptToggleStates as any)[latestKey]
+                            );
                             if (active) {
                               // Active recording
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Not listening');
-                              } else if (transcriptListenMode === 'latest' && savedTranscriptMemoryMode === 'none') {
+                              } else if ((transcriptListenMode === 'latest' || includesLatestFromSome) && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Listening live');
-                              } else if (transcriptListenMode === 'latest') {
+                              } else if (transcriptListenMode === 'latest' || includesLatestFromSome) {
                                 parts.push(`Listening live${more > 0 ? ` +${more} more` : ''}`);
                               } else if (
                                 transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
@@ -4237,9 +4241,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               parts.push(formatTimeHMS(clientRecordingTime));
                             } else {
                               // Not actively recording
-                              if (transcriptListenMode === 'latest' && savedTranscriptMemoryMode === 'none') {
+                              if ((transcriptListenMode === 'latest' || includesLatestFromSome) && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Listening to latest');
-                              } else if (transcriptListenMode === 'latest') {
+                              } else if (transcriptListenMode === 'latest' || includesLatestFromSome) {
                                 parts.push(`Listening to latest${more > 0 ? ` +${more} more` : ''}`);
                               } else if (
                                 transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
