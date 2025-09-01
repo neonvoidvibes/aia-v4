@@ -2268,11 +2268,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               } catch {}
 
               // Conditional fetch with ETag for SWR
-              const performFetch = async () => {
+              const performFetch = async (forceFull: boolean = false) => {
                 const headers: Record<string, string> = { 'Authorization': `Bearer ${session.access_token}` };
                 try {
-                  const etag = await chatCacheRef.current!.loadEtag(chatId);
-                  if (etag) headers['If-None-Match'] = etag;
+                  if (!forceFull) {
+                    const etag = await chatCacheRef.current!.loadEtag(chatId);
+                    if (etag) headers['If-None-Match'] = etag;
+                  }
                 } catch {}
 
                 const response = await fetch(`/api/chat/history/get?chatId=${encodeURIComponent(chatId)}`, { headers });
@@ -2285,17 +2287,33 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               // If we have cached messages, fire-and-forget SWR; else await network for cold start
               let response: Response | null = null;
               if (cachedCount > 0) {
-                performFetch()
+                // Force a full fetch so we also get saved metadata (bookmark states)
+                performFetch(true)
                   .then(async (resp) => {
-                    if (resp.status === 304) return;
                     const data = await resp.json();
-                    if (data?.messages && Array.isArray(data.messages)) {
-                      const filtered = (data.messages as any[]).filter((m) => m.role !== 'system');
-                      setMessages(filtered as any);
-                      try {
-                        const etag = resp.headers.get('ETag') || (data as any)?.etag;
-                        await chatCacheRef.current!.upsertMessages(chatId, data.messages as any, { source: 'net', etag: etag || undefined });
-                      } catch {}
+                    if (data) {
+                      // Update messages if provided
+                      if (data.messages && Array.isArray(data.messages)) {
+                        const filtered = (data.messages as any[]).filter((m) => m.role !== 'system');
+                        setMessages(filtered as any);
+                        try {
+                          const etag = resp.headers.get('ETag') || (data as any)?.etag;
+                          await chatCacheRef.current!.upsertMessages(chatId, data.messages as any, { source: 'net', etag: etag || undefined });
+                        } catch {}
+                      }
+                      // Update saved message map and conversation save markers from server
+                      if (data.savedMessageIds && Object.keys(data.savedMessageIds).length > 0) {
+                        const newSavedMessages = new Map(
+                          Object.entries(data.savedMessageIds).map(([id, info]: any) => [id, { savedAt: new Date(info.savedAt), memoryId: info.memoryId }])
+                        );
+                        setSavedMessageIds(newSavedMessages);
+                      }
+                      if (data.last_message_id_at_save) {
+                        setConversationSaveMarkerMessageId(data.last_message_id_at_save);
+                      }
+                      if (data.conversationMemoryId) {
+                        setConversationMemoryId(data.conversationMemoryId);
+                      }
                     }
                   })
                   .catch((e) => console.warn('[Load Chat History] background refresh failed', e));
