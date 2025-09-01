@@ -652,8 +652,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       onFinish: async (message) => {
         // Auto-save chat after each assistant response
         if (agentName) {
-          console.log('[Auto-save] TRIGGER: Assistant response finished, calling saveChatHistory()');
-          await saveChatHistory();
+          console.log('[Auto-save] TRIGGER: Assistant response finished, calling saveChatHistory(with final message)');
+          // Ensure the just-finished assistant message is included even if state lags
+          const current = messages;
+          const hasFinal = current.some(m => m.id === message.id);
+          const merged = hasFinal ? current : [...current, message];
+          await saveChatHistory(merged as any);
         }
         // Persist latest messages to cache after assistant finishes
         try {

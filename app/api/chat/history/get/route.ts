@@ -56,7 +56,12 @@ export async function GET(req: NextRequest) {
     const messages = Array.isArray(data?.messages) ? data.messages : [];
     const lastMsgId = messages.length ? String(messages[messages.length - 1]?.id ?? '') : '';
     const lastMsgAt = messages.length ? String(messages[messages.length - 1]?.createdAt ?? '') : '';
-    const payloadForHash = `${chatIdForHash}|${lastMessageAt}|${messages.length}|${lastMsgId}|${lastMsgAt}`;
+    // Include saved state signals so clients refresh when bookmarks/conversation save changes
+    const savedMessageIds = data?.savedMessageIds && typeof data.savedMessageIds === 'object' ? data.savedMessageIds : {};
+    const savedCount = Object.keys(savedMessageIds).length;
+    const lastSaveMarker = String(data?.last_message_id_at_save ?? '');
+    const convoMemId = String(data?.conversationMemoryId ?? '');
+    const payloadForHash = `${chatIdForHash}|${lastMessageAt}|${messages.length}|${lastMsgId}|${lastMsgAt}|saved:${savedCount}|marker:${lastSaveMarker}|mem:${convoMemId}`;
     const etag = 'W/"' + crypto.createHash('sha1').update(payloadForHash).digest('hex') + '"';
 
     const ifNoneMatch = req.headers.get('if-none-match');
