@@ -1200,6 +1200,15 @@ function HomeContent() {
     }
   }, [pageAgentName, userId, activeUiConfig]);
 
+  // Persist transcriptListenMode on any change (unless workspace enforces it)
+  useEffect(() => {
+    if (!pageAgentName || !userId) return;
+    const enforced = activeUiConfig?.default_transcript_listen_mode;
+    if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') return;
+    const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
+    try { localStorage.setItem(key, transcriptListenMode); } catch {}
+  }, [transcriptListenMode, pageAgentName, userId, activeUiConfig?.default_transcript_listen_mode]);
+
 
   // Enforce savedTranscriptMemoryMode from workspace if provided; otherwise use saved or fallback
   useEffect(() => {
