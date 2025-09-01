@@ -877,7 +877,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             console.warn('[Auto-save] Save already in progress. Skipping.');
             return;
         }
-        const currentMessages = messagesToSave || messagesRef.current;
+        // Prefer the longest known set to avoid saving partial lists
+        let currentMessages = messagesToSave && messagesToSave.length >= (messagesRef.current?.length || 0)
+          ? messagesToSave
+          : messagesRef.current;
         if (!agentName || currentMessages.length === 0) {
             console.log('[Auto-save] Skipping save - no agent or messages');
             return;
