@@ -28,7 +28,6 @@ import {
   Square,
   Download,
   Paperclip,
-  Mic,
   Play,
   Pause,
   StopCircle,
@@ -1063,6 +1062,29 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   
       return false;
     }, [savedTranscriptMemoryMode, individualMemoryToggleStates, transcriptListenMode, individualRawTranscriptToggleStates]);
+
+    // Derive listening mode and optional +N based on Settings > Memory selections
+    const listeningInfo = useMemo(() => {
+      let countKnown = 0;
+      let unknownMany = false;
+      // Raw transcripts mode
+      if (transcriptListenMode === 'latest') countKnown += 1;
+      else if (transcriptListenMode === 'some' && individualRawTranscriptToggleStates) {
+        try { countKnown += Object.values(individualRawTranscriptToggleStates).filter(Boolean).length; } catch {}
+      } else if (transcriptListenMode === 'all') unknownMany = true;
+      // Memorized transcripts mode
+      if (savedTranscriptMemoryMode === 'some' && individualMemoryToggleStates) {
+        try { countKnown += Object.values(individualMemoryToggleStates).filter(Boolean).length; } catch {}
+      } else if (savedTranscriptMemoryMode === 'all') unknownMany = true;
+
+      if (unknownMany || countKnown >= 2) {
+        // Many: +N only meaningful when known selections (i.e., not 'all')
+        const additional = unknownMany ? null : Math.max(0, countKnown - 1);
+        return { mode: 'many' as const, additional };
+      }
+      if (countKnown === 1) return { mode: 'single' as const, additional: 0 };
+      return { mode: 'none' as const, additional: 0 };
+    }, [transcriptListenMode, individualRawTranscriptToggleStates, savedTranscriptMemoryMode, individualMemoryToggleStates]);
 
     const [ttsPlayback, setTtsPlayback] = useState<{
       isPlaying: boolean;
@@ -4168,12 +4190,46 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <Plus size={24} strokeWidth={1.55} className="mobile-icon chat-sliders-icon" />
                             </button>
                           </DropdownMenuTrigger>
-                          {/* Inline recording timer next to plus icon */}
-                          {(globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording) || isBrowserRecording ? (
-                            <span className="ml-2 font-mono text-[11px] text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none">
-                              {formatTimeHMS(clientRecordingTime)}
-                            </span>
-                          ) : null}
+                          {/* Inline listening indicator + optional count + timer (active only) */}
+                          {(() => {
+                            const active = (globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording) || isBrowserRecording;
+                            // Mobile: single word when active, otherwise nothing
+                            if (isMobile) {
+                              if (!active) return null;
+                              return (
+                                <span className="ml-2 inline-flex items-center text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
+                                  Live
+                                </span>
+                              );
+                            }
+
+                            // Desktop: one row, do not wrap
+                            if (!active && listeningInfo.mode === 'none') return null; // hide when not listening and not recording
+                            const parts: string[] = [];
+                            if (active) {
+                              let line = 'Listening live';
+                              if (listeningInfo.mode === 'many' && listeningInfo.additional && listeningInfo.additional > 0) {
+                                line += ` +${listeningInfo.additional} more`;
+                              }
+                              parts.push(line);
+                              parts.push('|');
+                              parts.push(formatTimeHMS(clientRecordingTime));
+                            } else {
+                              // Not actively recording but listening mode enabled
+                              let line = 'Listening';
+                              if (listeningInfo.mode === 'many' && listeningInfo.additional && listeningInfo.additional > 0) {
+                                line += ` +${listeningInfo.additional} more`;
+                              }
+                              parts.push(line);
+                            }
+                            return (
+                              <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
+                                {parts.map((p, i) => (
+                                  <span key={i}>{p}</span>
+                                ))}
+                              </span>
+                            );
+                          })()}
                           <DropdownMenuContent align="start" side="top" className="w-[200px]">
                              {/* File attachment - Hidden if workspace config specifies */}
                              {(!activeUiConfig.hide_plus_menu_items?.includes('add_files') || isAdminOverride) && (
@@ -4260,7 +4316,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 }
                               };
 
-                              const MainIcon = starting ? Loader2 : (!recActive ? Mic : (paused ? Play : Pause));
+                              const MainIcon = starting ? Loader2 : (!recActive ? Play : (paused ? Play : Pause));
                               const mainLabel = !recActive
                                 ? (starting ? t('controlsMenu.startingRecording') : t('controlsMenu.recordMeeting'))
                                 : (paused ? t('controlsMenu.resumeRecording') : t('controlsMenu.pauseRecording'));
