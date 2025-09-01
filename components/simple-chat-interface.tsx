@@ -4222,30 +4222,30 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             if (active) {
                               // Active recording
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
-                                parts.push('Not Listening');
+                                parts.push('Not listening');
                               } else if (transcriptListenMode === 'latest' && savedTranscriptMemoryMode === 'none') {
-                                parts.push('Listening Live');
+                                parts.push('Listening live');
                               } else if (transcriptListenMode === 'latest') {
-                                parts.push(`Listening Live${more > 0 ? ` +${more} more` : ''}`);
+                                parts.push(`Listening live${more > 0 ? ` +${more} more` : ''}`);
                               } else if (
                                 transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
                                 savedTranscriptMemoryMode === 'some' || savedTranscriptMemoryMode === 'all'
                               ) {
-                                parts.push(`Listening to Previous${more > 0 ? ` +${more} more` : ''}`);
+                                parts.push(`Listening to previous${more > 0 ? ` +${more} more` : ''}`);
                               }
                               parts.push('|');
                               parts.push(formatTimeHMS(clientRecordingTime));
                             } else {
                               // Not actively recording
                               if (transcriptListenMode === 'latest' && savedTranscriptMemoryMode === 'none') {
-                                parts.push('Listening to Latest');
+                                parts.push('Listening to latest');
                               } else if (transcriptListenMode === 'latest') {
-                                parts.push(`Listening to Latest${more > 0 ? ` +${more} more` : ''}`);
+                                parts.push(`Listening to latest${more > 0 ? ` +${more} more` : ''}`);
                               } else if (
                                 transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
                                 savedTranscriptMemoryMode === 'some' || savedTranscriptMemoryMode === 'all'
                               ) {
-                                parts.push(`Listening to Previous${more > 0 ? ` +${more} more` : ''}`);
+                                parts.push(`Listening to previous${more > 0 ? ` +${more} more` : ''}`);
                               }
                             }
                             return (
