@@ -4215,34 +4215,37 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
                             // Desktop: one row, do not wrap
                             // Hide only if both transcript and memorized listening are disabled
-                            if (!active && listeningInfo.mode === 'none' && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') return null;
+                            if (!active && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') return null;
                             const parts: string[] = [];
+                            const total = Math.max(0, listeningInfo.total);
+                            const more = Math.max(0, total - 1);
                             if (active) {
-                              let line = 'Listening live';
-                              if (listeningInfo.mode === 'many' && listeningInfo.additional > 0) {
-                                line += ` +${listeningInfo.additional} more`;
+                              // Active recording
+                              if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
+                                parts.push('Not Listening');
+                              } else if (transcriptListenMode === 'latest' && savedTranscriptMemoryMode === 'none') {
+                                parts.push('Listening Live');
+                              } else if (transcriptListenMode === 'latest') {
+                                parts.push(`Listening Live${more > 0 ? ` +${more} more` : ''}`);
+                              } else if (
+                                transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
+                                savedTranscriptMemoryMode === 'some' || savedTranscriptMemoryMode === 'all'
+                              ) {
+                                parts.push(`Listening to Previous${more > 0 ? ` +${more} more` : ''}`);
                               }
-                              parts.push(line);
                               parts.push('|');
                               parts.push(formatTimeHMS(clientRecordingTime));
                             } else {
                               // Not actively recording
-                              if (
-                                transcriptListenMode === 'some' ||
-                                (transcriptListenMode !== 'some' && (savedTranscriptMemoryMode === 'some' || savedTranscriptMemoryMode === 'all'))
+                              if (transcriptListenMode === 'latest' && savedTranscriptMemoryMode === 'none') {
+                                parts.push('Listening to Latest');
+                              } else if (transcriptListenMode === 'latest') {
+                                parts.push(`Listening to Latest${more > 0 ? ` +${more} more` : ''}`);
+                              } else if (
+                                transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
+                                savedTranscriptMemoryMode === 'some' || savedTranscriptMemoryMode === 'all'
                               ) {
-                                // Special case: show Memory: Ready when user selected specific items
-                                // If transcripts are 'some', count both raw + memorized; otherwise count memorized only
-                                const prevCount = Math.max(0, transcriptListenMode === 'some' ? listeningInfo.total : listeningInfo.memCount);
-                                let line = 'Memory: Ready';
-                                if (prevCount > 0) line += ` +${prevCount} previous`;
-                                parts.push(line);
-                              } else {
-                                let line = 'Listening Live: Ready';
-                                if (listeningInfo.mode === 'many' && listeningInfo.total > 1) {
-                                  line += ` +${listeningInfo.total - 1} more`;
-                                }
-                                parts.push(line);
+                                parts.push(`Listening to Previous${more > 0 ? ` +${more} more` : ''}`);
                               }
                             }
                             return (
