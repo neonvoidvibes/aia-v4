@@ -23,8 +23,11 @@
     "downloadChat": "Ladda ner chatt",
     "recordMeeting": "Spela in möte",
     "startRecording": "Starta inspelning",
+    "startingRecording": "Startar inspelning",
+    "resumeRecording": "Återuppta inspelning",
     "stopRecording": "Stoppa inspelning",
-    "pauseRecording": "Pausa inspelning"
+    "pauseRecording": "Pausa inspelning",
+    "savingRecording": "Sparar inspelning"
   },
   "chat": {
     "memorySaved": "Minne sparat"

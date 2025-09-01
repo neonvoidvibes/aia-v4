@@ -524,6 +524,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const [isBrowserRecording, setIsBrowserRecording] = useState(false); 
     const [isBrowserPaused, setIsBrowserPaused] = useState(false);    
     const [clientRecordingTime, setClientRecordingTime] = useState(0); 
+    const [managerPhase, setManagerPhase] = useState<'idle'|'starting'|'active'|'suspended'|'stopping'|'error'>('idle');
     const [isReconnecting, setIsReconnecting] = useState(false);
     // Industry-standard reconnection parameters
     const MAX_RECONNECT_ATTEMPTS = 10;
@@ -2726,6 +2727,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         if (!isRecordingPersistenceEnabled()) return;
         let timer: any = null;
         let baseMs = Date.now();
+        const setPhase = (p: 'idle'|'starting'|'active'|'suspended'|'stopping'|'error') => {
+            try { setManagerPhase(p); } catch {}
+        };
         const startTick = (startedAt?: number) => {
             if (timer) clearInterval(timer);
             baseMs = startedAt || Date.now();
@@ -2739,12 +2743,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 const pausedSoFar = pausedAccumMsRef.current + (pausedStartRef.current ? (Date.now() - pausedStartRef.current) : 0);
                 const t0 = st.startedAt || baseMs;
                 setClientRecordingTime(Math.max(0, Math.floor((Date.now() - t0 - pausedSoFar) / 1000)));
-            }, 1000);
+           }, 1000);
         };
         const stopTick = () => { if (timer) { clearInterval(timer); timer = null; } setClientRecordingTime(0); };
 
         const unsub = recordingManager.subscribe((s) => {
             const active = !!(s.sessionId && (s.phase === 'starting' || s.phase === 'active' || s.phase === 'suspended'));
+            setPhase(s.phase as any);
             setIsBrowserRecording(active);
             setIsBrowserPaused(!!s.paused);
             // Track pause/resume transitions to accumulate paused duration
@@ -4190,84 +4195,72 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             {/* Separator line */}
                             <DropdownMenuSeparator />
                             
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger
-                                disabled={globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
-                                className={cn(
-                                  "flex items-center gap-3 px-2 py-2",
-                                  micButtonClass,
-                                  isBrowserRecording && !isBrowserPaused && "!bg-red-500 !text-white hover:!bg-red-600 hover:!text-white",
-                                  isBrowserRecording && isBrowserPaused && "!bg-yellow-500 !text-black hover:!bg-yellow-600 hover:!text-black",
-                                  globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat' && "opacity-50 cursor-not-allowed"
-                                )}
-                              >
-                                <Mic size={17} className="flex-shrink-0" />
-                                <span className="text-sm whitespace-nowrap">{t('controlsMenu.recordMeeting')}</span>
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuPortal>
-                                <DropdownMenuSubContent>
-                            <DropdownMenuItem
-                                    onSelect={(e) => {
-                                      e.preventDefault();
-                                      if (isRecordingPersistenceEnabled()) {
-                                        // Toggle via recording manager (start/pause/resume)
-                                        handlePlayPauseMicClick();
-                                      } else {
-                                        if (!isBrowserRecording) {
-                                          handleStartRecordingSession();
-                                        } else {
-                                          handleToggleBrowserPause();
-                                        }
-                                      }
-                                    }}
-                                    disabled={!!pendingActionRef.current || globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat'}
-                                    className={cn(
-                                      "flex items-center gap-3 px-2 py-2",
-                                      (pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') && "opacity-50 cursor-wait",
-                                      isBrowserRecording && isBrowserPaused && "text-yellow-500 dark:text-yellow-400",
-                                      isBrowserRecording && !isBrowserPaused && "text-destructive"
-                                    )}
-                                  >
-                                    {(pendingActionRef.current === 'start' || pendingActionRef.current === 'pause_stream' || pendingActionRef.current === 'resume_stream') ? (
-                                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
-                                    ) : (
-                                      !isBrowserRecording ? (
-                                        <Play size={17} className="flex-shrink-0" />
-                                      ) : (
-                                        isBrowserPaused ? (
-                                          <Play size={17} className="flex-shrink-0" />
-                                        ) : (
-                                          <Pause size={17} className="flex-shrink-0" />
-                                        )
-                                      )
-                                    )}
-                                    <span className="text-sm whitespace-nowrap">
-                                      {!isBrowserRecording ? t('controlsMenu.startRecording') : (isBrowserPaused ? t('controlsMenu.startRecording') : t('controlsMenu.pauseRecording'))}
-                                    </span>
-                                  </DropdownMenuItem>
-                                  
+                            {/* Simplified recording controls (no submenu) */}
+                            {(() => {
+                              // Determine dynamic states for persistence vs. non-persistence
+                              const persistence = isRecordingPersistenceEnabled();
+                              const starting = persistence ? (managerPhase === 'starting') : (pendingActionRef.current === 'start');
+                              const stopping = persistence ? (managerPhase === 'stopping') : (pendingActionRef.current === 'stop');
+                              const recActive = !!isBrowserRecording; // mirrored for both modes
+                              const paused = !!isBrowserPaused;
+
+                              // Main control item: Record meeting / Pause / Resume
+                              const mainDisabled = starting || (!!pendingActionRef.current && !stopping) || (globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat') || stopping;
+                              const mainClass = cn(
+                                "flex items-center gap-3 px-2 py-2",
+                                starting && "opacity-50 cursor-wait",
+                                stopping && "opacity-50 cursor-not-allowed",
+                                recActive && (paused ? "text-yellow-600 dark:text-yellow-400" : "text-yellow-600 dark:text-yellow-400")
+                              );
+
+                              const onMainSelect = (e: any) => {
+                                e.preventDefault();
+                                if (stopping) return; // frozen while saving
+                                if (persistence) {
+                                  handlePlayPauseMicClick();
+                                } else {
+                                  if (!recActive) handleStartRecordingSession();
+                                  else handleToggleBrowserPause();
+                                }
+                              };
+
+                              const MainIcon = starting ? Loader2 : (!recActive ? Mic : (paused ? Play : Pause));
+                              const mainLabel = !recActive
+                                ? (starting ? t('controlsMenu.startingRecording') : t('controlsMenu.recordMeeting'))
+                                : (paused ? t('controlsMenu.resumeRecording') : t('controlsMenu.pauseRecording'));
+
+                              return (
+                                <>
                                   <DropdownMenuItem
-                                    onSelect={(e) => {
-                                      e.preventDefault();
-                                      handleStopRecording();
-                                    }}
-                                    disabled={!isBrowserRecording || !!pendingActionRef.current}
-                                    className={cn(
-                                      "flex items-center gap-3 px-2 py-2",
-                                      !isBrowserRecording && "opacity-50",
-                                      pendingActionRef.current === 'stop' && "opacity-50 cursor-wait"
-                                    )}
+                                    onSelect={onMainSelect}
+                                    disabled={mainDisabled}
+                                    className={mainClass}
                                   >
-                                    {pendingActionRef.current === 'stop' ? (
-                                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
-                                    ) : (
-                                      <StopCircle size={17} className="flex-shrink-0" />
-                                    )}
-                                    <span className="text-sm whitespace-nowrap">{t('controlsMenu.stopRecording')}</span>
+                                    <MainIcon className={cn("flex-shrink-0", starting && "h-4 w-4 animate-spin")}/>
+                                    <span className="text-sm whitespace-nowrap">{mainLabel}</span>
                                   </DropdownMenuItem>
-                                </DropdownMenuSubContent>
-                              </DropdownMenuPortal>
-                            </DropdownMenuSub>
+
+                                  {(recActive || stopping) && (
+                                    <DropdownMenuItem
+                                      onSelect={(e) => { e.preventDefault(); if (!stopping) handleStopRecording(); }}
+                                      disabled={stopping}
+                                      className={cn(
+                                        "flex items-center gap-3 px-2 py-2",
+                                        stopping && "opacity-50 cursor-wait",
+                                        !stopping && "text-red-600 dark:text-red-400"
+                                      )}
+                                    >
+                                      {stopping ? (
+                                        <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                                      ) : (
+                                        <StopCircle size={17} className="flex-shrink-0" />
+                                      )}
+                                      <span className="text-sm whitespace-nowrap">{stopping ? t('controlsMenu.savingRecording') : t('controlsMenu.stopRecording')}</span>
+                                    </DropdownMenuItem>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         <div className="relative" ref={recordUIRef}>
