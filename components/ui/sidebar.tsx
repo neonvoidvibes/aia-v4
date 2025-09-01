@@ -520,8 +520,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                            <div className="space-y-[1px]">
                              {chats.map(chat => {
                                const isSelected = chat.id === selectedChatId;
-                               return (
-                             <div key={chat.id} className={cn("group flex items-center justify-between w-full rounded-xs pr-2", isSelected && "bg-accent") }>
+                                    return (
+                                    <div key={chat.id} className={cn("group flex items-center justify-between w-full rounded-xs pr-2 text-foreground", isSelected && "bg-accent text-accent-foreground") }>
                                <Button variant="ghost" className={cn("flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent", isSelected ? "text-accent-foreground" : "text-foreground")} onClick={() => handleLoadChat(chat.id)}>
                                  <div className="truncate">
                                    {chat.title}
@@ -577,18 +577,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                                      <div key={chat.id} className={cn("group flex items-center justify-between w-full rounded-xs pr-2", isSelected && "bg-accent") }>
                                        <Button
                                          variant="ghost"
-                                         className={cn(
-                                           "flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent hover:text-[inherit]",
-                                           isSelected ? "text-accent-foreground" : "text-foreground"
+                                       className={cn(
+                                           "flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent hover:text-[inherit] text-[inherit]"
                                          )}
                                          onClick={() => handleLoadChat(chat.id)}
                                        >
                                          <div className="truncate">{chat.title}</div>
                                        </Button>
                                        <div className={cn(
-                                         "flex-shrink-0 h-8 w-8 flex items-center justify-center relative",
-                                         // For selected items, explicitly match the title's accent (e.g., Folkhemmet yellow)
-                                         isSelected && "text-[hsl(var(--accent))]"
+                                         "chat-row-actions flex-shrink-0 h-8 w-8 flex items-center justify-center relative"
                                        ) }>
                                          {(chat.isConversationSaved || chat.hasSavedMessages) && (
                                            <div
@@ -606,7 +603,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                          <Button
                                            variant="ghost"
                                            size="icon"
-                                           className={cn("absolute h-8 w-8 hover:bg-transparent focus:bg-transparent hover:text-[inherit] opacity-0 group-hover:opacity-100 text-foreground z-20")}
+                                           className={cn("absolute h-8 w-8 hover:bg-transparent focus:bg-transparent hover:text-[inherit] opacity-0 group-hover:opacity-100 text-[inherit] z-20")}
                                            onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}
                                          >
                                            <X className="h-4 w-4" />

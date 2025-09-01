@@ -395,6 +395,33 @@
 .theme-folkhemmet .sidebar-bg .bg-accent .truncate {
   color: hsl(var(--accent)) !important;
 }
+/* Ensure actions on selected row (dot + X) match the selected text color (yellow) */
+.theme-folkhemmet .sidebar-bg .bg-accent .chat-row-actions {
+  color: hsl(var(--accent)) !important;
+}
+
+/* Theme-specific selected-row text colors (unless overridden elsewhere) */
+/* Dark-like themes: selected row text/actions should be black for clarity */
+.dark .sidebar-bg .bg-accent,
+.theme-neon-sunset .sidebar-bg .bg-accent,
+.theme-sunset .sidebar-bg .bg-accent,
+.theme-river .sidebar-bg .bg-accent,
+.theme-ridge-glass .sidebar-bg .bg-accent {
+  color: hsl(0 0% 0%) !important; /* black */
+}
+.dark .sidebar-bg .bg-accent .chat-row-actions,
+.theme-neon-sunset .sidebar-bg .bg-accent .chat-row-actions,
+.theme-sunset .sidebar-bg .bg-accent .chat-row-actions,
+.theme-river .sidebar-bg .bg-accent .chat-row-actions,
+.theme-ridge-glass .sidebar-bg .bg-accent .chat-row-actions {
+  color: hsl(0 0% 0%) !important; /* black */
+}
+
+/* Tenant: selected row text/actions should use accent (light yellow) */
+.theme-tenant .sidebar-bg .bg-accent,
+.theme-tenant .sidebar-bg .bg-accent .chat-row-actions {
+  color: hsl(var(--accent)) !important;
+}
 
 /* Folkhemmet: On hover of non-selected items, make text and X dark blue */
 .theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) button,
