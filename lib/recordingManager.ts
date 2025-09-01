@@ -12,6 +12,7 @@ export interface RecordingState {
   chatId?: string;
   startedAt?: number;
   error?: { code: string; message: string } | null;
+  paused?: boolean;
 }
 
 export interface TranscriptChunk {
@@ -31,6 +32,8 @@ export interface RecordingManager {
   subscribe(fn: (s: RecordingState) => void): () => void;
   onTranscript(fn: (c: TranscriptChunk) => void): () => void;
   requestTakeover(): Promise<boolean>;                // cross‑tab
+  pause(): void;                                      // pause local MediaRecorder + signal backend
+  resume(): void;                                     // resume local MediaRecorder + signal backend
 }
 
 // Storage keys
@@ -74,15 +77,16 @@ class RecordingManagerImpl implements RecordingManager {
       // If page reload with active session, keep state minimal until attach
       const active = this.readActive();
       if (active) {
-        this.update({
-          phase: 'suspended',
-          sessionId: active.sessionId,
-          ownerTabId: active.ownerTabId,
-          type: active.type,
-          chatId: active.chatId,
-          startedAt: active.startedAt,
-          error: null,
-        });
+      this.update({
+        phase: 'suspended',
+        sessionId: active.sessionId,
+        ownerTabId: active.ownerTabId,
+        type: active.type,
+        chatId: active.chatId,
+        startedAt: active.startedAt,
+        error: null,
+        paused: false,
+      });
       }
     }
   }
@@ -223,6 +227,21 @@ class RecordingManagerImpl implements RecordingManager {
     });
   }
 
+  // Pause/resume controls (persistence mode)
+  pause(): void {
+    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+      try { this.mediaRecorder.pause(); } catch {}
+      // onpause handler will update state and signal backend
+    }
+  }
+
+  resume(): void {
+    if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
+      try { this.mediaRecorder.resume(); } catch {}
+      // onresume handler will update state and signal backend
+    }
+  }
+
   // Internal helpers
   private update(next: RecordingState) {
     this.state = next;
@@ -330,12 +349,30 @@ class RecordingManagerImpl implements RecordingManager {
     ws.onopen = () => {
       try { this.startHeartbeat(); } catch {}
       mr.start(3000);
-      this.update({ ...this.state, phase: 'active' });
+      this.update({ ...this.state, phase: 'active', paused: false });
     };
     mr.ondataavailable = (ev) => {
       if (ev.data?.size > 0 && this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(ev.data);
       }
+    };
+    mr.onpause = () => {
+      // reflect paused state
+      this.update({ ...this.state, paused: true });
+      try {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ action: 'set_processing_state', paused: true }));
+        }
+      } catch {}
+    };
+    mr.onresume = () => {
+      // reflect resumed state
+      this.update({ ...this.state, paused: false });
+      try {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ action: 'set_processing_state', paused: false }));
+        }
+      } catch {}
     };
     ws.onmessage = (e) => {
       try {
@@ -353,7 +390,7 @@ class RecordingManagerImpl implements RecordingManager {
       // If we are still marked owner, go suspended to allow reconnect/reattach
       const active = this.readActive();
       if (active && active.ownerTabId === this.tabId) {
-        this.update({ ...this.state, phase: 'suspended' });
+        this.update({ ...this.state, phase: 'suspended', paused: false });
       }
     };
     ws.onerror = () => {
@@ -401,7 +438,7 @@ class RecordingManagerImpl implements RecordingManager {
   private cleanupAll(toPhase: RecordingPhase) {
     this.cleanupMediaAndWsOnly();
     this.writeActive(null);
-    this.update({ phase: toPhase, error: null });
+    this.update({ phase: toPhase, error: null, paused: false });
   }
 
   private startHeartbeat() {

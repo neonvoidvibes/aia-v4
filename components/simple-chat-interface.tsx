@@ -2651,7 +2651,23 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         e.stopPropagation();
         if (pendingActionRef.current) return;
         if (isRecordingPersistenceEnabled()) {
-            showAndPrepareRecordingControls();
+            const st = recordingManager.getState();
+            const active = !!(st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended'));
+            if (!active) {
+                // Not active yet: start via manager
+                if (!agentName) { addErrorMessage('Agent information is missing. Cannot start recording.'); return; }
+                try {
+                    recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: agentName || undefined, eventId });
+                } catch (err: any) {
+                    addErrorMessage(`Error: ${err?.message || 'Failed to start recording'}`);
+                }
+                return;
+            }
+            // Active: toggle pause/resume via manager
+            const paused = !!st.paused;
+            try {
+                if (paused) recordingManager.resume(); else recordingManager.pause();
+            } catch {}
             return;
         }
         if (!isBrowserRecordingRef.current) {
@@ -2659,7 +2675,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } else {
             handleToggleBrowserPause();
         }
-    }, [handleStartRecordingSession, handleToggleBrowserPause, showAndPrepareRecordingControls]);
+    }, [handleStartRecordingSession, handleToggleBrowserPause, showAndPrepareRecordingControls, agentName, currentChatId, eventId, addErrorMessage]);
 
     const saveChat = useCallback(() => { console.info("[Save Chat] Initiated."); const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }, [messages, agentName, eventId]);
 
@@ -2683,7 +2699,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         const unsub = recordingManager.subscribe((s) => {
             const active = !!(s.sessionId && (s.phase === 'starting' || s.phase === 'active' || s.phase === 'suspended'));
             setIsBrowserRecording(active);
-            setIsBrowserPaused(false);
+            setIsBrowserPaused(!!s.paused);
             if (active) startTick(s.startedAt);
             else stopTick();
         });
