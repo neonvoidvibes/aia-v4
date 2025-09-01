@@ -3728,7 +3728,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             </ActionTooltip>
                                             )}
                                             <ActionTooltip labelKey="tooltips.saveMemory" align="end">
-                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
+                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={isDeleting}>
                                                 <Bookmark className="h-[18px] w-[18px]" />
                                               </button>
                                             </ActionTooltip>
@@ -3830,7 +3830,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                               <>
                                                 <ActionTooltip labelKey="tooltips.saveMemory" align="start">
-                                                  <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (!agentCapabilities.pinecone_index_exists || isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={!agentCapabilities.pinecone_index_exists || isDeleting}>
+                                                  <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={isDeleting}>
                                                     <Bookmark className="h-[18px] w-[18px]" />
                                                   </button>
                                                 </ActionTooltip>
@@ -4107,10 +4107,10 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                 e.preventDefault();
                                 handleSaveChatToMemory();
                               }}
-                              disabled={messages.length === 0 || !agentCapabilities.pinecone_index_exists || isLoading}
+                              disabled={messages.length === 0 || isLoading}
                               className={cn(
                                 "flex items-center gap-3 px-2 py-2",
-                                (!agentCapabilities.pinecone_index_exists || messages.length === 0 || isLoading) && "opacity-50 cursor-not-allowed"
+                                (messages.length === 0 || isLoading) && "opacity-50 cursor-not-allowed"
                               )}
                             >
                               <Bookmark
