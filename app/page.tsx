@@ -1976,6 +1976,21 @@ function HomeContent() {
         selectedModel={selectedModel}
         onNewChat={handleNewChatFromSidebar}
         onLoadChat={async (chatId: string) => {
+          // Auto-switch to the agent/event that created this conversation
+          try {
+            const target = chatHistory.find((c) => c.id === chatId);
+            const targetAgent = target?.agentName;
+            const targetEvent = target?.eventId || '0000';
+            const currentEvent = pageEventId || '0000';
+
+            if (targetAgent && (targetAgent !== pageAgentName || targetEvent !== currentEvent)) {
+              router.push(`/?agent=${encodeURIComponent(targetAgent)}&event=${encodeURIComponent(targetEvent)}`);
+            }
+          } catch (e) {
+            // Non-fatal; proceed to load chat
+            console.warn('[Sidebar] Failed to resolve chat target agent/event', e);
+          }
+
           if (chatInterfaceRef.current) {
             setIsChatLoading(true);
             try {
