@@ -1065,26 +1065,36 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     // Derive listening mode and optional +N based on Settings > Memory selections
     const listeningInfo = useMemo(() => {
-      let countKnown = 0;
-      let unknownMany = false;
-      // Raw transcripts mode
-      if (transcriptListenMode === 'latest') countKnown += 1;
-      else if (transcriptListenMode === 'some' && individualRawTranscriptToggleStates) {
-        try { countKnown += Object.values(individualRawTranscriptToggleStates).filter(Boolean).length; } catch {}
-      } else if (transcriptListenMode === 'all') unknownMany = true;
-      // Memorized transcripts mode
-      if (savedTranscriptMemoryMode === 'some' && individualMemoryToggleStates) {
-        try { countKnown += Object.values(individualMemoryToggleStates).filter(Boolean).length; } catch {}
-      } else if (savedTranscriptMemoryMode === 'all') unknownMany = true;
+      // Counts derived from settings
+      let rawCount = 0;
+      let memCount = 0;
 
-      if (unknownMany || countKnown >= 2) {
-        // Many: +N only meaningful when known selections (i.e., not 'all')
-        const additional = unknownMany ? null : Math.max(0, countKnown - 1);
-        return { mode: 'many' as const, additional };
+      // Raw transcripts
+      if (transcriptListenMode === 'latest') {
+        rawCount = 1;
+      } else if (transcriptListenMode === 'some') {
+        if (individualRawTranscriptToggleStates) {
+          try { rawCount = Object.values(individualRawTranscriptToggleStates).filter(Boolean).length; } catch {}
+        }
+      } else if (transcriptListenMode === 'all') {
+        rawCount = Math.max(0, (rawTranscriptFiles?.length || 0));
       }
-      if (countKnown === 1) return { mode: 'single' as const, additional: 0 };
-      return { mode: 'none' as const, additional: 0 };
-    }, [transcriptListenMode, individualRawTranscriptToggleStates, savedTranscriptMemoryMode, individualMemoryToggleStates]);
+
+      // Memorized transcripts (summarized)
+      if (savedTranscriptMemoryMode === 'some') {
+        if (individualMemoryToggleStates) {
+          try { memCount = Object.values(individualMemoryToggleStates).filter(Boolean).length; } catch {}
+        }
+      } else if (savedTranscriptMemoryMode === 'all') {
+        memCount = Math.max(0, (savedTranscriptSummaries?.length || 0));
+      }
+
+      const total = rawCount + memCount;
+      const mode = total === 0 ? 'none' : total === 1 ? 'single' : 'many';
+      // additional only meaningful during active listening (i.e., total - current live)
+      const additional = total > 0 ? Math.max(0, total - 1) : 0;
+      return { mode: mode as 'none'|'single'|'many', total, additional, rawCount, memCount };
+    }, [transcriptListenMode, individualRawTranscriptToggleStates, rawTranscriptFiles, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries]);
 
     const [ttsPlayback, setTtsPlayback] = useState<{
       isPlaying: boolean;
@@ -4208,19 +4218,27 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             const parts: string[] = [];
                             if (active) {
                               let line = 'Listening live';
-                              if (listeningInfo.mode === 'many' && listeningInfo.additional && listeningInfo.additional > 0) {
+                              if (listeningInfo.mode === 'many' && listeningInfo.additional > 0) {
                                 line += ` +${listeningInfo.additional} more`;
                               }
                               parts.push(line);
                               parts.push('|');
                               parts.push(formatTimeHMS(clientRecordingTime));
                             } else {
-                              // Not actively recording but listening mode enabled
-                              let line = 'Listening: Ready';
-                              if (listeningInfo.mode === 'many' && listeningInfo.additional && listeningInfo.additional > 0) {
-                                line += ` +${listeningInfo.additional} more`;
+                              // Not actively recording
+                              if (transcriptListenMode === 'some') {
+                                // Special case: user selected specific items, not latest
+                                const prevCount = Math.max(0, listeningInfo.total); // all are previous when idle
+                                let line = 'Memory: Ready';
+                                if (prevCount > 0) line += ` +${prevCount} previous`;
+                                parts.push(line);
+                              } else {
+                                let line = 'Listening Live: Ready';
+                                if (listeningInfo.mode === 'many' && listeningInfo.total > 1) {
+                                  line += ` +${listeningInfo.total - 1} more`;
+                                }
+                                parts.push(line);
                               }
-                              parts.push(line);
                             }
                             return (
                               <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
