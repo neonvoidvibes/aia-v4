@@ -578,11 +578,32 @@ const Sidebar: React.FC<SidebarProps> = ({
                                        <Button variant="ghost" className={cn("flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent", isSelected ? "text-accent-foreground" : "text-foreground")} onClick={() => handleLoadChat(chat.id)}>
                                          <div className="truncate">{chat.title}</div>
                                        </Button>
-                                       <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
+                                       <div className={cn(
+                                         "flex-shrink-0 h-8 w-8 flex items-center justify-center relative",
+                                         // For selected items, explicitly match the title's accent (e.g., Folkhemmet yellow)
+                                         isSelected && "text-[hsl(var(--accent))]"
+                                       ) }>
                                          {(chat.isConversationSaved || chat.hasSavedMessages) && (
-                                           <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", isSelected && "opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
+                                           <div
+                                             className={cn(
+                                               "absolute h-2.5 w-2.5 rounded-full opacity-100 transition-opacity duration-150 group-hover:opacity-0 z-10",
+                                               // Non-selected: keep existing scheme (filled vs outlined)
+                                               !isSelected && (chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border-2 border-[hsl(var(--save-memory-color))]"),
+                                               // Selected: outline when only some messages saved
+                                               isSelected && (!chat.isConversationSaved ? "border-2" : "")
+                                             )}
+                                             // Selected: filled if full conversation saved, outlined if only some messages
+                                             style={isSelected ? (chat.isConversationSaved ? { backgroundColor: 'currentColor' } : { borderColor: 'currentColor' }) : undefined}
+                                           />
                                          )}
-                                         <Button variant="ghost" size="icon" className={cn("absolute h-8 w-8 hover:bg-transparent focus:bg-transparent", isSelected ? "opacity-100 text-accent" : "opacity-0 group-hover:opacity-100 text-foreground") } onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
+                                         <Button
+                                           variant="ghost"
+                                           size="icon"
+                                           className={cn(
+                                             "absolute h-8 w-8 hover:bg-transparent focus:bg-transparent opacity-0 group-hover:opacity-100 text-foreground z-20"
+                                           )}
+                                           onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}
+                                         >
                                            <X className="h-4 w-4" />
                                          </Button>
                                        </div>
