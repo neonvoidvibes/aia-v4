@@ -386,9 +386,9 @@
   background-color: hsl(var(--save-memory-color) / 0.18) !important; /* expanded+hover: slightly stronger */
 }
 
-/* Folkhemmet: Selected chat item — dark blue background, yellow text and yellow "X" */
+/* Folkhemmet: Selected chat item — light blue background, yellow text and yellow "X" */
 .theme-folkhemmet .sidebar-bg .bg-accent {
-  background-color: hsl(var(--primary)) !important; /* Dark blue */
+  background-color: hsl(var(--save-memory-color)) !important; /* Light blue */
 }
 .theme-folkhemmet .sidebar-bg .bg-accent button,
 .theme-folkhemmet .sidebar-bg .bg-accent button svg,
@@ -401,6 +401,15 @@
 .theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) button svg,
 .theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) .truncate {
   color: hsl(var(--primary)) !important;
+}
+
+/* All themes: hover bg matches selected bg but dimmed */
+.sidebar-bg .group:hover:not(.bg-accent) {
+  background-color: hsl(var(--accent) / 0.18) !important;
+}
+/* Folkhemmet override: use light blue variant for hover (dimmed) */
+.theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) {
+  background-color: hsl(var(--save-memory-color) / 0.18) !important;
 }
 
 /* STT (VOICE INPUT) AREA - Change button backgrounds to light blue accent */
