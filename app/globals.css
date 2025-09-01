@@ -358,111 +358,49 @@
   --assistant-message-text-color: var(--foreground);
 }
 
-/* Generic sidebar event header styling (applies to all themes by variables) */
+/* Generic sidebar event header styling (standardized across themes) */
 .sidebar-event-header {
   border: 1px solid hsl(var(--accent));
   background-color: transparent;
+  color: inherit;
 }
+/* Keep expanded headers visually identical to non-expanded (clean look) */
 .sidebar-event-header[data-expanded="true"] {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+  background-color: transparent;
+  color: inherit;
 }
 
-/* Sidebar event header hover text color adjustments per theme */
-/* Dark, River, and Sunset: for OPENED sections, ensure light (foreground) text on hover */
-.dark .sidebar-event-header[data-expanded="true"]:hover,
-.theme-river .sidebar-event-header[data-expanded="true"]:hover,
-.theme-sunset .sidebar-event-header[data-expanded="true"]:hover {
-  color: hsl(var(--foreground)) !important;
-}
-.dark .sidebar-event-header[data-expanded="true"]:hover span,
-.theme-river .sidebar-event-header[data-expanded="true"]:hover span,
-.theme-sunset .sidebar-event-header[data-expanded="true"]:hover span {
-  color: hsl(var(--foreground)) !important;
-}
+/* Remove theme-specific expanded/hover overrides for sidebar event headers.
+   Hover effects should rely on shared utility classes only. */
 
-/* Tenant: for OPENED sections, ensure main dark (foreground) text on hover */
-.theme-tenant .sidebar-event-header[data-expanded="true"]:hover,
-.theme-tenant .sidebar-event-header[data-expanded="true"]:hover span {
-  color: hsl(var(--foreground)) !important;
-}
-
-/* Desert Mirage: for BOTH closed and opened, use subtle background on hover */
-.theme-desert-mirage .sidebar-event-header:hover,
-.theme-desert-mirage .sidebar-bg .sidebar-event-header:hover,
-.theme-desert-mirage .sidebar-event-header[data-expanded="true"]:hover,
-.theme-desert-mirage .sidebar-event-header[data-expanded="false"]:hover {
-  /* Match the opened state’s subtle background for consistency */
-  background-color: hsl(var(--accent)) !important;
-  background-image: none !important; /* Neutralize any utility background styles */
-}
-
-/* Folkhemmet theme specific overrides */
-/* Header event tag: light blue bg, yellow text; remove dim opacity */
-.theme-folkhemmet .header-workspace-title [aria-label="Select event"] {
-  /* Lighter accent blue = #357ABC (see --save-memory-color) */
-  background-color: hsl(var(--save-memory-color)) !important;
-  color: hsl(0 0% 100%) !important; /* White text */
-}
-.theme-folkhemmet .header-workspace-title .opacity-70 { opacity: 1 !important; }
-.theme-folkhemmet .header-workspace-title [aria-label="Select event"] svg { color: hsl(0 0% 100%) !important; }
-
-/* SIDEBAR CHAT HISTORY - Specific hover colors */
-/* Rule 1: Set the base hover color for all buttons in the group to dark blue. */
-.theme-folkhemmet .sidebar-bg .group:hover {
-  /* Background behind text and X becomes lighter accent blue (#357ABC) */
-  background-color: hsl(var(--save-memory-color)) !important;
-}
-.theme-folkhemmet .sidebar-bg .group:hover button {
-  /* Use exact lighter accent blue: #357ABC */
-  background-color: hsl(var(--save-memory-color)) !important;
-  color: hsl(var(--accent)) !important;
-}
-/* Ensure all sidebar buttons match hover colors, including standalone items */
-.theme-folkhemmet .sidebar-bg button:hover {
-  background-color: hsl(var(--save-memory-color)) !important;
-  color: hsl(var(--accent)) !important;
-}
-/* Category title hover: subtle dimmed blue background */
-.theme-folkhemmet .sidebar-bg .sidebar-event-header:hover,
-.theme-folkhemmet .sidebar-event-header:hover {
-  background-color: hsl(var(--save-memory-color) / 0.12) !important;
-  color: hsl(var(--save-memory-color)) !important;
-}
-
-/* Rule 2: Specifically for the 'X' button, set hover color to yellow accent */
-.theme-folkhemmet .sidebar-bg .group button.absolute:hover {
-  color: hsl(var(--accent)) !important;
-}
-
-/* SIDEBAR SEPARATORS - Change to lighter accent blue */
-.theme-folkhemmet .sidebar-bg .bg-border\/50 {
-  background-color: hsl(204 100% 54% / 0.3) !important;
-}
-.theme-folkhemmet .sidebar-bg .border-border\/50 {
-  border-color: hsl(204 100% 54% / 0.3) !important;
-}
-
-/* Folkhemmet: sidebar event grouping headers — no background on open/close/hover; text always lighter blue; border darkens on hover/open */
+/* Folkhemmet: Event category headers — border light blue; background dimmed light blue */
 .theme-folkhemmet .sidebar-event-header {
-  background-color: transparent !important;
-  border-color: hsl(var(--save-memory-color)) !important; /* #357ABC base border */
-  color: hsl(var(--save-memory-color)) !important;        /* text always lighter blue */
+  border-color: hsl(var(--save-memory-color)) !important;
+  background-color: transparent !important; /* collapsed: no bg */
+  color: inherit;
 }
-.theme-folkhemmet .sidebar-event-header[data-expanded="true"],
-.theme-folkhemmet .sidebar-event-header[data-expanded="false"],
-.theme-folkhemmet .sidebar-event-header:hover {
-  background-color: transparent !important; /* never fill */
-  color: hsl(var(--save-memory-color)) !important;        /* maintain text color */
+.theme-folkhemmet .sidebar-event-header[data-expanded="true"] {
+  background-color: hsl(var(--save-memory-color) / 0.12) !important; /* expanded: dimmed */
 }
-.theme-folkhemmet .sidebar-event-header *,
-.theme-folkhemmet .sidebar-event-header:hover *,
-.theme-folkhemmet .sidebar-event-header[data-expanded="true"] * {
-  color: hsl(var(--save-memory-color)) !important; /* force inner elements (spans, svgs) */
+.theme-folkhemmet .sidebar-event-header[data-expanded="true"]:hover {
+  background-color: hsl(var(--save-memory-color) / 0.18) !important; /* expanded+hover: slightly stronger */
 }
-.theme-folkhemmet .sidebar-event-header[data-expanded="true"],
-.theme-folkhemmet .sidebar-event-header:hover {
-  border-color: hsl(var(--primary)) !important; /* darker main blue on hover/open */
+
+/* Folkhemmet: Selected chat item — dark blue background, yellow text and yellow "X" */
+.theme-folkhemmet .sidebar-bg .bg-accent {
+  background-color: hsl(var(--primary)) !important; /* Dark blue */
+}
+.theme-folkhemmet .sidebar-bg .bg-accent button,
+.theme-folkhemmet .sidebar-bg .bg-accent button svg,
+.theme-folkhemmet .sidebar-bg .bg-accent .truncate {
+  color: hsl(var(--accent)) !important;
+}
+
+/* Folkhemmet: On hover of non-selected items, make text and X dark blue */
+.theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) button,
+.theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) button svg,
+.theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) .truncate {
+  color: hsl(var(--primary)) !important;
 }
 
 /* STT (VOICE INPUT) AREA - Change button backgrounds to light blue accent */

@@ -120,6 +120,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const historyScrollRef = useRef<HTMLDivElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const [drawerHeight, setDrawerHeight] = useState<number>(0);
+  // Locally track selected chat for instant UI feedback in the sidebar
+  const [selectedChatId, setSelectedChatId] = useState<string | undefined>(currentChatId);
 
   const eventLabel = (e?: string) => {
     if (!e || e === '0000') return eventLabels['0000'] || t('sidebar.teamspace');
@@ -212,6 +214,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [drawerHeight]);
 
+  // Keep local selection in sync with prop when it changes externally
+  useEffect(() => {
+    setSelectedChatId(currentChatId);
+  }, [currentChatId]);
+
   // Minimal markdown renderer (headings, bold, lists, inline code)
   const renderMarkdown = (md: string): string => {
     if (!md) return '';
@@ -246,6 +253,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleLoadChat = async (chatId: string) => {
     if (onLoadChat) {
+      // Set selection immediately so sidebar highlights update instantly
+      setSelectedChatId(chatId);
       // On mobile, close the sidebar immediately for a responsive feel.
       // The chat loading will happen in the background.
       if (isMobile) {
@@ -508,24 +517,27 @@ const Sidebar: React.FC<SidebarProps> = ({
                      Object.entries(groupChatsByDate(chatHistory)).map(([section, chats]) => (
                          <div key={section}>
                            <div className="px-2 py-1 pb-2.5 text-xs text-muted-foreground opacity-50">{section}</div>
-                           <div className="space-y-0.5">
-                             {chats.map(chat => (
-                             <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
-                               <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                           <div className="space-y-[1px]">
+                             {chats.map(chat => {
+                               const isSelected = chat.id === selectedChatId;
+                               return (
+                             <div key={chat.id} className={cn("group flex items-center justify-between w-full rounded-xs pr-2 hover:bg-accent", isSelected && "bg-accent") }>
+                               <Button variant="ghost" className={cn("flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent", isSelected ? "text-accent-foreground" : "text-foreground")} onClick={() => handleLoadChat(chat.id)}>
                                  <div className="truncate">
                                    {chat.title}
                                  </div>
                                </Button>
                                <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
                                  {(chat.isConversationSaved || chat.hasSavedMessages) && (
-                                   <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
+                                   <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", isSelected && "opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
                                  )}
-                                 <Button variant="ghost" size="icon" className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
+                                 <Button variant="ghost" size="icon" className={cn("absolute h-8 w-8 hover:bg-transparent focus:bg-transparent", isSelected ? "opacity-100 text-accent" : "opacity-0 group-hover:opacity-100 text-foreground") } onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
                                    <X className="h-4 w-4" />
                                  </Button>
                                </div>
                              </div>
-                           ))}
+                               );
+                             })}
                          </div>
                        </div>
                      ))
@@ -540,7 +552,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                          <div key={ev} className={cn("mb-2") }>
                           <button
                             className={cn(
-                              "sidebar-event-header group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm rounded-xs hover:bg-accent/10"
+                              "sidebar-event-header group relative w-full flex items-center justify-between px-2 py-1.5 pr-12 text-sm rounded-xs"
                             )}
                              aria-expanded={expanded}
                              data-expanded={expanded ? 'true' : 'false'}
@@ -549,35 +561,37 @@ const Sidebar: React.FC<SidebarProps> = ({
                              onClick={() => setEventExpanded(ev, !expanded)}
                            >
                           <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "font-medium truncate",
-                              expanded ? "text-accent-foreground" : "text-muted-foreground"
-                            )}>{eventLabel(ev)}</span>
+                            <span className={cn("font-medium truncate text-muted-foreground")}>{eventLabel(ev)}</span>
                           </div>
                           <ChevronRight className={cn("absolute right-[13px] h-5 w-5 transition-transform", expanded && "rotate-90")} />
                            </button>
                            {expanded && (
-                             <div className="space-y-0.5 px-0 pb-1">
+                             <div className="space-y-[1px] px-0 pb-1">
                                {Object.entries(groupChatsByDate(chats)).map(([dateLabel, items]) => (
                                  <div key={dateLabel}>
-                                   <div className="px-2 py-1 text-xs text-muted-foreground opacity-50">{dateLabel}</div>
-                                   {items.slice(0, visibleCount).map(chat => (
-                                     <div key={chat.id} className="group flex items-center justify-between w-full rounded-xs hover:bg-accent pr-2">
-                                       <Button variant="ghost" className="flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={() => handleLoadChat(chat.id)}>
+                                  <div className="px-2 py-1 text-xs text-muted-foreground opacity-50">{dateLabel}</div>
+                                   <div className="space-y-[1px]">
+                                   {items.slice(0, visibleCount).map(chat => {
+                                     const isSelected = chat.id === selectedChatId;
+                                     return (
+                                     <div key={chat.id} className={cn("group flex items-center justify-between w-full rounded-xs pr-2 hover:bg-accent", isSelected && "bg-accent") }>
+                                       <Button variant="ghost" className={cn("flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent", isSelected ? "text-accent-foreground" : "text-foreground")} onClick={() => handleLoadChat(chat.id)}>
                                          <div className="truncate">{chat.title}</div>
                                        </Button>
                                        <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
                                          {(chat.isConversationSaved || chat.hasSavedMessages) && (
-                                           <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
+                                           <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", isSelected && "opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
                                          )}
-                                         <Button variant="ghost" size="icon" className="absolute h-8 w-8 opacity-0 group-hover:opacity-100 text-foreground group-hover:text-accent-foreground hover:!text-accent-foreground" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
+                                         <Button variant="ghost" size="icon" className={cn("absolute h-8 w-8 hover:bg-transparent focus:bg-transparent", isSelected ? "opacity-100 text-accent" : "opacity-0 group-hover:opacity-100 text-foreground") } onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
                                            <X className="h-4 w-4" />
                                          </Button>
                                        </div>
                                      </div>
-                                   ))}
-                                 </div>
-                               ))}
+                                   );
+                                   })}
+                                   </div>
+                                  </div>
+                                ))}
                                {chats.length > visibleCount && (
                                  <div className="px-1 pb-1">
                                    <Button variant="ghost" className="h-7 px-2 rounded-sm" onClick={() => setVisibleCountByEvent(prev => ({ ...prev, [ev]: prev[ev] + 20 }))}>Show more</Button>
