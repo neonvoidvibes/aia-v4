@@ -2803,8 +2803,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
 
     const executeSaveMessage = useCallback(async (message: Message) => {
         debugLog("[Save Message to Memory] Executing after confirmation for message:", message.id);
-        if (!agentName || !agentCapabilities.pinecone_index_exists) {
-            addErrorMessage('Cannot save message: Agent not configured or Pinecone index missing.');
+        if (!agentName) {
+            addErrorMessage('Cannot save message: Agent not configured.');
             setConfirmationRequest(null);
             return;
         }
