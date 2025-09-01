@@ -336,6 +336,15 @@ function HomeContent() {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [chatIdToDelete, setChatIdToDelete] = useState<string | null>(null);
 
+  // If user selects a chat that belongs to a different event/agent than the current URL,
+  // store it here, navigate, and then load once the URL context matches.
+  const [pendingChatToLoad, setPendingChatToLoad] = useState<{
+    chatId: string;
+    agentName: string;
+    eventId: string;
+  } | null>(null);
+  const pendingLoadTriesRef = useRef(0);
+
   // State to track S3 keys of files currently being processed (saved to memory or archived)
   const [processingFileKeys, setProcessingFileKeys] = useState<Set<string>>(new Set());
   const [fileActionTypes, setFileActionTypes] = useState<Record<string, 'saving_to_memory' | 'archiving'>>({});
@@ -589,6 +598,56 @@ function HomeContent() {
     // Preserve other params (only agent and event are used heavily)
     router.push(`/?agent=${encodeURIComponent(pageAgentName)}&event=${encodeURIComponent(newEventId)}`);
   }, [router, pageAgentName]);
+
+  // After switching URL to the conversation's original agent/event, load that chat
+  useEffect(() => {
+    let cancelled = false;
+    const attempt = async () => {
+      if (cancelled) return;
+      if (!pendingChatToLoad) return;
+
+      const { chatId, agentName: targetAgent, eventId: targetEvent } = pendingChatToLoad;
+      const currentEvent = pageEventId || '0000';
+      const contextReady = (pageAgentName === targetAgent) && (currentEvent === (targetEvent || '0000'));
+      if (!contextReady) return; // wait until URL context matches
+
+      if (!chatInterfaceRef.current) {
+        // Child not ready yet; retry shortly (max ~4.5s)
+        if (pendingLoadTriesRef.current < 30) {
+          pendingLoadTriesRef.current += 1;
+          setTimeout(attempt, 150);
+        } else {
+          console.warn('[Deferred Load] Gave up waiting for chat interface to mount');
+          setPendingChatToLoad(null);
+        }
+        return;
+      }
+
+      setIsChatLoading(true);
+      try {
+        await chatInterfaceRef.current.loadChatHistory(chatId);
+        setCurrentChatId(chatId);
+        setCurrentView('chat');
+        setPendingChatToLoad(null);
+      } catch (e) {
+        console.warn('[Deferred Load] Failed to load chat after context switch', e);
+        // Retry a few times in case backend/cache not ready yet
+        if (pendingLoadTriesRef.current < 10) {
+          pendingLoadTriesRef.current += 1;
+          setTimeout(attempt, 250);
+        } else {
+          setPendingChatToLoad(null);
+        }
+      } finally {
+        setIsChatLoading(false);
+      }
+    };
+
+    // kick off attempts when deps change
+    pendingLoadTriesRef.current = 0;
+    attempt();
+    return () => { cancelled = true; };
+  }, [pageAgentName, pageEventId, pendingChatToLoad]);
 
   useEffect(() => {
     if (historyNeedsRefresh && pageAgentName) {
@@ -1976,21 +2035,28 @@ function HomeContent() {
         selectedModel={selectedModel}
         onNewChat={handleNewChatFromSidebar}
         onLoadChat={async (chatId: string) => {
-          // Auto-switch to the agent/event that created this conversation
+          // Resolve selected chat's original agent/event
+          let targetAgent: string | undefined;
+          let targetEvent: string = '0000';
           try {
             const target = chatHistory.find((c) => c.id === chatId);
-            const targetAgent = target?.agentName;
-            const targetEvent = target?.eventId || '0000';
-            const currentEvent = pageEventId || '0000';
-
-            if (targetAgent && (targetAgent !== pageAgentName || targetEvent !== currentEvent)) {
-              router.push(`/?agent=${encodeURIComponent(targetAgent)}&event=${encodeURIComponent(targetEvent)}`);
-            }
+            targetAgent = target?.agentName;
+            targetEvent = target?.eventId || '0000';
           } catch (e) {
-            // Non-fatal; proceed to load chat
             console.warn('[Sidebar] Failed to resolve chat target agent/event', e);
           }
 
+          const currentEvent = pageEventId || '0000';
+          const needsContextSwitch = !!targetAgent && (targetAgent !== pageAgentName || targetEvent !== currentEvent);
+
+          if (needsContextSwitch && targetAgent) {
+            // Defer loading until URL reflects the conversation's agent/event
+            setPendingChatToLoad({ chatId, agentName: targetAgent, eventId: targetEvent });
+            router.push(`/?agent=${encodeURIComponent(targetAgent)}&event=${encodeURIComponent(targetEvent)}`);
+            return;
+          }
+
+          // Same agent/event: load immediately
           if (chatInterfaceRef.current) {
             setIsChatLoading(true);
             try {
@@ -2001,7 +2067,7 @@ function HomeContent() {
             }
           }
         }}
-        currentChatId={currentChatId || undefined}
+      currentChatId={currentChatId || undefined}
         chatHistory={chatHistory}
         isLoadingHistory={isLoadingHistory}
         onDeleteChat={handleDeleteInitiated}
