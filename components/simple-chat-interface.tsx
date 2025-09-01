@@ -1005,6 +1005,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     const recordControlsTimerDisplayRef = useRef<HTMLSpanElement>(null); 
     const pendingActionRef = useRef<string | null>(null); 
     const clientSessionIdRef = useRef<string | null>(null);
+    // Guard concurrent chat loads to prevent race conditions/merges
+    const loadRequestIdRef = useRef<string | null>(null);
     const creatingRef = useRef(false);
 
     // NOTE: The 'Simple' view is the standard/default view for the application.
@@ -2244,6 +2246,22 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               if (!chatCacheRef.current) chatCacheRef.current = new ChatCache();
               await chatCacheRef.current.init(chatId);
 
+              // Set target chat ID immediately to avoid cross-saves to previous chat
+              setCurrentChatId(chatId);
+
+              // Begin a guarded load to prevent interleaving states when switching fast
+              const thisLoadId = crypto.randomUUID();
+              loadRequestIdRef.current = thisLoadId;
+
+              // Clear per-chat state early to avoid merging visuals from previous chat
+              setAttachedFiles([]);
+              setAllAttachments([]);
+              filesForNextMessageRef.current = [];
+              setSavedMessageIds(new Map());
+              setConversationSaveMarkerMessageId(null);
+              setConversationMemoryId(null);
+              setProcessedProposalIds(new Set());
+
               const { data: { session } } = await supabase.auth.getSession();
               if (!session?.access_token) {
                 addErrorMessage('Authentication required to load chat history.');
@@ -2291,36 +2309,36 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
               // If we have cached messages, fire-and-forget SWR; else await network for cold start
               let response: Response | null = null;
               if (cachedCount > 0) {
-                // Force a full fetch so we also get saved metadata (bookmark states)
-                performFetch(true)
-                  .then(async (resp) => {
-                    const data = await resp.json();
-                    if (data) {
-                      // Update messages if provided
-                      if (data.messages && Array.isArray(data.messages)) {
-                        const filtered = (data.messages as any[]).filter((m) => m.role !== 'system');
-                        setMessages(filtered as any);
-                        try {
-                          const etag = resp.headers.get('ETag') || (data as any)?.etag;
-                          await chatCacheRef.current!.upsertMessages(chatId, data.messages as any, { source: 'net', etag: etag || undefined });
-                        } catch {}
-                      }
-                      // Update saved message map and conversation save markers from server
-                      if (data.savedMessageIds && Object.keys(data.savedMessageIds).length > 0) {
-                        const newSavedMessages = new Map(
-                          Object.entries(data.savedMessageIds).map(([id, info]: any) => [id, { savedAt: new Date(info.savedAt), memoryId: info.memoryId }])
-                        );
-                        setSavedMessageIds(newSavedMessages);
-                      }
-                      if (data.last_message_id_at_save) {
-                        setConversationSaveMarkerMessageId(data.last_message_id_at_save);
-                      }
-                      if (data.conversationMemoryId) {
-                        setConversationMemoryId(data.conversationMemoryId);
-                      }
-                    }
-                  })
-                  .catch((e) => console.warn('[Load Chat History] background refresh failed', e));
+                // Render cached immediately; then await a full fetch to hydrate metadata
+                try {
+                  const resp = await performFetch(true);
+                  const active = loadRequestIdRef.current === thisLoadId; if (!active) return;
+                  const data = await resp.json();
+                  if (data?.messages && Array.isArray(data.messages)) {
+                    const filtered = (data.messages as any[]).filter((m) => m.role !== 'system');
+                    setMessages(filtered as any);
+                    try {
+                      const etag = resp.headers.get('ETag') || (data as any)?.etag;
+                      await chatCacheRef.current!.upsertMessages(chatId, data.messages as any, { source: 'net', etag: etag || undefined });
+                    } catch {}
+                  }
+                  // Update saved metadata
+                  if (data?.savedMessageIds && Object.keys(data.savedMessageIds).length > 0) {
+                    const newSavedMessages = new Map(
+                      Object.entries(data.savedMessageIds).map(([id, info]: any) => [id, { savedAt: new Date(info.savedAt), memoryId: info.memoryId }])
+                    );
+                    setSavedMessageIds(newSavedMessages);
+                  }
+                  if (data?.last_message_id_at_save) {
+                    setConversationSaveMarkerMessageId(data.last_message_id_at_save);
+                  }
+                  if (data?.conversationMemoryId) {
+                    setConversationMemoryId(data.conversationMemoryId);
+                  }
+                  if (data?.title) setChatTitle(data.title);
+                } catch (e) {
+                  console.warn('[Load Chat History] refresh failed', e);
+                }
               } else {
                 response = await performFetch();
               }
@@ -2331,14 +2349,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 await handleStopRecording(undefined, false);
               }
 
-              // Clear all relevant states for the new chat
-              setAttachedFiles([]);
-              setAllAttachments([]);
-              filesForNextMessageRef.current = [];
-              setSavedMessageIds(new Map());
-              setConversationSaveMarkerMessageId(null);
-              setConversationMemoryId(null);
-              setProcessedProposalIds(new Set()); // Also reset proposals on load
+              // (moved) state cleared earlier; do not clear here to avoid wiping hydrated metadata
 
               console.log("[Load Chat History] SETTING CHAT STATE:", {
                 oldChatId: currentChatId,
@@ -2348,7 +2359,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 timestamp: new Date().toISOString()
               });
               
-              setCurrentChatId(chatData?.id ?? chatId);
+              // currentChatId already set to chatId above; update to backend canonical id if provided
+              if (chatData?.id && chatData.id !== chatId) setCurrentChatId(chatData.id);
               if (chatData?.title) setChatTitle(chatData.title);
 
               if (chatData?.messages && Array.isArray(chatData.messages)) {
@@ -2859,7 +2871,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } finally {
             setConfirmationRequest(null);
         }
-    }, [agentName, agentCapabilities.pinecone_index_exists, addErrorMessage, onHistoryRefreshNeeded]);
+    }, [agentName, addErrorMessage, onHistoryRefreshNeeded]);
 
     const executeForgetMemory = useCallback(async (memoryId: string, type: 'message' | 'conversation', messageId?: string) => {
         debugLog(`[Forget Memory] Executing for memoryId: ${memoryId}`);
