@@ -2751,14 +2751,14 @@ button {
   color: hsl(204 100% 34%) !important;
 }
 
-/* 7. INLINE STATUS TEXT NEXT TO PLUS ICON - Light Blue (not dimmed) */
+/* 7. INLINE STATUS TEXT NEXT TO PLUS ICON - White at 50% (global style) */
 /* Targets the text + timer directly following the plus icon button */
 .theme-folkhemmet .chat-input-layout button[aria-label="More options"] + span {
-  color: hsl(var(--save-memory-color)) !important; /* light blue */
-  opacity: 1 !important; /* remove dimming */
+  color: hsla(0, 0%, 100%, 0.5) !important; /* white @ 50% */
+  opacity: 1 !important; /* keep children (live/latest) fully opaque */
 }
 
-/* Ensure highlighted words stay yellow accent */
+/* Ensure highlighted words stay yellow accent (full strength) */
 .theme-folkhemmet .chat-input-layout button[aria-label="More options"] + span .text-\[hsl\(var\(--accent\)\)\] {
   color: hsl(var(--accent)) !important;
 }
