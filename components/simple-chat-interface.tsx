@@ -459,6 +459,18 @@ const formatTime = (seconds: number): string => {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 };
 
+// Format mm:ss under 1 hour; hh:mm:ss at 1h+
+const formatTimeHMS = (seconds: number): string => {
+  const s = Math.max(0, seconds);
+  const hours = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = Math.floor(s % 60);
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
 const formatThoughtDuration = (totalSeconds: number): string => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -4156,6 +4168,12 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <Plus size={24} strokeWidth={1.55} className="mobile-icon chat-sliders-icon" />
                             </button>
                           </DropdownMenuTrigger>
+                          {/* Inline recording timer next to plus icon */}
+                          {(globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording) || isBrowserRecording ? (
+                            <span className="ml-2 font-mono text-[11px] text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none">
+                              {formatTimeHMS(clientRecordingTime)}
+                            </span>
+                          ) : null}
                           <DropdownMenuContent align="start" side="top" className="w-[200px]">
                              {/* File attachment - Hidden if workspace config specifies */}
                              {(!activeUiConfig.hide_plus_menu_items?.includes('add_files') || isAdminOverride) && (
