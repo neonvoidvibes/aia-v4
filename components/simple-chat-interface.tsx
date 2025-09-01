@@ -4214,7 +4214,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             }
 
                             // Desktop: one row, do not wrap
-                            if (!active && listeningInfo.mode === 'none') return null; // hide when not listening and not recording
+                            // Hide only if both transcript and memorized listening are disabled
+                            if (!active && listeningInfo.mode === 'none' && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') return null;
                             const parts: string[] = [];
                             if (active) {
                               let line = 'Listening live';
@@ -4226,9 +4227,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               parts.push(formatTimeHMS(clientRecordingTime));
                             } else {
                               // Not actively recording
-                              if (transcriptListenMode === 'some') {
-                                // Special case: user selected specific items, not latest
-                                const prevCount = Math.max(0, listeningInfo.total); // all are previous when idle
+                              if (
+                                transcriptListenMode === 'some' ||
+                                (transcriptListenMode !== 'some' && (savedTranscriptMemoryMode === 'some' || savedTranscriptMemoryMode === 'all'))
+                              ) {
+                                // Special case: show Memory: Ready when user selected specific items
+                                // If transcripts are 'some', count both raw + memorized; otherwise count memorized only
+                                const prevCount = Math.max(0, transcriptListenMode === 'some' ? listeningInfo.total : listeningInfo.memCount);
                                 let line = 'Memory: Ready';
                                 if (prevCount > 0) line += ` +${prevCount} previous`;
                                 parts.push(line);
