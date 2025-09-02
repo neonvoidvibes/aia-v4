@@ -4225,28 +4225,31 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             );
                             if (active) {
                               // Active recording
+                              // Rule: If LATEST transcript is included, show "live", otherwise show "previous"
+                              const includesLatest = transcriptListenMode === 'latest' || transcriptListenMode === 'all' || includesLatestFromSome;
+                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none';
+                              
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Not listening');
-                              } else if (transcriptListenMode === 'latest' || includesLatestFromSome) {
+                              } else if (includesLatest) {
                                 parts.push(`Listening live${more > 0 ? ` +${more} more` : ''}`);
-                              } else if (
-                                transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
-                                savedTranscriptMemoryMode === 'some' || savedTranscriptMemoryMode === 'all'
-                              ) {
+                              } else if (hasAnySelection) {
                                 parts.push(`Listening to previous${more > 0 ? ` +${more} more` : ''}`);
                               }
                               parts.push('|');
                               parts.push(formatTimeHMS(clientRecordingTime));
                             } else {
                               // Not actively recording
-                              if (transcriptListenMode === 'latest' || includesLatestFromSome) {
+                              // Rule: If LATEST transcript is included, show "latest", otherwise show "previous"
+                              const includesLatest = transcriptListenMode === 'latest' || transcriptListenMode === 'all' || includesLatestFromSome;
+                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none';
+                              
+                              if (includesLatest) {
                                 parts.push(`Listening to latest${more > 0 ? ` +${more} more` : ''}`);
-                              } else if (
-                                transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
-                                savedTranscriptMemoryMode === 'some' || savedTranscriptMemoryMode === 'all'
-                              ) {
+                              } else if (hasAnySelection) {
                                 parts.push(`Listening to previous${more > 0 ? ` +${more} more` : ''}`);
                               }
+                              // If nothing is selected, show nothing
                             }
                             return (
                               <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
