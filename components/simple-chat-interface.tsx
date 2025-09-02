@@ -1492,7 +1492,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 temperature: temperature,
                 ...canvasContextData,
                 transcriptListenMode: transcriptListenMode,
-                savedTranscriptMemoryMode: localStorage.getItem(`savedTranscriptMemoryModeSetting_${agentName}`) || "disabled",
+                savedTranscriptMemoryMode: savedTranscriptMemoryMode || "disabled",
                 transcriptionLanguage: localStorage.getItem(`transcriptionLanguageSetting_${agentName}`) || "any",
                 ...(initialContext && { initialContext }),
             };
