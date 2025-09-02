@@ -1350,6 +1350,12 @@ function HomeContent() {
 
   useEffect(() => {
     if (pageAgentName && userId) { // Ensure agentName and userId are available
+      // ikea-pilot workspace override: always default to Swedish transcription (highest priority)
+      if (pageAgentName === 'ikea-pilot') {
+        setTranscriptionLanguage('sv');
+        return;
+      }
+
       const key = `transcriptionLanguageSetting_${pageAgentName}_${userId}`;
       const savedLang = localStorage.getItem(key);
 
@@ -2613,6 +2619,8 @@ function HomeContent() {
                           if (value === "en" || value === "sv" || value === "any") {
                             const newLang = value as "en" | "sv" | "any";
                             setTranscriptionLanguage(newLang);
+                            // ikea-pilot workspace override: don't save to localStorage
+                            if (pageAgentName === 'ikea-pilot') return;
                             // Manually save user's explicit choice to localStorage
                             if (pageAgentName && userId) {
                               const key = `transcriptionLanguageSetting_${pageAgentName}_${userId}`;
