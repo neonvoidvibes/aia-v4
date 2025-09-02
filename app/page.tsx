@@ -1193,6 +1193,11 @@ function HomeContent() {
   // Enforce transcriptListenMode from workspace if provided; otherwise use saved or fallback
   useEffect(() => {
     if (pageAgentName && userId) {
+      // ikea-pilot workspace override: always listen to all transcripts (highest priority)
+      if (pageAgentName === 'ikea-pilot') {
+        setTranscriptListenMode('all');
+        return;
+      }
       const enforced = activeUiConfig?.default_transcript_listen_mode;
       if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') {
         setTranscriptListenMode(enforced);
@@ -1211,6 +1216,8 @@ function HomeContent() {
   // Persist transcriptListenMode on any change (unless workspace enforces it)
   useEffect(() => {
     if (!pageAgentName || !userId) return;
+    // ikea-pilot workspace override: don't save to localStorage
+    if (pageAgentName === 'ikea-pilot') return;
     const enforced = activeUiConfig?.default_transcript_listen_mode;
     if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') return;
     const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
@@ -1221,6 +1228,11 @@ function HomeContent() {
   // Enforce savedTranscriptMemoryMode from workspace if provided; otherwise use saved or fallback
   useEffect(() => {
     if (pageAgentName && userId) {
+      // ikea-pilot workspace override: always listen to all memory (highest priority)
+      if (pageAgentName === 'ikea-pilot') {
+        setSavedTranscriptMemoryMode('all');
+        return;
+      }
       const enforced = activeUiConfig?.default_saved_transcript_memory_mode;
       if (enforced === 'none' || enforced === 'some' || enforced === 'all') {
         setSavedTranscriptMemoryMode(enforced);
@@ -1238,6 +1250,8 @@ function HomeContent() {
 
   useEffect(() => {
     if (pageAgentName && userId) {
+      // ikea-pilot workspace override: don't save to localStorage
+      if (pageAgentName === 'ikea-pilot') return;
       const key = `savedTranscriptMemoryModeSetting_${pageAgentName}_${userId}`;
       localStorage.setItem(key, savedTranscriptMemoryMode);
     }
@@ -1488,7 +1502,9 @@ function HomeContent() {
 
   // Effect for Transcriptions
   useEffect(() => {
-    if (!showSettings || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.transcriptions) return;
+    // Load transcriptions if settings are open OR if ikea-pilot is active (needs file counts for status display)
+    const shouldLoad = showSettings || pageAgentName === 'ikea-pilot';
+    if (!shouldLoad || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.transcriptions) return;
     const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
     fetchS3Data(prefix, (data) => {
       // Sort by lastModified date in descending order (newest first)
@@ -1546,7 +1562,9 @@ function HomeContent() {
 
   // Effect for Saved Summaries
   useEffect(() => {
-    if (!showSettings || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.savedSummaries) return;
+    // Load saved summaries if settings are open OR if ikea-pilot is active (needs file counts for status display)
+    const shouldLoad = showSettings || pageAgentName === 'ikea-pilot';
+    if (!shouldLoad || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.savedSummaries) return;
     const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/summarized/`;
     fetchS3Data(prefix, (data) => {
       // Filter and sort by lastModified date in descending order (newest first)

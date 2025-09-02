@@ -1093,6 +1093,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
       const mode = total === 0 ? 'none' : total === 1 ? 'single' : 'many';
       // additional only meaningful during active listening (i.e., total - current live)
       const additional = total > 0 ? Math.max(0, total - 1) : 0;
+      
       return { mode: mode as 'none'|'single'|'many', total, additional, rawCount, memCount };
     }, [transcriptListenMode, individualRawTranscriptToggleStates, rawTranscriptFiles, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries]);
 
