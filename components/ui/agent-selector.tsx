@@ -207,7 +207,7 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, al
                       ADMIN VIEW
                     </div>
                     {adminOnlyAgents.map((agent) => (
-                      <div key={agent} className="pr-8 opacity-60 px-2 py-1.5 text-sm cursor-not-allowed select-none">
+                      <div key={agent} className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm opacity-60 pl-8">
                         {agent}
                       </div>
                     ))}
