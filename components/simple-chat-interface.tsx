@@ -4227,8 +4227,6 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               // Active recording
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Not listening');
-                              } else if ((transcriptListenMode === 'latest' || includesLatestFromSome) && savedTranscriptMemoryMode === 'none') {
-                                parts.push('Listening live');
                               } else if (transcriptListenMode === 'latest' || includesLatestFromSome) {
                                 parts.push(`Listening live${more > 0 ? ` +${more} more` : ''}`);
                               } else if (
@@ -4241,9 +4239,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               parts.push(formatTimeHMS(clientRecordingTime));
                             } else {
                               // Not actively recording
-                              if ((transcriptListenMode === 'latest' || includesLatestFromSome) && savedTranscriptMemoryMode === 'none') {
-                                parts.push('Listening to latest');
-                              } else if (transcriptListenMode === 'latest' || includesLatestFromSome) {
+                              if (transcriptListenMode === 'latest' || includesLatestFromSome) {
                                 parts.push(`Listening to latest${more > 0 ? ` +${more} more` : ''}`);
                               } else if (
                                 transcriptListenMode === 'some' || transcriptListenMode === 'all' ||
