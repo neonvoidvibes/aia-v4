@@ -525,6 +525,14 @@ function HomeContent() {
     return hasMultipleEvents && !!pageEventId;
   }, [pageAgentName, hasMultipleEvents, pageEventId]);
 
+  // ikea-pilot override: always listen to all transcripts and all memory
+  useEffect(() => {
+    if (pageAgentName === 'ikea-pilot') {
+      setTranscriptListenMode('all');
+      setSavedTranscriptMemoryMode('all');
+    }
+  }, [pageAgentName]);
+
   const fetchAvailableEvents = useCallback(async () => {
     if (!pageAgentName || isLoadingEvents) return;
     setIsLoadingEvents(true);
