@@ -58,9 +58,10 @@ export async function GET(request: Request) {
 
     // --- PHASE 3: Enhanced agent fetching with workspace support ---
     let agentsWithWorkspaceInfo: AgentWorkspaceInfo[] = [];
+    let allAgentsWithWorkspaceInfo: AgentWorkspaceInfo[] = [];
     
+    // Always fetch all agents for admin UI (needed for admin view section)
     if (isAdminOverride) {
-      // Admin users see all agents
       const { data: allAgents, error: agentsError } = await supabase
         .from('agents')
         .select('name, language, workspace_id, workspaces(id, name, ui_config)');
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Failed to fetch agents', details: agentsError.message }, { status: 500 });
       }
       
-      agentsWithWorkspaceInfo = (allAgents || []).map(agent => {
+      allAgentsWithWorkspaceInfo = (allAgents || []).map(agent => {
         const ws = Array.isArray(agent.workspaces) ? agent.workspaces[0] : agent.workspaces;
         return {
           name: (agent as any).name,
@@ -80,6 +81,42 @@ export async function GET(request: Request) {
           language: (agent as any).language || 'en'
         } as AgentWorkspaceInfo;
       });
+      
+      // For admins, also get their actual authorized agents (not all agents)
+      const { data: permissions, error: dbError } = await supabase
+        .from('user_agent_access')
+        .select(`
+          agents!inner (
+            name,
+            language,
+            workspace_id,
+            workspaces(id, name, ui_config)
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (dbError) {
+        logger.warn(`Permissions API: Could not fetch authorized agents for admin user ${user.id}:`, dbError);
+        // For admins, if we can't get their specific access, treat all agents as authorized
+        agentsWithWorkspaceInfo = allAgentsWithWorkspaceInfo;
+      } else {
+        // Extract admin's authorized agents
+        agentsWithWorkspaceInfo = (permissions || [])
+          .map(p => {
+            const agentData = Array.isArray((p as any).agents) ? (p as any).agents[0] : (p as any).agents;
+            if (!agentData) return null;
+            const ws = Array.isArray(agentData.workspaces) ? agentData.workspaces[0] : agentData.workspaces;
+            const obj: AgentWorkspaceInfo = {
+              name: agentData.name,
+              workspaceId: agentData.workspace_id,
+              workspaceName: ws?.name || null,
+              workspaceUiConfig: ws?.ui_config || {},
+              language: agentData.language || 'en'
+            };
+            return obj;
+          })
+          .filter((a): a is AgentWorkspaceInfo => a !== null);
+      }
     } else {
       // Regular users: fetch through user_agent_access and workspace_users
       const { data: permissions, error: dbError } = await supabase
@@ -122,14 +159,23 @@ export async function GET(request: Request) {
     // --- BATCH CAPABILITIES CHECK ---
     const activeBackendUrl = await getBackendUrl();
     const agentNames = agentsWithWorkspaceInfo.map(a => a.name);
+    const allAgentNames = isAdminOverride ? allAgentsWithWorkspaceInfo.map(a => a.name) : [];
+    
     let agentsWithCapabilities = agentsWithWorkspaceInfo.map(agent => ({
         ...agent,
         capabilities: { pinecone_index_exists: false } // Default to false
     }));
+    
+    let allAgentsWithCapabilities = isAdminOverride ? allAgentsWithWorkspaceInfo.map(agent => ({
+        ...agent,
+        capabilities: { pinecone_index_exists: false } // Default to false
+    })) : [];
 
     if (activeBackendUrl && agentNames.length > 0) {
         try {
             const { data: { session } } = await supabase.auth.getSession();
+            
+            // Get capabilities for authorized agents
             const capabilitiesResponse = await fetch(`${activeBackendUrl}/api/agents/capabilities`, {
                 method: 'POST',
                 headers: {
@@ -147,6 +193,26 @@ export async function GET(request: Request) {
                 }));
             } else {
                 logger.error("Permissions API: Failed to fetch agent capabilities from backend.");
+            }
+            
+            // Get capabilities for all agents (admin only)
+            if (isAdminOverride && allAgentNames.length > 0) {
+                const allCapabilitiesResponse = await fetch(`${activeBackendUrl}/api/agents/capabilities`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session?.access_token}`,
+                    },
+                    body: JSON.stringify({ agent_names: allAgentNames })
+                });
+
+                if (allCapabilitiesResponse.ok) {
+                    const allCapabilitiesData = await allCapabilitiesResponse.json();
+                    allAgentsWithCapabilities = allAgentsWithWorkspaceInfo.map(agent => ({
+                        ...agent,
+                        capabilities: allCapabilitiesData[agent.name] || { pinecone_index_exists: false }
+                    }));
+                }
             }
         } catch (e) {
             logger.error({ error: e }, `Permissions API: Error fetching agent capabilities.`);
@@ -195,11 +261,13 @@ export async function GET(request: Request) {
       isAdminOverride,
       showAgentSelector,
       agents: agentsWithCapabilities,
+      allAgents: isAdminOverride ? allAgentsWithCapabilities : undefined, // Only for admins
       workspaceConfigs,
       languageConfigs,
       userRole,
       // Legacy support for existing code
-      allowedAgents: agentsWithCapabilities.map(a => ({ name: a.name, capabilities: a.capabilities }))
+      allowedAgents: agentsWithCapabilities.map(a => ({ name: a.name, capabilities: a.capabilities })),
+      allAgentNames: isAdminOverride ? allAgentsWithCapabilities.map(a => a.name) : undefined // Simple array for UI
     }, { status: 200 });
  
   } catch (error) {

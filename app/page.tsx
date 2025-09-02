@@ -425,6 +425,7 @@ function HomeContent() {
       language: string | null;
       capabilities: { pinecone_index_exists: boolean };
     }>;
+    allAgentNames?: string[]; // For admin users - all visible agents
     workspaceConfigs: Record<string, any>;
     languageConfigs: Record<string, any>;
     userRole: string;
@@ -2163,6 +2164,7 @@ function HomeContent() {
               <div className="flex items-center gap-2">
                 <AgentSelectorMenu
                   allowedAgents={allowedAgents}
+                  allAgents={permissionsData?.allAgentNames}
                   currentAgent={pageAgentName}
                   userRole={userRole}
                   onDashboardClick={() => setShowAgentDashboard(true)}
@@ -2295,6 +2297,7 @@ function HomeContent() {
                 {(!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) ? (
                   <AgentSelectorMenu
                     allowedAgents={allowedAgents}
+                    allAgents={permissionsData?.allAgentNames}
                     currentAgent={pageAgentName}
                     userRole={userRole}
                     onDashboardClick={() => setShowAgentDashboard(true)}

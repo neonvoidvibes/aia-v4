@@ -28,6 +28,7 @@ import { useLocalization } from '@/context/LocalizationContext';
 
 interface AgentSelectorMenuProps {
   allowedAgents: string[];
+  allAgents?: string[]; // For admin users - all visible agents
   currentAgent: string;
   userRole?: string | null;
   onDashboardClick?: () => void;
@@ -35,7 +36,7 @@ interface AgentSelectorMenuProps {
   onRequestStopRecording?: () => Promise<void> | void; // parent can handle stop across modes
 }
 
-const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, currentAgent, userRole, onDashboardClick, isRecordingActive = false, onRequestStopRecording }) => {
+const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, allAgents, currentAgent, userRole, onDashboardClick, isRecordingActive = false, onRequestStopRecording }) => {
   const { t } = useLocalization();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -177,11 +178,44 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, cu
             </>
         )}
         <DropdownMenuRadioGroup value={currentAgent} onValueChange={handleAgentChange}>
-          {allowedAgents.sort().map((agent) => (
-            <DropdownMenuRadioItem key={agent} value={agent} className="pr-8">
-              {agent}
-            </DropdownMenuRadioItem>
-          ))}
+          {(() => {
+            const isAdmin = userRole === 'admin' || userRole === 'super user';
+            const adminOnlyAgents = isAdmin && allAgents ? allAgents.filter(agent => !allowedAgents.includes(agent)).sort() : [];
+            const hasAdminOnlyAgents = adminOnlyAgents.length > 0;
+            
+            return (
+              <>
+                {/* Show section header only for admins when there are admin-only agents */}
+                {isAdmin && hasAdminOnlyAgents && (
+                  <div className="px-2 py-1.5 text-xs uppercase text-muted-foreground font-normal opacity-75">
+                    AUTHORIZED ACCESS
+                  </div>
+                )}
+                
+                {/* Authorized agents */}
+                {allowedAgents.sort().map((agent) => (
+                  <DropdownMenuRadioItem key={agent} value={agent} className="pr-8">
+                    {agent}
+                  </DropdownMenuRadioItem>
+                ))}
+                
+                {/* Admin-only agents section */}
+                {isAdmin && hasAdminOnlyAgents && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs uppercase text-muted-foreground font-normal opacity-75">
+                      ADMIN VIEW
+                    </div>
+                    {adminOnlyAgents.map((agent) => (
+                      <div key={agent} className="pr-8 opacity-60 px-2 py-1.5 text-sm cursor-not-allowed select-none">
+                        {agent}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            );
+          })()}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
       <AlertDialogConfirm
