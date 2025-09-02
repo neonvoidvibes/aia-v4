@@ -625,6 +625,23 @@
   --assistant-message-text-color: var(--foreground);
 }
 
+/* Mobius theme - Remove opacity from parent to allow selective control */
+.theme-mobius .ml-2.inline-flex.items-center.gap-1.opacity-50 {
+  /* Remove opacity from parent, apply dimming via color instead */
+  opacity: 1 !important;
+  color: hsl(var(--icon-secondary) / 0.5) !important; /* Use alpha transparency instead of opacity */
+}
+
+/* Mobius theme - Brighten and recolor the highlighted "live"/"latest" words */
+.theme-mobius [class*="text-[hsl(var(--accent))]"] {
+  color: hsl(var(--status-text-highlight-color)) !important; /* Full brightness blue */
+}
+
+/* Additional fallback selector for deeply nested accent spans */
+.theme-mobius span span[class*="text-[hsl(var(--accent))]"] {
+  color: hsl(var(--status-text-highlight-color)) !important; /* Full brightness blue */
+}
+
 
 /* Sunset Theme */
 .theme-sunset {
