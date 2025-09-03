@@ -4204,17 +4204,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           {/* Inline listening indicator + optional count + timer (active only) */}
                           {(() => {
                             const active = (globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording) || isBrowserRecording;
-                            // Mobile: single word when active, otherwise nothing
-                            if (isMobile) {
-                              if (!active) return null;
-                              return (
-                                <span className="ml-2 inline-flex items-center text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
-                                  <span className="text-[hsl(var(--accent))]">Live</span>
-                                </span>
-                              );
-                            }
 
-                            // Desktop: one row, do not wrap
                             // Hide only if both transcript and memorized listening are disabled
                             if (!active && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') return null;
                             const parts: string[] = [];
@@ -4234,15 +4224,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Not listening');
                               } else if (includesLatest) {
-                                const statusKey = more > 0 
-                                  ? t(`controlsMenu.statusText.${platform}.listeningLiveMore`, { count: more })
-                                  : t(`controlsMenu.statusText.${platform}.listeningLive`);
-                                parts.push(statusKey);
+                                const baseText = t(`controlsMenu.statusText.${platform}.listeningLive`);
+                                const moreText = t('controlsMenu.statusText.more');
+                                const statusText = more > 0 ? `${baseText} +${more} ${moreText}` : baseText;
+                                parts.push(statusText);
                               } else if (hasAnySelection) {
-                                const statusKey = more > 0 
-                                  ? t(`controlsMenu.statusText.${platform}.listeningToPreviousMore`, { count: more })
-                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
-                                parts.push(statusKey);
+                                const baseText = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const moreText = t('controlsMenu.statusText.more');
+                                const statusText = more > 0 ? `${baseText} +${more} ${moreText}` : baseText;
+                                parts.push(statusText);
                               }
                               parts.push('|');
                               parts.push(formatTimeHMS(clientRecordingTime));
@@ -4254,28 +4244,32 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               const platform = isMobile ? 'mobile' : 'desktop';
                               
                               if (includesLatest) {
-                                const statusKey = more > 0 
-                                  ? t(`controlsMenu.statusText.${platform}.listeningToLatestMore`, { count: more })
-                                  : t(`controlsMenu.statusText.${platform}.listeningToLatest`);
-                                parts.push(statusKey);
+                                const baseText = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
+                                const moreText = t('controlsMenu.statusText.more');
+                                const statusText = more > 0 ? `${baseText} +${more} ${moreText}` : baseText;
+                                parts.push(statusText);
                               } else if (hasAnySelection) {
-                                const statusKey = more > 0 
-                                  ? t(`controlsMenu.statusText.${platform}.listeningToPreviousMore`, { count: more })
-                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
-                                parts.push(statusKey);
+                                const baseText = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const moreText = t('controlsMenu.statusText.more');
+                                const statusText = more > 0 ? `${baseText} +${more} ${moreText}` : baseText;
+                                parts.push(statusText);
                               }
                               // If nothing is selected, show nothing
                             }
                             return (
                               <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
                                 {parts.map((p, i) => {
-                                  // Check if this is a "live" status text (contains live keywords)
+                                  // Skip pipe separator and time
+                                  if (p === '|' || p.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+                                    return <span key={i}>{p}</span>;
+                                  }
+                                  
                                   const platform = isMobile ? 'mobile' : 'desktop';
                                   const liveText = t(`controlsMenu.statusText.${platform}.listeningLive`);
                                   const latestText = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
                                   
-                                  if (p.includes(liveText) || p.includes('Live')) {
-                                    // Find the position of the key word to highlight
+                                  // Check if this contains "live" status - highlight the key word
+                                  if (p.includes(liveText)) {
                                     const keyWord = isMobile ? 'Live' : 'live';
                                     const parts = p.split(keyWord);
                                     return (
@@ -4283,17 +4277,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                         {parts[0]}<span className="text-[hsl(var(--accent))]">{keyWord}</span>{parts.slice(1).join(keyWord)}
                                       </span>
                                     );
-                                  } else if (p.includes(latestText) || p.includes('Latest') || p.includes('latest')) {
-                                    // Find the position of the key word to highlight
-                                    const keyWord = isMobile ? 'Latest' : 'latest';
-                                    const actualKeyWord = p.includes('Latest') ? 'Latest' : 'latest';
-                                    const parts = p.split(actualKeyWord);
+                                  } 
+                                  // Check if this contains "latest" status - highlight the key word
+                                  else if (p.includes(latestText)) {
+                                    const keyWord = isMobile ? 'Latest' : (latestText.includes('senaste') ? 'senaste' : 'latest');
+                                    const parts = p.split(keyWord);
                                     return (
                                       <span key={i}>
-                                        {parts[0]}<span className="text-[hsl(var(--accent))]">{actualKeyWord}</span>{parts.slice(1).join(actualKeyWord)}
+                                        {parts[0]}<span className="text-[hsl(var(--accent))]">{keyWord}</span>{parts.slice(1).join(keyWord)}
                                       </span>
                                     );
                                   }
+                                  
                                   return <span key={i}>{p}</span>;
                                 })}
                               </span>
