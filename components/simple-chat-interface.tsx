@@ -4229,13 +4229,20 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               // Rule: If LATEST transcript is included, show "live", otherwise show "previous"
                               const includesLatest = transcriptListenMode === 'latest' || transcriptListenMode === 'all' || includesLatestFromSome;
                               const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none';
+                              const platform = isMobile ? 'mobile' : 'desktop';
                               
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Not listening');
                               } else if (includesLatest) {
-                                parts.push(`Listening live${more > 0 ? ` +${more} more` : ''}`);
+                                const statusKey = more > 0 
+                                  ? t(`controlsMenu.statusText.${platform}.listeningLiveMore`, { count: more })
+                                  : t(`controlsMenu.statusText.${platform}.listeningLive`);
+                                parts.push(statusKey);
                               } else if (hasAnySelection) {
-                                parts.push(`Listening to previous${more > 0 ? ` +${more} more` : ''}`);
+                                const statusKey = more > 0 
+                                  ? t(`controlsMenu.statusText.${platform}.listeningToPreviousMore`, { count: more })
+                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                parts.push(statusKey);
                               }
                               parts.push('|');
                               parts.push(formatTimeHMS(clientRecordingTime));
@@ -4244,29 +4251,46 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               // Rule: If LATEST transcript is included, show "latest", otherwise show "previous"
                               const includesLatest = transcriptListenMode === 'latest' || transcriptListenMode === 'all' || includesLatestFromSome;
                               const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none';
+                              const platform = isMobile ? 'mobile' : 'desktop';
                               
                               if (includesLatest) {
-                                parts.push(`Listening to latest${more > 0 ? ` +${more} more` : ''}`);
+                                const statusKey = more > 0 
+                                  ? t(`controlsMenu.statusText.${platform}.listeningToLatestMore`, { count: more })
+                                  : t(`controlsMenu.statusText.${platform}.listeningToLatest`);
+                                parts.push(statusKey);
                               } else if (hasAnySelection) {
-                                parts.push(`Listening to previous${more > 0 ? ` +${more} more` : ''}`);
+                                const statusKey = more > 0 
+                                  ? t(`controlsMenu.statusText.${platform}.listeningToPreviousMore`, { count: more })
+                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                parts.push(statusKey);
                               }
                               // If nothing is selected, show nothing
                             }
                             return (
                               <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
                                 {parts.map((p, i) => {
-                                  if (p.startsWith('Listening live')) {
-                                    const rest = p.slice('Listening live'.length);
+                                  // Check if this is a "live" status text (contains live keywords)
+                                  const platform = isMobile ? 'mobile' : 'desktop';
+                                  const liveText = t(`controlsMenu.statusText.${platform}.listeningLive`);
+                                  const latestText = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
+                                  
+                                  if (p.includes(liveText) || p.includes('Live')) {
+                                    // Find the position of the key word to highlight
+                                    const keyWord = isMobile ? 'Live' : 'live';
+                                    const parts = p.split(keyWord);
                                     return (
                                       <span key={i}>
-                                        Listening <span className="text-[hsl(var(--accent))]">live</span>{rest}
+                                        {parts[0]}<span className="text-[hsl(var(--accent))]">{keyWord}</span>{parts.slice(1).join(keyWord)}
                                       </span>
                                     );
-                                  } else if (p.startsWith('Listening to latest')) {
-                                    const rest = p.slice('Listening to latest'.length);
+                                  } else if (p.includes(latestText) || p.includes('Latest') || p.includes('latest')) {
+                                    // Find the position of the key word to highlight
+                                    const keyWord = isMobile ? 'Latest' : 'latest';
+                                    const actualKeyWord = p.includes('Latest') ? 'Latest' : 'latest';
+                                    const parts = p.split(actualKeyWord);
                                     return (
                                       <span key={i}>
-                                        Listening to <span className="text-[hsl(var(--accent))]">latest</span>{rest}
+                                        {parts[0]}<span className="text-[hsl(var(--accent))]">{actualKeyWord}</span>{parts.slice(1).join(actualKeyWord)}
                                       </span>
                                     );
                                   }
