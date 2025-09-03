@@ -27,7 +27,20 @@
     "resumeRecording": "Resume recording",
     "stopRecording": "Stop recording",
     "pauseRecording": "Pause recording",
-    "savingRecording": "Saving recording"
+    "savingRecording": "Saving recording",
+    "statusText": {
+      "desktop": {
+        "listeningToLatest": "Listening to latest",
+        "listeningToPrevious": "Listening to previous",
+        "listeningLive": "Listening live"
+      },
+      "mobile": {
+        "listeningToLatest": "Latest",
+        "listeningToPrevious": "Previous",
+        "listeningLive": "Live"
+      },
+      "more": "more"
+    }
   },
   "chat": {
     "memorySaved": "Memory saved"

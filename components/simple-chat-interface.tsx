@@ -4224,14 +4224,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Not listening');
                               } else if (includesLatest) {
-                                const baseText = t(`controlsMenu.statusText.${platform}.listeningLive`);
-                                const moreText = t('controlsMenu.statusText.more');
-                                const statusText = more > 0 ? `${baseText} +${more} ${moreText}` : baseText;
+                                const statusText = more > 0 
+                                  ? t(`statusText.${platform}.listeningLiveMore`).replace('{count}', more.toString())
+                                  : t(`statusText.${platform}.listeningLive`);
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
-                                const baseText = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
-                                const moreText = t('controlsMenu.statusText.more');
-                                const statusText = more > 0 ? `${baseText} +${more} ${moreText}` : baseText;
+                                const statusText = more > 0 
+                                  ? t(`statusText.${platform}.listeningToPreviousMore`).replace('{count}', more.toString())
+                                  : t(`statusText.${platform}.listeningToPrevious`);
                                 parts.push(statusText);
                               }
                               parts.push('|');
@@ -4244,14 +4244,14 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               const platform = isMobile ? 'mobile' : 'desktop';
                               
                               if (includesLatest) {
-                                const baseText = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
-                                const moreText = t('controlsMenu.statusText.more');
-                                const statusText = more > 0 ? `${baseText} +${more} ${moreText}` : baseText;
+                                const statusText = more > 0 
+                                  ? t(`statusText.${platform}.listeningToLatestMore`).replace('{count}', more.toString())
+                                  : t(`statusText.${platform}.listeningToLatest`);
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
-                                const baseText = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
-                                const moreText = t('controlsMenu.statusText.more');
-                                const statusText = more > 0 ? `${baseText} +${more} ${moreText}` : baseText;
+                                const statusText = more > 0 
+                                  ? t(`statusText.${platform}.listeningToPreviousMore`).replace('{count}', more.toString())
+                                  : t(`statusText.${platform}.listeningToPrevious`);
                                 parts.push(statusText);
                               }
                               // If nothing is selected, show nothing
@@ -4265,12 +4265,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   }
                                   
                                   const platform = isMobile ? 'mobile' : 'desktop';
-                                  const liveText = t(`controlsMenu.statusText.${platform}.listeningLive`);
-                                  const latestText = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
+                                  const liveText = t(`statusText.${platform}.listeningLive`);
+                                  const latestText = t(`statusText.${platform}.listeningToLatest`);
                                   
                                   // Check if this contains "live" status - highlight the key word
                                   if (p.includes(liveText)) {
-                                    const keyWord = isMobile ? 'Live' : 'live';
+                                    // For live status, always highlight "Live" (it's the same in both languages)
+                                    const keyWord = 'Live';
                                     const parts = p.split(keyWord);
                                     return (
                                       <span key={i}>
@@ -4278,9 +4279,18 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       </span>
                                     );
                                   } 
-                                  // Check if this contains "latest" status - highlight the key word
+                                  // Check if this contains "latest" status - highlight the key word  
                                   else if (p.includes(latestText)) {
-                                    const keyWord = isMobile ? 'Latest' : (latestText.includes('senaste') ? 'senaste' : 'latest');
+                                    // Determine the key word based on the actual text content
+                                    let keyWord = 'latest';
+                                    if (p.includes('Senaste')) {
+                                      keyWord = 'Senaste';
+                                    } else if (p.includes('Latest')) {
+                                      keyWord = 'Latest';
+                                    } else if (p.includes('senaste')) {
+                                      keyWord = 'senaste';
+                                    }
+                                    
                                     const parts = p.split(keyWord);
                                     return (
                                       <span key={i}>

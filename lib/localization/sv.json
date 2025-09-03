@@ -27,7 +27,20 @@
     "resumeRecording": "Återuppta inspelning",
     "stopRecording": "Stoppa inspelning",
     "pauseRecording": "Pausa inspelning",
-    "savingRecording": "Sparar inspelning"
+    "savingRecording": "Sparar inspelning",
+    "statusText": {
+      "desktop": {
+        "listeningToLatest": "Lyssnar på senaste",
+        "listeningToPrevious": "Lyssnar på tidigare",
+        "listeningLive": "Lyssnar live"
+      },
+      "mobile": {
+        "listeningToLatest": "Senaste",
+        "listeningToPrevious": "Tidigare",
+        "listeningLive": "Live"
+      },
+      "more": "fler"
+    }
   },
   "chat": {
     "memorySaved": "Minne sparat"
