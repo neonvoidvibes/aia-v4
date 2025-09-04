@@ -243,7 +243,11 @@ export default function ChatInterface() {
                     <div className="plus-menu-item" onClick={attachDocument}>
                       <Paperclip size={20} />
                     </div>
-                    <div className="plus-menu-item" onClick={startRecording}>
+                    <div 
+                      className={`plus-menu-item ${isMobile ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                      onClick={isMobile ? undefined : startRecording}
+                      style={isMobile ? { pointerEvents: 'none' } : undefined}
+                    >
                       <Mic size={20} />
                     </div>
                   </motion.div>
