@@ -4371,17 +4371,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               const paused = !!isBrowserPaused;
 
                               // Main control item: Record meeting / Pause / Resume
-                              const mainDisabled = starting || (!!pendingActionRef.current && !stopping) || (globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat') || stopping;
+                              const mainDisabled = starting || (!!pendingActionRef.current && !stopping) || (globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat') || stopping || isMobile;
                               const mainClass = cn(
                                 "flex items-center gap-3 px-2 py-2",
                                 starting && "opacity-50 cursor-wait",
                                 stopping && "opacity-50 cursor-not-allowed",
+                                isMobile && "opacity-50 cursor-not-allowed",
                                 recActive && (paused ? "text-yellow-600 dark:text-yellow-400" : "text-yellow-600 dark:text-yellow-400")
                               );
 
                               const onMainSelect = (e: any) => {
                                 e.preventDefault();
                                 if (stopping) return; // frozen while saving
+                                if (isMobile) return; // Disable recording on mobile
                                 if (persistence) {
                                   handlePlayPauseMicClick();
                                 } else {
