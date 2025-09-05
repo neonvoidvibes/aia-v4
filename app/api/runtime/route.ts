@@ -4,8 +4,10 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
-  const banner = String(process.env.NEXT_PUBLIC_SERVICE_BANNER || "").toLowerCase() === "true";
-  const message = process.env.NEXT_PUBLIC_SERVICE_BANNER_MESSAGE || null;
+  // Prefer a runtime-only flag for hosted environments; fall back to NEXT_PUBLIC_*
+  const rawBanner = (process.env.RUNTIME_SERVICE_BANNER ?? process.env.NEXT_PUBLIC_SERVICE_BANNER ?? "").toString().trim().toLowerCase();
+  const banner = rawBanner === "true" || rawBanner === "1" || rawBanner === "on";
+  const message = process.env.RUNTIME_SERVICE_BANNER_MESSAGE ?? process.env.NEXT_PUBLIC_SERVICE_BANNER_MESSAGE ?? null;
   const buildId =
     process.env.VERCEL_GIT_COMMIT_SHA ||
     process.env.BUILD_ID ||
