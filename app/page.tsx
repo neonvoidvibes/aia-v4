@@ -2329,9 +2329,9 @@ function HomeContent() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
-      <div className={cn("flex flex-col flex-1", isChatLoading && "invisible")}>
+      <div className={cn("flex flex-col flex-1 min-h-0", isChatLoading && "invisible")}>
         {/* Keep SimpleChatInterface always mounted but hidden when not active to preserve state */}
-        <div className={currentView === "chat" ? "flex flex-col flex-1" : "hidden"}>
+        <div className={currentView === "chat" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
             <SimpleChatInterface
               ref={chatInterfaceRef}
               onAttachmentsUpdate={updateChatAttachments}

@@ -3527,7 +3527,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         });
     }, [messages, errorMessages, processedProposalIds]);
     return (
-            <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height))' }}>
+            <div className="flex flex-col" style={{ height: '100%', minHeight: 0 }}>
               <div className="messages-container flex-1 relative" ref={messagesContainerRef} style={{
               overflow: 'auto',
                 WebkitOverflowScrolling: 'touch',
@@ -3553,54 +3553,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 {combinedMessages.length > 0 && (
                   <div className="space-y-1" style={{ 
                     paddingTop: window.innerHeight <= 600 ? '24px' : '32px',
-                    paddingBottom: (() => {
-                    // Use minimal padding when:
-                    // 1. User actively explored history by scrolling up and down
-                    // 2. Loading old conversations that end with assistant message
-                    const lastMessage = combinedMessages.length > 0 ? combinedMessages[combinedMessages.length - 1] : null;
-                    const lastMessageIsAssistant = lastMessage?.role === 'assistant';
-                    const userJustSubmitted = combinedMessages.length > 0 && combinedMessages[combinedMessages.length - 1]?.role === 'user';
-                    const assistantIsActive = isLoading || isThinking;
-                    // Only consider it an old conversation if assistant isn't active AND user hasn't just received a response
-                    const isOldConversation = lastMessageIsAssistant && !userJustSubmitted && !assistantIsActive && !assistantJustFinished;
-                    
-                    // Use minimal padding when user has explicitly scrolled up
-                    // Once user scrolls up, keep minimal padding even when they scroll back down
-                    const shouldUseMinimalPadding = assistantResponseComplete;
-                    
-                    if (shouldUseMinimalPadding) {
-                        return '20px'; // Minimal padding
-                    }
-                    
-                    const vh = window.innerHeight;
-                    const vw = window.innerWidth;
-                    const isMobile = vw <= 768;
-                    
-                    // More aggressive scaling for shorter screens
-                    if (vh <= 400) return '100px';
-                    if (vh <= 500) return '120px';
-                    if (vh <= 600) return '150px';
-                    if (isMobile) {
-                        // Tiered approach for different mobile screen sizes
-                        if (vh <= 667) {
-                            // Small phones (iPhone Mini, SE)
-                            return '260px';
-                        } else if (vh <= 750) {
-                            // Medium-small phones (iPhone 13/14/15)
-                            return '325px';
-                        } else if (vh <= 850) {
-                            // Standard phones (most iPhones, Galaxy S series)
-                            return '390px';
-                        } else if (vh <= 950) {
-                            // Large phones (Pro Max, Ultra)
-                            return '455px';
-                        } else {
-                            // Extra large phones/tablets in portrait - maintain reasonable cap
-                            return '520px';
-                        }
-                    }
-                    return Math.min(600, vh * 0.8 - 160) + 'px';
-                  })() }}>
+                    paddingBottom: '20px' }}>
                     {combinedMessages.map((message: UIMessage, index: number) => {
                       const isUser = message.role === "user";
                       const isSystem = message.role === "system";
