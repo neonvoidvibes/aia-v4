@@ -26,20 +26,30 @@ export default function ClientLayout({
     } catch {}
     try { document.documentElement.style.setProperty('--sys-banner-h', active ? '60px' : '0px') } catch {}
 
-    // Poll runtime config to detect deployment/banner flips; reload when either changes
-    const state = { banner: active as boolean, buildId: '__init__' as string }
-    const check = async () => {
+    // Poll runtime config to detect deployment/banner flips; reload when either changes.
+    // Use event-driven checks (focus/visibility/online) and a long fallback interval.
+    const state = { banner: active as boolean, buildId: '__init__' as string, timer: 0 as number }
+
+    const schedule = (ms: number) => {
+      if (state.timer) window.clearTimeout(state.timer)
+      state.timer = window.setTimeout(check, Math.max(15000, ms)) // enforce sensible minimum
+    }
+
+    async function check() {
       try {
         const res = await fetch(`/api/runtime?t=${Date.now()}`, { cache: 'no-store' })
         const data = await res.json().catch(() => null)
-        if (!data) return
+        if (!data) { schedule(600000); return }
+
         const nextBanner = !!data.banner
         const nextBuild = String(data.buildId || '')
-        // keep height aligned before reload
+        // Align height immediately so layout is correct even before reload
         try { document.documentElement.style.setProperty('--sys-banner-h', nextBanner ? '60px' : '0px') } catch {}
+
         const changed = state.banner !== nextBanner || (state.buildId !== '__init__' && state.buildId !== nextBuild)
         state.banner = nextBanner
         state.buildId = nextBuild
+
         if (changed) {
           try {
             if ('serviceWorker' in navigator) {
@@ -49,10 +59,27 @@ export default function ClientLayout({
             }
           } catch {}
           window.location.reload()
+          return
         }
-      } catch {}
+
+        // Dynamic interval: if server provides, use it; otherwise use 10m when banner off, 15s when on
+        const pollMs = (typeof data.pollMs === 'number' && Number.isFinite(data.pollMs))
+          ? data.pollMs
+          : (nextBanner ? 15000 : 600000)
+        schedule(pollMs)
+      } catch {
+        // Backoff to a reasonable retry
+        schedule(60000)
+      }
     }
-    const id = window.setInterval(check, 15000)
+
+    // Event-driven triggers
+    const trigger = () => { if (document.visibilityState === 'visible') { if (state.timer) window.clearTimeout(state.timer); check(); } }
+    document.addEventListener('visibilitychange', trigger)
+    window.addEventListener('focus', trigger)
+    window.addEventListener('online', trigger)
+
+    // Initial check and schedule next
     check()
 
     // --- SERVICE WORKER REGISTRATION GATE ---
