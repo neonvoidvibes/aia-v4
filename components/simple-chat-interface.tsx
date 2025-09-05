@@ -4179,13 +4179,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               } else if (includesLatest) {
                                 const base = t(`controlsMenu.statusText.${platform}.listeningLive`);
                                 const statusText = more > 0
-                                  ? `${base} + ${more} ${t('controlsMenu.statusText.more')}`
+                                  ? `${base} +${more}`
                                   : base;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
                                 const statusText = more > 0
-                                  ? `${base} + ${more} ${t('controlsMenu.statusText.more')}`
+                                  ? `${base} +${more}`
                                   : base;
                                 parts.push(statusText);
                               }
@@ -4201,13 +4201,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               if (includesLatest) {
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
                                 const statusText = more > 0
-                                  ? `${base} + ${more} ${t('controlsMenu.statusText.more')}`
+                                  ? `${base} +${more}`
                                   : base;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
                                 const statusText = more > 0
-                                  ? `${base} + ${more} ${t('controlsMenu.statusText.more')}`
+                                  ? `${base} +${more}`
                                   : base;
                                 parts.push(statusText);
                               }
