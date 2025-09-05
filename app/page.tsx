@@ -144,33 +144,30 @@ function HomeContent() {
     'theme-forest-deep',        // Image themes
   ]);
 
-  // --- START: Add this new useEffect hook ---
+  // VisualViewport handling: only apply height clamp for mobile keyboard, and subtract banner height.
   useEffect(() => {
-    // window.visualViewport is not available in all environments (e.g., SSR), so we check for it.
-    const visualViewport = window.visualViewport;
-    if (!visualViewport) {
-      return;
+    const vv = window.visualViewport
+    const el = mainLayoutRef.current
+    if (!vv || !el) return
+
+    const apply = () => {
+      const bannerH = (document.getElementById('service-banner')?.offsetHeight ?? 0)
+      const keyboardOpen = vv.height < window.innerHeight - 120
+      if (keyboardOpen) {
+        el.style.height = `${Math.max(0, vv.height - bannerH)}px`
+      } else {
+        el.style.height = ''
+      }
     }
 
-    const handleResize = () => {
-      if (mainLayoutRef.current) {
-        // This is the core of the fix. We are explicitly setting the height
-        // of our main container to the height of the *visible* area.
-        // This forces older Safari to recalculate its layout correctly when the keyboard appears.
-        mainLayoutRef.current.style.height = `${visualViewport.height}px`;
-      }
-    };
-
-    // Add the event listener when the component mounts
-    visualViewport.addEventListener('resize', handleResize);
-
-    // Call it once initially to set the correct starting height
-    handleResize();
-
-    // Return a cleanup function to remove the listener when the component unmounts
-    return () => visualViewport.removeEventListener('resize', handleResize);
-  }, []); // The empty dependency array ensures this effect runs only once on mount.
-  // --- END: Add this new useEffect hook ---
+    vv.addEventListener('resize', apply)
+    window.addEventListener('sys-banner-change', apply as any)
+    apply()
+    return () => {
+      vv.removeEventListener('resize', apply)
+      window.removeEventListener('sys-banner-change', apply as any)
+    }
+  }, [])
 
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
