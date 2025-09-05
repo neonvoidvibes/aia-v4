@@ -4177,14 +4177,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Not listening');
                               } else if (includesLatest) {
-                                const statusText = more > 0 
-                                  ? t(`statusText.${platform}.listeningLiveMore`).replace('{count}', more.toString())
-                                  : t(`statusText.${platform}.listeningLive`);
+                                const base = t(`controlsMenu.statusText.${platform}.listeningLive`);
+                                const statusText = more > 0
+                                  ? `${base} + ${more} ${t('controlsMenu.statusText.more')}`
+                                  : base;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
-                                const statusText = more > 0 
-                                  ? t(`statusText.${platform}.listeningToPreviousMore`).replace('{count}', more.toString())
-                                  : t(`statusText.${platform}.listeningToPrevious`);
+                                const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const statusText = more > 0
+                                  ? `${base} + ${more} ${t('controlsMenu.statusText.more')}`
+                                  : base;
                                 parts.push(statusText);
                               }
                               parts.push('|');
@@ -4197,14 +4199,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               const platform = isMobile ? 'mobile' : 'desktop';
                               
                               if (includesLatest) {
-                                const statusText = more > 0 
-                                  ? t(`statusText.${platform}.listeningToLatestMore`).replace('{count}', more.toString())
-                                  : t(`statusText.${platform}.listeningToLatest`);
+                                const base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
+                                const statusText = more > 0
+                                  ? `${base} + ${more} ${t('controlsMenu.statusText.more')}`
+                                  : base;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
-                                const statusText = more > 0 
-                                  ? t(`statusText.${platform}.listeningToPreviousMore`).replace('{count}', more.toString())
-                                  : t(`statusText.${platform}.listeningToPrevious`);
+                                const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const statusText = more > 0
+                                  ? `${base} + ${more} ${t('controlsMenu.statusText.more')}`
+                                  : base;
                                 parts.push(statusText);
                               }
                               // If nothing is selected, show nothing
@@ -4218,8 +4222,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   }
                                   
                                   const platform = isMobile ? 'mobile' : 'desktop';
-                                  const liveText = t(`statusText.${platform}.listeningLive`);
-                                  const latestText = t(`statusText.${platform}.listeningToLatest`);
+                                  const liveText = t(`controlsMenu.statusText.${platform}.listeningLive`);
+                                  const latestText = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
                                   
                                   // Check if this contains "live" status - highlight the key word
                                   if (p.includes(liveText)) {
