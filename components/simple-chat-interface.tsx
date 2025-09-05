@@ -3553,7 +3553,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                 {combinedMessages.length > 0 && (
                   <div className="space-y-1" style={{ 
                     paddingTop: window.innerHeight <= 600 ? '24px' : '32px',
-                    paddingBottom: '20px' }}>
+                    paddingBottom: 'calc(var(--input-area-height) + 20px)' }}>
                     {combinedMessages.map((message: UIMessage, index: number) => {
                       const isUser = message.role === "user";
                       const isSystem = message.role === "system";

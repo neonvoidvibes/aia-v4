@@ -2880,6 +2880,10 @@ html body .input-area-container {
   margin: 0 !important;
   min-height: auto !important; /* Remove any min-height */
   justify-content: flex-end !important; /* Align to bottom */
+  position: sticky;
+  bottom: 0;
+  z-index: 5; /* sit above scrolled messages */
+  background: transparent;
 }
 
 /* iOS Safari - use desktop solution but with dvh instead of vh */
