@@ -2237,11 +2237,19 @@ button {
 /* Sidebar Styles */
 .main-content {
   transition: transform 0.3s ease-in-out, max-width 0.3s ease-in-out;
-  height: 100%; /* Explicitly set height to 100% of parent */
-  overflow-y: auto; /* Enable scrolling at main content level */
-  overflow-x: hidden;
-  /* Move scrollbar to rightmost edge */
+  height: 100%; /* Fill parent (which is sized to 100dvh - banner) */
+  overflow: hidden; /* Prevent extra scroll at container level */
+  /* Move scrollbar to rightmost edge if any nested element scrolls */
   scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Allow children to shrink inside */
+}
+
+/* Ensure the content block after header flexes and can contain the messages area */
+html body .main-content > :not(header) {
+  flex: 1 1 0%;
+  min-height: 0;
 }
 
 /* Desktop sidebar behavior - keep exactly as is */
