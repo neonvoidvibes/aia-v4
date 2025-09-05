@@ -16,7 +16,7 @@ export default function ClientLayout({
   children: React.ReactNode
 }>) {
   useEffect(() => {
-    // Service banner height CSS variable
+    // Service banner height CSS variable (initial from env + optional ?banner= override)
     let active = process.env.NEXT_PUBLIC_SERVICE_BANNER === 'true'
     try {
       const params = new URLSearchParams(window.location.search)
@@ -25,6 +25,35 @@ export default function ClientLayout({
       if (ov === '0' || ov === 'false') active = false
     } catch {}
     try { document.documentElement.style.setProperty('--sys-banner-h', active ? '60px' : '0px') } catch {}
+
+    // Poll runtime config to detect deployment/banner flips; reload when either changes
+    const state = { banner: active as boolean, buildId: '__init__' as string }
+    const check = async () => {
+      try {
+        const res = await fetch(`/api/runtime?t=${Date.now()}`, { cache: 'no-store' })
+        const data = await res.json().catch(() => null)
+        if (!data) return
+        const nextBanner = !!data.banner
+        const nextBuild = String(data.buildId || '')
+        // keep height aligned before reload
+        try { document.documentElement.style.setProperty('--sys-banner-h', nextBanner ? '60px' : '0px') } catch {}
+        const changed = state.banner !== nextBanner || (state.buildId !== '__init__' && state.buildId !== nextBuild)
+        state.banner = nextBanner
+        state.buildId = nextBuild
+        if (changed) {
+          try {
+            if ('serviceWorker' in navigator) {
+              const reg = await navigator.serviceWorker.getRegistration()
+              await reg?.update()
+              reg?.waiting?.postMessage?.({ type: 'SKIP_WAITING' })
+            }
+          } catch {}
+          window.location.reload()
+        }
+      } catch {}
+    }
+    const id = window.setInterval(check, 15000)
+    check()
 
     // --- SERVICE WORKER REGISTRATION GATE ---
     // PWA functionality is temporarily disabled via an environment variable
@@ -53,6 +82,7 @@ export default function ClientLayout({
     // };
 
     // lockOrientation();
+    return () => { window.clearInterval(id) }
   }, []);
 
   return (
