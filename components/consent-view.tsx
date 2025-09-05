@@ -219,7 +219,7 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
   const fullHtml = useMemo(() => renderMarkdown(contentMarkdown), [contentMarkdown])
 
   return (
-    <div className="w-full flex items-center justify-center min-h-screen bg-background px-4">
+    <div className="w-full flex items-center justify-center min-h-[calc(100dvh-var(--sys-banner-h))] bg-background px-4">
       <Card className="w-full max-w-3xl max-h-[92vh] flex flex-col">
         <CardHeader className="pb-2">
           <CardTitle className="text-2xl">{title}</CardTitle>

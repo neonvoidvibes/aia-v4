@@ -7,6 +7,8 @@
 /* --- Base Theme Variables (Dark Mode Defaults) --- */
 /* These variables define the default dark theme and are used by Shadcn components */
 :root {
+  /* Global system banner height; set at runtime */
+  --sys-banner-h: 0px;
   /* Base colors */
   --background: 0 0% 4%; /* Near-black */
   --foreground: 0 0% 98%; /* Off-white */
@@ -880,6 +882,12 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+  .safe-top { top: var(--sys-banner-h) !important; }
+  .safe-h { height: calc(100dvh - var(--sys-banner-h)) !important; }
+  /* Preserve original offsets while accounting for the banner */
+  .safe-top-15 { top: calc(var(--sys-banner-h) + 15px) !important; }
+  .safe-top-17 { top: calc(var(--sys-banner-h) + 17px) !important; }
+  .safe-top-27 { top: calc(var(--sys-banner-h) + 27px) !important; }
 }
 
 @layer base {

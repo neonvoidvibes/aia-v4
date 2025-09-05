@@ -90,7 +90,7 @@ function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
   };
 
   return (
-    <div className="w-full flex items-center justify-center min-h-screen bg-background px-4">
+    <div className="w-full flex items-center justify-center min-h-[calc(100dvh-var(--sys-banner-h))] bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome, {userName || 'User'}</CardTitle>
@@ -2037,7 +2037,7 @@ function HomeContent() {
   }, []);
   
   if (!isClient) {
-    return (<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Loading...</p></div>);
+    return (<div className="flex items-center justify-center min-h-[calc(100dvh-var(--sys-banner-h))]"><p className="text-xl animate-pulse">Loading...</p></div>);
   }
 
   // --- PHASE 3: Show consent view if needed (render this first) ---
@@ -2052,9 +2052,9 @@ function HomeContent() {
   }
 
   // Then loading/denied states
-  if (isAuthorized === null) return (<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Checking authorization...</p></div>);
+  if (isAuthorized === null) return (<div className="flex items-center justify-center min-h-[calc(100dvh-var(--sys-banner-h))]"><p className="text-xl animate-pulse">Checking authorization...</p></div>);
   if (isAuthorized === false) return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-var(--sys-banner-h))] text-center p-4">
       <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
       <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
       <p className="text-muted-foreground mb-4">{authError || "You do not have permission to access this resource."}</p>
@@ -2070,7 +2070,7 @@ function HomeContent() {
   return (
     <div
       ref={mainLayoutRef}
-      className={`min-h-dvh h-dvh flex flex-col ${isSidebarOpen ? 'sidebar-open' : ''}`}
+      className={`relative overflow-hidden min-h-[calc(100dvh-var(--sys-banner-h))] h-[calc(100dvh-var(--sys-banner-h))] flex flex-col ${isSidebarOpen ? 'sidebar-open' : ''}`}
     >
       <Sidebar
         isOpen={isSidebarOpen}
@@ -2149,7 +2149,7 @@ function HomeContent() {
         It is positioned top-center on mobile and top-right on desktop.
       */}
       {isFullscreen && globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'press-to-talk' && (
-        <div className="fixed top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0">
+        <div className="absolute top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0">
           <span className={`inline-block w-2 h-2 rounded-full ${
             (globalRecordingStatus.type === 'long-form-chat' && recordingState.isBrowserPaused) || (globalRecordingStatus.type === 'long-form-note' && noteRecordingTime > 0 && recordingState.isBrowserPaused) ? 'bg-yellow-500' :
             globalRecordingStatus.type === 'long-form-chat' ? 'bg-blue-500 animate-pulse' :
@@ -3089,7 +3089,7 @@ function HomeContent() {
 // Default export that wraps HomeContent with Suspense
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-xl animate-pulse">Loading page...</p></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[calc(100dvh-var(--sys-banner-h))]"><p className="text-xl animate-pulse">Loading page...</p></div>}>
       <HomeContent />
     </Suspense>
   );

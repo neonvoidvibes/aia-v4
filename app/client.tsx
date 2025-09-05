@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner" // Import the Toaster
 import { predefinedThemes } from "@/lib/themes" // Import predefined themes
 import { LocalizationProvider } from "@/context/LocalizationContext"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import ServiceBanner from "@/components/system/ServiceBanner"
 
 const allThemeNames = ["light", "dark", "system", ...predefinedThemes.map(t => t.className)];
 
@@ -15,6 +16,16 @@ export default function ClientLayout({
   children: React.ReactNode
 }>) {
   useEffect(() => {
+    // Service banner height CSS variable
+    let active = process.env.NEXT_PUBLIC_SERVICE_BANNER === 'true'
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const ov = params.get('banner')?.toLowerCase()
+      if (ov === '1' || ov === 'true') active = true
+      if (ov === '0' || ov === 'false') active = false
+    } catch {}
+    try { document.documentElement.style.setProperty('--sys-banner-h', active ? '60px' : '0px') } catch {}
+
     // --- SERVICE WORKER REGISTRATION GATE ---
     // PWA functionality is temporarily disabled via an environment variable
     // to resolve a critical caching issue with a previous faulty service worker.
@@ -52,6 +63,7 @@ export default function ClientLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
+        <ServiceBanner />
         <LocalizationProvider>
           <TooltipProvider delayDuration={100}>
             <ThemeProvider
