@@ -46,11 +46,12 @@ export default function ClientLayout({
         // Align height immediately so layout is correct even before reload
         try { document.documentElement.style.setProperty('--sys-banner-h', nextBanner ? '60px' : '0px') } catch {}
 
-        const changed = state.banner !== nextBanner || (state.buildId !== '__init__' && state.buildId !== nextBuild)
+        const buildChanged = state.buildId !== '__init__' && state.buildId !== nextBuild
+        const bannerChanged = state.banner !== nextBanner
         state.banner = nextBanner
         state.buildId = nextBuild
 
-        if (changed) {
+        if (buildChanged) {
           try {
             if ('serviceWorker' in navigator) {
               const reg = await navigator.serviceWorker.getRegistration()
@@ -61,6 +62,8 @@ export default function ClientLayout({
           window.location.reload()
           return
         }
+
+        // If only banner changed (no new build), do not reload; CSS var already applied.
 
         // Dynamic interval: if server provides, use it; otherwise use 10m when banner off, 15s when on
         const pollMs = (typeof data.pollMs === 'number' && Number.isFinite(data.pollMs))
