@@ -43,7 +43,24 @@ export async function GET(req: NextRequest) {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
-        const backendResponse = await fetch(targetUrl, { method: 'GET', signal: controller.signal });
+        async function fetchWithBackoff(url: string, init: RequestInit, attempts = 3, baseDelayMs = 300): Promise<Response> {
+          let lastErr: any = null;
+          for (let i = 0; i < attempts; i++) {
+            try {
+              const res = await fetch(url, init);
+              if (!res.ok && (res.status === 429 || res.status === 503 || (res.status >= 500 && res.status < 600))) {
+                lastErr = new Error(`HTTP ${res.status}`);
+              } else {
+                return res;
+              }
+            } catch (e) { lastErr = e; }
+            const delay = Math.round((baseDelayMs * Math.pow(2, i)) * (0.75 + Math.random() * 0.5));
+            await new Promise(r => setTimeout(r, delay));
+          }
+          if (lastErr) throw lastErr;
+          throw new Error('Unknown error contacting backend');
+        }
+        const backendResponse = await fetchWithBackoff(targetUrl, { method: 'GET', signal: controller.signal });
         clearTimeout(timeoutId);
 
         // Check Content-Type before assuming JSON, handle non-OK status
@@ -103,7 +120,24 @@ export async function POST(req: NextRequest) {
             return formatErrorResponse("Authorization header missing", 401);
         }
 
-        const backendResponse = await fetch(targetUrl, {
+        async function fetchWithBackoff(url: string, init: RequestInit, attempts = 3, baseDelayMs = 300): Promise<Response> {
+          let lastErr: any = null;
+          for (let i = 0; i < attempts; i++) {
+            try {
+              const res = await fetch(url, init);
+              if (!res.ok && (res.status === 429 || res.status === 503 || (res.status >= 500 && res.status < 600))) {
+                lastErr = new Error(`HTTP ${res.status}`);
+              } else {
+                return res;
+              }
+            } catch (e) { lastErr = e; }
+            const delay = Math.round((baseDelayMs * Math.pow(2, i)) * (0.75 + Math.random() * 0.5));
+            await new Promise(r => setTimeout(r, delay));
+          }
+          if (lastErr) throw lastErr;
+          throw new Error('Unknown error contacting backend');
+        }
+        const backendResponse = await fetchWithBackoff(targetUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

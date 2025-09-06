@@ -20,7 +20,24 @@ export async function POST(request: Request) {
   }
 
   try {
-    const apiResponse = await fetch(`${backendUrl}/api/s3/manage-file`, {
+    async function fetchWithBackoff(url: string, init: RequestInit, attempts = 3, baseDelayMs = 300): Promise<Response> {
+      let lastErr: any = null;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const res = await fetch(url, init);
+          if (!res.ok && (res.status === 429 || res.status === 503 || (res.status >= 500 && res.status < 600))) {
+            lastErr = new Error(`HTTP ${res.status}`);
+          } else {
+            return res;
+          }
+        } catch (e) { lastErr = e; }
+        const delay = Math.round((baseDelayMs * Math.pow(2, i)) * (0.75 + Math.random() * 0.5));
+        await new Promise(r => setTimeout(r, delay));
+      }
+      if (lastErr) throw lastErr;
+      throw new Error('Unknown error contacting backend');
+    }
+    const apiResponse = await fetchWithBackoff(`${backendUrl}/api/s3/manage-file`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

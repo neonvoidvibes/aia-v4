@@ -31,7 +31,25 @@ export async function GET(req: NextRequest) {
 
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}/stream`;
 
-    const response = await fetch(ttsUrl, {
+    async function fetchWithBackoff(url: string, init: RequestInit, attempts = 3, baseDelayMs = 400): Promise<Response> {
+      let lastErr: any = null;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const res = await fetch(url, init);
+          if (!res.ok && (res.status === 429 || res.status === 503 || (res.status >= 500 && res.status < 600))) {
+            lastErr = new Error(`HTTP ${res.status}`);
+          } else {
+            return res;
+          }
+        } catch (e) { lastErr = e; }
+        const delay = Math.round((baseDelayMs * Math.pow(2, i)) * (0.75 + Math.random() * 0.5));
+        await new Promise(r => setTimeout(r, delay));
+      }
+      if (lastErr) throw lastErr;
+      throw new Error('Unknown error contacting TTS service');
+    }
+
+    const response = await fetchWithBackoff(ttsUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

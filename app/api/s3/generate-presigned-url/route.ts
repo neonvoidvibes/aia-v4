@@ -11,10 +11,11 @@ export async function POST(req: NextRequest) {
   const supabase = await createServerActionClient();
 
   try {
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
-    if (authError || !session) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return formatErrorResponse("Unauthorized: Invalid session", 401);
     }
+    const { data: { session } } = await supabase.auth.getSession();
 
     const body = await req.json();
     if (!body.agentName || !body.filename || !body.fileType) {
@@ -28,7 +29,24 @@ export async function POST(req: NextRequest) {
 
     const targetUrl = `${activeBackendUrl}/api/s3/generate-presigned-url`;
     
-    const backendResponse = await fetch(targetUrl, {
+    async function fetchWithBackoff(url: string, init: RequestInit, attempts = 3, baseDelayMs = 300): Promise<Response> {
+      let lastErr: any = null;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const res = await fetch(url, init);
+          if (!res.ok && (res.status === 429 || res.status === 503 || (res.status >= 500 && res.status < 600))) {
+            lastErr = new Error(`HTTP ${res.status}`);
+          } else {
+            return res;
+          }
+        } catch (e) { lastErr = e; }
+        const delay = Math.round((baseDelayMs * Math.pow(2, i)) * (0.75 + Math.random() * 0.5));
+        await new Promise(r => setTimeout(r, delay));
+      }
+      if (lastErr) throw lastErr;
+      throw new Error('Unknown error contacting backend');
+    }
+    const backendResponse = await fetchWithBackoff(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
