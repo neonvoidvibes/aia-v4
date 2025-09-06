@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useMemo } from 'react';
 import { useChat, type Message } from "@ai-sdk/react";
 import { ArrowUp, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { G_DEFAULT_WELCOME_MESSAGE } from '@/lib/themes';
@@ -86,6 +87,24 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
             console.log("AI proposed a system prompt. Updating editor with new version.");
             onNewPromptVersion(proposal);
         }
+    },
+    onError: (error) => {
+      console.error('[WizardChat] useChat onError:', error);
+      let raw = error.message || 'An error occurred.';
+      try {
+        const parsed = JSON.parse(raw);
+        raw = parsed.error || parsed.message || raw;
+      } catch {}
+
+      let msg = "I’m having trouble right now. Please try again shortly.";
+      if (raw.includes('Unauthorized')) msg = 'Your session may have expired. Please refresh the page.';
+      else if (raw.includes('Assistant is temporarily unavailable')) msg = 'The assistant is currently overloaded. Please try again in a minute.';
+      else if (raw.includes('rate limit')) msg = "We’re experiencing high traffic. Please try again in a moment.";
+      else if (raw.includes('Network error') || raw.includes('Failed to fetch') || raw.includes('Could not connect')) msg = 'Connection failed. Please check your network.';
+      else if (raw.includes('Internal Server Error') || raw.includes('500')) msg = 'An internal server error occurred. Please try again later.';
+      else if (raw.length < 200) msg = raw;
+
+      toast.error(msg);
     }
   });
 

@@ -1125,23 +1125,7 @@ body {
     opacity: 0.5; /* Add 0.5 opacity */
 }
 
-/* NEW: Error message styling */
-.error-bubble {
-  background-color: transparent;
-  color: hsl(var(--assistant-message-text-color));
-  border: none;
-  /* align-self is handled by parent container */
-  max-width: 90%;
-  border-radius: 0;
-  padding: 0; /* No padding */
-  animation: fadeIn 0.3s ease-out;
-  margin-bottom: 8px;
-  margin-left: 8px;
-  text-align: left;
-  /* font-weight: 700; */
-  font-style: italic;
-  font-size: inherit; /* Inherit from body */
-}
+/* Removed deprecated in-chat error styles; status now shown via toast */
 
 
 /* --- Input Area Controls --- */
