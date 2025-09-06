@@ -207,20 +207,23 @@ export class ChatCache {
       this.markUsed(currentChatId);
     }
 
-    // Prefetch next 4 most-recent chats (best effort)
+    // Prefetch next 4 most-recent chats (best effort) — disabled unless explicitly enabled
     try {
-      const res = await fetch(`/chats?limit=5`, { method: "GET" });
-      if (res.ok) {
-        const list = await res.json();
-        const ids: ChatId[] = (list?.chats || list || []).map((c: any) => c.chatId || c.id).filter(Boolean);
-        const toPrefetch = ids.filter((id) => id !== currentChatId).slice(0, 4);
-        for (const id of toPrefetch) {
-          // fire-and-forget SWR check
-          swrRefresh(this, id).catch(() => {});
+      const enablePrefetch = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_ENABLE_CHAT_PREFETCH === 'true';
+      if (enablePrefetch) {
+        const res = await fetch(`/chats?limit=5`, { method: "GET" });
+        if (res.ok) {
+          const list = await res.json();
+          const ids: ChatId[] = (list?.chats || list || []).map((c: any) => c.chatId || c.id).filter(Boolean);
+          const toPrefetch = ids.filter((id) => id !== currentChatId).slice(0, 4);
+          for (const id of toPrefetch) {
+            // fire-and-forget SWR check
+            swrRefresh(this, id).catch(() => {});
+          }
         }
       }
     } catch {
-      // ignore if endpoint not available
+      // ignore if endpoint not available or failing
     }
   }
 

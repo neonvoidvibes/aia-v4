@@ -15,11 +15,13 @@ export async function getSupabaseUser(request: Request) {
             },
         }
     );
+    // Always fetch authenticated user from Auth server (secure)
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return null;
+    // Then fetch session only to extract an access token for backend calls
     const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        return { user: session.user, token: session.access_token };
-    }
-    return null;
+    const token = session?.access_token || '';
+    return { user, token };
 }
 
 /**

@@ -7,11 +7,11 @@ export async function POST(request: Request) {
   const cookieStore = cookies();
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const { data: { session } } = await supabase.auth.getSession();
 
   try {
     // Forward the agent and event to the backend API
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ agent, event, user_id: session.user.id }),
+      body: JSON.stringify({ agent, event, user_id: user.id }),
     });
 
     if (!backendResponse.ok) {

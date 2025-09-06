@@ -27,6 +27,18 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  webpack: (config) => {
+    // Silence Supabase Realtime dynamic import warning in dev
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      (warning) =>
+        typeof warning === 'object' &&
+        'message' in warning &&
+        /Critical dependency: the request of a dependency is an expression/.test(warning.message) &&
+        warning.module && /@supabase\/realtime-js\/.*\/RealtimeClient\.js/.test(warning.module.resource || ''),
+    ];
+    return config;
+  },
   async headers() {
     return [
       {
