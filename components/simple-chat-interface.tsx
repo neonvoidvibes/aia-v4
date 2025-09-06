@@ -4225,16 +4225,24 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                   const liveText = t(`controlsMenu.statusText.${platform}.listeningLive`);
                                   const latestText = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
                                   
-                                  // Check if this contains "live" status - highlight the key word
+                                  // Check if this contains "live" status - highlight the localized live word
                                   if (p.includes(liveText)) {
-                                    // For live status, always highlight "Live" (it's the same in both languages)
-                                    const keyWord = 'Live';
-                                    const parts = p.split(keyWord);
-                                    return (
-                                      <span key={i}>
-                                        {parts[0]}<span className="text-[hsl(var(--accent))]">{keyWord}</span>{parts.slice(1).join(keyWord)}
-                                      </span>
-                                    );
+                                    // Derive the word to highlight from the localized text (last token), case-insensitive match in the rendered string
+                                    const liveWord = (liveText.trim().split(' ').pop() || liveText.trim());
+                                    const lower = p.toLowerCase();
+                                    const lw = liveWord.toLowerCase();
+                                    const idx = lower.indexOf(lw);
+                                    if (idx >= 0) {
+                                      const before = p.slice(0, idx);
+                                      const match = p.slice(idx, idx + liveWord.length);
+                                      const after = p.slice(idx + liveWord.length);
+                                      return (
+                                        <span key={i}>
+                                          {before}<span className="text-[hsl(var(--accent))]">{match}</span>{after}
+                                        </span>
+                                      );
+                                    }
+                                    return <span key={i}>{p}</span>;
                                   } 
                                   // Check if this contains "latest" status - highlight the key word  
                                   else if (p.includes(latestText)) {
