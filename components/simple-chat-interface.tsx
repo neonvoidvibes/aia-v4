@@ -13,6 +13,7 @@ import {
 
 // Error message type for UI-specific error handling
 interface ErrorMessage {
+  // Deprecated in-chat error message structure; retained for type compatibility
   id: string;
   role: 'error';
   content: string;
@@ -42,7 +43,6 @@ import {
   MoreHorizontal,
   Minus,
   Loader2,
-  AlertTriangle, // Added for error messages
   Upload, // Added for save to memory
   Bookmark, // Added for save individual message
   Trash2, // Added for deleting messages
@@ -507,6 +507,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   const [isPageReady, setIsPageReady] = useState(false); 
   const lastAppendedErrorRef = useRef<string | null>(null);
   const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
+  // Track which user message should display a retry affordance when LLM output fails
+  const [retryForMessageId, setRetryForMessageId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [processedProposalIds, setProcessedProposalIds] = useState(new Set<string>());
     const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
@@ -609,19 +611,15 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
     }, [searchParams, agentName]);
 
     // Helper function to add error messages
-    const addErrorMessage = useCallback((content: string, canRetry: boolean = false) => {
-        const errorMessage: ErrorMessage = {
-            id: `err-${Date.now()}`,
-            role: 'error',
-            content,
-            createdAt: new Date(),
-            canRetry,
-        };
-        // Prevent duplicate consecutive errors
-        if (content !== lastAppendedErrorRef.current) {
-          setErrorMessages(prev => [...prev, errorMessage]);
-          lastAppendedErrorRef.current = content;
+    const addErrorMessage = useCallback((content: string, _canRetry: boolean = false) => {
+        // Replace all in-chat status/errors with toasts only
+        const clean = content.replace(/^\s*error:\s*/i, '').trim();
+        if (/^(warning|could not|cannot)/i.test(clean)) {
+          toast.warning(clean);
+        } else {
+          toast.error(clean);
         }
+        lastAppendedErrorRef.current = content;
     }, []);
 
     // State for chat history auto-save
@@ -682,6 +680,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         } catch (e) {
           console.warn('[Cache] upsert after onFinish failed', e);
         }
+        // Successful assistant finish clears any pending retry affordance
+        setRetryForMessageId(null);
       },
       onError: (error) => { 
         console.error("[ChatUI] useChat onError:", error);
@@ -713,8 +713,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         
         const lastUserMessage = messages.filter(m => m.role === 'user').pop();
         const canRetry = !!lastUserMessage;
-        
-        addErrorMessage(displayMessage, canRetry);
+
+        // Show toast instead of in-chat error bubble
+        toast.error(displayMessage);
+        // Always present retry for the last user message on LLM failure
+        if (canRetry && lastUserMessage) {
+          setRetryForMessageId(lastUserMessage.id);
+        }
       },
     });
 
@@ -1471,6 +1476,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
             userHasScrolledRef.current = false;
             setShowScrollToBottom(false);
             lastAppendedErrorRef.current = null;
+            // Clear any prior retry affordance when sending a new message
+            setRetryForMessageId(null);
             // Reset all assistant response tracking flags when new message is submitted
             setAssistantResponseComplete(false);
             setAssistantJustFinished(false);
@@ -3510,7 +3517,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
         isBrowserRecording && isBrowserPaused && "paused" 
     );
     const combinedMessages = useMemo(() => {
-        const allMsgs: UIMessage[] = [...messages, ...errorMessages]
+        // Do not render UI-level error messages in chat; use toast instead
+        const allMsgs: UIMessage[] = [...messages]
             .filter(msg => {
                 // Only filter out messages that contain actual proposals, not confirmation messages
                 if (processedProposalIds.has(msg.id)) {
@@ -3557,7 +3565,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                     {combinedMessages.map((message: UIMessage, index: number) => {
                       const isUser = message.role === "user";
                       const isSystem = message.role === "system";
-                      const isError = message.role === "error";
+                      const isError = message.role === "error"; // deprecated UI path; never rendered
                       const messageSaveInfo = savedMessageIds.get(message.id);
                       const isMessageSaved = !!messageSaveInfo;
                       const messageSaveTime = messageSaveInfo?.savedAt;
@@ -3607,21 +3615,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                             onMouseLeave={() => !isMobile && setHoveredMessage(null)}
                             onClick={() => !isSystem && !isError && handleMessageInteraction(message.id)}
                           >
-                            {isError ? (
-                              <div className="error-bubble flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                                <span>{message.content}</span>
-                                {(message as ErrorMessage).canRetry && (
-                                  <button
-                                    onClick={() => handleRetryMessage(message as ErrorMessage)}
-                                    className="ml-4 px-3 py-1.5 text-sm font-semibold bg-background border border-primary/20 text-primary rounded-lg hover:bg-primary/10 transition-colors flex items-center gap-2 shadow-sm"
-                                    aria-label="Retry message"
-                                  >
-                                    <RotateCcw className="h-4 w-4" />
-                                    Retry
-                                  </button>
-                                )}
-                              </div>
+                            {false ? (
+                              <></>
                             ) : (
                               <>
                                 {isCollapsed ? (
@@ -3957,6 +3952,25 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               <p className="opacity-50">
                                 Thought for {formatThoughtDuration(messageThoughtDuration)}.
                               </p>
+                            </motion.div>
+                          )}
+                          {/* Retry affordance when LLM failed to respond for this user message */}
+                          {isUser && message.id === retryForMessageId && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="flex self-end mb-4 mt-1 pr-2"
+                            >
+                              <button
+                                onClick={() => { if (!isLoading) { reload(); setRetryForMessageId(null); } }}
+                                disabled={isLoading}
+                                className={cn("px-3 py-1.5 text-sm font-semibold bg-background border border-primary/30 text-primary rounded-lg transition-colors flex items-center gap-2 shadow-sm", isLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-primary/10")}
+                                aria-label="Retry generating assistant reply"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                Retry
+                              </button>
                             </motion.div>
                           )}
                           

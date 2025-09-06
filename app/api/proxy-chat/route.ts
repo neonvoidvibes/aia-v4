@@ -159,7 +159,30 @@ export async function POST(req: NextRequest) {
         return new Response(errorStream, { status: 500, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
 
-    const backendResponse = await fetch(backendChatUrl, {
+    // Retry the initial backend request with exponential backoff to avoid hammering the server
+    async function fetchWithBackoff(url: string, init: RequestInit, attempts = 3, baseDelayMs = 400): Promise<Response> {
+      let lastErr: any = null;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const res = await fetch(url, init);
+          // If we get a 429/503 or 500-range, optionally retry
+          if (!res.ok && (res.status === 429 || res.status === 503 || (res.status >= 500 && res.status < 600))) {
+            lastErr = new Error(`HTTP ${res.status}`);
+          } else {
+            return res;
+          }
+        } catch (e) {
+          lastErr = e;
+        }
+        // Exponential backoff with jitter
+        const delay = Math.round((baseDelayMs * Math.pow(2, i)) * (0.75 + Math.random() * 0.5));
+        await new Promise(r => setTimeout(r, delay));
+      }
+      if (lastErr) throw lastErr;
+      throw new Error('Unknown error contacting backend');
+    }
+
+    const backendResponse = await fetchWithBackoff(backendChatUrl, {
       method: 'POST',
       headers: backendHeaders, // Use headers potentially including Authorization
       body: requestBody,
