@@ -133,9 +133,14 @@
   --assistant-message-text-color: var(--foreground);
 
   /* Input status tokens (Light) */
-  --status-text-highlight-color: 0 0% 100%;       /* white for latest/live */
+  --status-text-highlight-color: 152 100% 40%;    /* darker green for latest/live */
   --status-text-rest-color: var(--text-secondary);
 
+  /* Map highlighted "latest/live" spans to darker green */
+  .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
+  .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
+    color: hsl(var(--status-text-highlight-color)) !important;
+  }
 }
 
 /* --- Custom Themes --- */
@@ -199,20 +204,18 @@
 
 }
 
-/* Light: remove transparency; map highlight to white */
-.light .ml-2.inline-flex.items-center.gap-1.opacity-50 {
-  opacity: 1 !important;
-  color: hsl(var(--status-text-rest-color)) !important;
-}
-.light .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
-.light .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
-  color: hsl(var(--status-text-highlight-color)) !important;
-}
+/* (removed) Light: previously forced white highlight */
 
 /* Neon Sunset: map highlighted words to submit color */
 .theme-neon-sunset .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
 .theme-neon-sunset .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
   color: hsl(var(--status-text-highlight-color)) !important;
+}
+
+/* Neon: remove transparency */
+.theme-neon-sunset .ml-2.inline-flex.items-center.gap-1.opacity-50 {
+  opacity: 1 !important;
+  color: hsl(var(--status-text-rest-color)) !important;
 }
 
 
@@ -284,6 +287,12 @@
 .theme-forest-deep .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
 .theme-forest-deep .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
   color: hsl(var(--status-text-highlight-color)) !important;
+}
+
+/* Dark: remove transparency */
+.dark .ml-2.inline-flex.items-center.gap-1.opacity-50 {
+  opacity: 1 !important;
+  color: hsl(var(--status-text-rest-color)) !important;
 }
 
 
@@ -612,14 +621,14 @@
 
 }
 
-/* Tenant: remove transparency; map highlight to submit color */
+/* Tenant: keep transparency for rest (via color alpha), remove for latest/live */
 .theme-tenant .ml-2.inline-flex.items-center.gap-1.opacity-50 {
-  opacity: 1 !important;
-  color: hsl(var(--status-text-rest-color)) !important;
+  opacity: 1 !important; /* neutralize parent opacity */
+  color: hsl(0 0% 100% / 0.5) !important; /* rest text = semi-white */
 }
 .theme-tenant .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
 .theme-tenant .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
-  color: hsl(var(--status-text-highlight-color)) !important;
+  color: hsl(0 0% 100%) !important; /* latest/live full white */
 }
 
 /* Mobius Theme */
@@ -682,8 +691,8 @@
 /* Mobius theme - Remove opacity from parent to allow selective control */
 .theme-mobius .ml-2.inline-flex.items-center.gap-1.opacity-50 {
   /* Remove opacity from parent, apply dimming via color instead */
-  opacity: 1 !important;
-  color: hsl(var(--icon-secondary) / 0.5) !important; /* Use alpha transparency instead of opacity */
+  opacity: 1 !important; /* Remove transparency */
+  color: hsl(var(--status-text-rest-color)) !important; /* No dimming */
 }
 
 /* Mobius theme - Brighten and recolor the highlighted "live"/"latest" words */
@@ -769,6 +778,12 @@
   color: hsl(var(--status-text-highlight-color)) !important;
 }
 
+/* Sunset: remove transparency */
+.theme-sunset .ml-2.inline-flex.items-center.gap-1.opacity-50 {
+  opacity: 1 !important;
+  color: hsl(var(--status-text-rest-color)) !important;
+}
+
 /* Ridge Glass Theme */
 .theme-ridge-glass {
   /* Base tokens */
@@ -826,7 +841,7 @@
   --assistant-message-text-color: var(--foreground);
 
   /* Input status tokens (Ridge Glass) */
-  --status-text-highlight-color: var(--button-submit-bg-active);
+  --status-text-highlight-color: 0 0% 100%; /* white highlight */
   --status-text-rest-color: var(--text-secondary);
 
 }
@@ -838,7 +853,7 @@
 }
 .theme-ridge-glass .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
 .theme-ridge-glass .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
-  color: hsl(var(--status-text-highlight-color)) !important;
+  color: hsl(0 0% 100%) !important; /* white highlight */
 }
 
 /* River Theme */
@@ -896,6 +911,12 @@
   --input-field-text-color: var(--foreground);
   --user-message-text-color: var(--foreground);
   --assistant-message-text-color: var(--foreground);
+}
+
+/* River: remove transparency from status */
+.theme-river .ml-2.inline-flex.items-center.gap-1.opacity-50 {
+  opacity: 1 !important;
+  color: hsl(var(--status-text-rest-color)) !important;
 }
 
 /* Styles for Canvas-originated user messages */
