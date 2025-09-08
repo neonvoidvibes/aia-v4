@@ -644,7 +644,8 @@
 /* Mobius Theme */
 .theme-mobius {
   /* Input status tokens (Mobius) */
-  --status-text-highlight-color: var(--button-submit-bg-active);
+  /* Make latest/live pop more using a brighter variant of the same base hue */
+  --status-text-highlight-color: 194 35% 62%;
   --status-text-rest-color: var(--text-secondary);
 
   --background: 200 54% 19%; /* Very Dark Blue/Teal */
