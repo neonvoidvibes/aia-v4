@@ -73,6 +73,16 @@
   --status-text-rest-color: var(--text-secondary);     /* default for the rest of the string */
 }
 
+/* Light: remove transparency on container, keep rest dim via alpha; highlight solid */
+.light .ml-2.inline-flex.items-center.gap-1.opacity-50 {
+  opacity: 1 !important;
+  color: hsl(var(--status-text-rest-color) / 0.5) !important;
+}
+.light .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
+.light .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
+  color: hsl(var(--status-text-highlight-color)) !important;
+}
+
 
 /* --- Light Theme Overrides --- */
 .light {
@@ -690,9 +700,9 @@
 
 /* Mobius theme - Remove opacity from parent to allow selective control */
 .theme-mobius .ml-2.inline-flex.items-center.gap-1.opacity-50 {
-  /* Remove opacity from parent, apply dimming via color instead */
-  opacity: 1 !important; /* Remove transparency */
-  color: hsl(var(--status-text-rest-color)) !important; /* No dimming */
+  /* Remove opacity from parent; simulate dimming via color alpha for rest */
+  opacity: 1 !important;
+  color: hsl(var(--status-text-rest-color) / 0.5) !important;
 }
 
 /* Mobius theme - Brighten and recolor the highlighted "live"/"latest" words */
