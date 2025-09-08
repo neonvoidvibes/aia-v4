@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Square, Copy, Volume2, Plus, ArrowUp, Download, Paperclip, Mic, Play, Pause, StopCircle } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMobile } from "@/hooks/use-mobile"
+import { useRecordingSupport } from "@/hooks/use-recording-support"
 import { cn } from "@/lib/utils"
 import { useTheme } from "next-themes"
 
@@ -29,6 +30,7 @@ export default function ChatInterface() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { theme } = useTheme()
   const recordUITimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hasRecordingSupport = useRecordingSupport()
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -243,10 +245,12 @@ export default function ChatInterface() {
                     <div className="plus-menu-item" onClick={attachDocument}>
                       <Paperclip size={20} />
                     </div>
-                    <div 
-                      className={`plus-menu-item ${isMobile ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                      onClick={isMobile ? undefined : startRecording}
-                      style={isMobile ? { pointerEvents: 'none' } : undefined}
+                    <div
+                      className={`plus-menu-item ${
+                        isMobile || !hasRecordingSupport ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      onClick={isMobile || !hasRecordingSupport ? undefined : startRecording}
+                      style={isMobile || !hasRecordingSupport ? { pointerEvents: 'none' } : undefined}
                     >
                       <Mic size={20} />
                     </div>

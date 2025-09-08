@@ -1,16 +1,15 @@
 import * as React from "react"
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+  const [isMobile, setIsMobile] = React.useState(false)
 
   React.useEffect(() => {
-    const checkTouchDevice = () => {
-      setIsMobile(navigator.maxTouchPoints > 0)
-    }
-    
-    // Initial check
-    checkTouchDevice()
+    const ua = navigator.userAgent || ""
+    const isMobileUA =
+      (navigator as any).userAgentData?.mobile === true ||
+      /Android|iPhone|iPad|iPod/i.test(ua)
+    setIsMobile(!!isMobileUA)
   }, [])
 
-  return !!isMobile
+  return isMobile
 }

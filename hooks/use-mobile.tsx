@@ -3,16 +3,17 @@
 import { useState, useEffect } from "react"
 
 export function useMobile() {
-  const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    const checkTouchDevice = () => {
-      setIsMobile(navigator.maxTouchPoints > 0)
-    }
-    
-    // Initial check
-    checkTouchDevice()
+    const ua = navigator.userAgent || ""
+    // Treat only iOS/Android as mobile; ignore Windows/macOS touch devices
+    const isMobileUA =
+      // Chromium userAgentData when available
+      (navigator as any).userAgentData?.mobile === true ||
+      /Android|iPhone|iPad|iPod/i.test(ua)
+    setIsMobile(!!isMobileUA)
   }, [])
 
-  return !!isMobile
+  return isMobile
 }

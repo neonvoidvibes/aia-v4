@@ -86,6 +86,7 @@ import { useLocalization } from "@/context/LocalizationContext";
 import { ActionTooltip } from "@/components/ui/action-tooltip";
 import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
 import { manager as recordingManager } from "@/lib/recordingManager";
+import { useRecordingSupport } from "@/hooks/use-recording-support";
 
 // Voice ID for ElevenLabs TTS.
 const ELEVENLABS_VOICE_ID = "aSLKtNoVBZlxQEMsnGL2"; // "Sanna Hartfield"
@@ -1048,7 +1049,8 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
   const [confirmationRequest, setConfirmationRequest] = useState<{ type: 'save-message' | 'save-conversation' | 'forget-message' | 'forget-conversation' | 'overwrite-conversation'; message?: Message; memoryId?: string; } | null>(null);
   const [docUpdateRequest, setDocUpdateRequest] = useState<{ doc_name: string; content: string; justification?: string; } | null>(null);
     const [isUpdatingDoc, setIsUpdatingDoc] = useState(false);
-    const isMobile = useMobile();
+  const isMobile = useMobile();
+  const hasRecordingSupport = useRecordingSupport();
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
     const { theme } = useTheme();
@@ -4350,7 +4352,13 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               const paused = !!isBrowserPaused;
 
                               // Main control item: Record meeting / Pause / Resume
-                              const mainDisabled = starting || (!!pendingActionRef.current && !stopping) || (globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat') || stopping || isMobile;
+                              const mainDisabled =
+                                starting ||
+                                (!!pendingActionRef.current && !stopping) ||
+                                (globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat') ||
+                                stopping ||
+                                isMobile ||
+                                !hasRecordingSupport;
                               const mainClass = cn(
                                 "flex items-center gap-3 px-2 py-2",
                                 starting && "opacity-50 cursor-wait",
@@ -4362,7 +4370,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               const onMainSelect = (e: any) => {
                                 e.preventDefault();
                                 if (stopping) return; // frozen while saving
-                                if (isMobile) return; // Disable recording on mobile
+                                if (isMobile || !hasRecordingSupport) return; // Disable when unsupported or on mobile
                                 if (persistence) {
                                   handlePlayPauseMicClick();
                                 } else {
