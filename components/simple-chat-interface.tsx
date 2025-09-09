@@ -4229,7 +4229,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               }
                               // If nothing is selected, show nothing
                             }
-                            const disabledByWorkspace = agentName === 'ikea-pilot';
+                            const disabledByWorkspace = !isAdminOverride && (activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript'));
                             return (
                               <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
                                 {parts.map((p, i) => {
@@ -4240,7 +4240,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                   // Timer token (e.g., 00:12 or 00:12:34)
                                   if (p.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
                                     return (
-                                      <span key={i} onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} title="View latest transcript">{p}</span>
+                                      <span key={i} onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} className={!disabledByWorkspace ? 'cursor-pointer' : undefined} title="View latest transcript">{p}</span>
                                     );
                                   }
                                   
@@ -4262,7 +4262,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                       return (
                                         <span key={i}>
                                           {before}
-                                          <span className="text-[hsl(var(--accent))]" onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} title="View latest transcript">{match}</span>
+                                          <span className={cn("text-[hsl(var(--accent))]", !disabledByWorkspace && 'cursor-pointer')} onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} title="View latest transcript">{match}</span>
                                           {after}
                                         </span>
                                       );
@@ -4284,7 +4284,9 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                     const parts = p.split(keyWord);
                                     return (
                                       <span key={i}>
-                                        {parts[0]}<span className="text-[hsl(var(--accent))]" onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} title="View latest transcript">{keyWord}</span>{parts.slice(1).join(keyWord)}
+                                        {parts[0]}
+                                        <span className={cn("text-[hsl(var(--accent))]", !disabledByWorkspace && 'cursor-pointer')} onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} title="View latest transcript">{keyWord}</span>
+                                        {parts.slice(1).join(keyWord)}
                                       </span>
                                     );
                                   }
@@ -4600,8 +4602,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                           {isBrowserRecording && !isReconnecting && (
                             <span
                               ref={timerDisplayRef}
-                              className="ml-1"
-                              onClick={() => { if (agentName !== 'ikea-pilot') onOpenLatestTranscript?.(); }}
+                              className={cn("ml-1", (!isAdminOverride && (activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript'))) ? undefined : 'cursor-pointer')}
+                              onClick={() => { if (!(!isAdminOverride && (activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')))) onOpenLatestTranscript?.(); }}
                               title="View latest transcript"
                             >
                               {formatTime(clientRecordingTime)}

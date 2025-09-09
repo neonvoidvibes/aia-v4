@@ -299,6 +299,7 @@ function HomeContent() {
   // State for S3 file viewer
   const [s3FileToView, setS3FileToView] = useState<{ s3Key: string; name: string; type: string } | null>(null);
   const [showS3FileViewer, setShowS3FileViewer] = useState(false);
+  const [viewerFromSettings, setViewerFromSettings] = useState(false);
 
   // State for archive confirmation modal
   const [showArchiveConfirmModal, setShowArchiveConfirmModal] = useState(false);
@@ -1699,20 +1700,28 @@ function HomeContent() {
   }, [showSettings, pageAgentName, isAuthorized, supabase.auth, fetchedDataFlags.objectiveFunctions]);
 
 
-  const handleViewS3File = (file: { s3Key: string; name: string; type: string }) => {
+  const handleViewS3File = (file: { s3Key: string; name: string; type: string }, options?: { fromSettings?: boolean }) => {
     setS3FileToView(file);
-    setPreviousActiveTab(activeTab); 
-    setShowSettings(false); 
+    // Only hide Settings and remember tab if launched from Settings
+    const fromSettings = !!options?.fromSettings;
+    setViewerFromSettings(fromSettings);
+    if (fromSettings) {
+      setPreviousActiveTab(activeTab);
+      setShowSettings(false);
+    }
     setShowS3FileViewer(true);
   };
 
   const handleCloseS3FileViewer = () => {
     setShowS3FileViewer(false);
     setS3FileToView(null);
-    setShowSettings(true); 
-    setTimeout(() => {
+    if (viewerFromSettings) {
+      setShowSettings(true);
+      setTimeout(() => {
         setActiveTab(previousActiveTab);
-    }, 0);
+      }, 0);
+    }
+    setViewerFromSettings(false);
   };
 
   const handleDownloadS3File = (file: { s3Key: string; name: string }) => {
@@ -2148,12 +2157,15 @@ function HomeContent() {
       */}
       {isFullscreen && globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'press-to-talk' && (
         <div
-          className="absolute top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0"
+          className={cn(
+            "absolute top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0",
+            (!((activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) && !permissionsData?.isAdminOverride)) && 'cursor-pointer'
+          )}
           onClick={async () => {
             try {
               if (!pageAgentName || !pageEventId) return;
-              // Feature flag: hide/disable for ikea-pilot workspace
-              if (pageAgentName === 'ikea-pilot') return;
+              // Workspace flag: hide when configured (unless admin override handled upstream)
+              if (activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) return;
 
               const openFirst = (files: FetchedFile[]) => {
                 if (!files || files.length === 0) return;
@@ -2398,8 +2410,8 @@ function HomeContent() {
               onOpenLatestTranscript={async () => {
                 try {
                   if (!pageAgentName || !pageEventId) return;
-                  // Feature flag: hide/disable for ikea-pilot workspace
-                  if (pageAgentName === 'ikea-pilot') return;
+                  // Workspace flag: hide when configured
+                  if ((activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) && !permissionsData?.isAdminOverride) return;
 
                   const openFirst = (files: FetchedFile[]) => {
                     if (!files || files.length === 0) return;
@@ -2768,7 +2780,7 @@ function HomeContent() {
                               <FetchedFileListItem
                                 key={fileWithPersistentStatus.s3Key || fileWithPersistentStatus.name}
                                 file={fileWithPersistentStatus} 
-                                onView={() => handleViewS3File({ s3Key: fileWithPersistentStatus.s3Key!, name: fileWithPersistentStatus.name, type: fileWithPersistentStatus.type || 'text/plain' })}
+                                onView={() => handleViewS3File({ s3Key: fileWithPersistentStatus.s3Key!, name: fileWithPersistentStatus.name, type: fileWithPersistentStatus.type || 'text/plain' }, { fromSettings: true })}
                                 onDownload={() => handleDownloadS3File({ s3Key: fileWithPersistentStatus.s3Key!, name: fileWithPersistentStatus.name })}
                                 onArchive={() => handleArchiveS3FileRequest(fileWithPersistentStatus)}
                                 onSaveAsMemory={() => handleSaveAsMemoryS3FileRequest(fileWithPersistentStatus)}
@@ -2826,7 +2838,7 @@ function HomeContent() {
                             <FetchedFileListItem
                               key={summaryFile.s3Key || summaryFile.name}
                               file={summaryFile} // Pass the whole file object
-                              onView={() => handleViewS3File({ s3Key: summaryFile.s3Key!, name: summaryFile.name, type: summaryFile.type || 'application/json' })}
+                              onView={() => handleViewS3File({ s3Key: summaryFile.s3Key!, name: summaryFile.name, type: summaryFile.type || 'application/json' }, { fromSettings: true })}
                               onDownload={() => handleDownloadS3File({ s3Key: summaryFile.s3Key!, name: summaryFile.name })}
                               showViewIcon={true}
                               showDownloadIcon={true}
@@ -2857,7 +2869,7 @@ function HomeContent() {
                              <FetchedFileListItem
                                key={rawFile.s3Key || rawFile.name}
                                file={rawFile}
-                               onView={() => handleViewS3File({ s3Key: rawFile.s3Key!, name: rawFile.name, type: rawFile.type || 'text/plain' })}
+                               onView={() => handleViewS3File({ s3Key: rawFile.s3Key!, name: rawFile.name, type: rawFile.type || 'text/plain' }, { fromSettings: true })}
                                onDownload={() => handleDownloadS3File({ s3Key: rawFile.s3Key!, name: rawFile.name })}
                                showViewIcon={true}
                                showDownloadIcon={true}
@@ -2915,7 +2927,7 @@ function HomeContent() {
                              <FetchedFileListItem
                                key={docFile.s3Key || docFile.name}
                                file={docFile}
-                               onView={() => handleViewS3File({ s3Key: docFile.s3Key!, name: docFile.name, type: docFile.type || 'application/octet-stream' })}
+                               onView={() => handleViewS3File({ s3Key: docFile.s3Key!, name: docFile.name, type: docFile.type || 'application/octet-stream' }, { fromSettings: true })}
                                onDownload={() => handleDownloadS3File({ s3Key: docFile.s3Key!, name: docFile.name })}
                                showViewIcon={true}
                                showDownloadIcon={true}
@@ -2949,14 +2961,14 @@ function HomeContent() {
                       {baseSystemPromptS3Files.length > 0 && (
                         <div className="mt-4 space-y-2 w-full">
                           {baseSystemPromptS3Files.map(file => (
-                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!file.name.startsWith('systemprompt_base')} />
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' }, { fromSettings: true })} showViewIcon={!file.name.startsWith('systemprompt_base')} />
                           ))}
                         </div>
                       )}
                       {agentSystemPromptS3Files.length > 0 && (
                         <div className="mt-2 space-y-2 w-full">
                           {agentSystemPromptS3Files.map(file => (
-                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' }, { fromSettings: true })} showViewIcon={true} />
                           ))}
                         </div>
                       )}
@@ -2969,7 +2981,7 @@ function HomeContent() {
                       <div className="mt-4 space-y-2 w-full">
                         {agentPrimaryContextS3Files.length > 0 ? (
                           agentPrimaryContextS3Files.map(file => (
-                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={true} />
+                            <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' }, { fromSettings: true })} showViewIcon={true} />
                           ))
                         ) : (<p className="text-sm text-muted-foreground">No agent-specific context files found in S3 for '{pageAgentName}'.</p>)}
                       </div>
@@ -2984,7 +2996,7 @@ function HomeContent() {
                             )}
                             {baseFrameworkS3Files.length > 0 ? (
                                 baseFrameworkS3Files.map(file => (
-                                <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' })} showViewIcon={!file.name.startsWith('frameworks_base')} />
+                                <FetchedFileListItem key={file.s3Key || file.name} file={file} onView={() => handleViewS3File({ s3Key: file.s3Key!, name: file.name, type: file.type || 'text/plain' }, { fromSettings: true })} showViewIcon={!file.name.startsWith('frameworks_base')} />
                                 ))
                             ) : (
                                 !(agentObjectiveFunction || baseObjectiveFunction) && <p className="text-sm text-muted-foreground">No base frameworks found in S3.</p>
