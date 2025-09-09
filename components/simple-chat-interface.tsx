@@ -492,7 +492,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-  function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const { t } = useLocalization();
 
@@ -4229,12 +4229,19 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                               }
                               // If nothing is selected, show nothing
                             }
+                            const disabledByWorkspace = agentName === 'ikea-pilot';
                             return (
                               <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
                                 {parts.map((p, i) => {
-                                  // Skip pipe separator and time
-                                  if (p === '|' || p.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+                                  // Pipe separator
+                                  if (p === '|') {
                                     return <span key={i}>{p}</span>;
+                                  }
+                                  // Timer token (e.g., 00:12 or 00:12:34)
+                                  if (p.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+                                    return (
+                                      <span key={i} onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} title="View latest transcript">{p}</span>
+                                    );
                                   }
                                   
                                   const platform = isMobile ? 'mobile' : 'desktop';
@@ -4254,7 +4261,9 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                       const after = p.slice(idx + liveWord.length);
                                       return (
                                         <span key={i}>
-                                          {before}<span className="text-[hsl(var(--accent))]">{match}</span>{after}
+                                          {before}
+                                          <span className="text-[hsl(var(--accent))]" onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} title="View latest transcript">{match}</span>
+                                          {after}
                                         </span>
                                       );
                                     }
@@ -4275,7 +4284,7 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                                     const parts = p.split(keyWord);
                                     return (
                                       <span key={i}>
-                                        {parts[0]}<span className="text-[hsl(var(--accent))]">{keyWord}</span>{parts.slice(1).join(keyWord)}
+                                        {parts[0]}<span className="text-[hsl(var(--accent))]" onClick={() => { if (!disabledByWorkspace) onOpenLatestTranscript?.(); }} title="View latest transcript">{keyWord}</span>{parts.slice(1).join(keyWord)}
                                       </span>
                                     );
                                   }
@@ -4588,7 +4597,16 @@ const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceP
                           ) : (
                             "no"
                           )}
-                          {isBrowserRecording && !isReconnecting && <span ref={timerDisplayRef} className="ml-1">{formatTime(clientRecordingTime)}</span>}
+                          {isBrowserRecording && !isReconnecting && (
+                            <span
+                              ref={timerDisplayRef}
+                              className="ml-1"
+                              onClick={() => { if (agentName !== 'ikea-pilot') onOpenLatestTranscript?.(); }}
+                              title="View latest transcript"
+                            >
+                              {formatTime(clientRecordingTime)}
+                            </span>
+                          )}
                         </span>
                         {" "}· <span className={cn(wsStatus === 'open' && "text-green-500", wsStatus === 'error' && "text-red-500", wsStatus === 'closed' && "text-yellow-500")}>{wsStatus}</span>
                     </div>

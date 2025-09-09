@@ -2147,7 +2147,41 @@ function HomeContent() {
         It is positioned top-center on mobile and top-right on desktop.
       */}
       {isFullscreen && globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'press-to-talk' && (
-        <div className="absolute top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0">
+        <div
+          className="absolute top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0"
+          onClick={async () => {
+            try {
+              if (!pageAgentName || !pageEventId) return;
+              // Feature flag: hide/disable for ikea-pilot workspace
+              if (pageAgentName === 'ikea-pilot') return;
+
+              const openFirst = (files: FetchedFile[]) => {
+                if (!files || files.length === 0) return;
+                const first = files[0];
+                if (first?.s3Key) {
+                  handleViewS3File({ s3Key: first.s3Key, name: first.name, type: first.type || 'text/plain' });
+                }
+              };
+
+              if (transcriptionS3Files && transcriptionS3Files.length > 0) {
+                openFirst(transcriptionS3Files);
+                return;
+              }
+              const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
+              await fetchS3Data(prefix, (data) => {
+                const sorted = [...data].sort((a, b) => {
+                  const dateA = new Date(a.lastModified || 0).getTime();
+                  const dateB = new Date(b.lastModified || 0).getTime();
+                  return dateB - dateA;
+                });
+                setTranscriptionS3Files(sorted);
+                openFirst(sorted);
+              }, 'Transcriptions (header timer open)');
+            } catch (e) {
+              console.warn('Open latest transcript from header failed:', e);
+            }
+          }}
+        >
           <span className={`inline-block w-2 h-2 rounded-full ${
             (globalRecordingStatus.type === 'long-form-chat' && recordingState.isBrowserPaused) || (globalRecordingStatus.type === 'long-form-note' && noteRecordingTime > 0 && recordingState.isBrowserPaused) ? 'bg-yellow-500' :
             globalRecordingStatus.type === 'long-form-chat' ? 'bg-blue-500 animate-pulse' :
@@ -2361,6 +2395,39 @@ function HomeContent() {
               activeUiConfig={activeUiConfig}
               tooltips={activeUiConfig.tooltips || {}}
               onOpenSettings={() => setShowSettings(true)}
+              onOpenLatestTranscript={async () => {
+                try {
+                  if (!pageAgentName || !pageEventId) return;
+                  // Feature flag: hide/disable for ikea-pilot workspace
+                  if (pageAgentName === 'ikea-pilot') return;
+
+                  const openFirst = (files: FetchedFile[]) => {
+                    if (!files || files.length === 0) return;
+                    const first = files[0];
+                    if (first?.s3Key) {
+                      handleViewS3File({ s3Key: first.s3Key, name: first.name, type: first.type || 'text/plain' });
+                    }
+                  };
+
+                  if (transcriptionS3Files && transcriptionS3Files.length > 0) {
+                    openFirst(transcriptionS3Files);
+                    return;
+                  }
+                  // Fallback: fetch from S3 and then open the first (latest)
+                  const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
+                  await fetchS3Data(prefix, (data) => {
+                    const sorted = [...data].sort((a, b) => {
+                      const dateA = new Date(a.lastModified || 0).getTime();
+                      const dateB = new Date(b.lastModified || 0).getTime();
+                      return dateB - dateA;
+                    });
+                    setTranscriptionS3Files(sorted);
+                    openFirst(sorted);
+                  }, 'Transcriptions (inline open)');
+                } catch (e) {
+                  console.warn('Open latest transcript failed:', e);
+                }
+              }}
             />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
