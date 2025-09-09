@@ -2005,7 +2005,8 @@ function HomeContent() {
     if (newAgent && newAgent !== pageAgentName) {
       const currentParams = new URLSearchParams(searchParams.toString());
       currentParams.set('agent', newAgent);
-      // Preserve other params like 'event' when switching agents
+      // Reset event to main/default when switching agents
+      currentParams.set('event', '0000');
       router.push(`/?${currentParams.toString()}`);
     }
   };

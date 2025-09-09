@@ -73,6 +73,8 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, al
     setTimeout(() => {
       const currentParams = new URLSearchParams(searchParams.toString());
       currentParams.set('agent', newAgent);
+      // Explicitly reset event to main/default when switching agents
+      currentParams.set('event', '0000');
       router.push(`/?${currentParams.toString()}`);
     }, 0);
   };

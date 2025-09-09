@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     const userMessages = body.messages?.filter((msg: { role: string }) => msg.role === 'user' || msg.role === 'assistant') || [];
     // Prioritize settings from body.data if they exist, as simple-chat-interface places them there.
     const agent = body.agent || body.data?.agent;
-    const event = body.event || body.data?.event;
+    const inputEvent = body.event || body.data?.event;
     const model = body.model || body.data?.model;
     const temperature = body.temperature ?? body.data?.temperature ?? 0.5;
     
@@ -103,9 +103,37 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Missing agent' }), { status: 400 });
     }
 
+    // Validate event against available events for this agent; default to main event "0000" if missing/invalid
+    let safeEvent: string = inputEvent || '0000';
+    if (agent) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (token) {
+          const eventsUrl = `${activeBackendUrl}/api/s3/list-events?agentName=${encodeURIComponent(agent)}`;
+          const res = await fetch(eventsUrl, { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
+          if (res.ok) {
+            const json = await res.json().catch(() => ({}));
+            const events: string[] = Array.isArray(json?.events) ? json.events : [];
+            if (!events.includes(safeEvent)) {
+              safeEvent = '0000';
+            }
+          } else {
+            safeEvent = '0000';
+          }
+        } else {
+          safeEvent = '0000';
+        }
+      } catch {
+        safeEvent = '0000';
+      }
+    } else {
+      safeEvent = '0000';
+    }
+
     log.info("Chat request validated", { 
       agent, 
-      event: event || '0000',
+      event: safeEvent,
       messageCount: userMessages.length,
       transcriptListenMode: transcriptListenModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
@@ -119,7 +147,7 @@ export async function POST(req: NextRequest) {
     const requestBodyPayload = {
       messages: userMessages,
       agent: agent,
-      event: event || '0000',
+      event: safeEvent,
       model: model,
       temperature: temperature,
       transcriptListenMode: transcriptListenModeSetting,
