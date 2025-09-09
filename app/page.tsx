@@ -676,6 +676,7 @@ function HomeContent() {
     const eventParam = searchParams.get('event');
 
     if (pageAgentName !== agentParam || pageEventId !== eventParam) {
+      // Clear fetched flags so new agent/event data reloads
       setFetchedDataFlags({
         transcriptions: false,
         baseSystemPrompts: false,
@@ -688,6 +689,11 @@ function HomeContent() {
         objectiveFunctions: false,
         agentDocuments: false,
       });
+      // Reset transcript-related caches to avoid cross-agent leakage
+      setTranscriptionS3Files([]);
+      setSavedTranscriptSummaries([]);
+      setRawSavedS3Transcripts([]);
+      setIndividualRawTranscriptToggleStates({});
       setChatHistory([]);
     }
 
@@ -2175,12 +2181,18 @@ function HomeContent() {
                 }
               };
 
-              if (transcriptionS3Files && transcriptionS3Files.length > 0) {
+              const expectedPrefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
+              const cacheMatchesContext = (
+                transcriptionS3Files && transcriptionS3Files.length > 0 &&
+                typeof transcriptionS3Files[0]?.s3Key === 'string' &&
+                (transcriptionS3Files[0].s3Key as string).startsWith(expectedPrefix)
+              );
+
+              if (cacheMatchesContext) {
                 openFirst(transcriptionS3Files);
                 return;
               }
-              const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
-              await fetchS3Data(prefix, (data) => {
+              await fetchS3Data(expectedPrefix, (data) => {
                 const sorted = [...data].sort((a, b) => {
                   const dateA = new Date(a.lastModified || 0).getTime();
                   const dateB = new Date(b.lastModified || 0).getTime();
@@ -2421,13 +2433,19 @@ function HomeContent() {
                     }
                   };
 
-                  if (transcriptionS3Files && transcriptionS3Files.length > 0) {
+                  const expectedPrefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
+                  const cacheMatchesContext = (
+                    transcriptionS3Files && transcriptionS3Files.length > 0 &&
+                    typeof transcriptionS3Files[0]?.s3Key === 'string' &&
+                    (transcriptionS3Files[0].s3Key as string).startsWith(expectedPrefix)
+                  );
+
+                  if (cacheMatchesContext) {
                     openFirst(transcriptionS3Files);
                     return;
                   }
                   // Fallback: fetch from S3 and then open the first (latest)
-                  const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
-                  await fetchS3Data(prefix, (data) => {
+                  await fetchS3Data(expectedPrefix, (data) => {
                     const sorted = [...data].sort((a, b) => {
                       const dateA = new Date(a.lastModified || 0).getTime();
                       const dateB = new Date(b.lastModified || 0).getTime();
