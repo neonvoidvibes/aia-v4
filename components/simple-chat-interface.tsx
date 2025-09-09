@@ -4229,7 +4229,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               }
                               // If nothing is selected, show nothing
                             }
-                            const disabledByWorkspace = !isAdminOverride && (activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript'));
+                            const disabledByWorkspace = !isAdminOverride && !!activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript');
                             return (
                               <span className="ml-2 inline-flex items-center gap-1 text-[hsl(var(--icon-secondary))] opacity-50 text-left select-none font-mono text-[11px] whitespace-nowrap">
                                 {parts.map((p, i) => {
@@ -4602,8 +4602,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                           {isBrowserRecording && !isReconnecting && (
                             <span
                               ref={timerDisplayRef}
-                              className={cn("ml-1", (!isAdminOverride && (activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript'))) ? undefined : 'cursor-pointer')}
-                              onClick={() => { if (!(!isAdminOverride && (activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')))) onOpenLatestTranscript?.(); }}
+                              className={cn("ml-1", (!isAdminOverride && !!activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) ? undefined : 'cursor-pointer')}
+                              onClick={() => { if (!(!isAdminOverride && !!activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript'))) onOpenLatestTranscript?.(); }}
                               title="View latest transcript"
                             >
                               {formatTime(clientRecordingTime)}

@@ -2159,13 +2159,13 @@ function HomeContent() {
         <div
           className={cn(
             "absolute top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0",
-            (!((activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) && !permissionsData?.isAdminOverride)) && 'cursor-pointer'
+            (!(!permissionsData?.isAdminOverride && !!activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript'))) && 'cursor-pointer'
           )}
           onClick={async () => {
             try {
               if (!pageAgentName || !pageEventId) return;
               // Workspace flag: hide when configured (unless admin override handled upstream)
-              if (activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) return;
+              if (!permissionsData?.isAdminOverride && !!activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) return;
 
               const openFirst = (files: FetchedFile[]) => {
                 if (!files || files.length === 0) return;
@@ -2411,7 +2411,7 @@ function HomeContent() {
                 try {
                   if (!pageAgentName || !pageEventId) return;
                   // Workspace flag: hide when configured
-                  if ((activeUiConfig?.hide_transcript_shortcuts || activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) && !permissionsData?.isAdminOverride) return;
+                  if (!permissionsData?.isAdminOverride && !!activeUiConfig?.hide_click_targets?.includes?.('open_latest_transcript')) return;
 
                   const openFirst = (files: FetchedFile[]) => {
                     if (!files || files.length === 0) return;
