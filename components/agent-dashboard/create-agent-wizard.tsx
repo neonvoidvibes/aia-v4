@@ -87,7 +87,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
 
 
   // State for API Keys (Phase 2.3)
-  const [apiKeys, setApiKeys] = useState({ openai: '', anthropic: '', google: '' });
+  const [apiKeys, setApiKeys] = useState({ openai: '', anthropic: '', google: '', groq: '' });
   
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingName, setIsCheckingName] = useState(false);
@@ -606,6 +606,10 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                <div className="space-y-2">
                   <Label htmlFor="google-key" className="text-lg font-semibold leading-snug">Google API Key</Label>
                   <Input id="google-key" name="google-key" type="text" value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} />
+               </div>
+               <div className="space-y-2">
+                  <Label htmlFor="groq-key" className="text-lg font-semibold leading-snug">Groq API Key</Label>
+                  <Input id="groq-key" name="groq-key" type="text" value={apiKeys.groq} onChange={(e) => setApiKeys(p => ({...p, groq: e.target.value}))} />
                </div>
             </div>
           )}
