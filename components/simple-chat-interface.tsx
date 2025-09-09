@@ -86,6 +86,7 @@ import { useLocalization } from "@/context/LocalizationContext";
 import { ActionTooltip } from "@/components/ui/action-tooltip";
 import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
 import { manager as recordingManager } from "@/lib/recordingManager";
+import { useSilentChunkDetector } from "@/hooks/use-silent-chunk-detector";
 import { useRecordingSupport } from "@/hooks/use-recording-support";
 
 // Voice ID for ElevenLabs TTS.
@@ -546,6 +547,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     const wsRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioStreamRef = useRef<MediaStream | null>(null);
+    const [silentDetectStream, setSilentDetectStream] = useState<MediaStream | null>(null);
     const localRecordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -566,6 +568,37 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     const stablePongsResetTimerRef = useRef<number | null>(null);
     const heartbeatMissesRef = useRef(0);
     const isStoppingRef = useRef(false);
+
+    // When using persistence manager, reflect its stream into our detector
+    useEffect(() => {
+        const unsub = recordingManager.subscribe((st) => {
+            try { console.debug('[SilentDetector][UI] manager state', st.phase, 'paused:', !!st.paused); } catch {}
+            const s = recordingManager.getStream();
+            try { console.debug('[SilentDetector][UI] manager stream present:', !!s); } catch {}
+            if (s !== silentDetectStream) {
+                setSilentDetectStream(s || null);
+            }
+        });
+        // Initialize once
+        try {
+            const s0 = recordingManager.getStream();
+            try { console.debug('[SilentDetector][UI] initial manager stream present:', !!s0); } catch {}
+            if (s0 && s0 !== silentDetectStream) setSilentDetectStream(s0);
+        } catch {}
+        return () => { try { unsub(); } catch {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Silent-chunk detection: 10s window, toast every 30s, ignore first chunk
+    const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
+        stream: silentDetectStream,
+        isActive: isBrowserRecording,
+        windowMs: 10_000,
+        cooldownMs: 30_000,
+        levelThreshold: 0.02,
+        ignoreInitialChunks: 1,
+        message: 'No mic input detected in the last 10s. Check your mic/input settings?',
+    });
 
     useEffect(() => {
         const agentParam = searchParams?.get('agent');
@@ -1827,6 +1860,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
             debugLog("[Browser Recording] Requesting user media...");
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             audioStreamRef.current = stream;
+            setSilentDetectStream(stream);
             debugLog("[Browser Recording] User media obtained.");
             
             const options = { mimeType: 'audio/webm;codecs=opus' }; 
@@ -1845,6 +1879,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                 } else if (event.data.size > 0 && wsRef.current?.readyState !== WebSocket.OPEN) {
                     console.warn(`[MediaRecorder ondataavailable] WebSocket not open (state: ${wsRef.current?.readyState}), cannot send audio data.`);
                 }
+                console.debug('[SilentDetector] chunk boundary evaluate');
+                onChunkBoundary();
             };
 
             mediaRecorderRef.current.onstop = () => { 
@@ -1853,6 +1889,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                     audioStreamRef.current.getTracks().forEach(track => track.stop());
                     audioStreamRef.current = null;
                 }
+                setSilentDetectStream(null);
+                resetDetector();
                 setIsBrowserRecording(false);
                 setIsBrowserPaused(false);
             };

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
+import { useSilentChunkDetector } from '@/hooks/use-silent-chunk-detector';
 
 type UseRecordingProps = {
   agentName: string | null;
@@ -12,7 +13,19 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
   const [isStopping, setIsStopping] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
+
+  // Silent-chunk detection: 10s window, 30s toast cooldown, ignore first chunk
+  const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
+    stream: audioStream,
+    isActive: isRecording,
+    windowMs: 10_000,
+    cooldownMs: 30_000,
+    levelThreshold: 0.02,
+    ignoreInitialChunks: 1,
+    message: 'No mic input detected in the last 10s. Check your mic/input settings?',
+  });
 
   const startRecording = useCallback(async () => {
     if (!agentName) {
@@ -55,6 +68,7 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
 
@@ -74,6 +88,8 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
         if (event.data.size > 0 && webSocket.readyState === WebSocket.OPEN) {
           webSocket.send(event.data);
         }
+        console.debug('[SilentDetector] chunk boundary evaluate');
+        onChunkBoundary();
       };
 
       webSocket.onclose = async () => {
@@ -137,6 +153,8 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
       setIsPaused(false);
       setIsStopping(false);
       setSessionId(null);
+      setAudioStream(null);
+      resetDetector();
     }
   };
 

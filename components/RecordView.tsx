@@ -34,6 +34,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { createClient } from '@/utils/supabase/client';
+import { useSilentChunkDetector } from '@/hooks/use-silent-chunk-detector';
 
 // Utility for development-only logging
 const debugLog = (...args: any[]) => {
@@ -112,6 +113,7 @@ const RecordView: React.FC<RecordViewProps> = ({
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -125,6 +127,17 @@ const RecordView: React.FC<RecordViewProps> = ({
   
   const tryReconnectRef = React.useRef<() => void>(() => {});
   const supabase = createClient();
+
+  // Detect 10s of silence and toast no more than every 30s.
+  const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
+    stream: audioStream,
+    isActive: globalRecordingStatus.isRecording,
+    windowMs: 10_000,
+    cooldownMs: 30_000,
+    levelThreshold: 0.02,
+    ignoreInitialChunks: 1,
+    message: 'No mic input detected in the last 10s. Check your mic/input settings?',
+  });
 
   // Helper function to check if a recording is bookmarked (saved to memory)
   const isRecordingBookmarked = (s3Key: string) => {
@@ -420,6 +433,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
+      setAudioStream(stream);
       
       const options = { mimeType: 'audio/webm;codecs=opus' };
       if (!MediaRecorder.isTypeSupported(options.mimeType)) {
@@ -434,6 +448,9 @@ const RecordView: React.FC<RecordViewProps> = ({
         if (event.data.size > 0 && webSocketRef.current?.readyState === WebSocket.OPEN) {
           webSocketRef.current.send(event.data);
         }
+        // Check last 10s window on each chunk boundary
+        console.debug('[SilentDetector] chunk boundary evaluate');
+        onChunkBoundary();
       };
 
       mediaRecorder.onstop = () => {
@@ -442,6 +459,8 @@ const RecordView: React.FC<RecordViewProps> = ({
           audioStreamRef.current.getTracks().forEach(track => track.stop());
           audioStreamRef.current = null;
         }
+        setAudioStream(null);
+        resetDetector();
       };
       
       mediaRecorder.onerror = (event) => {

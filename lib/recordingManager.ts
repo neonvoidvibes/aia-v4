@@ -29,6 +29,7 @@ export interface RecordingManager {
   attachToExisting(sessionId: string): Promise<void>; // rebind to active session
   setCurrentChat(chatId: string): void;               // routing hint
   getState(): RecordingState;
+  getStream(): MediaStream | null;                    // expose current mic stream for analysis UI
   subscribe(fn: (s: RecordingState) => void): () => void;
   onTranscript(fn: (c: TranscriptChunk) => void): () => void;
   requestTakeover(): Promise<boolean>;                // cross‑tab
@@ -92,6 +93,7 @@ class RecordingManagerImpl implements RecordingManager {
   }
 
   getState(): RecordingState { return this.state; }
+  getStream(): MediaStream | null { return this.stream; }
 
   subscribe(fn: (s: RecordingState) => void): () => void {
     this.subs.add(fn);
@@ -337,6 +339,7 @@ class RecordingManagerImpl implements RecordingManager {
 
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      try { console.debug('[RM] stream acquired'); } catch {}
     } catch (e:any) {
       this.update({ phase: 'error', sessionId, error: { code: 'mic_denied', message: 'Microphone denied' } });
       throw e;
@@ -424,6 +427,7 @@ class RecordingManagerImpl implements RecordingManager {
       }
     } catch {}
     try { this.stream?.getTracks().forEach(t => t.stop()); } catch {}
+    try { console.debug('[RM] stream cleared'); } catch {}
     this.stream = null;
     this.mediaRecorder = null;
     try {
