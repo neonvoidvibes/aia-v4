@@ -25,13 +25,6 @@ const DEFAULT_COOLDOWN_MS = 30_000;
 const DEFAULT_LEVEL_THRESHOLD = 0.06;
 const DEFAULT_IGNORE_INITIAL_CHUNKS = 1;
 
-function debugLog(...args: any[]) {
-  if (process.env.NODE_ENV === "development") {
-    // eslint-disable-next-line no-console
-    console.debug("[SilentDetector]", ...args);
-  }
-}
-
 // Convert byte time domain data [0..255] to RMS in [0..1]
 function computeRmsFromByteData(buf: Uint8Array): number {
   let sumSquares = 0;
@@ -50,7 +43,7 @@ export function useSilentChunkDetector({
   cooldownMs = DEFAULT_COOLDOWN_MS,
   levelThreshold = DEFAULT_LEVEL_THRESHOLD,
   ignoreInitialChunks = DEFAULT_IGNORE_INITIAL_CHUNKS,
-  message = "No mic input detected in the last 10s. Check your mic/input settings?",
+  message = "No audio detected. Check your mic/input settings.",
 }: UseSilentChunkDetectorOptions) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -70,7 +63,6 @@ export function useSilentChunkDetector({
   // Reset on activation changes
   useEffect(() => {
     if (!isActive) {
-      debugLog('inactive: tearing down');
       // Stop sampling and clean up
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -93,17 +85,13 @@ export function useSilentChunkDetector({
 
   // Setup analyser for the given stream
   useEffect(() => {
-    if (!isActive || !stream) {
-      debugLog('not starting analyser. isActive:', isActive, 'stream:', !!stream);
-      return;
-    }
+    if (!isActive || !stream) return;
 
     let cancelled = false;
     (async () => {
       try {
         const AudioCtx: typeof AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
         const ctx = new AudioCtx();
-        debugLog('analyser setup start');
         // Try to ensure the context is running (some browsers start as 'suspended')
         if (ctx.state === 'suspended') {
           try { await ctx.resume(); } catch { /* noop */ }
@@ -144,7 +132,6 @@ export function useSilentChunkDetector({
           rafRef.current = requestAnimationFrame(sample);
         };
         rafRef.current = requestAnimationFrame(sample);
-        debugLog('analyser setup complete; sampling started');
 
         // Periodic evaluation fallback (in case ondataavailable boundaries aren't called)
         if (intervalRef.current) clearInterval(intervalRef.current);
@@ -178,23 +165,16 @@ export function useSilentChunkDetector({
               if (now - lastToastAt >= cooldownMs) {
                 lastToastAtRef.current = now;
                 toast.info(message, { duration: 4000 });
-                debugLog("[timer] Silent window detected, toast shown", { maxRms: maxRms.toFixed(3), windowMs });
-              } else {
-                debugLog("[timer] Silent window detected, within cooldown", { maxRms: maxRms.toFixed(3) });
               }
-            } else {
-              debugLog("[timer] Non-silent window", { maxRms: maxRms.toFixed(3) });
             }
           }
         }, 1000);
       } catch (err) {
-        debugLog("Analyser setup failed", err);
       }
     })();
 
     return () => {
       cancelled = true;
-      debugLog('cleanup analyser');
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -202,7 +182,7 @@ export function useSilentChunkDetector({
       try {
         if (analyserRef.current) analyserRef.current.disconnect();
         if (sourceRef.current) sourceRef.current.disconnect();
-      } catch { /* noop */ }
+      } catch { }
       analyserRef.current = null;
       sourceRef.current = null;
       if (audioContextRef.current && audioContextRef.current.state !== "closed") {
@@ -216,7 +196,6 @@ export function useSilentChunkDetector({
     if (!isActive) return { isSilent: false };
     chunkCountRef.current += 1;
     if (chunkCountRef.current <= ignoreInitialChunks) {
-      debugLog("Ignoring initial chunk", chunkCountRef.current);
       return { isSilent: false };
     }
 
@@ -236,12 +215,8 @@ export function useSilentChunkDetector({
       if (now - lastToastAt >= cooldownMs) {
         lastToastAtRef.current = now;
         toast.info(message, { duration: 4000 });
-        debugLog("Silent window detected, toast shown", { maxRms: maxRms.toFixed(3), windowMs });
-      } else {
-        debugLog("Silent window detected, within cooldown", { maxRms: maxRms.toFixed(3) });
       }
     } else {
-      debugLog("Non-silent window", { maxRms: maxRms.toFixed(3) });
     }
 
     return { isSilent };

@@ -24,7 +24,7 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
     cooldownMs: 30_000,
     levelThreshold: 0.02,
     ignoreInitialChunks: 1,
-    message: 'No mic input detected in the last 10s. Check your mic/input settings?',
+    message: 'No audio detected. Check your mic/input settings.',
   });
 
   const startRecording = useCallback(async () => {
@@ -88,7 +88,6 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
         if (event.data.size > 0 && webSocket.readyState === WebSocket.OPEN) {
           webSocket.send(event.data);
         }
-        console.debug('[SilentDetector] chunk boundary evaluate');
         onChunkBoundary();
       };
 

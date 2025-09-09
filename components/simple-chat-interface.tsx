@@ -571,10 +571,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
     // When using persistence manager, reflect its stream into our detector
     useEffect(() => {
-        const unsub = recordingManager.subscribe((st) => {
-            try { console.debug('[SilentDetector][UI] manager state', st.phase, 'paused:', !!st.paused); } catch {}
+        const unsub = recordingManager.subscribe((_st) => {
             const s = recordingManager.getStream();
-            try { console.debug('[SilentDetector][UI] manager stream present:', !!s); } catch {}
             if (s !== silentDetectStream) {
                 setSilentDetectStream(s || null);
             }
@@ -582,7 +580,6 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         // Initialize once
         try {
             const s0 = recordingManager.getStream();
-            try { console.debug('[SilentDetector][UI] initial manager stream present:', !!s0); } catch {}
             if (s0 && s0 !== silentDetectStream) setSilentDetectStream(s0);
         } catch {}
         return () => { try { unsub(); } catch {} };
@@ -597,7 +594,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         cooldownMs: 30_000,
         levelThreshold: 0.02,
         ignoreInitialChunks: 1,
-        message: 'No mic input detected in the last 10s. Check your mic/input settings?',
+        message: 'No audio detected. Check your mic/input settings.',
     });
 
     useEffect(() => {
@@ -1879,7 +1876,6 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                 } else if (event.data.size > 0 && wsRef.current?.readyState !== WebSocket.OPEN) {
                     console.warn(`[MediaRecorder ondataavailable] WebSocket not open (state: ${wsRef.current?.readyState}), cannot send audio data.`);
                 }
-                console.debug('[SilentDetector] chunk boundary evaluate');
                 onChunkBoundary();
             };
 

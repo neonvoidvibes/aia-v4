@@ -136,7 +136,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     cooldownMs: 30_000,
     levelThreshold: 0.02,
     ignoreInitialChunks: 1,
-    message: 'No mic input detected in the last 10s. Check your mic/input settings?',
+    message: 'No audio detected. Check your mic/input settings.',
   });
 
   // Helper function to check if a recording is bookmarked (saved to memory)
@@ -449,7 +449,6 @@ const RecordView: React.FC<RecordViewProps> = ({
           webSocketRef.current.send(event.data);
         }
         // Check last 10s window on each chunk boundary
-        console.debug('[SilentDetector] chunk boundary evaluate');
         onChunkBoundary();
       };
 

@@ -339,7 +339,7 @@ class RecordingManagerImpl implements RecordingManager {
 
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      try { console.debug('[RM] stream acquired'); } catch {}
+      
     } catch (e:any) {
       this.update({ phase: 'error', sessionId, error: { code: 'mic_denied', message: 'Microphone denied' } });
       throw e;
@@ -427,7 +427,6 @@ class RecordingManagerImpl implements RecordingManager {
       }
     } catch {}
     try { this.stream?.getTracks().forEach(t => t.stop()); } catch {}
-    try { console.debug('[RM] stream cleared'); } catch {}
     this.stream = null;
     this.mediaRecorder = null;
     try {
