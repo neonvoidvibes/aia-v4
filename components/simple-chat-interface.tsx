@@ -538,6 +538,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     const [wsStatus, setWsStatus] = useState<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
     const [isBrowserRecording, setIsBrowserRecording] = useState(false); 
     const [isBrowserPaused, setIsBrowserPaused] = useState(false);    
+    // Controls the open state of the plus/controls menu for rotating the + icon
+    const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
     const [clientRecordingTime, setClientRecordingTime] = useState(0); 
     const [managerPhase, setManagerPhase] = useState<'idle'|'starting'|'active'|'suspended'|'stopping'|'error'>('idle');
     const [isReconnecting, setIsReconnecting] = useState(false);
@@ -4190,7 +4192,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                         />
                       </div>
                       <div className="flex items-center justify-between w-full mt-1">
-                        <DropdownMenu>
+                        <DropdownMenu open={isPlusMenuOpen} onOpenChange={setIsPlusMenuOpen}>
                           <DropdownMenuTrigger asChild>
                             <button 
                               type="button" 
@@ -4201,7 +4203,14 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               aria-label="More options" 
                               disabled={!!pendingActionRef.current || !isPageReady || isReconnecting || pressToTalkState !== 'idle'}
                             >
-                              <Plus size={24} strokeWidth={1.55} className="mobile-icon chat-sliders-icon" />
+                              <Plus
+                                size={24}
+                                strokeWidth={1.55}
+                                className={cn(
+                                  "mobile-icon chat-sliders-icon transition-transform duration-200",
+                                  isPlusMenuOpen ? "rotate-45" : "rotate-0"
+                                )}
+                              />
                             </button>
                           </DropdownMenuTrigger>
                           {/* Inline listening indicator + optional count + timer (active only) */}

@@ -226,7 +226,7 @@ export default function ChatInterface() {
                 className="text-gray-400 hover:text-gray-600 transition-colors"
                 onClick={() => setShowPlusMenu(!showPlusMenu)}
               >
-                <Plus className="h-5 w-5" />
+                <Plus className={cn("h-5 w-5 transition-transform duration-200", showPlusMenu ? "rotate-45" : "rotate-0")} />
               </button>
 
               <AnimatePresence>
