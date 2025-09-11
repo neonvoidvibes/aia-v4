@@ -366,12 +366,20 @@ function HomeContent() {
     clientRecordingTime: number;
     isReconnecting: boolean;
   }) => {
+    const wasRecording = recordingState.isBrowserRecording;
     setRecordingState(newState);
+    
     if (newState.isBrowserRecording) {
       setGlobalRecordingStatus({
         type: 'long-form-chat',
         isRecording: true,
       });
+      
+      // Invalidate transcript cache when recording starts
+      if (!wasRecording) {
+        setTranscriptionS3Files([]);
+        setFetchedDataFlags(prev => ({ ...prev, transcriptions: false }));
+      }
     } else {
       // Only reset if the current global recording is a long-form chat
       setGlobalRecordingStatus(prev => prev.type === 'long-form-chat' ? {
@@ -379,7 +387,7 @@ function HomeContent() {
         isRecording: false,
       } : prev);
     }
-  }, []);
+  }, [recordingState.isBrowserRecording]);
 
 
   // Flags to track if data has been fetched for the current agent/event
