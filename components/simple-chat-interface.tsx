@@ -435,6 +435,7 @@ interface SimpleChatInterfaceProps {
   activeUiConfig?: any; // Supabase workspace config - controls all UI behavior
   tooltips?: Record<string, string>;
   onOpenSettings?: () => void;
+  onOpenLatestTranscript?: () => void;
 }
 
 export interface ChatInterfaceHandle {
