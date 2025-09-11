@@ -67,7 +67,7 @@ import WaveformIcon from "@/components/ui/waveform-icon";
 import { cn } from "@/lib/utils"
 import { toast } from "sonner" // Import toast
 import { type VADAggressiveness } from "./VADSettings";
-import { MODEL_GROUPS, MODEL_DISPLAY_NAMES_MAP } from "@/lib/model-map";
+import { MODEL_GROUPS, MODEL_DISPLAY_NAMES_MAP, MODEL_SHORT_NAMES_MAP } from "@/lib/model-map";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -4519,7 +4519,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                         marginRight: '4px'
                                       }}
                                     >
-                                      {MODEL_DISPLAY_NAMES_MAP.get(selectedModel) || selectedModel}
+                                      {MODEL_SHORT_NAMES_MAP.get(selectedModel) || selectedModel}
                                     </span>
                                     <ChevronDown className="h-3 w-3 flex-shrink-0 mobile-chevron" />
                                   </button>
