@@ -306,7 +306,10 @@ const formatAssistantMessage = (text: string): string => {
     // Block-style single-line code
     html = html.replace(/^\s*`([^`\n]+?)`\s*$/gm, '<div class="code-block-wrapper"><code>$1</code></div>');
 
-    // Inline elements (run after block elements)
+    // Inline elements (run after block elements) — do NOT touch code within <pre>
+    const preInlinePlaceholders: string[] = [];
+    html = html.replace(/<pre[\s\S]*?<\/pre>/g, (m) => `__PRE_INLINE_${preInlinePlaceholders.push(m) - 1}__`);
+
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     // Bold, Italic, Inline Code
@@ -314,6 +317,9 @@ const formatAssistantMessage = (text: string): string => {
         .replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>') // Bold
         .replace(/\*([^\*]+)\*/g, '<em>$1</em>') // Italic (asterisk-only)
         .replace(/`([^`]+)`/g, '<code>$1</code>'); // Inline code
+
+    // Restore code blocks after inline replacements
+    html = html.replace(/__PRE_INLINE_(\d+)__/g, (_m, i) => preInlinePlaceholders[+i]);
 
     // --- FOOTNOTES: extract trailing defs and wire refs ---
     type FootnoteId = string;
@@ -373,10 +379,15 @@ const formatAssistantMessage = (text: string): string => {
     html = html.replace(/__CODE_(\d+)__/g, (_m, n) => codePlaceholders[Number(n)]);
     html = html.replace(/__PRE_(\d+)__/g, (_m, n) => prePlaceholders[Number(n)]);
 
-    // Newlines to <br>, but be careful not to add them inside list structures or other blocks
-    const finalHtml = html.replace(/\n/g, '<br />')
+    // Newlines to <br> — do NOT convert inside <pre> code blocks
+    const preNlPlaceholders: string[] = [];
+    let htmlForNl = html.replace(/<pre[\s\S]*?<\/pre>/g, (m) => `__PRE_NL_${preNlPlaceholders.push(m) - 1}__`);
+
+    htmlForNl = htmlForNl.replace(/\n/g, '<br />')
         .replace(/(<br \/>\s*)*<((h[1-4]|p|ul|ol|li|div|pre|blockquote|hr|table))/g, '<$2') // remove all <br>s before block elements
         .replace(/(<\/(h[1-4]|p|ul|ol|li|div|pre|blockquote|hr|table)>)(\s*<br \/>)*/g, '$1'); // remove all <br>s after block elements
+
+    const finalHtml = htmlForNl.replace(/__PRE_NL_(\d+)__/g, (_m, i) => preNlPlaceholders[+i]);
     
     // Build footnotes block (if any). Allow links and inline `code` inside footnotes.
     let footnotesHtml = "";
