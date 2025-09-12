@@ -162,7 +162,13 @@ const formatAssistantMessage = (text: string): string => {
                 const codeId = `codeblock-${Date.now()}-${codeBlockId++}`;
                 const langHtml = codeBlockLang ? `<div class="code-language">${codeBlockLang}</div>` : '';
                 const codeContent = codeBlockContent.trimEnd();
-                processedHtmlWithCodeBlocks += `<div class="codeblock-container" data-code-id="${codeId}"><div class="codeblock-header"><button class="codeblock-copy-btn" data-copy-target="${codeId}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div><pre id="${codeId}">${langHtml}<code>${codeContent}</code></pre></div>`;
+                const langLower = (codeBlockLang || '').trim().toLowerCase();
+                if (langLower === 'markdown' || langLower === 'md' || langLower === 'mdx') {
+                  const escapedRaw = codeContent.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                  processedHtmlWithCodeBlocks += `<div class="codeblock-container" data-code-id="${codeId}"><div class="codeblock-header"><button class="codeblock-copy-btn" data-copy-target="${codeId}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div><pre id="${codeId}">${langHtml}<code class="markdown-render">${formatAssistantMessage(codeContent)}</code><code class="raw-markdown" style="display:none">${escapedRaw}</code></pre></div>`;
+                } else {
+                  processedHtmlWithCodeBlocks += `<div class="codeblock-container" data-code-id="${codeId}"><div class="codeblock-header"><button class="codeblock-copy-btn" data-copy-target="${codeId}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div><pre id="${codeId}">${langHtml}<code>${codeContent}</code></pre></div>`;
+                }
                 codeBlockContent = '';
                 codeBlockLang = '';
             } else {
@@ -181,7 +187,13 @@ const formatAssistantMessage = (text: string): string => {
         const codeId = `codeblock-${Date.now()}-${codeBlockId++}`;
         const langHtml = codeBlockLang ? `<div class="code-language">${codeBlockLang}</div>` : '';
         const codeContent = codeBlockContent.trimEnd();
-        processedHtmlWithCodeBlocks += `<div class="codeblock-container" data-code-id="${codeId}"><div class="codeblock-header"><button class="codeblock-copy-btn" data-copy-target="${codeId}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div><pre id="${codeId}">${langHtml}<code>${codeContent}</code></pre></div>`;
+        const langLower = (codeBlockLang || '').trim().toLowerCase();
+        if (langLower === 'markdown' || langLower === 'md' || langLower === 'mdx') {
+          const escapedRaw = codeContent.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          processedHtmlWithCodeBlocks += `<div class="codeblock-container" data-code-id="${codeId}"><div class="codeblock-header"><button class="codeblock-copy-btn" data-copy-target="${codeId}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div><pre id="${codeId}">${langHtml}<code class="markdown-render">${formatAssistantMessage(codeContent)}</code><code class="raw-markdown" style="display:none">${escapedRaw}</code></pre></div>`;
+        } else {
+          processedHtmlWithCodeBlocks += `<div class="codeblock-container" data-code-id="${codeId}"><div class="codeblock-header"><button class="codeblock-copy-btn" data-copy-target="${codeId}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div><pre id="${codeId}">${langHtml}<code>${codeContent}</code></pre></div>`;
+        }
     }
     html = processedHtmlWithCodeBlocks.trimEnd();
     
@@ -3790,16 +3802,17 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                               const copyTarget = copyBtn.getAttribute('data-copy-target');
                                               if (copyTarget) {
                                                 const preEl = document.getElementById(copyTarget);
+                                                const container = copyBtn.closest('.codeblock-container');
                                                 const codeEl = preEl?.querySelector('code');
-                                                if (preEl || codeEl) {
-                                                  const rawText = (codeEl?.textContent ?? preEl?.textContent ?? '') as string;
-                                                  // Normalize all line separators to \n
-                                                  const codeText = rawText
+                                                const rawMdEl = preEl?.querySelector('.raw-markdown') as HTMLElement | null;
+                                                if (preEl || codeEl || rawMdEl) {
+                                                  const rawTextSource = (rawMdEl?.textContent ?? codeEl?.textContent ?? preEl?.textContent ?? '') as string;
+                                                  const codeText = rawTextSource
                                                     .replace(/\r\n|\r/g, '\n')
                                                     .replace(/[\u2028\u2029]/g, '\n');
 
                                                   // Wrap in fenced code block, include language if available
-                                                  const lang = (preEl?.querySelector('.code-language') as HTMLElement | null)?.textContent?.trim() || '';
+                                                  const lang = (container?.querySelector('.code-language') as HTMLElement | null)?.textContent?.trim() || '';
                                                   const textToCopy = `\`\`\`${lang ? lang : ''}\n${codeText}\n\`\`\``;
 
                                                   const doSuccess = () => {
