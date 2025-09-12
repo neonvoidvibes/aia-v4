@@ -1744,8 +1744,66 @@ body {
   font-size: 90%;
 }
 
+/* Style for codeblock container with copy functionality */
+.ai-bubble .codeblock-container {
+  position: relative;
+  margin: 1em 0;
+  border: 1px solid hsl(var(--accent));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Codeblock header containing the copy button */
+.ai-bubble .codeblock-header {
+  position: relative;
+  height: 0;
+  z-index: 10;
+}
+
+/* Copy button positioned in top right */
+.ai-bubble .codeblock-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--muted-foreground));
+}
+
+.ai-bubble .codeblock-copy-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  transform: scale(1.05);
+}
+
 /* Style for multi-line code blocks (<pre><code>) */
-.ai-bubble pre {
+.ai-bubble .codeblock-container pre {
+  background-color: color-mix(in srgb, hsl(var(--muted)) 50%, transparent 50%);
+  border: none;
+  border-radius: 0;
+  padding: 0.75em;
+  margin: 0;
+  white-space: pre-wrap; /* Allow wrapping */
+  word-wrap: break-word; /* Break long words */
+  font-size: 90%; /* Match single-line code block font size */
+}
+
+/* Fallback for browsers that don't support color-mix */
+@supports not (background-color: color-mix(in srgb, hsl(var(--muted)) 50%, transparent 50%)) {
+  .ai-bubble .codeblock-container pre {
+    background-color: hsl(var(--muted) / 0.5);
+  }
+}
+
+/* Legacy support for pre blocks without container */
+.ai-bubble pre:not(.codeblock-container pre) {
   background-color: hsl(var(--muted));
   border: 1px solid hsl(var(--border));
   border-radius: 8px;

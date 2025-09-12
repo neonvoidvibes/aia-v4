@@ -152,13 +152,17 @@ const formatAssistantMessage = (text: string): string => {
     let codeBlockLang = '';
     let processedHtmlWithCodeBlocks = '';
 
+    let codeBlockId = 0; // Counter for unique codeblock IDs
+    
     for (const line of linesForCodeProcessing) {
         if (line.trim().startsWith('```')) {
             if (inCodeBlock) {
                 // End of code block
                 inCodeBlock = false;
+                const codeId = `codeblock-${Date.now()}-${codeBlockId++}`;
                 const langHtml = codeBlockLang ? `<div class="code-language">${codeBlockLang}</div>` : '';
-                processedHtmlWithCodeBlocks += `<pre>${langHtml}<code>${codeBlockContent.trimEnd()}</code></pre>`;
+                const codeContent = codeBlockContent.trimEnd();
+                processedHtmlWithCodeBlocks += `<div class="codeblock-container" data-code-id="${codeId}"><div class="codeblock-header"><button class="codeblock-copy-btn" data-copy-target="${codeId}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div><pre id="${codeId}">${langHtml}<code>${codeContent}</code></pre></div>`;
                 codeBlockContent = '';
                 codeBlockLang = '';
             } else {
@@ -174,8 +178,10 @@ const formatAssistantMessage = (text: string): string => {
     }
     // Handle unclosed code block at end of message
     if (inCodeBlock) {
+        const codeId = `codeblock-${Date.now()}-${codeBlockId++}`;
         const langHtml = codeBlockLang ? `<div class="code-language">${codeBlockLang}</div>` : '';
-        processedHtmlWithCodeBlocks += `<pre>${langHtml}<code>${codeBlockContent.trimEnd()}</code></pre>`;
+        const codeContent = codeBlockContent.trimEnd();
+        processedHtmlWithCodeBlocks += `<div class="codeblock-container" data-code-id="${codeId}"><div class="codeblock-header"><button class="codeblock-copy-btn" data-copy-target="${codeId}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div><pre id="${codeId}">${langHtml}<code>${codeContent}</code></pre></div>`;
     }
     html = processedHtmlWithCodeBlocks.trimEnd();
     
@@ -3762,6 +3768,26 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                                   }
                                                   return newMessages;
                                                 });
+                                              }
+                                            }
+                                            
+                                            // Handle codeblock copy button clicks
+                                            if (target.classList.contains('codeblock-copy-btn')) {
+                                              e.stopPropagation();
+                                              const copyTarget = target.getAttribute('data-copy-target');
+                                              if (copyTarget) {
+                                                const codeElement = document.getElementById(copyTarget);
+                                                if (codeElement) {
+                                                  const codeText = codeElement.textContent || '';
+                                                  copyToClipboard(codeText, copyTarget);
+                                                  
+                                                  // Visual feedback - replace icon temporarily
+                                                  const originalHTML = target.innerHTML;
+                                                  target.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>';
+                                                  setTimeout(() => {
+                                                    target.innerHTML = originalHTML;
+                                                  }, 2000);
+                                                }
                                               }
                                             }
                                           }}
