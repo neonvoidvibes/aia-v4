@@ -3772,21 +3772,45 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                             }
                                             
                                             // Handle codeblock copy button clicks
-                                            if (target.classList.contains('codeblock-copy-btn')) {
+                                            // Use event delegation with closest() so clicks on inner SVG also trigger
+                                            const copyBtn = (target as Element).closest?.('.codeblock-copy-btn') as HTMLElement | null;
+                                            if (copyBtn) {
                                               e.stopPropagation();
-                                              const copyTarget = target.getAttribute('data-copy-target');
+                                              const copyTarget = copyBtn.getAttribute('data-copy-target');
                                               if (copyTarget) {
-                                                const codeElement = document.getElementById(copyTarget);
-                                                if (codeElement) {
-                                                  const codeText = codeElement.textContent || '';
-                                                  copyToClipboard(codeText, copyTarget);
-                                                  
-                                                  // Visual feedback - replace icon temporarily
-                                                  const originalHTML = target.innerHTML;
-                                                  target.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>';
-                                                  setTimeout(() => {
-                                                    target.innerHTML = originalHTML;
-                                                  }, 2000);
+                                                const preEl = document.getElementById(copyTarget);
+                                                const codeEl = preEl?.querySelector('code');
+                                                if (preEl || codeEl) {
+                                                  const rawText = (codeEl?.textContent ?? preEl?.textContent ?? '') as string;
+                                                  const codeText = rawText.replace(/\r\n/g, '\n');
+
+                                                  const doSuccess = () => {
+                                                    const originalHTML = copyBtn.innerHTML;
+                                                    copyBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="copy-button-animation"><polyline points="20 6 9 17 4 12"/></svg>';
+                                                    setTimeout(() => { copyBtn.innerHTML = originalHTML; }, 2000);
+                                                  };
+                                                  const doFailure = (err?: any) => { console.error('[Code Copy] Failed:', err); };
+
+                                                  // Copy without touching React state to avoid rerenders wiping the icon swap
+                                                  if (navigator.clipboard && window.isSecureContext) {
+                                                    navigator.clipboard.writeText(codeText).then(doSuccess).catch(doFailure);
+                                                  } else {
+                                                    try {
+                                                      const ta = document.createElement('textarea');
+                                                      ta.value = codeText;
+                                                      ta.style.position = 'fixed';
+                                                      ta.style.left = '-9999px';
+                                                      ta.style.top = '-9999px';
+                                                      document.body.appendChild(ta);
+                                                      ta.focus();
+                                                      ta.select();
+                                                      const ok = document.execCommand('copy');
+                                                      document.body.removeChild(ta);
+                                                      if (ok) doSuccess(); else throw new Error('execCommand copy failed');
+                                                    } catch (err) {
+                                                      doFailure(err);
+                                                    }
+                                                  }
                                                 }
                                               }
                                             }
