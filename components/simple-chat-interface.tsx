@@ -3793,7 +3793,14 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                                 const codeEl = preEl?.querySelector('code');
                                                 if (preEl || codeEl) {
                                                   const rawText = (codeEl?.textContent ?? preEl?.textContent ?? '') as string;
-                                                  const codeText = rawText.replace(/\r\n/g, '\n');
+                                                  // Normalize all line separators to \n
+                                                  const codeText = rawText
+                                                    .replace(/\r\n|\r/g, '\n')
+                                                    .replace(/[\u2028\u2029]/g, '\n');
+
+                                                  // Wrap in fenced code block, include language if available
+                                                  const lang = (preEl?.querySelector('.code-language') as HTMLElement | null)?.textContent?.trim() || '';
+                                                  const textToCopy = `\`\`\`${lang ? lang : ''}\n${codeText}\n\`\`\``;
 
                                                   const doSuccess = () => {
                                                     const originalHTML = copyBtn.innerHTML;
@@ -3804,11 +3811,11 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
                                                   // Copy without touching React state to avoid rerenders wiping the icon swap
                                                   if (navigator.clipboard && window.isSecureContext) {
-                                                    navigator.clipboard.writeText(codeText).then(doSuccess).catch(doFailure);
+                                                    navigator.clipboard.writeText(textToCopy).then(doSuccess).catch(doFailure);
                                                   } else {
                                                     try {
                                                       const ta = document.createElement('textarea');
-                                                      ta.value = codeText;
+                                                      ta.value = textToCopy;
                                                       ta.style.position = 'fixed';
                                                       ta.style.left = '-9999px';
                                                       ta.style.top = '-9999px';
