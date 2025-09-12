@@ -1765,22 +1765,26 @@ body {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: transparent;
-  border: 1px solid hsl(var(--border));
+  background: none;
+  border: none;
   border-radius: 4px;
   padding: 4px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--icon-secondary));
 }
 
 .ai-bubble .codeblock-copy-btn:hover {
-  background: hsl(var(--muted));
-  color: hsl(var(--foreground));
-  transform: scale(1.05);
+  background: none;
+  color: hsl(var(--icon-primary));
+}
+
+.ai-bubble .codeblock-copy-btn:active {
+  background: none;
+  border: none;
 }
 
 /* Style for multi-line code blocks (<pre><code>) */
