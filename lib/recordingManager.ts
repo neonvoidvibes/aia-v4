@@ -1,5 +1,5 @@
 import { isRecordingPersistenceEnabled } from './featureFlags';
-import { HEARTBEAT_INTERVAL_MS } from './wsPolicy';
+import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
 
 export type RecordingPhase = 'idle'|'starting'|'active'|'suspended'|'stopping'|'error';
 export type RecordingType = 'chat'|'note';
@@ -59,6 +59,9 @@ class RecordingManagerImpl implements RecordingManager {
   private bc: BroadcastChannel | null = null;
   private tabId: string;
   private hbTimer: any = null;
+  private wsHbTimer: any = null;
+  private wsPongTimer: any = null;
+  private wsMisses: number = 0;
   private mediaRecorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
   private ws: WebSocket | null = null;
@@ -239,6 +242,14 @@ class RecordingManagerImpl implements RecordingManager {
 
   resume(): void {
     if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        const sid = this.state.sessionId;
+        if (sid) {
+          // Reconnect WS first; onopen will restart keepalive
+          this.bindMediaAndWs(sid).then(() => { try { this.mediaRecorder?.resume(); } catch {} }).catch(() => {});
+          return;
+        }
+      }
       try { this.mediaRecorder.resume(); } catch {}
       // onresume handler will update state and signal backend
     }
@@ -352,6 +363,7 @@ class RecordingManagerImpl implements RecordingManager {
 
     ws.onopen = () => {
       try { this.startHeartbeat(); } catch {}
+      try { this.startWsKeepalive(); } catch {}
       mr.start(3000);
       this.update({ ...this.state, phase: 'active', paused: false });
     };
@@ -381,6 +393,11 @@ class RecordingManagerImpl implements RecordingManager {
     ws.onmessage = (e) => {
       try {
         const m = JSON.parse(e.data);
+        if (m?.type === 'pong') {
+          if (this.wsPongTimer) { clearTimeout(this.wsPongTimer); this.wsPongTimer = null; }
+          this.wsMisses = 0;
+          return;
+        }
         if (m && (m.type === 'transcript' || m.kind === 'transcript')) {
           const text = m.text || m.data?.text || '';
           if (text) {
@@ -391,6 +408,7 @@ class RecordingManagerImpl implements RecordingManager {
     };
     ws.onclose = () => {
       this.stopHeartbeat();
+      this.stopWsKeepalive();
       // If we are still marked owner, go suspended to allow reconnect/reattach
       const active = this.readActive();
       if (active && active.ownerTabId === this.tabId) {
@@ -457,6 +475,29 @@ class RecordingManagerImpl implements RecordingManager {
       clearInterval(this.hbTimer);
       this.hbTimer = null;
     }
+  }
+
+  private startWsKeepalive() {
+    this.stopWsKeepalive();
+    if (!this.ws) return;
+    this.wsHbTimer = setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      try {
+        this.ws.send(JSON.stringify({ action: 'ping' }));
+        if (this.wsPongTimer) clearTimeout(this.wsPongTimer);
+        this.wsPongTimer = setTimeout(() => {
+          this.wsMisses++;
+          if (this.wsMisses >= (MAX_HEARTBEAT_MISSES || 3)) {
+            try { this.ws?.close(1006, 'pong timeout'); } catch {}
+          }
+        }, (PONG_TIMEOUT_MS as any) || 5000);
+      } catch {}
+    }, Math.max(2000, (HEARTBEAT_INTERVAL_MS as any) || 2000));
+  }
+  private stopWsKeepalive() {
+    if (this.wsHbTimer) { clearInterval(this.wsHbTimer); this.wsHbTimer = null; }
+    if (this.wsPongTimer) { clearTimeout(this.wsPongTimer); this.wsPongTimer = null; }
+    this.wsMisses = 0;
   }
 }
 
