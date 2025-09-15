@@ -131,7 +131,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   // Detect 10s of silence and toast no more than every 30s.
   const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
     stream: audioStream,
-    isActive: globalRecordingStatus.isRecording,
+    isActive: globalRecordingStatus.isRecording && !isPaused,
     windowMs: 10_000,
     cooldownMs: 30_000,
     levelThreshold: 0.02,

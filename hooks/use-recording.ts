@@ -26,7 +26,7 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
   // Silent-chunk detection: 10s window, 30s toast cooldown, ignore first chunk
   const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
     stream: audioStream,
-    isActive: isRecording,
+    isActive: isRecording && !isPaused,
     windowMs: 10_000,
     cooldownMs: 30_000,
     levelThreshold: 0.02,

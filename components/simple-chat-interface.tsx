@@ -621,7 +621,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     // Silent-chunk detection: 10s window, toast every 30s, ignore first chunk
     const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
         stream: silentDetectStream,
-        isActive: isBrowserRecording,
+        isActive: isBrowserRecording && !isBrowserPaused,
         windowMs: 10_000,
         cooldownMs: 30_000,
         levelThreshold: 0.02,
