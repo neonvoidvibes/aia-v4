@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useSilentChunkDetector } from '@/hooks/use-silent-chunk-detector';
+import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from '@/lib/wsPolicy';
 
 type UseRecordingProps = {
   agentName: string | null;
@@ -15,6 +16,9 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatMissesRef = useRef(0);
 
   // Silent-chunk detection: 10s window, 30s toast cooldown, ignore first chunk
   const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
@@ -81,6 +85,24 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
       webSocketRef.current = webSocket;
 
       webSocket.onopen = () => {
+        // Start WS keepalive ping/pong
+        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+        heartbeatMissesRef.current = 0;
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) return;
+          try {
+            webSocketRef.current.send(JSON.stringify({ action: 'ping' }));
+            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+            pongTimeoutRef.current = setTimeout(() => {
+              heartbeatMissesRef.current++;
+              if (heartbeatMissesRef.current >= (MAX_HEARTBEAT_MISSES || 3)) {
+                try { webSocketRef.current?.close(1000, 'Heartbeat timeout'); } catch {}
+              }
+            }, PONG_TIMEOUT_MS || 5000);
+          } catch {}
+        }, HEARTBEAT_INTERVAL_MS || 15000);
+
         mediaRecorder.start(3000); // Send data every 3 seconds
       };
 
@@ -91,7 +113,21 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
         onChunkBoundary();
       };
 
+      webSocket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg?.type === 'pong') {
+            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+            heartbeatMissesRef.current = 0;
+          }
+        } catch {
+          /* ignore non-JSON */
+        }
+      };
+
       webSocket.onclose = async () => {
+        if (heartbeatIntervalRef.current) { clearInterval(heartbeatIntervalRef.current); heartbeatIntervalRef.current = null; }
+        if (pongTimeoutRef.current) { clearTimeout(pongTimeoutRef.current); pongTimeoutRef.current = null; }
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
         }
@@ -132,6 +168,8 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
 
   const performStopRecording = async (sessionId: string) => {
     try {
+      if (heartbeatIntervalRef.current) { clearInterval(heartbeatIntervalRef.current); heartbeatIntervalRef.current = null; }
+      if (pongTimeoutRef.current) { clearTimeout(pongTimeoutRef.current); pongTimeoutRef.current = null; }
       const response = await fetch('/api/audio-recording-proxy?action=stop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,6 +201,15 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
     isStopping,
     startRecording,
     stopRecording,
-    togglePause: () => setIsPaused(!isPaused),
+    togglePause: () => {
+      const next = !isPaused;
+      setIsPaused(next);
+      try {
+        const ws = webSocketRef.current;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ action: 'set_processing_state', paused: next }));
+        }
+      } catch {}
+    },
   };
 }
