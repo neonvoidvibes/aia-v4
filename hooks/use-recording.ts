@@ -11,6 +11,9 @@ type UseRecordingProps = {
 export function useRecording({ agentName, onRecordingStopped }: UseRecordingProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
+  // keep ref in sync
+  isPausedRef.current = isPaused;
   const [isStopping, setIsStopping] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -131,6 +134,13 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
         }
+        // If closed while paused, do not finalize the session immediately; allow resume-driven reconnect
+        if (isPausedRef.current) {
+          // Leave sessionId in state; UI remains paused; reconnection will occur on resume
+          webSocketRef.current = null;
+          toast.message('Connection lost during pause. Will reconnect on resume.');
+          return;
+        }
         await performStopRecording(sessionId);
       };
 
@@ -208,6 +218,9 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
         const ws = webSocketRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ action: 'set_processing_state', paused: next }));
+        } else if (!next && sessionId) {
+          // Attempt reconnection before resuming if WS is closed
+          void setupMediaRecorder(sessionId);
         }
       } catch {}
     },
