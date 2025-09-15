@@ -489,6 +489,16 @@ const RecordView: React.FC<RecordViewProps> = ({
   }, [pendingAction, setGlobalRecordingStatus, handleStopRecording]);
 
   const connectWebSocket = useCallback((sessionId: string) => {
+    // Stable per-tab id (already used elsewhere in the app)
+    let clientId: string | null = null;
+    try {
+      clientId = window.sessionStorage.getItem('tabId');
+      if (!clientId) {
+        clientId = crypto.randomUUID();
+        window.sessionStorage.setItem('tabId', clientId);
+      }
+    } catch { clientId = `anon-${Math.random().toString(36).slice(2)}`; }
+
     debugLog(`[WebSocket] Connecting for session: ${sessionId}`);
     if (webSocketRef.current && (webSocketRef.current.readyState === WebSocket.OPEN || webSocketRef.current.readyState === WebSocket.CONNECTING)) {
       console.warn(`[WebSocket] Already open or connecting.`);
@@ -513,7 +523,12 @@ const RecordView: React.FC<RecordViewProps> = ({
         return;
       }
 
-      const wsUrl = `${wsBaseUrl}/ws/audio_stream/${sessionId}?token=${session.access_token}`;
+      // Mark reconnect intent to allow safe server-side takeover
+      const resume = isReconnecting ? '1' : '0';
+      const wsUrl = `${wsBaseUrl}/ws/audio_stream/${sessionId}`
+        + `?token=${session.access_token}`
+        + `&client_id=${encodeURIComponent(clientId || '')}`
+        + `&resume=${resume}`;
       
       const newWs = new WebSocket(wsUrl);
       (newWs as any).__intentionalClose = false;
@@ -613,18 +628,15 @@ const RecordView: React.FC<RecordViewProps> = ({
         // If the server intentionally rejected the connection because one already exists,
         // do not attempt to reconnect. This breaks the reconnection storm loop.
         // 1008 = policy violation (duplicate connection) → do not reconnect
-        if (event.code === 1008) {
-            console.warn(`[WebSocket] Close received with code 1008 (Policy Violation - likely duplicate connection). Aborting reconnect.`);
-            toast.warning("Another recording tab for this session may be active.");
-            setWsStatus('closed');
-            if (webSocketRef.current === newWs) {
-              webSocketRef.current = null;
-            }
-            setIsReconnecting(false);
-            reconnectAttemptsRef.current = 0;
-            prevDelayRef.current = null;
-            if (pendingActionRef.current === 'start') setPendingAction(null);
-            return;
+        if (event.code === 1008 && isReconnecting) {
+          console.warn(`[WebSocket] 1008 on resume; attempting one forced resume reconnect.`);
+          setTimeout(() => {
+            // bias short delay
+            prevDelayRef.current = 500;
+            setIsReconnecting(true);
+            tryReconnectRef.current?.();
+          }, 300);
+          return;
         }
         // 1005/1006 = abnormal/no close; treat as transient, avoid long waits
         if (event.code === 1005 || event.code === 1006) {

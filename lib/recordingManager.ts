@@ -346,7 +346,8 @@ class RecordingManagerImpl implements RecordingManager {
     }
     const mr = new MediaRecorder(this.stream!, { mimeType: 'audio/webm' });
     this.mediaRecorder = mr;
-    const ws = new WebSocket(`${this.wsUrl}/ws/audio_stream/${sessionId}?token=${session.access_token}`);
+    const resume = this.state.phase === 'suspended' ? '1' : '0';
+    const ws = new WebSocket(`${this.wsUrl}/ws/audio_stream/${sessionId}?token=${session.access_token}&client_id=${encodeURIComponent(this.tabId)}&resume=${resume}`);
     this.ws = ws;
 
     ws.onopen = () => {
