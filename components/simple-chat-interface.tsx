@@ -2092,6 +2092,15 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                             // reply to server keepalive
                             newWs.send(JSON.stringify({ type: 'pong' }));
                             return;
+                        } else if (messageData.type === 'processing_state') {
+                            const paused = !!messageData.paused;
+                            const offsetSec = typeof messageData.offset_seconds === 'number' ? messageData.offset_seconds : undefined;
+                            setIsBrowserPaused(paused);
+                            if (typeof offsetSec === 'number' && !Number.isNaN(offsetSec)) {
+                                setClientRecordingTime(Math.max(0, Math.floor(offsetSec)));
+                            }
+                            debugLog(`[WebSocket] processing_state: paused=${paused}, offset=${offsetSec}`);
+                            return;
                         } else {
                             debugLog(`[WebSocket] Message from server:`, event.data);
                         }
