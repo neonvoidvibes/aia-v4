@@ -645,17 +645,23 @@
   --input-field-text-color: 0 0% 20% !important; /* Override white menu text with black */
 }
 
-/* Fabric theme menu hover - target actual DropdownMenuItem components */
+/* Fabric theme menu hover - target ONLY menu/dropdown contexts */
 .theme-fabric [role="menuitem"]:hover,
-.theme-fabric .dropdown-menu-item:hover {
+.theme-fabric [role="menuitem"][data-highlighted],
+.theme-fabric [role="menuitemradio"]:hover,
+.theme-fabric [role="menuitemradio"][data-highlighted],
+.theme-fabric [role="menu"] [data-highlighted],
+.theme-fabric [role="radiogroup"] [data-highlighted] {
   background-color: hsl(10 59% 54%) !important; /* #D45C41 - coral red background */
   color: white !important; /* White text */
 }
 
-.theme-fabric [role="menuitem"]:hover svg,
-.theme-fabric [role="menuitem"]:hover span,
-.theme-fabric .dropdown-menu-item:hover svg,
-.theme-fabric .dropdown-menu-item:hover span {
+.theme-fabric [role="menuitem"]:hover *,
+.theme-fabric [role="menuitem"][data-highlighted] *,
+.theme-fabric [role="menuitemradio"]:hover *,
+.theme-fabric [role="menuitemradio"][data-highlighted] *,
+.theme-fabric [role="menu"] [data-highlighted] *,
+.theme-fabric [role="radiogroup"] [data-highlighted] * {
   color: white !important; /* White icons and text */
 }
 
