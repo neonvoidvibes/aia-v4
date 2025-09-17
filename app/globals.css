@@ -665,10 +665,20 @@
   color: hsl(0 0% 60%) !important; /* Light gray for selected model text */
 }
 
-/* Fabric theme toggle selected state - target actual ToggleGroupItem classes */
-.theme-fabric [data-state="on"] {
-  --background: 0 0% 90% !important; /* #E5E5E5 - slightly darker gray for selected toggles */
-  --foreground: 0 0% 20% !important; /* Dark text on selected toggle */
+/* Fabric theme toggle selected state - ULTIMATE nuclear option */
+.theme-fabric [data-state="on"][data-state="on"],
+.theme-fabric.theme-fabric [data-state="on"],
+html .theme-fabric [data-state="on"],
+body .theme-fabric [data-state="on"] {
+  background-color: #E5E5E5 !important; /* Force hex color */
+  background: #E5E5E5 !important; /* Alternative property */
+  color: #333333 !important; /* Force hex color */
+}
+
+/* Override CSS variables too */
+.theme-fabric * {
+  --background: 0 0% 90% !important;
+  --foreground: 0 0% 20% !important;
 }
 
 
