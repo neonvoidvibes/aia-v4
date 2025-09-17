@@ -49,6 +49,11 @@ export const predefinedThemes: ColorTheme[] = [
     isDark: true,
   },
   {
+    name: "Fabric",
+    className: "theme-fabric",
+    isDark: false,
+  },
+  {
     name: "Tenant",
     className: "theme-tenant",
     isDark: true,

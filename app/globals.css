@@ -572,6 +572,105 @@
 }
 .theme-folkhemmet [aria-label="Select event"] .opacity-70 { opacity: 1 !important; }
 
+/* Fabric Theme */
+.theme-fabric {
+  /* Base colors */
+  --background: 0 0% 96%; /* #F6F6F6 - light gray background */
+  --foreground: 0 0% 20%; /* #333333 - dark text for readability */
+
+  /* UI elements */
+  --input-gray: 49 95% 67%; /* #F9D95A - golden yellow for user bubbles */
+  --status-bar: 194 100% 85%; /* #B1EBFD - light blue for status */
+  --placeholder-text: 0 0% 60%; /* #999999 - medium gray for placeholder */
+
+  /* Text colors */
+  --text-primary: 0 0% 20%; /* #333333 - dark for primary text */
+  --text-secondary: 0 0% 40%; /* #666666 - medium gray for secondary text */
+  --text-muted: 0 0% 60%; /* #999999 - lighter gray for muted text */
+
+  /* Shadcn Component Variables */
+  --card: 0 0% 96%; /* #F6F6F6 - light gray for cards to match background */
+  --popover: 0 0% 96%; /* #F6F6F6 - light gray for popovers to match background */
+  --primary: 10 59% 54%; /* #D45C41 - coral red for primary actions */
+  --primary-foreground: 0 0% 100%; /* White text on primary */
+  --secondary: 45 93% 47%; /* #EAB308 - true yellow for secondary */
+  --secondary-foreground: 0 0% 20%; /* Dark text on secondary */
+  --muted: 0 0% 96%; /* #F6F6F6 - light gray for muted areas */
+  --accent: 194 100% 85%; /* #B1EBFD - light blue for accents */
+  --accent-foreground: 0 0% 20%; /* Dark text on accent */
+  --destructive: 10 59% 54%; /* #D45C41 - coral red for destructive actions */
+  --destructive-foreground: 0 0% 100%; /* White text on destructive */
+  --border: 0 0% 90%; /* #E5E7EB - light gray for borders */
+  --input: 0 0% 21%; /* #353637 - dark gray for input background */
+  --ring: 194 100% 85%; /* #B1EBFD - light blue for focus rings */
+
+  /* Custom Button Variables */
+  --button-submit-bg-active: 194 100% 85%; /* #B1EBFD - light blue for active submit */
+  --button-submit-fg-active: 0 0% 20%; /* Dark text on submit */
+  --button-submit-bg-inactive: 0 0% 85%; /* #D9D9D9 - light gray inactive */
+  --button-submit-fg-inactive: 0 0% 50%; /* Medium gray text inactive */
+  --button-submit-bg-stop: 10 59% 54%; /* #D45C41 - coral red for stop */
+  --button-submit-fg-stop: 0 0% 100%; /* White text on stop */
+  --sidebar-background: 0 0% 96%; /* #F6F6F6 - light gray for sidebar */
+
+  /* Icon colors */
+  --icon-primary: 0 0% 40%; /* #666666 - medium gray for primary icons */
+  --icon-secondary: 0 0% 60%; /* #999999 - lighter gray for secondary icons */
+  --icon-active: 10 59% 54%; /* #D45C41 - coral red for active icons */
+  --icon-inactive: 0 0% 80%; /* #CCCCCC - light gray for inactive icons */
+  --save-memory-color: 194 100% 85%; /* #B1EBFD - light blue for save memory */
+
+  /* Chat text colors */
+  --input-field-text-color: 0 0% 100%; /* White text on dark input field */
+  --user-message-text-color: 0 0% 20%; /* Dark text on golden yellow user bubble */
+  --assistant-message-text-color: 0 0% 20%; /* Dark text for assistant on white background */
+
+  /* Input status tokens */
+  --status-text-highlight-color: 10 59% 54%; /* #D45C41 - coral red for highlights */
+  --status-text-rest-color: 0 0% 50%; /* #808080 - medium gray for rest state */
+}
+
+/* Fabric: maintain clean appearance with subtle transparency */
+.theme-fabric .ml-2.inline-flex.items-center.gap-1.opacity-50 {
+  opacity: 0.7 !important;
+}
+
+/* Fabric theme input area overrides */
+.theme-fabric .chat-input-layout {
+  background-color: hsl(0 0% 21%) !important; /* #353637 - dark gray background for entire input area */
+}
+
+/* Fabric theme: Override the CSS variable that controls menu text color */
+.theme-fabric * {
+  --input-field-text-color: 0 0% 20% !important; /* Override white menu text with black */
+}
+
+/* Fabric theme menu hover - target actual DropdownMenuItem components */
+.theme-fabric [role="menuitem"]:hover,
+.theme-fabric .dropdown-menu-item:hover {
+  background-color: hsl(10 59% 54%) !important; /* #D45C41 - coral red background */
+  color: white !important; /* White text */
+}
+
+.theme-fabric [role="menuitem"]:hover svg,
+.theme-fabric [role="menuitem"]:hover span,
+.theme-fabric .dropdown-menu-item:hover svg,
+.theme-fabric .dropdown-menu-item:hover span {
+  color: white !important; /* White icons and text */
+}
+
+/* Fabric theme model picker text */
+.theme-fabric .model-picker-container button,
+.theme-fabric .model-picker-container button span {
+  color: hsl(0 0% 60%) !important; /* Light gray for selected model text */
+}
+
+/* Fabric theme toggle selected state - target actual ToggleGroupItem classes */
+.theme-fabric [data-state="on"] {
+  --background: 0 0% 90% !important; /* #E5E5E5 - slightly darker gray for selected toggles */
+  --foreground: 0 0% 20% !important; /* Dark text on selected toggle */
+}
+
 
 /* Tenant Theme */
 .theme-tenant {
