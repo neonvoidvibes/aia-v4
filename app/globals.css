@@ -618,7 +618,7 @@
   --icon-secondary: 0 0% 60%; /* #999999 - lighter gray for secondary icons */
   --icon-active: 10 59% 54%; /* #D45C41 - coral red for active icons */
   --icon-inactive: 0 0% 80%; /* #CCCCCC - light gray for inactive icons */
-  --save-memory-color: 194 100% 85%; /* #B1EBFD - light blue for save memory */
+  --save-memory-color: 10 59% 54%; /* #D45C41 - coral red for save memory */
 
   /* Chat text colors */
   --input-field-text-color: 0 0% 100%; /* White text on dark input field */
