@@ -640,9 +640,10 @@
   background-color: hsl(0 0% 21%) !important; /* #353637 - dark gray background for entire input area */
 }
 
-/* Fabric theme: Override the CSS variable that controls menu text color */
-.theme-fabric * {
-  --input-field-text-color: 0 0% 20% !important; /* Override white menu text with black */
+/* Fabric theme: Override menu text color specifically, not input field */
+.theme-fabric .plus-menu-item,
+.theme-fabric [role="menuitem"] {
+  color: hsl(0 0% 20%) !important; /* Black text in yellow menus */
 }
 
 /* Fabric theme menu hover - target ONLY menu/dropdown contexts */
