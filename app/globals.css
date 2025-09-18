@@ -640,9 +640,13 @@
   background-color: hsl(0 0% 21%) !important; /* #353637 - dark gray background for entire input area */
 }
 
-/* Fabric theme: Override menu text color specifically, not input field */
+/* Fabric theme: Black text in ALL yellow menus */
 .theme-fabric .plus-menu-item,
-.theme-fabric [role="menuitem"] {
+.theme-fabric [role="menuitem"],
+.theme-fabric [role="menuitemradio"],
+.theme-fabric [role="menu"] *,
+.theme-fabric [role="radiogroup"] *,
+.theme-fabric [data-radix-collection-item] {
   color: hsl(0 0% 20%) !important; /* Black text in yellow menus */
 }
 
