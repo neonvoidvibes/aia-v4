@@ -178,13 +178,23 @@ class RecordingManagerImpl implements RecordingManager {
     } catch {}
 
     // Get agent-scoped VAD aggressiveness setting
-    let vadAggressiveness = 2; // Default to Mid
+    let vadAggressiveness = 2; // Fallback default
     try {
       if (typeof window !== 'undefined' && opts.agentName && session?.user?.id) {
         const k = `vadAggressivenessSetting_${opts.agentName}_${session.user.id}`;
         const v = window.localStorage.getItem(k);
         if (v && ["1", "2", "3"].includes(v)) {
           vadAggressiveness = parseInt(v, 10);
+        } else {
+          // Get provider-specific default from backend if no saved setting
+          try {
+            const configResponse = await fetch('/api/config/defaults');
+            const config = await configResponse.json();
+            vadAggressiveness = config.defaultVadAggressiveness || 2;
+          } catch (error) {
+            console.warn('Failed to fetch VAD config defaults in recordingManager:', error);
+            // Keep fallback default of 2
+          }
         }
       }
     } catch {}
