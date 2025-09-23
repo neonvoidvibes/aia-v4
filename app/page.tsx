@@ -2169,7 +2169,7 @@ function HomeContent() {
         standard view and is displayed for recordings initiated from any tab (Chat, Record Note).
         It is positioned top-center on mobile and top-right on desktop.
       */}
-      {isFullscreen && globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'press-to-talk' && (
+      {isFullscreen && globalRecordingStatus.isRecording && (!isMobile && globalRecordingStatus.type !== 'press-to-talk') && (
         <div
           className={cn(
             "absolute top-[27px] z-20 flex items-center gap-2 text-xs text-foreground/70 right-1/2 translate-x-1/2 md:right-[27px] md:translate-x-0",
