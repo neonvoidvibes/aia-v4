@@ -88,6 +88,8 @@ import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
 import { manager as recordingManager } from "@/lib/recordingManager";
 import { useSilentChunkDetector } from "@/hooks/use-silent-chunk-detector";
 import { useRecordingSupport } from "@/hooks/use-recording-support";
+import { isMobileRecordingEnabled } from "@/lib/featureFlags";
+import { detectAudioCapabilities } from "@/lib/mobileRecordingCapabilities";
 
 // Voice ID for ElevenLabs TTS.
 const ELEVENLABS_VOICE_ID = "aSLKtNoVBZlxQEMsnGL2"; // "Sanna Hartfield"
@@ -1113,6 +1115,18 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     const [isUpdatingDoc, setIsUpdatingDoc] = useState(false);
   const isMobile = useMobile();
   const hasRecordingSupport = useRecordingSupport();
+
+  // Mobile recording capability detection
+  const hasMobileRecordingSupport = useMemo(() => {
+    if (!isMobile) return false;
+    if (!isMobileRecordingEnabled()) return false;
+    try {
+      const capabilities = detectAudioCapabilities();
+      return capabilities.isSupported;
+    } catch {
+      return false;
+    }
+  }, [isMobile]);
     const [copyState, setCopyState] = useState<{ id: string; copied: boolean }>({ id: "", copied: false });
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
     const { theme } = useTheme();
@@ -4502,20 +4516,20 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 (!!pendingActionRef.current && !stopping) ||
                                 (globalRecordingStatus.isRecording && globalRecordingStatus.type !== 'long-form-chat') ||
                                 stopping ||
-                                isMobile ||
-                                !hasRecordingSupport;
+                                (isMobile && !hasMobileRecordingSupport) ||
+                                (!isMobile && !hasRecordingSupport);
                               const mainClass = cn(
                                 "flex items-center gap-3 px-2 py-2",
                                 starting && "opacity-50 cursor-wait",
                                 stopping && "opacity-50 cursor-not-allowed",
-                                isMobile && "opacity-50 cursor-not-allowed",
+                                (isMobile && !hasMobileRecordingSupport) && "opacity-50 cursor-not-allowed",
                                 recActive && (paused ? "text-yellow-600 dark:text-yellow-400" : "text-yellow-600 dark:text-yellow-400")
                               );
 
                               const onMainSelect = (e: any) => {
                                 e.preventDefault();
                                 if (stopping) return; // frozen while saving
-                                if (isMobile || !hasRecordingSupport) return; // Disable when unsupported or on mobile
+                                if ((isMobile && !hasMobileRecordingSupport) || (!isMobile && !hasRecordingSupport)) return; // Disable when unsupported
                                 if (persistence) {
                                   handlePlayPauseMicClick();
                                 } else {
