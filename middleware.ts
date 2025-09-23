@@ -47,7 +47,8 @@ export async function middleware(req: NextRequest) {
     '/mobile-recording-test', // Allow access to mobile recording test page
     '/api/mobile-recording-telemetry', // Allow telemetry endpoint
     '/api/health-check', // Allow health check
-    '/api/runtime' // Allow runtime config check
+    '/api/runtime', // Allow runtime config check
+    '/api/config/defaults' // Allow config defaults (no auth required)
   ];
 
   // Protect routes: If no session and not on a public route, redirect to login

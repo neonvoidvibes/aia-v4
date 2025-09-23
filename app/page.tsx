@@ -1342,36 +1342,25 @@ function HomeContent() {
 
   // Load and persist VAD aggressiveness (agent-specific)
   useEffect(() => {
-    console.log('[VAD DEBUG] useEffect triggered', { pageAgentName, userId });
     if (pageAgentName && userId) {
       const key = `vadAggressivenessSetting_${pageAgentName}_${userId}`;
       const savedValue = localStorage.getItem(key);
-      console.log('[VAD DEBUG] localStorage check', { key, savedValue });
 
       if (savedValue && ["1", "2", "3"].includes(savedValue)) {
-        console.log('[VAD DEBUG] Using saved localStorage value:', savedValue);
         setVadAggressiveness(parseInt(savedValue, 10) as VADAggressiveness);
       } else {
-        console.log('[VAD DEBUG] No saved value, fetching provider defaults...');
         // Get provider-specific default from backend
         fetch('/api/config/defaults')
-          .then(response => {
-            console.log('[VAD DEBUG] API response status:', response.status);
-            return response.json();
-          })
+          .then(response => response.json())
           .then(config => {
-            console.log('[VAD DEBUG] API response data:', config);
             const defaultVad = config.defaultVadAggressiveness as VADAggressiveness;
-            console.log('[VAD DEBUG] Setting VAD to provider default:', defaultVad);
             setVadAggressiveness(defaultVad);
           })
           .catch(error => {
-            console.warn('[VAD DEBUG] Failed to fetch config defaults, using fallback:', error);
+            console.warn('Failed to fetch config defaults, using fallback:', error);
             setVadAggressiveness(2); // Fallback to 'Mid'
           });
       }
-    } else {
-      console.log('[VAD DEBUG] useEffect conditions not met', { pageAgentName, userId });
     }
   }, [pageAgentName, userId]);
 
