@@ -522,7 +522,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                const isSelected = chat.id === selectedChatId;
                                     return (
                                     <div key={chat.id} className={cn("group flex items-center justify-between w-full rounded-xs pr-1 text-foreground", isSelected && "bg-accent text-accent-foreground") }>
-                               <Button variant="ghost" className={cn("flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent", isSelected ? "text-accent-foreground" : "text-foreground")} onClick={() => handleLoadChat(chat.id)}>
+                               <Button variant="ghost" className={cn("flex-grow justify-start text-left h-auto px-1 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent", isSelected ? "text-accent-foreground" : "text-foreground")} onClick={() => handleLoadChat(chat.id)}>
                                  <div className={cn("truncate text-sm", isSelected && "!font-normal")}>
                                    {chat.title}
                                  </div>
@@ -578,7 +578,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                        <Button
                                          variant="ghost"
                                        className={cn(
-                                           "flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent hover:text-[inherit] text-[inherit]"
+                                           "flex-grow justify-start text-left h-auto px-1 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent hover:text-[inherit] text-[inherit]"
                                          )}
                                          onClick={() => handleLoadChat(chat.id)}
                                        >
