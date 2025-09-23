@@ -1,5 +1,13 @@
-import { isRecordingPersistenceEnabled } from './featureFlags';
+import { isRecordingPersistenceEnabled, isMobileRecordingEnabled } from './featureFlags';
 import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
+import {
+  detectAudioCapabilities,
+  createAudioHeader,
+  PCMAudioProcessor,
+  float32ToPCM16,
+  AudioCapabilities,
+  isMobileDevice
+} from './mobileRecordingCapabilities';
 
 export type RecordingPhase = 'idle'|'starting'|'active'|'suspended'|'stopping'|'error';
 export type RecordingType = 'chat'|'note';
@@ -68,6 +76,12 @@ class RecordingManagerImpl implements RecordingManager {
   private wsUrl: string | null = null;
   private pendingTakeoverResolve: ((v: boolean) => void) | null = null;
 
+  // Mobile recording enhancements
+  private audioCapabilities: AudioCapabilities | null = null;
+  private pcmProcessor: PCMAudioProcessor | null = null;
+  private isMobile: boolean = false;
+  private pageVisibilityHandler: (() => void) | null = null;
+
   constructor() {
     // Make a stable tab id per session
     const existing = typeof window !== 'undefined' ? window.sessionStorage.getItem('tabId') : null;
@@ -77,7 +91,9 @@ class RecordingManagerImpl implements RecordingManager {
     }
     if (typeof window !== 'undefined') {
       try { this.wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || null; } catch { this.wsUrl = null; }
+      this.isMobile = isMobileDevice();
       this.initBroadcast();
+      this.setupPageLifecycleHandlers();
       // If page reload with active session, keep state minimal until attach
       const active = this.readActive();
       if (active) {
@@ -261,6 +277,22 @@ class RecordingManagerImpl implements RecordingManager {
     for (const fn of this.subs) fn(this.state);
   }
 
+  private setupPageLifecycleHandlers() {
+    if (typeof document === 'undefined' || !this.isMobile) return;
+
+    this.pageVisibilityHandler = () => {
+      if (document.hidden && this.state.phase === 'active' && !this.state.paused) {
+        console.log('[RecordingManager] Page hidden on mobile, pausing recording');
+        this.pause();
+      } else if (!document.hidden && this.state.phase === 'active' && this.state.paused) {
+        console.log('[RecordingManager] Page visible on mobile, resuming recording');
+        setTimeout(() => this.resume(), 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', this.pageVisibilityHandler);
+  }
+
   private emitTranscript(c: TranscriptChunk) {
     for (const fn of this.transcriptSubs) fn(c);
   }
@@ -348,47 +380,73 @@ class RecordingManagerImpl implements RecordingManager {
       throw new Error('Authentication required');
     }
 
+    // Detect audio capabilities (mobile-aware)
+    if (this.isMobile && isMobileRecordingEnabled()) {
+      this.audioCapabilities = detectAudioCapabilities();
+      if (!this.audioCapabilities.isSupported) {
+        this.update({ phase: 'error', sessionId, error: { code: 'unsupported', message: 'No supported audio recording method found' } });
+        throw new Error('Audio recording not supported');
+      }
+    } else {
+      // Default desktop capabilities
+      this.audioCapabilities = {
+        supportedMimeType: 'audio/webm',
+        isSupported: true,
+        isMobile: false,
+        requiresPCMFallback: false,
+        recommendedTimeslice: 3000,
+        contentType: 'audio/webm',
+        sampleRate: 48000,
+        channels: 1
+      };
+    }
+
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+      // Configure audio constraints based on capabilities
+      const audioConstraints: MediaTrackConstraints = {
+        channelCount: this.audioCapabilities.channels,
+        sampleRate: this.audioCapabilities.sampleRate,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      };
+
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+
     } catch (e:any) {
       this.update({ phase: 'error', sessionId, error: { code: 'mic_denied', message: 'Microphone denied' } });
       throw e;
     }
-    const mr = new MediaRecorder(this.stream!, { mimeType: 'audio/webm' });
-    this.mediaRecorder = mr;
+
+    // Setup recording method based on capabilities
+    if (this.audioCapabilities.requiresPCMFallback) {
+      await this.setupPCMRecording();
+    } else {
+      this.setupMediaRecorderRecording();
+    }
+
     const resume = this.state.phase === 'suspended' ? '1' : '0';
     const ws = new WebSocket(`${this.wsUrl}/ws/audio_stream/${sessionId}?token=${session.access_token}&client_id=${encodeURIComponent(this.tabId)}&resume=${resume}`);
     this.ws = ws;
 
     ws.onopen = () => {
+      // Send audio header for mobile sessions
+      if (this.isMobile && this.audioCapabilities && isMobileRecordingEnabled()) {
+        const header = createAudioHeader(this.audioCapabilities);
+        ws.send(JSON.stringify(header));
+        console.log('[RecordingManager] Sent mobile audio header:', header);
+      }
+
       try { this.startHeartbeat(); } catch {}
       try { this.startWsKeepalive(); } catch {}
-      mr.start(3000);
-      this.update({ ...this.state, phase: 'active', paused: false });
-    };
-    mr.ondataavailable = (ev) => {
-      if (ev.data?.size > 0 && this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(ev.data);
+
+      // Start recording with appropriate method
+      if (this.mediaRecorder) {
+        this.mediaRecorder.start(this.audioCapabilities?.recommendedTimeslice || 3000);
       }
-    };
-    mr.onpause = () => {
-      // reflect paused state
-      this.update({ ...this.state, paused: true });
-      try {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify({ action: 'set_processing_state', paused: true }));
-        }
-      } catch {}
-    };
-    mr.onresume = () => {
-      // reflect resumed state
-      this.update({ ...this.state, paused: false });
-      try {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify({ action: 'set_processing_state', paused: false }));
-        }
-      } catch {}
+      // PCM recording is already started in setupPCMRecording
+
+      this.update({ ...this.state, phase: 'active', paused: false });
     };
     ws.onmessage = (e) => {
       try {
@@ -420,6 +478,51 @@ class RecordingManagerImpl implements RecordingManager {
     };
   }
 
+  private setupMediaRecorderRecording() {
+    if (!this.audioCapabilities?.supportedMimeType || !this.stream) return;
+
+    this.mediaRecorder = new MediaRecorder(this.stream, {
+      mimeType: this.audioCapabilities.supportedMimeType
+    });
+
+    this.mediaRecorder.ondataavailable = (ev) => {
+      if (ev.data?.size > 0 && this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(ev.data);
+      }
+    };
+
+    this.mediaRecorder.onpause = () => {
+      this.update({ ...this.state, paused: true });
+      try {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ action: 'set_processing_state', paused: true }));
+        }
+      } catch {}
+    };
+
+    this.mediaRecorder.onresume = () => {
+      this.update({ ...this.state, paused: false });
+      try {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ action: 'set_processing_state', paused: false }));
+        }
+      } catch {}
+    };
+  }
+
+  private async setupPCMRecording() {
+    if (!this.stream) return;
+
+    this.pcmProcessor = new PCMAudioProcessor();
+
+    await this.pcmProcessor.initialize(this.stream, (pcmData: Float32Array) => {
+      if (this.ws?.readyState === WebSocket.OPEN && this.state.phase === 'active' && !this.state.paused) {
+        const buffer = float32ToPCM16(pcmData);
+        this.ws.send(buffer);
+      }
+    });
+  }
+
   private async performStop(sessionId: string) {
     try {
       // Signal ws first for flush
@@ -445,9 +548,26 @@ class RecordingManagerImpl implements RecordingManager {
         this.mediaRecorder.stop();
       }
     } catch {}
+
+    // Stop PCM processor if active
+    try {
+      if (this.pcmProcessor) {
+        this.pcmProcessor.stop();
+        this.pcmProcessor = null;
+      }
+    } catch {}
+
     try { this.stream?.getTracks().forEach(t => t.stop()); } catch {}
     this.stream = null;
     this.mediaRecorder = null;
+    this.audioCapabilities = null;
+
+    // Remove page visibility handler
+    if (this.pageVisibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.pageVisibilityHandler);
+      this.pageVisibilityHandler = null;
+    }
+
     try {
       if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
         (this.ws as any).__intentionalClose = true;
