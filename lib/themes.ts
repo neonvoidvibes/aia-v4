@@ -80,6 +80,16 @@ export const predefinedThemes: ColorTheme[] = [
     },
   },
   {
+    name: "Village",
+    className: "theme-village",
+    isDark: true,
+    welcomeMessage: {
+      text: "Augmenting wisdom.",
+      fontSize: "3rem",
+      fontWeight: "600",
+    },
+  },
+  {
     name: "Moderbyn",
     className: "theme-moderbyn",
     isDark: true,
