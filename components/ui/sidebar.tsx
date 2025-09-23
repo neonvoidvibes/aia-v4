@@ -523,7 +523,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     return (
                                     <div key={chat.id} className={cn("group flex items-center justify-between w-full rounded-xs pr-1 text-foreground", isSelected && "bg-accent text-accent-foreground") }>
                                <Button variant="ghost" className={cn("flex-grow justify-start text-left h-auto px-2 py-2 rounded-xs min-w-0 hover:bg-transparent focus:bg-transparent", isSelected ? "text-accent-foreground" : "text-foreground")} onClick={() => handleLoadChat(chat.id)}>
-                                 <div className="truncate text-sm font-medium">
+                                 <div className={cn("truncate text-sm", isSelected && "!font-normal")}>
                                    {chat.title}
                                  </div>
                                </Button>
@@ -582,7 +582,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                          )}
                                          onClick={() => handleLoadChat(chat.id)}
                                        >
-                                         <div className="truncate text-sm font-medium">{chat.title}</div>
+                                         <div className={cn("truncate text-sm", isSelected && "!font-normal")}>{chat.title}</div>
                                        </Button>
                                        <div className={cn(
                                          "chat-row-actions flex-shrink-0 h-8 w-8 flex items-center justify-center relative"
