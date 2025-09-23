@@ -705,6 +705,7 @@ function HomeContent() {
       setChatHistory([]);
     }
 
+    console.log('[VAD] Setting pageAgentName:', agentParam);
     setPageAgentName(agentParam);
     setPageEventId(eventParam);
 
@@ -753,6 +754,7 @@ function HomeContent() {
 
         const name = session.user?.user_metadata?.full_name || session.user?.email || 'Unknown User';
         setUserName(name);
+        console.log('[VAD] Setting userId:', session.user.id);
         setUserId(session.user.id); // Set the user ID
         try {
           // Expose current user id for client-only components that need per-user persistence
@@ -1340,29 +1342,53 @@ function HomeContent() {
     }
   }, [individualRawTranscriptToggleStates, pageAgentName, userId]);
 
-  // Load and persist VAD aggressiveness (agent-specific)
-  useEffect(() => {
-    if (pageAgentName && userId) {
-      const key = `vadAggressivenessSetting_${pageAgentName}_${userId}`;
-      const savedValue = localStorage.getItem(key);
+  // Track when VAD dependencies become ready
+  const [vadDependenciesReady, setVadDependenciesReady] = useState(false);
 
-      if (savedValue && ["1", "2", "3"].includes(savedValue)) {
-        setVadAggressiveness(parseInt(savedValue, 10) as VADAggressiveness);
-      } else {
-        // Get provider-specific default from backend
-        fetch('/api/config/defaults')
-          .then(response => response.json())
-          .then(config => {
-            const defaultVad = config.defaultVadAggressiveness as VADAggressiveness;
-            setVadAggressiveness(defaultVad);
-          })
-          .catch(error => {
-            console.warn('Failed to fetch config defaults, using fallback:', error);
-            setVadAggressiveness(2); // Fallback to 'Mid'
-          });
-      }
+  // Monitor VAD dependencies separately
+  useEffect(() => {
+    console.log('[VAD-DEPS] Checking dependencies:', { pageAgentName: !!pageAgentName, userId: !!userId });
+    const ready = !!(pageAgentName && userId);
+    if (ready !== vadDependenciesReady) {
+      console.log('[VAD-DEPS] Dependencies ready state changed:', ready);
+      setVadDependenciesReady(ready);
     }
-  }, [pageAgentName, userId]);
+  }, [pageAgentName, userId, vadDependenciesReady]);
+
+  // Load and persist VAD aggressiveness (agent-specific) - triggered when dependencies become ready
+  useEffect(() => {
+    console.log('[VAD] Main useEffect triggered - vadDependenciesReady:', vadDependenciesReady);
+
+    if (!vadDependenciesReady || !pageAgentName || !userId) {
+      console.log('[VAD] Dependencies not ready, skipping...');
+      return;
+    }
+
+    console.log('[VAD] Processing VAD with pageAgentName:', pageAgentName, 'userId:', userId);
+    const key = `vadAggressivenessSetting_${pageAgentName}_${userId}`;
+    const savedValue = localStorage.getItem(key);
+    console.log('[VAD] localStorage check:', { key, savedValue });
+
+    if (savedValue && ["1", "2", "3"].includes(savedValue)) {
+      console.log('[VAD] Using saved value:', savedValue);
+      setVadAggressiveness(parseInt(savedValue, 10) as VADAggressiveness);
+    } else {
+      console.log('[VAD] No saved value, fetching defaults...');
+      // Get provider-specific default from backend
+      fetch('/api/config/defaults')
+        .then(response => response.json())
+        .then(config => {
+          console.log('[VAD] API response:', config);
+          const defaultVad = config.defaultVadAggressiveness as VADAggressiveness;
+          console.log('[VAD] Setting to provider default:', defaultVad);
+          setVadAggressiveness(defaultVad);
+        })
+        .catch(error => {
+          console.warn('[VAD] API failed, using fallback:', error);
+          setVadAggressiveness(2); // Fallback to 'Mid'
+        });
+    }
+  }, [vadDependenciesReady, pageAgentName, userId]);
 
   useEffect(() => {
     if (pageAgentName && userId) {
