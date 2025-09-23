@@ -398,7 +398,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       }}>
         <SheetContent
           side="left"
-          className={`safe-top safe-h px-3 py-4 sidebar-bg border-r-0 flex flex-col h-full ${isMobile ? 'w-[80vw]' : 'w-64'}`}
+          className={`safe-top safe-h px-3 py-4 sidebar-bg border-r-0 flex flex-col h-full ${isMobile ? 'w-[80vw]' : 'w-[260px]'}`}
         >
           <div className="h-full flex flex-col">
           <div>
