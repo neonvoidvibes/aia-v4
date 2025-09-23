@@ -169,8 +169,9 @@ class RecordingManagerImpl implements RecordingManager {
     // Prefer agent-scoped transcription language if present
     let transcriptionLanguage = 'any';
     try {
-      if (typeof window !== 'undefined' && opts.agentName) {
-        const k = `transcriptionLanguageSetting_${opts.agentName}`;
+      if (typeof window !== 'undefined' && opts.agentName && session?.user?.id) {
+        // Use the correct key format that matches the UI settings
+        const k = `transcriptionLanguageSetting_${opts.agentName}_${session.user.id}`;
         const v = window.localStorage.getItem(k);
         if (v) transcriptionLanguage = v as string;
       }
