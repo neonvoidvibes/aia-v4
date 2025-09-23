@@ -177,10 +177,22 @@ class RecordingManagerImpl implements RecordingManager {
       }
     } catch {}
 
+    // Get agent-scoped VAD aggressiveness setting
+    let vadAggressiveness = 2; // Default to Mid
+    try {
+      if (typeof window !== 'undefined' && opts.agentName && session?.user?.id) {
+        const k = `vadAggressivenessSetting_${opts.agentName}_${session.user.id}`;
+        const v = window.localStorage.getItem(k);
+        if (v && ["1", "2", "3"].includes(v)) {
+          vadAggressiveness = parseInt(v, 10);
+        }
+      }
+    } catch {}
+
     const res = await fetch(`/api/recording-proxy/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({ action: 'start', payload: { agent: opts.agentName, event: opts.eventId || '0000', transcriptionLanguage } }),
+      body: JSON.stringify({ action: 'start', payload: { agent: opts.agentName, event: opts.eventId || '0000', transcriptionLanguage, vadAggressiveness } }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.session_id) {
