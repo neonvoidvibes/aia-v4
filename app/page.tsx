@@ -1348,7 +1348,17 @@ function HomeContent() {
       if (savedValue && ["1", "2", "3"].includes(savedValue)) {
         setVadAggressiveness(parseInt(savedValue, 10) as VADAggressiveness);
       } else {
-        setVadAggressiveness(2); // Default to 'Mid'
+        // Get provider-specific default from backend
+        fetch('/api/config/defaults')
+          .then(response => response.json())
+          .then(config => {
+            const defaultVad = config.defaultVadAggressiveness as VADAggressiveness;
+            setVadAggressiveness(defaultVad);
+          })
+          .catch(error => {
+            console.warn('Failed to fetch config defaults, using fallback:', error);
+            setVadAggressiveness(2); // Fallback to 'Mid'
+          });
       }
     }
   }, [pageAgentName, userId]);
