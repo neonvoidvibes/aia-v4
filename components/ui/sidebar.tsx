@@ -527,11 +527,36 @@ const Sidebar: React.FC<SidebarProps> = ({
                                    {chat.title}
                                  </div>
                                </Button>
-                               <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative">
+                               <div className="flex-shrink-0 h-8 w-8 flex items-center justify-center relative group/action">
                                  {(chat.isConversationSaved || chat.hasSavedMessages) && (
-                                   <div className={cn("absolute h-2 w-2 rounded-full transition-opacity duration-200 group-hover:opacity-0", isSelected && "opacity-0", chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border border-[hsl(var(--save-memory-color))]")}/>
+                                   <div
+                                     className={cn(
+                                       "absolute h-2 w-2 rounded-full transition-opacity duration-200 z-10",
+                                       // Hide when hovering over the action button specifically
+                                       "group-hover/action:opacity-0",
+                                       // Always visible (including selected), with opacity transitions
+                                       "opacity-100",
+                                       // For selected items: use currentColor
+                                       isSelected && chat.isConversationSaved && "[background-color:currentColor]",
+                                       isSelected && !chat.isConversationSaved && "memory-indicator-selected-circle border",
+                                       // For non-selected on hover: use currentColor but preserve shape
+                                       !isSelected && chat.isConversationSaved && "group-hover:[background-color:currentColor] bg-[hsl(var(--save-memory-color))]",
+                                       !isSelected && !chat.isConversationSaved && "group-hover:[border-color:currentColor] border border-[hsl(var(--save-memory-color))]"
+                                     )}
+                                     style={{
+                                       transition: 'opacity 0.2s ease-in-out'
+                                     }}
+                                   />
                                  )}
-                                 <Button variant="ghost" size="icon" className={cn("absolute h-8 w-8 hover:bg-transparent focus:bg-transparent", isSelected ? "opacity-100 text-accent" : "opacity-0 group-hover:opacity-100 text-foreground") } onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>
+                                 <Button
+                                   variant="ghost"
+                                   size="icon"
+                                   className={cn(
+                                     "absolute h-8 w-8 hover:bg-transparent focus:bg-transparent z-20",
+                                     isSelected ? "opacity-100 text-accent" : "opacity-0 group-hover/action:opacity-100 text-foreground"
+                                   )}
+                                   onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}
+                                 >
                                    <X className="h-4 w-4" />
                                  </Button>
                                </div>
@@ -585,25 +610,27 @@ const Sidebar: React.FC<SidebarProps> = ({
                                          <div className={cn("truncate text-sm", isSelected && "!font-normal")}>{chat.title}</div>
                                        </Button>
                                        <div className={cn(
-                                         "chat-row-actions flex-shrink-0 h-8 w-8 flex items-center justify-center relative"
+                                         "chat-row-actions flex-shrink-0 h-8 w-8 flex items-center justify-center relative group/action"
                                        ) }>
                                          {(chat.isConversationSaved || chat.hasSavedMessages) && (
                                            <div
                                              className={cn(
-                                               "absolute h-2.5 w-2.5 rounded-full opacity-100 transition-opacity duration-150 group-hover:opacity-0 z-10",
-                                               // Non-selected: keep existing scheme (filled vs outlined)
-                                               !isSelected && (chat.isConversationSaved ? "bg-[hsl(var(--save-memory-color))]" : "border-2 border-[hsl(var(--save-memory-color))]"),
-                                               // Selected: outline when only some messages saved
-                                               isSelected && (!chat.isConversationSaved ? "border-2" : "")
+                                               "absolute h-2.5 w-2.5 rounded-full opacity-100 transition-opacity duration-150 z-10",
+                                               // Hide when hovering over the action button specifically
+                                               "group-hover/action:opacity-0",
+                                               // For selected items: use currentColor, preserve dot vs circle
+                                               isSelected && chat.isConversationSaved && "[background-color:currentColor]",
+                                               isSelected && !chat.isConversationSaved && "memory-indicator-selected-circle border-2",
+                                               // For non-selected: preserve shape on hover
+                                               !isSelected && chat.isConversationSaved && "group-hover:[background-color:currentColor] bg-[hsl(var(--save-memory-color))]",
+                                               !isSelected && !chat.isConversationSaved && "group-hover:[border-color:currentColor] border-2 border-[hsl(var(--save-memory-color))]"
                                              )}
-                                             // Selected: filled if full conversation saved, outlined if only some messages
-                                             style={isSelected ? (chat.isConversationSaved ? { backgroundColor: 'currentColor' } : { borderColor: 'currentColor' }) : undefined}
                                            />
                                          )}
                                          <Button
                                            variant="ghost"
                                            size="icon"
-                                           className={cn("absolute h-8 w-8 hover:bg-transparent focus:bg-transparent hover:text-[inherit] opacity-0 group-hover:opacity-100 text-[inherit] z-20")}
+                                           className={cn("absolute h-8 w-8 hover:bg-transparent focus:bg-transparent hover:text-[inherit] opacity-0 group-hover/action:opacity-100 text-[inherit] z-20")}
                                            onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}
                                          >
                                            <X className="h-4 w-4" />

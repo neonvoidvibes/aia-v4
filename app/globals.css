@@ -526,9 +526,41 @@
   color: hsl(var(--primary)) !important;
 }
 
+/* Dark themes: On hover of non-selected items, use white text (matching selected state) */
+.dark .sidebar-bg .group:hover:not(.bg-accent) button,
+.dark .sidebar-bg .group:hover:not(.bg-accent) button svg,
+.dark .sidebar-bg .group:hover:not(.bg-accent) .truncate,
+.theme-neon-sunset .sidebar-bg .group:hover:not(.bg-accent) button,
+.theme-neon-sunset .sidebar-bg .group:hover:not(.bg-accent) button svg,
+.theme-neon-sunset .sidebar-bg .group:hover:not(.bg-accent) .truncate,
+.theme-sunset .sidebar-bg .group:hover:not(.bg-accent) button,
+.theme-sunset .sidebar-bg .group:hover:not(.bg-accent) button svg,
+.theme-sunset .sidebar-bg .group:hover:not(.bg-accent) .truncate,
+.theme-river .sidebar-bg .group:hover:not(.bg-accent) button,
+.theme-river .sidebar-bg .group:hover:not(.bg-accent) button svg,
+.theme-river .sidebar-bg .group:hover:not(.bg-accent) .truncate,
+.theme-ridge-glass .sidebar-bg .group:hover:not(.bg-accent) button,
+.theme-ridge-glass .sidebar-bg .group:hover:not(.bg-accent) button svg,
+.theme-ridge-glass .sidebar-bg .group:hover:not(.bg-accent) .truncate {
+  color: hsl(0 0% 100%) !important; /* white */
+}
+
+/* Tenant theme: On hover of non-selected items, use black text */
+.theme-tenant .sidebar-bg .group:hover:not(.bg-accent) button,
+.theme-tenant .sidebar-bg .group:hover:not(.bg-accent) button svg,
+.theme-tenant .sidebar-bg .group:hover:not(.bg-accent) .truncate {
+  color: hsl(0 0% 0%) !important; /* black */
+}
+
 /* All themes: hover bg matches selected bg but dimmed */
 .sidebar-bg .group:hover:not(.bg-accent) {
   background-color: hsl(var(--accent) / 0.18) !important;
+}
+
+/* Memory indicator solid border for selected items */
+.memory-indicator-selected-circle {
+  border-style: solid !important;
+  border-color: currentColor !important;
 }
 /* Folkhemmet override: use light blue variant for hover (dimmed) */
 .theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) {
