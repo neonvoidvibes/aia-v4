@@ -42,7 +42,13 @@ export async function middleware(req: NextRequest) {
   }
 
   // Define public routes
-  const publicRoutes = ['/login']; // Add any other public routes like /signup if needed
+  const publicRoutes = [
+    '/login',
+    '/mobile-recording-test', // Allow access to mobile recording test page
+    '/api/mobile-recording-telemetry', // Allow telemetry endpoint
+    '/api/health-check', // Allow health check
+    '/api/runtime' // Allow runtime config check
+  ];
 
   // Protect routes: If no session and not on a public route, redirect to login
   if (!session && !publicRoutes.includes(req.nextUrl.pathname)) {

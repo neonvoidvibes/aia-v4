@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { mobileRecordingTestRunner, TestSuite } from '@/lib/mobileRecordingTest';
 import { isMobileRecordingEnabled } from '@/lib/featureFlags';
 
@@ -8,6 +8,14 @@ export function MobileRecordingTestPanel() {
   const [testSuite, setTestSuite] = useState<TestSuite | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [isMobileEnabled, setIsMobileEnabled] = useState<boolean | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Handle hydration by only accessing localStorage after mount
+  useEffect(() => {
+    setIsClient(true);
+    setIsMobileEnabled(isMobileRecordingEnabled());
+  }, []);
 
   const runTests = async () => {
     setIsRunning(true);
@@ -25,9 +33,12 @@ export function MobileRecordingTestPanel() {
   };
 
   const toggleFeatureFlag = () => {
+    if (!isClient) return;
     const current = localStorage.getItem('recording.mobile.enabled') === 'true';
     localStorage.setItem('recording.mobile.enabled', String(!current));
-    window.location.reload(); // Reload to apply changes
+    setIsMobileEnabled(!current);
+    // Optional: reload to apply changes throughout the app
+    // window.location.reload();
   };
 
   const generateReport = () => {
@@ -47,7 +58,9 @@ export function MobileRecordingTestPanel() {
       <div className="mb-6 p-4 bg-gray-100 rounded-lg">
         <h3 className="text-lg font-semibold mb-2">Feature Flag Control</h3>
         <p className="text-sm text-gray-600 mb-2">
-          Current status: <span className="font-mono">{isMobileRecordingEnabled() ? 'Enabled' : 'Disabled'}</span>
+          Current status: <span className="font-mono">
+            {!isClient ? 'Loading...' : (isMobileEnabled ? 'Enabled' : 'Disabled')}
+          </span>
         </p>
         <button
           onClick={toggleFeatureFlag}

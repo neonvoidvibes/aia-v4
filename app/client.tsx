@@ -112,7 +112,12 @@ export default function ClientLayout({
     // };
 
     // lockOrientation();
-    return () => { window.clearInterval(id) }
+    return () => {
+      if (state.timer) window.clearTimeout(state.timer);
+      document.removeEventListener('visibilitychange', trigger);
+      window.removeEventListener('focus', trigger);
+      window.removeEventListener('online', trigger);
+    }
   }, []);
 
   return (
