@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { X, Edit2, Check, AlertCircle } from 'lucide-react';
 
 interface Agent {
   id: string;
@@ -24,17 +25,66 @@ interface AgentEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (agent: Agent) => Promise<void>;
+  userRole?: string | null;
 }
 
 const AgentEditModal: React.FC<AgentEditModalProps> = ({
   agent,
   isOpen,
   onClose,
-  onSave
+  onSave,
+  userRole
 }) => {
   const [activeTab, setActiveTab] = useState("general");
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedDescription, setEditedDescription] = useState("");
+  const [isSavingDescription, setIsSavingDescription] = useState(false);
 
   if (!agent) return null;
+
+  // Check if user can edit (admin, super user, or agent owner)
+  const canEdit = userRole === 'admin' || userRole === 'super_user' || true; // TODO: Add agent ownership check
+
+  const handleStartEditDescription = () => {
+    setEditedDescription(agent.description || "");
+    setIsEditingDescription(true);
+  };
+
+  const handleCancelEditDescription = () => {
+    setIsEditingDescription(false);
+    setEditedDescription("");
+  };
+
+  const handleSaveDescription = async () => {
+    if (!canEdit) return;
+
+    setIsSavingDescription(true);
+    try {
+      const response = await fetch(`/api/agent/${agent.id}/update`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: editedDescription
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update agent description');
+      }
+
+      // Update the local agent object
+      agent.description = editedDescription;
+      setIsEditingDescription(false);
+
+    } catch (error) {
+      console.error('Error updating agent description:', error);
+      // TODO: Add proper error handling/toast notification
+    } finally {
+      setIsSavingDescription(false);
+    }
+  };
 
   const handleSave = async () => {
     // TODO: Implement save logic
@@ -135,10 +185,57 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
                     </div>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Description</label>
-                        <div className="p-3 border rounded-md bg-muted min-h-[120px]">
-                          {agent.description || 'No description provided'}
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="block text-sm font-medium">Description</label>
+                          {canEdit && !isEditingDescription && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleStartEditDescription}
+                              className="h-auto p-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
+                        {isEditingDescription ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={editedDescription}
+                              onChange={(e) => setEditedDescription(e.target.value)}
+                              className="min-h-[120px] resize-none"
+                              placeholder="Enter agent description..."
+                            />
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                onClick={handleSaveDescription}
+                                disabled={isSavingDescription}
+                                className="h-8"
+                              >
+                                {isSavingDescription ? (
+                                  <AlertCircle className="h-3 w-3 animate-spin mr-1" />
+                                ) : (
+                                  <Check className="h-3 w-3 mr-1" />
+                                )}
+                                Save
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleCancelEditDescription}
+                                disabled={isSavingDescription}
+                                className="h-8"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-3 border rounded-md bg-muted min-h-[120px]">
+                            {agent.description || 'No description provided'}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">Status</label>

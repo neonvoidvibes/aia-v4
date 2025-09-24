@@ -181,6 +181,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         onSave={handleSaveAgent}
+        userRole={userRole}
       />
     </>
   );
