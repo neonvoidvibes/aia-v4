@@ -82,7 +82,10 @@ export async function POST(req: NextRequest) {
     // Strip unused transcription language in wizard path. Use "any" as a safe default for backend.
     const transcriptionLanguageSetting = isWizard ? "any" : (body.data?.transcriptionLanguage || body.transcriptionLanguage || "any");
 
-    const savedTranscriptMemoryModeSetting = body.data?.savedTranscriptMemoryMode || body.savedTranscriptMemoryMode || "disabled";
+    let savedTranscriptMemoryModeSetting = body.data?.savedTranscriptMemoryMode || body.savedTranscriptMemoryMode || "none";
+    if (!["none","some","all"].includes(savedTranscriptMemoryModeSetting)) {
+      savedTranscriptMemoryModeSetting = "none";
+    }
     const individualMemoryToggleStates = body.data?.individualMemoryToggleStates || body.individualMemoryToggleStates || {};
     const savedTranscriptSummaries = body.data?.savedTranscriptSummaries || body.savedTranscriptSummaries || [];
     const individualRawTranscriptToggleStates = body.data?.individualRawTranscriptToggleStates || body.individualRawTranscriptToggleStates || {};

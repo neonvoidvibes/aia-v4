@@ -2873,9 +2873,15 @@ function HomeContent() {
                           <Brain className="h-5 w-5 text-muted-foreground" />
                           <Label htmlFor="saved-transcript-memory-toggle" className="memory-section-title text-sm font-medium">Memory:</Label>
                         </div>
+                        {(() => {
+                          // Calculate effective mode: force "none" when "some" has no selected items
+                          const hasAnySelected = Object.values(individualMemoryToggleStates || {}).some(Boolean);
+                          const effectiveSavedMode = savedTranscriptMemoryMode === 'some' && !hasAnySelected ? 'none' : savedTranscriptMemoryMode;
+
+                          return (
                         <ToggleGroup
                           type="single"
-                          value={savedTranscriptMemoryMode}
+                          value={effectiveSavedMode}
                           onValueChange={(value) => {
                             if (value) {
                               const newMode = value as "none" | "some" | "all";
@@ -2894,6 +2900,8 @@ function HomeContent() {
                           <ToggleGroupItem value="some" aria-label="Some" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled>Some</ToggleGroupItem>
                           <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">All</ToggleGroupItem>
                         </ToggleGroup>
+                        );
+                        })()}
                       </div>
                       <div className="pb-3 space-y-2 w-full">
                         {savedTranscriptSummaries.length > 0 ? (
