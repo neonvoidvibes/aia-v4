@@ -11,6 +11,8 @@ interface Agent {
   name: string;
   description: string | null;
   created_at: string;
+  workspace_id?: string;
+  workspace_name?: string;
 }
 
 interface AgentListProps {

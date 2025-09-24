@@ -5,8 +5,9 @@ import { getBackendUrl, formatErrorResponse, proxyApiRouteRequest } from '@/app/
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  console.log("[API /api/agent/[id]/update] Received PATCH request for agent:", params.id);
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  console.log("[API /api/agent/[id]/update] Received PATCH request for agent:", resolvedParams.id);
   const supabase = await createServerActionClient();
 
   try {
@@ -20,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return formatErrorResponse("Could not connect to backend to update agent.", 503);
     }
 
-    const targetUrl = `${activeBackendUrl}/api/agent/${params.id}/update`;
+    const targetUrl = `${activeBackendUrl}/api/agent/${resolvedParams.id}/update`;
 
     return proxyApiRouteRequest({
       request: req,

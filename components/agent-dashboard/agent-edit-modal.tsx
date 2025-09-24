@@ -18,6 +18,8 @@ interface Agent {
   name: string;
   description: string | null;
   created_at: string;
+  workspace_id?: string;
+  workspace_name?: string;
 }
 
 interface AgentEditModalProps {
@@ -156,8 +158,8 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
               <TabsContent value="general" className="mt-6 space-y-6">
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">General Settings</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
                       <div>
                         <label className="block text-sm font-medium mb-2">Agent Name</label>
                         <div className="p-3 border rounded-md bg-muted">
@@ -168,6 +170,12 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
                         <label className="block text-sm font-medium mb-2">Agent ID</label>
                         <div className="p-3 border rounded-md bg-muted font-mono text-sm">
                           {agent.id}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Workspace</label>
+                        <div className="p-3 border rounded-md bg-muted">
+                          {agent.workspace_name || 'Unknown Workspace'}
                         </div>
                       </div>
                       <div>
@@ -183,7 +191,7 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <label className="block text-sm font-medium">Description</label>
@@ -203,7 +211,7 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
                             <Textarea
                               value={editedDescription}
                               onChange={(e) => setEditedDescription(e.target.value)}
-                              className="min-h-[120px] resize-none"
+                              className="min-h-[250px] resize-none"
                               placeholder="Enter agent description..."
                             />
                             <div className="flex items-center gap-2">
@@ -232,19 +240,10 @@ const AgentEditModal: React.FC<AgentEditModalProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <div className="p-3 border rounded-md bg-muted min-h-[120px]">
+                          <div className="p-3 border rounded-md bg-muted min-h-[250px]">
                             {agent.description || 'No description provided'}
                           </div>
                         )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Status</label>
-                        <div className="p-3 border rounded-md bg-muted">
-                          <span className="inline-flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            Active
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
