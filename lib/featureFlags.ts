@@ -29,3 +29,18 @@ export function isMobileRecordingEnabled(): boolean {
   return false;
 }
 
+// Transcription pause toast feature flag
+// Source: env var NEXT_PUBLIC_TRANSCRIPTION_PAUSE_TOAST_ENABLED or localStorage key 'transcription.pause.toast.enabled'
+export function isTranscriptionPauseToastEnabled(): boolean {
+  try {
+    if (typeof window !== 'undefined') {
+      const ls = window.localStorage?.getItem('transcription.pause.toast.enabled');
+      if (ls != null) return ls === 'true';
+    }
+  } catch {}
+
+  const env = process.env.NEXT_PUBLIC_TRANSCRIPTION_PAUSE_TOAST_ENABLED;
+  if (env != null) return String(env).toLowerCase() === 'true';
+  return true; // default enabled
+}
+

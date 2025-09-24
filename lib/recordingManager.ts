@@ -1,4 +1,4 @@
-import { isRecordingPersistenceEnabled, isMobileRecordingEnabled } from './featureFlags';
+import { isRecordingPersistenceEnabled, isMobileRecordingEnabled, isTranscriptionPauseToastEnabled } from './featureFlags';
 import { acquireWakeLock, releaseWakeLock } from './wakeLock';
 import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
 import {
@@ -22,6 +22,7 @@ export interface RecordingState {
   startedAt?: number;
   error?: { code: string; message: string } | null;
   paused?: boolean;
+  transcriptionPaused?: boolean;
 }
 
 export interface TranscriptChunk {
@@ -76,6 +77,7 @@ class RecordingManagerImpl implements RecordingManager {
   private ws: WebSocket | null = null;
   private wsUrl: string | null = null;
   private pendingTakeoverResolve: ((v: boolean) => void) | null = null;
+  private transcriptionPauseToast: any = null;
 
   // Mobile recording enhancements
   private audioCapabilities: AudioCapabilities | null = null;
@@ -497,6 +499,10 @@ class RecordingManagerImpl implements RecordingManager {
           this.wsMisses = 0;
           return;
         }
+        if (m?.type === 'transcription_status') {
+          this.handleTranscriptionStatus(m);
+          return;
+        }
         if (m && (m.type === 'transcript' || m.kind === 'transcript')) {
           const text = m.text || m.data?.text || '';
           if (text) {
@@ -517,6 +523,47 @@ class RecordingManagerImpl implements RecordingManager {
     ws.onerror = () => {
       this.update({ ...this.state, phase: 'error', error: { code: 'ws', message: 'WebSocket error' } });
     };
+  }
+
+  private handleTranscriptionStatus(message: any) {
+    if (!isTranscriptionPauseToastEnabled()) return;
+
+    try {
+      if (message.state === 'PAUSED') {
+        // Show transcription paused toast
+        if (!this.transcriptionPauseToast) {
+          // Dynamic import to avoid circular dependency
+          import('@/hooks/use-toast').then(({ toast }) => {
+            const reason = message.reason || 'network';
+            const reasonText = reason === 'network' ? 'Network issues detected' : 'Provider temporarily unavailable';
+
+            this.transcriptionPauseToast = toast({
+              title: "Transcription Paused",
+              description: `${reasonText}. Your audio is still being recorded and will be processed when connection is restored.`,
+              variant: "default",
+              // Don't auto-dismiss - let the RESUMED message handle it
+            });
+          }).catch(() => {
+            console.warn('Failed to show transcription pause toast');
+          });
+        }
+
+        this.update({ ...this.state, transcriptionPaused: true });
+
+      } else if (message.state === 'RESUMED') {
+        // Hide transcription paused toast
+        if (this.transcriptionPauseToast) {
+          try {
+            this.transcriptionPauseToast.dismiss();
+          } catch {}
+          this.transcriptionPauseToast = null;
+        }
+
+        this.update({ ...this.state, transcriptionPaused: false });
+      }
+    } catch (error) {
+      console.warn('Error handling transcription status:', error);
+    }
   }
 
   private setupMediaRecorderRecording() {
@@ -623,7 +670,16 @@ class RecordingManagerImpl implements RecordingManager {
     this.writeActive(null);
     // Defensive release if any path forgets to call stop()
     void releaseWakeLock();
-    this.update({ phase: toPhase, error: null, paused: false });
+
+    // Clean up transcription pause toast
+    if (this.transcriptionPauseToast) {
+      try {
+        this.transcriptionPauseToast.dismiss();
+      } catch {}
+      this.transcriptionPauseToast = null;
+    }
+
+    this.update({ phase: toPhase, error: null, paused: false, transcriptionPaused: false });
   }
 
   private startHeartbeat() {
