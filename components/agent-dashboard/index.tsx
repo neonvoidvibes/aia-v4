@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import AgentList from './agent-list';
 import CreateAgentWizard, { type CreateAgentWizardHandle } from './create-agent-wizard';
+import AgentEditModal from './agent-edit-modal';
 import { AlertDialogConfirm } from '@/components/ui/alert-dialog-confirm';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -29,6 +30,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
   const wizardRef = useRef<CreateAgentWizardHandle>(null);
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const handleBack = () => {
     if (view === 'create') {
@@ -76,6 +78,15 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
     onClose();
   };
 
+  const handleSaveAgent = async (agent: any) => {
+    // TODO: Implement agent save API call
+    console.log('Saving agent:', agent);
+    // Refresh the agent list
+    if (refreshAgentListRef.current) {
+      await refreshAgentListRef.current();
+    }
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && handleCloseRequest()}>
@@ -121,7 +132,7 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
                 }}
                 onEditAgent={(agent) => {
                   setSelectedAgent(agent);
-                  console.log("Edit clicked for:", agent.name);
+                  setShowEditModal(true);
                 }}
                 onRefresh={refreshAgentListRef as any}
               />
@@ -164,6 +175,12 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({ isOpen, onClose, userRo
         confirmText={t('confirmations.exitAgentWizard.confirm')}
         cancelText={t('confirmations.exitAgentWizard.cancel')}
         confirmVariant="destructive"
+      />
+      <AgentEditModal
+        agent={selectedAgent}
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSaveAgent}
       />
     </>
   );
