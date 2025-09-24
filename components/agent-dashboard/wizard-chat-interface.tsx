@@ -21,28 +21,24 @@ const formatAssistantMessage = (text: string): string => {
     return html.replace(/\n/g, '<br />');
 };
 
-// Function to find, parse, and extract a system prompt proposal from AI's response.
+// Function to find and extract a system prompt proposal from AI's response.
 const extractProposal = (content: string): { proposal: string | null; conversationalText: string } => {
     const response = { proposal: null, conversationalText: content };
-    try {
-        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```|({[\s\S]*})/);
-        if (jsonMatch) {
-            let jsonString = (jsonMatch[1] || jsonMatch[2]).trim();
-            const jsonBlock = jsonMatch[0];
 
-            // Attempt to fix common LLM JSON errors like trailing commas
-            jsonString = jsonString.replace(/,\s*([}\]])/g, '$1');
+    // Look for markdown code blocks (``` ... ```)
+    const codeBlockMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch) {
+        const codeBlockContent = codeBlockMatch[1].trim();
+        const codeBlock = codeBlockMatch[0];
 
-            const parsed = JSON.parse(jsonString);
-            if (parsed && typeof parsed.system_prompt === 'string') {
-                response.proposal = parsed.system_prompt;
-                // The conversational text is everything *before* the JSON block.
-                response.conversationalText = content.substring(0, content.indexOf(jsonBlock)).trim();
-            }
+        // Extract the content inside the code block as the system prompt
+        if (codeBlockContent) {
+            response.proposal = codeBlockContent;
+            // The conversational text is everything *before* the code block.
+            response.conversationalText = content.substring(0, content.indexOf(codeBlock)).trim();
         }
-    } catch (e) {
-        console.error("Could not parse AI prompt proposal:", e);
     }
+
     return response;
 };
 
@@ -115,7 +111,7 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
     const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
     if (!lastMessage) return;
 
-    const proposalTrigger = "```json";
+    const proposalTrigger = "```";
 
     // Phase 1: Detect proposal start during the stream to show the "working" indicator.
     if (isLoading && lastMessage.role === 'assistant' && !isGeneratingProposal) {
@@ -214,7 +210,7 @@ const WizardChatInterface = forwardRef<any, WizardChatInterfaceProps>(({ wizardS
           let displayContent = message.content;
           
           if (isGeneratingForThisMessage) {
-              const proposalIndex = displayContent.indexOf('```json');
+              const proposalIndex = displayContent.indexOf('```');
               if (proposalIndex !== -1) {
                   displayContent = displayContent.substring(0, proposalIndex).trim();
               }
