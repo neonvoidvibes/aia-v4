@@ -8,6 +8,7 @@ import {
   AudioHeader
 } from './mobileRecordingCapabilities';
 import { isMobileRecordingEnabled } from './featureFlags';
+import { acquireWakeLock, releaseWakeLock } from './wakeLock';
 import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
 import { mobileRecordingTelemetry } from './mobileRecordingTelemetry';
 
@@ -93,7 +94,12 @@ export class MobileRecordingManager {
     this.pageShowHandler = () => {
       if (this.isRecording && this.isPaused) {
         console.log('[MobileRecording] Page show event, resuming recording');
-        setTimeout(() => this.resumeRecording(), 500);
+        setTimeout(() => {
+          this.resumeRecording();
+          if (isMobileRecordingEnabled()) {
+            void acquireWakeLock();
+          }
+        }, 500);
       }
     };
 
@@ -135,6 +141,9 @@ export class MobileRecordingManager {
           autoGainControl: true
         }
       });
+      if (isMobileRecordingEnabled()) {
+        try { await acquireWakeLock(); } catch {}
+      }
 
       // Setup WebSocket with header protocol
       await this.setupWebSocket(wsUrl, token);
@@ -396,6 +405,7 @@ export class MobileRecordingManager {
   }
 
   private async cleanup(): Promise<void> {
+    try { await releaseWakeLock(); } catch {}
     this.stopHeartbeat();
 
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {

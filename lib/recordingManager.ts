@@ -1,4 +1,5 @@
 import { isRecordingPersistenceEnabled, isMobileRecordingEnabled } from './featureFlags';
+import { acquireWakeLock, releaseWakeLock } from './wakeLock';
 import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
 import {
   detectAudioCapabilities,
@@ -235,7 +236,13 @@ class RecordingManagerImpl implements RecordingManager {
     if (!sessionId) return;
     this.update({ ...this.state, phase: 'stopping' });
     this.post({ kind: 'stop:request', reason: 'manual', requesterTabId: this.tabId });
-    try { await this.performStop(sessionId); } finally { this.cleanupAll('idle'); }
+    try {
+      await this.performStop(sessionId);
+    } finally {
+      // Always release wake lock on stop
+      try { await releaseWakeLock(); } catch {}
+      this.cleanupAll('idle');
+    }
   }
 
   async attachToExisting(sessionId: string): Promise<void> {
@@ -309,7 +316,14 @@ class RecordingManagerImpl implements RecordingManager {
         this.pause();
       } else if (!document.hidden && this.state.phase === 'active' && this.state.paused) {
         console.log('[RecordingManager] Page visible on mobile, resuming recording');
-        setTimeout(() => this.resume(), 500);
+        // Resume first, then try to reacquire wake lock (some UAs revoke it)
+        setTimeout(() => {
+          this.resume();
+          if (this.isMobile && isMobileRecordingEnabled()) {
+            // fire-and-forget; must not block UI
+            void acquireWakeLock();
+          }
+        }, 500);
       }
     };
 
@@ -435,6 +449,10 @@ class RecordingManagerImpl implements RecordingManager {
       };
 
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      // Best-effort wake lock when mobile path is active.
+      if (this.isMobile && isMobileRecordingEnabled()) {
+        try { await acquireWakeLock(); } catch {}
+      }
 
     } catch (e:any) {
       this.update({ phase: 'error', sessionId, error: { code: 'mic_denied', message: 'Microphone denied' } });
@@ -603,6 +621,8 @@ class RecordingManagerImpl implements RecordingManager {
   private cleanupAll(toPhase: RecordingPhase) {
     this.cleanupMediaAndWsOnly();
     this.writeActive(null);
+    // Defensive release if any path forgets to call stop()
+    void releaseWakeLock();
     this.update({ phase: toPhase, error: null, paused: false });
   }
 
