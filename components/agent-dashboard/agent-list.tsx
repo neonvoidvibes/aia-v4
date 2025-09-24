@@ -23,6 +23,7 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefre
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
 
   const fetchAgents = useCallback(async () => {
     setIsLoading(true);
@@ -82,23 +83,33 @@ const AgentList: React.FC<AgentListProps> = ({ onEditAgent, onCreateNew, onRefre
               </Button>
             </div>
           ) : (
-            <ScrollArea className="h-full">
-              <div className="pr-4 pb-24 md:pb-4 touch-pan-y">
+            <div className="h-full overflow-y-auto">
+              <div className="pr-4 pb-24 md:pb-4">
                 {agents.map((agent) => (
-                  <div key={agent.id} className="flex items-center justify-between py-3 border-b">
+                  <div
+                    key={agent.id}
+                    className="flex items-center justify-between py-3 border-b hover:bg-muted/50 transition-colors"
+                    onMouseEnter={() => setHoveredAgentId(agent.id)}
+                    onMouseLeave={() => setHoveredAgentId(null)}
+                  >
                     <div className="flex-1 min-w-0 pr-4">
                       <p className="text-base font-semibold truncate">{agent.name}</p>
                       <p className="text-xs text-muted-foreground leading-tight truncate">
                         {agent.description || 'No description provided.'}
                       </p>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => onEditAgent(agent)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div
+                      className={`p-2 cursor-pointer transition-opacity duration-200 ${
+                        hoveredAgentId === agent.id ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      onClick={() => onEditAgent(agent)}
+                    >
+                      <Pencil className="h-5 w-5 text-accent" />
+                    </div>
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
