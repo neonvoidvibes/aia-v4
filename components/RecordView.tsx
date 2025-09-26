@@ -58,7 +58,7 @@ interface RecordViewProps {
   setGlobalRecordingStatus: React.Dispatch<React.SetStateAction<GlobalRecordingStatus>>;
   isTranscriptRecordingActive: boolean;
   agentCapabilities: { pinecone_index_exists: boolean };
-  vadAggressiveness: VADAggressiveness;
+  vadAggressiveness: VADAggressiveness | null;
   setRecordingTime: React.Dispatch<React.SetStateAction<number>>;
 }
 
@@ -711,6 +711,13 @@ const RecordView: React.FC<RecordViewProps> = ({
     
     setPendingAction('start');
     resetRecordingStates(); // Ensure clean state before starting
+
+    // Ensure VAD aggressiveness is loaded before starting recording
+    if (vadAggressiveness === null) {
+      toast.error('VAD settings are still loading. Please wait a moment and try again.');
+      setPendingAction(null);
+      return;
+    }
 
     const result = await callHttpRecordingApi('start', {
       transcriptionLanguage: 'any',

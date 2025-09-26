@@ -442,7 +442,7 @@ interface SimpleChatInterfaceProps {
     isReconnecting: boolean;
   }, type: RecordingType) => void;
   isDedicatedRecordingActive?: boolean;
-  vadAggressiveness: VADAggressiveness;
+  vadAggressiveness: VADAggressiveness | null;
   globalRecordingStatus: GlobalRecordingStatus;
   setGlobalRecordingStatus: React.Dispatch<React.SetStateAction<GlobalRecordingStatus>>;
   transcriptListenMode: "none" | "some" | "latest" | "all";
@@ -2262,6 +2262,12 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         setAgentName(currentAgent); setEventId(currentEvent);
         const currentTranscriptionLanguage = localStorage.getItem(`transcriptionLanguageSetting_${currentAgent}`) || "any";
         try {
+            // Ensure VAD aggressiveness is loaded before starting recording
+            if (vadAggressiveness === null) {
+              toast.error('VAD settings are still loading. Please wait a moment and try again.');
+              setPendingAction(null);
+              return;
+            }
             console.log(`[VAD TEST] Starting recording with aggressiveness: ${vadAggressiveness}`);
             const result = await callHttpRecordingApi('start', {
               agent: currentAgent,

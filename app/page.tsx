@@ -221,7 +221,7 @@ function HomeContent() {
   const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "some" | "latest" | "all">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"none" | "some" | "all">("none");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
-  const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness>(2);
+  const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness | null>(null);
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
 
   // Fullscreen mode state
@@ -1384,14 +1384,16 @@ function HomeContent() {
           setVadAggressiveness(defaultVad);
         })
         .catch(error => {
-          console.warn('[VAD] API failed, using fallback:', error);
-          setVadAggressiveness(2); // Fallback to 'Mid'
+          console.warn('[VAD] API failed, using hardcoded fallback:', error);
+          // If API fails, use sensible defaults: Deepgram=1, others=2
+          // We don't know the provider here, so default to 2 (Mid) as safest fallback
+          setVadAggressiveness(2);
         });
     }
   }, [vadDependenciesReady, pageAgentName, userId]);
 
   useEffect(() => {
-    if (pageAgentName && userId) {
+    if (pageAgentName && userId && vadAggressiveness !== null) {
       const key = `vadAggressivenessSetting_${pageAgentName}_${userId}`;
       localStorage.setItem(key, vadAggressiveness.toString());
     }

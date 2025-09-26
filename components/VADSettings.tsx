@@ -6,7 +6,7 @@ import { useMobile } from "@/hooks/use-mobile";
 export type VADAggressiveness = 1 | 2 | 3;
 
 interface VADSettingsProps {
-  aggressiveness: VADAggressiveness;
+  aggressiveness: VADAggressiveness | null;
   onAggressivenessChange: (value: VADAggressiveness) => void;
 }
 
@@ -19,6 +19,18 @@ export function VADSettings({ aggressiveness, onAggressivenessChange }: VADSetti
       onAggressivenessChange(newAggressiveness);
     }
   };
+
+  // Show loading state while aggressiveness is being determined
+  if (aggressiveness === null) {
+    return (
+      <div className="flex items-center justify-between">
+        <Label htmlFor="vad-aggressiveness-toggle">Sound Environment (VAD)</Label>
+        <div className="rounded-md bg-muted p-1 opacity-50">
+          Loading...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-between">
