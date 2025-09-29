@@ -281,6 +281,7 @@ export class ResilientMobileRecordingManager {
           initMessage.frame_duration_ms = this.pcmProcessor.getFrameDurationMs();
           initMessage.frame_samples = this.pcmProcessor.getFrameSampleCount();
           initMessage.channels = 1;
+          initMessage.segment_target_ms = this.capabilities?.pcmSegmentTargetMs ?? 15000;
         } else if (this.capabilities) {
           initMessage.format = this.capabilities.contentType;
           initMessage.sample_rate = this.capabilities.sampleRate;

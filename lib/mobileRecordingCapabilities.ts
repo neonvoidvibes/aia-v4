@@ -15,6 +15,7 @@ export interface AudioCapabilities {
   supportsAudioWorklet: boolean;
   pcmFrameDurationMs: number;
   pcmFrameSamples: number;
+  pcmSegmentTargetMs: number;
 }
 
 export interface AudioHeader {
@@ -90,6 +91,7 @@ export function detectAudioCapabilities(): AudioCapabilities {
   const audioWorkletSupported = !!(audioContextSupported && AudioContextClass && AudioContextClass.prototype && 'audioWorklet' in AudioContextClass.prototype);
   const pcmFrameDurationMs = 20;
   const pcmFrameSamples = Math.round(16000 * (pcmFrameDurationMs / 1000));
+  const pcmSegmentTargetMs = 15000;
 
   // Default fallback values
   let result: AudioCapabilities = {
@@ -105,7 +107,8 @@ export function detectAudioCapabilities(): AudioCapabilities {
     supportsPCMStream: audioContextSupported,
     supportsAudioWorklet: audioWorkletSupported,
     pcmFrameDurationMs,
-    pcmFrameSamples
+    pcmFrameSamples,
+    pcmSegmentTargetMs,
   };
 
   // Check if MediaRecorder is available
@@ -144,6 +147,7 @@ export function detectAudioCapabilities(): AudioCapabilities {
     result.recommendedTimeslice = isMobile ? 1500 : 3000; // Slightly longer for PCM processing
     result.supportsPCMStream = true;
     result.supportsAudioWorklet = audioWorkletSupported;
+    result.pcmSegmentTargetMs = pcmSegmentTargetMs;
   }
 
   return result;

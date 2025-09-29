@@ -182,24 +182,25 @@ export class MobileRecordingManager {
 
       this.webSocket.onopen = () => {
         const usingPCM = this.isPCMStreamingActive();
-        const initMessage: Record<string, any> = {
-          type: 'init',
-          supports_pcm: usingPCM,
-          next_seq: this.pcmSequenceNumber + 1,
-          client_timestamp: Date.now(),
-        };
+    const initMessage: Record<string, any> = {
+      type: 'init',
+      supports_pcm: usingPCM,
+      next_seq: this.pcmSequenceNumber + 1,
+      client_timestamp: Date.now(),
+    };
 
-        if (usingPCM && this.pcmProcessor) {
-          initMessage.format = 'pcm16';
-          initMessage.sample_rate = this.pcmProcessor.getTargetSampleRate();
-          initMessage.frame_duration_ms = this.pcmProcessor.getFrameDurationMs();
-          initMessage.frame_samples = this.pcmProcessor.getFrameSampleCount();
-          initMessage.channels = 1;
-        } else if (this.capabilities) {
-          initMessage.format = this.capabilities.contentType;
-          initMessage.sample_rate = this.capabilities.sampleRate;
-          initMessage.channels = this.capabilities.channels;
-        }
+    if (usingPCM && this.pcmProcessor) {
+      initMessage.format = 'pcm16';
+      initMessage.sample_rate = this.pcmProcessor.getTargetSampleRate();
+      initMessage.frame_duration_ms = this.pcmProcessor.getFrameDurationMs();
+      initMessage.frame_samples = this.pcmProcessor.getFrameSampleCount();
+      initMessage.channels = 1;
+      initMessage.segment_target_ms = this.capabilities?.pcmSegmentTargetMs ?? 15000;
+    } else if (this.capabilities) {
+      initMessage.format = this.capabilities.contentType;
+      initMessage.sample_rate = this.capabilities.sampleRate;
+      initMessage.channels = this.capabilities.channels;
+    }
 
         try {
           this.webSocket?.send(JSON.stringify(initMessage));

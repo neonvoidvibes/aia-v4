@@ -460,6 +460,7 @@ class RecordingManagerImpl implements RecordingManager {
         supportsAudioWorklet: true,
         pcmFrameDurationMs: 20,
         pcmFrameSamples: 320,
+        pcmSegmentTargetMs: 15000,
       };
     }
 
@@ -512,6 +513,7 @@ class RecordingManagerImpl implements RecordingManager {
         initMessage.frame_duration_ms = this.pcmProcessor.getFrameDurationMs();
         initMessage.frame_samples = this.pcmProcessor.getFrameSampleCount();
         initMessage.channels = 1;
+        initMessage.segment_target_ms = this.audioCapabilities?.pcmSegmentTargetMs ?? 15000;
       } else if (this.audioCapabilities) {
         initMessage.format = this.audioCapabilities.contentType;
         initMessage.sample_rate = this.audioCapabilities.sampleRate;
