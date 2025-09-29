@@ -454,7 +454,12 @@ class RecordingManagerImpl implements RecordingManager {
         recommendedTimeslice: 3000,
         contentType: 'audio/webm',
         sampleRate: 48000,
-        channels: 1
+        channels: 1,
+        bitDepth: 16,
+        supportsPCMStream: true,
+        supportsAudioWorklet: true,
+        pcmFrameDurationMs: 20,
+        pcmFrameSamples: 320,
       };
     }
 
