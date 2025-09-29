@@ -1026,9 +1026,12 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                             console.warn('[Cache] upsert after creating chatId failed', e);
                         }
                     }
-                    // After any successful save, trigger a refresh of the history list
+                    // After any successful save, trigger a refresh of the history list with delay
+                    // Delay allows DB commit to fully settle before refetching
                     if (onHistoryRefreshNeeded) {
-                        onHistoryRefreshNeeded();
+                        setTimeout(() => {
+                            onHistoryRefreshNeeded();
+                        }, 500);
                     }
                 }
             }
