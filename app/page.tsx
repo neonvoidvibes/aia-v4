@@ -226,7 +226,7 @@ function HomeContent() {
 
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-20250514'); // Default model
+  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-5-20250929'); // Default model
   const [temperature, setTemperature] = useState(0.7); // Default temperature
 
   // Recording state lifted from SimpleChatInterface for fullscreen indicator
@@ -1492,7 +1492,7 @@ function HomeContent() {
       if (savedModel) {
         setSelectedModel(savedModel);
       } else {
-        setSelectedModel('claude-sonnet-4-20250514');
+        setSelectedModel('claude-sonnet-4-5-20250929');
       }
     }
   }, [pageAgentName, userId, activeUiConfig]);

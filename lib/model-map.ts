@@ -1,6 +1,6 @@
 export interface Model {
-  id: string; // e.g., "claude-sonnet-4-20250514"
-  name: string; // e.g., "Claude 4 Sonnet"
+  id: string; // e.g., "claude-sonnet-4-5-20250929"
+  name: string; // e.g., "Claude 4.5 Sonnet"
   shortName?: string; // e.g., "Claude" - for selected label display
 }
 
@@ -14,7 +14,7 @@ export const MODEL_GROUPS: ModelGroup[] = [
   {
     label: "Standard",
     models: [
-      { id: "claude-sonnet-4-20250514", name: "Claude 4 Sonnet", shortName: "Claude" },
+      { id: "claude-sonnet-4-5-20250929", name: "Claude 4.5 Sonnet", shortName: "Claude" },
       { id: "gpt-oss-120b", name: "GPT-Open L", shortName: "GPT-L" },
     ],
   },
