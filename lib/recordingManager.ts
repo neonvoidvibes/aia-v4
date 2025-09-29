@@ -1,6 +1,7 @@
 import { isRecordingPersistenceEnabled, isMobileRecordingEnabled, isTranscriptionPauseToastEnabled } from './featureFlags';
 import { acquireWakeLock, releaseWakeLock } from './wakeLock';
 import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
+import { getClientTimezone } from './timezone';
 import {
   detectAudioCapabilities,
   createAudioHeader,
@@ -202,10 +203,22 @@ class RecordingManagerImpl implements RecordingManager {
       }
     } catch {}
 
+    const startPayload: Record<string, unknown> = {
+      agent: opts.agentName,
+      event: opts.eventId || '0000',
+      transcriptionLanguage,
+      vadAggressiveness,
+    };
+
+    const clientTimezone = getClientTimezone();
+    if (clientTimezone) {
+      startPayload.clientTimezone = clientTimezone;
+    }
+
     const res = await fetch(`/api/recording-proxy/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({ action: 'start', payload: { agent: opts.agentName, event: opts.eventId || '0000', transcriptionLanguage, vadAggressiveness } }),
+      body: JSON.stringify({ action: 'start', payload: startPayload }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.session_id) {

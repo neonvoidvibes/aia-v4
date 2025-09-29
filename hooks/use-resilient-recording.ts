@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useSilentChunkDetector } from '@/hooks/use-silent-chunk-detector';
 import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from '@/lib/wsPolicy';
+import { getClientTimezone } from '@/lib/timezone';
 
 type UseResilientRecordingProps = {
   agentName: string | null;
@@ -422,10 +423,20 @@ export function useResilientRecording({ agentName, onRecordingStopped }: UseResi
     }
 
     try {
+      const payload: Record<string, unknown> = {
+        agent: agentName,
+        transcriptionLanguage: 'any',
+      };
+
+      const clientTimezone = getClientTimezone();
+      if (clientTimezone) {
+        payload.clientTimezone = clientTimezone;
+      }
+
       const response = await fetch('/api/audio-recording-proxy?action=start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: agentName, transcriptionLanguage: 'any' }),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
 

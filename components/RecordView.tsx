@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { createClient } from '@/utils/supabase/client';
 import { useSilentChunkDetector } from '@/hooks/use-silent-chunk-detector';
+import { getClientTimezone } from '@/lib/timezone';
 
 // Utility for development-only logging
 const debugLog = (...args: any[]) => {
@@ -350,10 +351,22 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
 
     try {
+      const requestBody: Record<string, unknown> = {
+        ...(payload ?? {}),
+        agent: agentName,
+      };
+
+      if (action === 'start') {
+        const clientTimezone = getClientTimezone();
+        if (clientTimezone) {
+          requestBody.clientTimezone = clientTimezone;
+        }
+      }
+
       const response = await fetch(`/api/audio-recording-proxy?action=${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, agent: agentName }),
+        body: JSON.stringify(requestBody),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || data.error || `Failed action '${action}'`);
