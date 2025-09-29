@@ -125,6 +125,14 @@ const RecordView: React.FC<RecordViewProps> = ({
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const BUFFER_GRACE_MS = 120_000;
+  const bufferedChunksRef = useRef<Array<{ blob: Blob; queuedAt: number }>>([]);
+  const bufferedDurationMsRef = useRef(0);
+  const bufferingToastIdRef = useRef<string | null>(null);
+  const networkGraceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoPausedRef = useRef(false);
+  const chunkTimesliceMsRef = useRef(3000);
   
   const tryReconnectRef = React.useRef<() => void>(() => {});
   const supabase = createClient();
@@ -336,6 +344,20 @@ const RecordView: React.FC<RecordViewProps> = ({
       audioStreamRef.current = null;
     }
     
+    // Clear buffered chunks and network timers
+    if (networkGraceTimerRef.current) {
+      clearTimeout(networkGraceTimerRef.current);
+      networkGraceTimerRef.current = null;
+    }
+    if (bufferingToastIdRef.current) {
+      try { toast.dismiss(bufferingToastIdRef.current); } catch (_err) {}
+      bufferingToastIdRef.current = null;
+    }
+    bufferedChunksRef.current = [];
+    bufferedDurationMsRef.current = 0;
+    autoPausedRef.current = false;
+    chunkTimesliceMsRef.current = 3000;
+
     // This function is a "dumb" resetter, it shouldn't clear pending actions
     // as the caller is responsible for that.
     
@@ -435,6 +457,140 @@ const RecordView: React.FC<RecordViewProps> = ({
 
   }, [currentSessionId, callHttpRecordingApi, fetchRecordings, setGlobalRecordingStatus, resetRecordingStates]);
 
+  const clearNetworkGraceTimer = useCallback(() => {
+    if (networkGraceTimerRef.current) {
+      clearTimeout(networkGraceTimerRef.current);
+      networkGraceTimerRef.current = null;
+    }
+  }, []);
+
+  const dismissBufferingToast = useCallback((variant?: 'success' | 'error', message?: string) => {
+    const toastId = bufferingToastIdRef.current;
+    if (!toastId) {
+      if (variant === 'success') {
+        toast.success(message ?? 'Connection re-established.');
+      } else if (variant === 'error') {
+        toast.error(message ?? 'Recording paused due to extended network outage.');
+      }
+      return;
+    }
+
+    if (variant === 'success') {
+      toast.success(message ?? 'Connection re-established.', { id: toastId });
+    } else if (variant === 'error') {
+      toast.error(message ?? 'Recording paused due to extended network outage.', { id: toastId });
+    } else {
+      toast.dismiss(toastId);
+    }
+
+    bufferingToastIdRef.current = null;
+  }, []);
+
+  const showBufferingToast = useCallback(() => {
+    const toastId = bufferingToastIdRef.current ?? `recording-buffer-${Date.now()}`;
+    bufferingToastIdRef.current = toastId;
+    toast.loading('Connection lost. Buffering audio for up to 120 seconds...', {
+      id: toastId,
+      duration: Infinity,
+    });
+  }, []);
+
+  const autoPauseDueToNetwork = useCallback(() => {
+    if (autoPausedRef.current || !globalRecordingStatusRef.current.isRecording) {
+      return;
+    }
+
+    autoPausedRef.current = true;
+    clearNetworkGraceTimer();
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state === 'recording') {
+      try {
+        recorder.pause();
+      } catch (error) {
+        console.warn('[Network Auto-Pause] Failed to pause recorder:', error);
+      }
+    }
+
+    stopTimer();
+    setIsPaused(true);
+    dismissBufferingToast('error', 'Network outage exceeded 2 minutes. Recording paused.');
+  }, [clearNetworkGraceTimer, dismissBufferingToast]);
+
+  const startNetworkGraceTimer = useCallback(() => {
+    clearNetworkGraceTimer();
+    networkGraceTimerRef.current = setTimeout(() => {
+      if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+        return;
+      }
+      autoPauseDueToNetwork();
+    }, BUFFER_GRACE_MS);
+  }, [autoPauseDueToNetwork, clearNetworkGraceTimer]);
+
+  const flushBufferedChunks = useCallback(() => {
+    const ws = webSocketRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN || bufferedChunksRef.current.length === 0) {
+      return;
+    }
+
+    let failed = false;
+    while (bufferedChunksRef.current.length > 0) {
+      const next = bufferedChunksRef.current.shift();
+      if (!next) break;
+
+      try {
+        ws.send(next.blob);
+        bufferedDurationMsRef.current = Math.max(
+          bufferedDurationMsRef.current - chunkTimesliceMsRef.current,
+          0,
+        );
+      } catch (error) {
+        console.warn('[Buffered Flush] Failed to send chunk, will retry on next reconnect:', error);
+        bufferedChunksRef.current.unshift(next);
+        failed = true;
+        break;
+      }
+    }
+
+    if (!failed && bufferedChunksRef.current.length === 0) {
+      dismissBufferingToast('success', 'Connection restored. Buffered audio delivered.');
+      clearNetworkGraceTimer();
+    }
+  }, [clearNetworkGraceTimer, dismissBufferingToast]);
+
+  const enqueueBufferedChunk = useCallback((blob: Blob) => {
+    bufferedChunksRef.current.push({ blob, queuedAt: Date.now() });
+    bufferedDurationMsRef.current += chunkTimesliceMsRef.current;
+
+    if (bufferedDurationMsRef.current >= BUFFER_GRACE_MS && !autoPausedRef.current) {
+      autoPauseDueToNetwork();
+    }
+  }, [autoPauseDueToNetwork]);
+
+  const sendChunkOrBuffer = useCallback((blob: Blob) => {
+    const ws = webSocketRef.current;
+    let offline = !ws || ws.readyState !== WebSocket.OPEN;
+
+    if (!offline && bufferedChunksRef.current.length === 0) {
+      try {
+        ws.send(blob);
+        return;
+      } catch (error) {
+        console.warn('[Chunk Send] Direct send failed. Falling back to buffer:', error);
+        offline = true;
+      }
+    }
+
+    enqueueBufferedChunk(blob);
+
+    if (offline) {
+      showBufferingToast();
+      startNetworkGraceTimer();
+    }
+
+    flushBufferedChunks();
+  }, [enqueueBufferedChunk, flushBufferedChunks, showBufferingToast, startNetworkGraceTimer]);
+
   const startBrowserMediaRecording = useCallback(async () => {
     debugLog(`[MediaRecorder] Attempting start. WS state: ${webSocketRef.current?.readyState}`);
     if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) {
@@ -458,11 +614,10 @@ const RecordView: React.FC<RecordViewProps> = ({
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && webSocketRef.current?.readyState === WebSocket.OPEN) {
-          webSocketRef.current.send(event.data);
+        if (event.data?.size > 0) {
+          sendChunkOrBuffer(event.data);
+          onChunkBoundary();
         }
-        // Check last 10s window on each chunk boundary
-        onChunkBoundary();
       };
 
       mediaRecorder.onstop = () => {
@@ -482,7 +637,8 @@ const RecordView: React.FC<RecordViewProps> = ({
         handleStopRecording(undefined, true);
       };
 
-      mediaRecorder.start(3000); // Send data every 3 seconds
+      chunkTimesliceMsRef.current = 3000;
+      mediaRecorder.start(chunkTimesliceMsRef.current); // Send data every 3 seconds
       console.info("[MediaRecorder] Started.");
       setGlobalRecordingStatus({ type: 'long-form-note', isRecording: true });
       setIsPaused(false);
@@ -499,7 +655,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       setWsStatus('error');
       if (pendingAction === 'start') setPendingAction(null);
     }
-  }, [pendingAction, setGlobalRecordingStatus, handleStopRecording]);
+  }, [pendingAction, setGlobalRecordingStatus, handleStopRecording, sendChunkOrBuffer, onChunkBoundary, resetDetector]);
 
   const connectWebSocket = useCallback((sessionId: string) => {
     // Stable per-tab id (already used elsewhere in the app)
@@ -566,6 +722,13 @@ const RecordView: React.FC<RecordViewProps> = ({
         if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
         heartbeatMissesRef.current = 0;
         
+        const hadBufferedAudio = bufferedChunksRef.current.length > 0;
+        flushBufferedChunks();
+        if (!hadBufferedAudio) {
+          clearNetworkGraceTimer();
+          dismissBufferingToast('success', 'Connection re-established.');
+        }
+
         heartbeatIntervalRef.current = setInterval(() => {
           if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
             if (!globalRecordingStatusRef.current.isRecording && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
@@ -584,7 +747,7 @@ const RecordView: React.FC<RecordViewProps> = ({
         }, adjusted(HEARTBEAT_INTERVAL_MS));
         
         if (isReconnecting) {
-          if (mediaRecorderRef.current?.state === "paused") {
+          if (mediaRecorderRef.current?.state === "paused" && !autoPausedRef.current) {
             mediaRecorderRef.current.resume();
             setIsPaused(false);
           }
@@ -618,7 +781,6 @@ const RecordView: React.FC<RecordViewProps> = ({
             if (isReconnecting) {
               setIsReconnecting(false);
               reconnectAttemptsRef.current = 0;
-              toast.success("Connection re-established and stable.");
             }
           }
         } catch (e) { /* Non-JSON message */ }
@@ -669,10 +831,8 @@ const RecordView: React.FC<RecordViewProps> = ({
         // should now only run for UNINTENTIONAL disconnections.
         if (!intentional && globalRecordingStatusRef.current.isRecording) {
           debugLog("[WebSocket onclose] Unexpected disconnection. Attempting to reconnect.");
-          if (mediaRecorderRef.current?.state === "recording") {
-            mediaRecorderRef.current.pause();
-            setIsPaused(true);
-          }
+          showBufferingToast();
+          startNetworkGraceTimer();
           if (!isReconnecting) {
             setIsReconnecting(true);
             reconnectAttemptsRef.current = 0;
@@ -680,10 +840,13 @@ const RecordView: React.FC<RecordViewProps> = ({
           } else {
             tryReconnectRef.current();
           }
+        } else {
+          clearNetworkGraceTimer();
+          dismissBufferingToast();
         }
       };
     });
-  }, [isReconnecting, supabase.auth, startBrowserMediaRecording, setGlobalRecordingStatus, callHttpRecordingApi, fetchRecordings, resetRecordingStates]);
+  }, [isReconnecting, supabase.auth, startBrowserMediaRecording, setGlobalRecordingStatus, callHttpRecordingApi, fetchRecordings, resetRecordingStates, showBufferingToast, startNetworkGraceTimer, clearNetworkGraceTimer, dismissBufferingToast, flushBufferedChunks]);
 
   const tryReconnect = useCallback(() => {
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
@@ -693,8 +856,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
     reconnectAttemptsRef.current++;
     const attempt = reconnectAttemptsRef.current;
-    toast.info(`Connection lost. Paused. Reconnecting (${attempt}/${MAX_RECONNECT_ATTEMPTS})...`);
-    
+
     const delay = nextReconnectDelay(
       prevDelayRef.current,
       { isRecording: globalRecordingStatusRef.current.isRecording === true }
@@ -753,6 +915,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.pause();
     }
+    autoPausedRef.current = true;
     stopTimer();
     setIsPaused(true);
     toast.info("Recording paused.");
@@ -765,6 +928,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     if (mediaRecorderRef.current?.state === "paused") {
       mediaRecorderRef.current.resume();
     }
+    autoPausedRef.current = false;
     startTimer();
     setIsPaused(false);
     toast.success("Recording resumed.");
