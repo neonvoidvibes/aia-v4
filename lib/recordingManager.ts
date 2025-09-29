@@ -8,7 +8,9 @@ import {
   PCMAudioProcessor,
   float32ToPCM16,
   AudioCapabilities,
-  isMobileDevice
+  isMobileDevice,
+  encodePCMFrame,
+  PCMFrameEnvelope
 } from './mobileRecordingCapabilities';
 
 export type RecordingPhase = 'idle'|'starting'|'active'|'suspended'|'stopping'|'error';
@@ -83,6 +85,9 @@ class RecordingManagerImpl implements RecordingManager {
   // Mobile recording enhancements
   private audioCapabilities: AudioCapabilities | null = null;
   private pcmProcessor: PCMAudioProcessor | null = null;
+  private pcmFrameQueue: PCMFrameEnvelope[] = [];
+  private pcmSequenceNumber = 0;
+  private pcmHandshakeSent = false;
   private isMobile: boolean = false;
   private pageVisibilityHandler: (() => void) | null = null;
 
@@ -474,8 +479,9 @@ class RecordingManagerImpl implements RecordingManager {
       throw e;
     }
 
-    // Setup recording method based on capabilities
-    if (this.audioCapabilities.requiresPCMFallback) {
+    const shouldUsePCM = !!this.audioCapabilities?.supportsPCMStream;
+
+    if (shouldUsePCM) {
       await this.setupPCMRecording();
     } else {
       this.setupMediaRecorderRecording();
@@ -486,21 +492,51 @@ class RecordingManagerImpl implements RecordingManager {
     this.ws = ws;
 
     ws.onopen = () => {
-      // Send audio header for mobile sessions
-      if (this.isMobile && this.audioCapabilities && isMobileRecordingEnabled()) {
+      const usingPCM = this.isPCMStreamingActive();
+
+      const initMessage: Record<string, any> = {
+        type: 'init',
+        supports_pcm: usingPCM,
+        next_seq: this.pcmSequenceNumber + 1,
+        client_timestamp: Date.now(),
+      };
+
+      if (usingPCM && this.pcmProcessor) {
+        initMessage.format = 'pcm16';
+        initMessage.sample_rate = this.pcmProcessor.getTargetSampleRate();
+        initMessage.frame_duration_ms = this.pcmProcessor.getFrameDurationMs();
+        initMessage.frame_samples = this.pcmProcessor.getFrameSampleCount();
+        initMessage.channels = 1;
+      } else if (this.audioCapabilities) {
+        initMessage.format = this.audioCapabilities.contentType;
+        initMessage.sample_rate = this.audioCapabilities.sampleRate;
+        initMessage.channels = this.audioCapabilities.channels;
+      }
+
+      try {
+        ws.send(JSON.stringify(initMessage));
+        this.pcmHandshakeSent = usingPCM;
+      } catch (error) {
+        console.warn('[RecordingManager] Failed to send init message', error);
+      }
+
+      if (!usingPCM && this.isMobile && this.audioCapabilities && isMobileRecordingEnabled()) {
         const header = createAudioHeader(this.audioCapabilities);
-        ws.send(JSON.stringify(header));
-        console.log('[RecordingManager] Sent mobile audio header:', header);
+        try {
+          ws.send(JSON.stringify({ type: 'legacy_header', header }));
+        } catch (error) {
+          console.warn('[RecordingManager] Failed to send legacy audio header', error);
+        }
       }
 
       try { this.startHeartbeat(); } catch {}
       try { this.startWsKeepalive(); } catch {}
 
-      // Start recording with appropriate method
-      if (this.mediaRecorder) {
+      if (usingPCM) {
+        this.flushPCMFrameQueue();
+      } else if (this.mediaRecorder) {
         this.mediaRecorder.start(this.audioCapabilities?.recommendedTimeslice || 3000);
       }
-      // PCM recording is already started in setupPCMRecording
 
       this.update({ ...this.state, phase: 'active', paused: false });
     };
@@ -615,13 +651,92 @@ class RecordingManagerImpl implements RecordingManager {
     if (!this.stream) return;
 
     this.pcmProcessor = new PCMAudioProcessor();
+    this.pcmFrameQueue = [];
+    this.pcmSequenceNumber = 0;
+    this.pcmHandshakeSent = false;
 
-    await this.pcmProcessor.initialize(this.stream, (pcmData: Float32Array) => {
-      if (this.ws?.readyState === WebSocket.OPEN && this.state.phase === 'active' && !this.state.paused) {
-        const buffer = float32ToPCM16(pcmData);
-        this.ws.send(buffer);
+    const frameDurationMs = this.audioCapabilities?.pcmFrameDurationMs ?? 20;
+
+    try {
+      await this.pcmProcessor.initialize(
+        this.stream,
+        (pcmSamples: Float32Array) => {
+          if (!pcmSamples.length || this.state.paused) {
+            return;
+          }
+
+          const payload = float32ToPCM16(pcmSamples);
+          const nextSeq = this.pcmSequenceNumber + 1;
+          const frame: PCMFrameEnvelope = {
+            seq: nextSeq,
+            timestamp: Date.now(),
+            sampleRate: this.pcmProcessor?.getTargetSampleRate() ?? 16000,
+            frameDurationMs: this.pcmProcessor?.getFrameDurationMs() ?? frameDurationMs,
+            frameSamples: this.pcmProcessor?.getFrameSampleCount() ?? pcmSamples.length,
+            channels: 1,
+            format: 'pcm16',
+            payload,
+          };
+
+          this.pcmSequenceNumber = nextSeq;
+          this.enqueuePCMFrame(frame);
+        },
+        {
+          frameDurationMs,
+          targetSampleRate: 16000,
+        }
+      );
+    } catch (error) {
+      console.error('[RecordingManager] PCM initialization failed, falling back to MediaRecorder', error);
+      this.pcmProcessor = null;
+      this.setupMediaRecorderRecording();
+      return;
+    }
+  }
+
+  private enqueuePCMFrame(frame: PCMFrameEnvelope) {
+    if (this.ws?.readyState === WebSocket.OPEN && this.pcmHandshakeSent) {
+      this.sendPCMFrame(frame);
+      return;
+    }
+
+    this.pcmFrameQueue.push(frame);
+
+    const MAX_BUFFERED_FRAMES = 250; // ~5 seconds at 20ms frames
+    if (this.pcmFrameQueue.length > MAX_BUFFERED_FRAMES) {
+      this.pcmFrameQueue.splice(0, this.pcmFrameQueue.length - MAX_BUFFERED_FRAMES);
+    }
+  }
+
+  private flushPCMFrameQueue() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    while (this.pcmFrameQueue.length) {
+      const frame = this.pcmFrameQueue.shift();
+      if (frame) {
+        this.sendPCMFrame(frame);
       }
-    });
+    }
+  }
+
+  private sendPCMFrame(frame: PCMFrameEnvelope) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.pcmFrameQueue.unshift(frame);
+      return;
+    }
+
+    try {
+      const encoded = encodePCMFrame(frame);
+      this.ws.send(encoded);
+    } catch (error) {
+      console.warn('[RecordingManager] Failed to send PCM frame', error);
+    }
+  }
+
+  private isPCMStreamingActive(): boolean {
+    return !!(this.pcmProcessor && this.pcmProcessor.isActive());
   }
 
   private async performStop(sessionId: string) {
@@ -657,6 +772,10 @@ class RecordingManagerImpl implements RecordingManager {
         this.pcmProcessor = null;
       }
     } catch {}
+
+    this.pcmFrameQueue = [];
+    this.pcmSequenceNumber = 0;
+    this.pcmHandshakeSent = false;
 
     try { this.stream?.getTracks().forEach(t => t.stop()); } catch {}
     this.stream = null;

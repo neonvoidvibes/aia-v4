@@ -11,6 +11,10 @@ export interface AudioCapabilities {
   sampleRate: number;
   channels: number;
   bitDepth?: number;
+  supportsPCMStream: boolean;
+  supportsAudioWorklet: boolean;
+  pcmFrameDurationMs: number;
+  pcmFrameSamples: number;
 }
 
 export interface AudioHeader {
@@ -18,6 +22,40 @@ export interface AudioHeader {
   rate: number;
   channels: number;
   bitDepth?: number;
+}
+
+export interface PCMFrameEnvelope {
+  seq: number;
+  timestamp: number;
+  sampleRate: number;
+  frameDurationMs: number;
+  frameSamples: number;
+  channels: number;
+  format: 'pcm16';
+  payload: ArrayBuffer;
+}
+
+export const PCM_FRAME_MAGIC = 0x314d4350; // 'PCM1' in little-endian
+export const PCM_FRAME_HEADER_BYTES = 32;
+
+export function encodePCMFrame(frame: PCMFrameEnvelope): ArrayBuffer {
+  const buffer = new ArrayBuffer(PCM_FRAME_HEADER_BYTES + frame.payload.byteLength);
+  const view = new DataView(buffer);
+
+  view.setUint32(0, PCM_FRAME_MAGIC, true);
+  view.setUint32(4, frame.seq, true);
+  view.setFloat64(8, frame.timestamp, true);
+  view.setUint16(16, frame.frameSamples, true);
+  view.setUint16(18, Math.max(0, Math.round(frame.frameDurationMs)), true);
+  view.setUint32(20, frame.sampleRate, true);
+  view.setUint16(24, frame.channels, true);
+  view.setUint16(26, 1, true); // 1 == PCM16 little-endian
+  view.setUint32(28, frame.payload.byteLength, true);
+
+  const payloadView = new Uint8Array(buffer, PCM_FRAME_HEADER_BYTES);
+  payloadView.set(new Uint8Array(frame.payload));
+
+  return buffer;
 }
 
 // MIME type ladder in order of preference
@@ -45,6 +83,13 @@ export function isMobileDevice(): boolean {
 
 export function detectAudioCapabilities(): AudioCapabilities {
   const isMobile = isMobileDevice();
+  const AudioContextClass = typeof window !== 'undefined'
+    ? (window.AudioContext || (window as any).webkitAudioContext)
+    : null;
+  const audioContextSupported = !!AudioContextClass;
+  const audioWorkletSupported = !!(audioContextSupported && AudioContextClass && AudioContextClass.prototype && 'audioWorklet' in AudioContextClass.prototype);
+  const pcmFrameDurationMs = 20;
+  const pcmFrameSamples = Math.round(16000 * (pcmFrameDurationMs / 1000));
 
   // Default fallback values
   let result: AudioCapabilities = {
@@ -56,7 +101,11 @@ export function detectAudioCapabilities(): AudioCapabilities {
     contentType: 'audio/pcm',
     sampleRate: 16000,
     channels: 1,
-    bitDepth: 16
+    bitDepth: 16,
+    supportsPCMStream: audioContextSupported,
+    supportsAudioWorklet: audioWorkletSupported,
+    pcmFrameDurationMs,
+    pcmFrameSamples
   };
 
   // Check if MediaRecorder is available
@@ -85,7 +134,7 @@ export function detectAudioCapabilities(): AudioCapabilities {
   }
 
   // If no native codec support, check for Web Audio API (PCM fallback)
-  if (typeof AudioContext !== 'undefined' || typeof (window as any).webkitAudioContext !== 'undefined') {
+  if (audioContextSupported) {
     result.isSupported = true;
     result.requiresPCMFallback = true;
     result.contentType = 'audio/pcm';
@@ -93,6 +142,8 @@ export function detectAudioCapabilities(): AudioCapabilities {
     result.channels = 1;
     result.bitDepth = 16;
     result.recommendedTimeslice = isMobile ? 1500 : 3000; // Slightly longer for PCM processing
+    result.supportsPCMStream = true;
+    result.supportsAudioWorklet = audioWorkletSupported;
   }
 
   return result;
@@ -108,71 +159,176 @@ export function createAudioHeader(capabilities: AudioCapabilities): AudioHeader 
   };
 }
 
-// PCM audio worklet processor (for fallback recording)
+export interface PCMAudioProcessorOptions {
+  targetSampleRate?: number;
+  frameDurationMs?: number;
+}
+
+// PCM processor that prefers AudioWorklet and falls back to ScriptProcessor
 export class PCMAudioProcessor {
   private audioContext: AudioContext | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
-  private processorNode: ScriptProcessorNode | null = null;
-  private stream: MediaStream | null = null;
-  private onDataCallback: ((data: Float32Array) => void) | null = null;
+  private workletNode: AudioWorkletNode | null = null;
+  private scriptProcessor: ScriptProcessorNode | null = null;
+  private mode: 'worklet' | 'script' | null = null;
+  private frameCallback: ((frame: Float32Array) => void) | null = null;
+  private targetSampleRate = 16000;
+  private frameDurationMs = 20;
+  private frameSampleCount = 320;
+  private active = false;
 
-  async initialize(stream: MediaStream, onData: (data: Float32Array) => void): Promise<void> {
-    this.stream = stream;
-    this.onDataCallback = onData;
+  private scriptMonoBuffer: number[] = [];
+  private scriptOutputBuffer: number[] = [];
+  private scriptResamplePosition = 0;
 
-    // Create audio context
+  async initialize(stream: MediaStream, onFrame: (frame: Float32Array) => void, options: PCMAudioProcessorOptions = {}): Promise<void> {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    this.audioContext = new AudioContextClass();
-
-    // Create source from stream
-    this.sourceNode = this.audioContext.createMediaStreamSource(stream);
-
-    // Create processor (deprecated but widely supported)
-    // Buffer size: 4096 samples for ~85ms at 48kHz
-    this.processorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
-
-    this.processorNode.onaudioprocess = (event) => {
-      const inputBuffer = event.inputBuffer;
-      const inputData = inputBuffer.getChannelData(0);
-
-      // Convert to 16kHz mono if needed
-      const downsampledData = this.downsample(inputData, this.audioContext!.sampleRate, 16000);
-      this.onDataCallback?.(downsampledData);
-    };
-
-    // Connect the chain
-    this.sourceNode.connect(this.processorNode);
-    this.processorNode.connect(this.audioContext.destination);
-  }
-
-  private downsample(buffer: Float32Array, fromRate: number, toRate: number): Float32Array {
-    if (fromRate === toRate) return buffer;
-
-    const ratio = fromRate / toRate;
-    const newLength = Math.round(buffer.length / ratio);
-    const result = new Float32Array(newLength);
-
-    for (let i = 0; i < newLength; i++) {
-      const sourceIndex = Math.round(i * ratio);
-      result[i] = buffer[Math.min(sourceIndex, buffer.length - 1)];
+    if (!AudioContextClass) {
+      throw new Error('Web Audio API not supported');
     }
 
-    return result;
+    this.targetSampleRate = options.targetSampleRate ?? 16000;
+    this.frameDurationMs = options.frameDurationMs ?? 20;
+    this.frameSampleCount = Math.max(1, Math.round(this.targetSampleRate * (this.frameDurationMs / 1000)));
+    this.frameCallback = onFrame;
+
+    this.audioContext = new AudioContextClass();
+    this.sourceNode = this.audioContext.createMediaStreamSource(stream);
+
+    if (this.audioContext.audioWorklet) {
+      try {
+        await this.audioContext.audioWorklet.addModule('/worklets/pcm-worklet.js');
+        const processorOptions = {
+          targetSampleRate: this.targetSampleRate,
+          frameDurationMs: this.frameDurationMs,
+        };
+        this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-frame-processor', { processorOptions });
+        this.workletNode.port.onmessage = this.handleWorkletMessage;
+        this.sourceNode.connect(this.workletNode);
+        this.workletNode.connect(this.audioContext.destination);
+        this.mode = 'worklet';
+      } catch (error) {
+        console.warn('[PCMAudioProcessor] AudioWorklet unavailable, falling back to ScriptProcessor', error);
+        this.mode = null;
+      }
+    }
+
+    if (!this.mode) {
+      this.mode = 'script';
+      const channelCount = Math.max(1, this.sourceNode.channelCount || stream.getAudioTracks()[0]?.getSettings()?.channelCount || 1);
+      this.scriptProcessor = this.audioContext.createScriptProcessor(2048, channelCount, 1);
+      this.scriptProcessor.onaudioprocess = (event) => {
+        this.handleScriptAudio(event.inputBuffer);
+      };
+      this.sourceNode.connect(this.scriptProcessor);
+      this.scriptProcessor.connect(this.audioContext.destination);
+    }
+
+    try {
+      await this.audioContext.resume();
+    } catch (error) {
+      console.warn('[PCMAudioProcessor] Failed to resume AudioContext', error);
+    }
+
+    this.active = true;
+  }
+
+  private handleWorkletMessage = (event: MessageEvent) => {
+    const data = event.data;
+    if (!data) return;
+    if (data.type === 'frame') {
+      const samples = data.samples instanceof Float32Array
+        ? data.samples
+        : new Float32Array(data.samples?.buffer ?? data.samples);
+      if (samples.length) {
+        this.frameCallback?.(samples);
+      }
+    }
+  };
+
+  private handleScriptAudio(buffer: AudioBuffer) {
+    if (!this.audioContext) return;
+    const inputRate = this.audioContext.sampleRate || buffer.sampleRate || 48000;
+    const channelCount = buffer.numberOfChannels || 1;
+
+    for (let sampleIndex = 0; sampleIndex < buffer.length; sampleIndex++) {
+      let mixed = 0;
+      for (let channel = 0; channel < channelCount; channel++) {
+        mixed += buffer.getChannelData(channel)[sampleIndex] || 0;
+      }
+      this.scriptMonoBuffer.push(mixed / channelCount);
+    }
+
+    const ratio = inputRate / this.targetSampleRate;
+    let position = this.scriptResamplePosition;
+
+    while (position + 1 < this.scriptMonoBuffer.length) {
+      const baseIndex = Math.floor(position);
+      const frac = position - baseIndex;
+      const sample0 = this.scriptMonoBuffer[baseIndex];
+      const sample1 = this.scriptMonoBuffer[baseIndex + 1] ?? sample0;
+      const interpolated = sample0 + (sample1 - sample0) * frac;
+      this.scriptOutputBuffer.push(interpolated);
+      position += ratio;
+
+      if (this.scriptOutputBuffer.length >= this.frameSampleCount) {
+        const frameSamples = this.scriptOutputBuffer.splice(0, this.frameSampleCount);
+        this.frameCallback?.(Float32Array.from(frameSamples));
+      }
+    }
+
+    const consumed = Math.floor(position);
+    if (consumed > 0) {
+      this.scriptMonoBuffer.splice(0, consumed);
+      position -= consumed;
+    }
+    this.scriptResamplePosition = position;
   }
 
   stop(): void {
-    if (this.processorNode) {
-      this.processorNode.disconnect();
-      this.processorNode = null;
+    this.active = false;
+    if (this.workletNode) {
+      try { this.workletNode.port.onmessage = null; } catch {}
+      try { this.workletNode.disconnect(); } catch {}
+      this.workletNode = null;
+    }
+    if (this.scriptProcessor) {
+      try { this.scriptProcessor.disconnect(); } catch {}
+      this.scriptProcessor.onaudioprocess = null;
+      this.scriptProcessor = null;
     }
     if (this.sourceNode) {
-      this.sourceNode.disconnect();
+      try { this.sourceNode.disconnect(); } catch {}
       this.sourceNode = null;
     }
     if (this.audioContext) {
-      this.audioContext.close();
+      try { this.audioContext.close(); } catch {}
       this.audioContext = null;
     }
+    this.mode = null;
+    this.scriptMonoBuffer = [];
+    this.scriptOutputBuffer = [];
+    this.scriptResamplePosition = 0;
+  }
+
+  isActive(): boolean {
+    return this.active;
+  }
+
+  getMode(): 'worklet' | 'script' | null {
+    return this.mode;
+  }
+
+  getFrameSampleCount(): number {
+    return this.frameSampleCount;
+  }
+
+  getFrameDurationMs(): number {
+    return this.frameDurationMs;
+  }
+
+  getTargetSampleRate(): number {
+    return this.targetSampleRate;
   }
 }
 
