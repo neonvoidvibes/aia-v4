@@ -4,6 +4,7 @@ import { getBackendUrl, formatErrorChunk } from '../proxyUtils'; // Use shared u
 import { createServerActionClient } from '@/utils/supabase/server'
 import { createRequestLogger, sanitizeForLogging } from '@/lib/logger';
 import { randomUUID } from 'crypto';
+import { loadAgentEventsForUser } from '@/lib/agent-events';
 // We don't need cookies() import directly here anymore if using the helper
 // import { cookies } from 'next/headers'
 // import type { Database } from '@/types/supabase' // Comment out or remove if types not generated
@@ -109,26 +110,40 @@ export async function POST(req: NextRequest) {
     // Validate event against available events for this agent; default to main event "0000" if missing/invalid
     let safeEvent: string = inputEvent || '0000';
     if (agent) {
+      let verifiedViaSupabase = false;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        if (token) {
-          const eventsUrl = `${activeBackendUrl}/api/s3/list-events?agentName=${encodeURIComponent(agent)}`;
-          const res = await fetch(eventsUrl, { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
-          if (res.ok) {
-            const json = await res.json().catch(() => ({}));
-            const events: string[] = Array.isArray(json?.events) ? json.events : [];
-            if (!events.includes(safeEvent)) {
+        const agentEvents = await loadAgentEventsForUser(supabase, agent, user.id);
+        const allowedSet = new Set<string>([...(agentEvents.allowedEvents || agentEvents.events || []), '0000']);
+        if (!allowedSet.has(safeEvent)) {
+          safeEvent = '0000';
+        }
+        verifiedViaSupabase = true;
+      } catch (err) {
+        log.warn('Event allow-list lookup via Supabase failed, falling back to backend', { error: err });
+      }
+
+      if (!verifiedViaSupabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          if (token) {
+            const eventsUrl = `${activeBackendUrl}/api/s3/list-events?agentName=${encodeURIComponent(agent)}`;
+            const res = await fetch(eventsUrl, { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+              const json = await res.json().catch(() => ({}));
+              const events: string[] = Array.isArray(json?.events) ? json.events : [];
+              if (!events.includes(safeEvent)) {
+                safeEvent = '0000';
+              }
+            } else {
               safeEvent = '0000';
             }
           } else {
             safeEvent = '0000';
           }
-        } else {
+        } catch {
           safeEvent = '0000';
         }
-      } catch {
-        safeEvent = '0000';
       }
     } else {
       safeEvent = '0000';

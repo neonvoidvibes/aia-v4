@@ -201,6 +201,9 @@ function HomeContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Event menu state
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
+  const [eventTypes, setEventTypes] = useState<Record<string, string>>({});
+  const [, setAllowedEvents] = useState<string[] | null>(null);
+  const [, setPersonalEventId] = useState<string | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [eventFetchError, setEventFetchError] = useState<string | null>(null);
   const EVENTS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -474,6 +477,9 @@ function HomeContent() {
   useEffect(() => {
     setAvailableEvents(null);
     setEventFetchError(null);
+    setEventTypes({});
+    setAllowedEvents(null);
+    setPersonalEventId(null);
   }, [pageAgentName]);
 
   // Fetch event labels for the current agent (if present in Supabase)
@@ -505,6 +511,14 @@ function HomeContent() {
     if (!e || e === '0000') return eventLabels['0000'] || t('sidebar.teamspace');
     return eventLabels[e] || e;
   }, [eventLabels, t]);
+
+  const normalizeEventsOrder = useCallback((list: string[], types: Record<string, string>) => {
+    const unique = Array.from(new Set(list));
+    const personal = unique.filter(evt => types[evt] === 'personal').sort();
+    const others = unique.filter(evt => evt !== '0000' && types[evt] !== 'personal').sort();
+    const ordered = [...personal, '0000', ...others];
+    return Array.from(new Set(ordered));
+  }, []);
 
   // Proactively fetch events when agent is available (prevents hidden dropdown due to empty chat history)
   useEffect(() => {
@@ -544,16 +558,30 @@ function HomeContent() {
     if (!pageAgentName || isLoadingEvents) return;
     setIsLoadingEvents(true);
     setEventFetchError(null);
+    let cacheEventTypes: Record<string, string> | undefined;
+    let cacheAllowedEvents: string[] | undefined;
+    let cachePersonalEventId: string | null | undefined;
     try {
       // Seed from local cache (fast path)
       if (eventsCacheKey) {
         try {
           const raw = localStorage.getItem(eventsCacheKey);
           if (raw) {
-            const cached = JSON.parse(raw) as { events: string[]; ts: number };
+            const cached = JSON.parse(raw) as {
+              events: string[];
+              eventTypes?: Record<string, string>;
+              allowedEvents?: string[];
+              personalEventId?: string | null;
+              ts: number;
+            };
             if (cached?.events && Array.isArray(cached.events)) {
               const fresh = Date.now() - (cached.ts || 0) < EVENTS_CACHE_TTL_MS;
-              if (fresh) setAvailableEvents(cached.events);
+              if (fresh) {
+                setAvailableEvents(cached.events);
+                setEventTypes(cached.eventTypes || {});
+                setAllowedEvents(Array.isArray(cached.allowedEvents) ? cached.allowedEvents : null);
+                setPersonalEventId(cached.personalEventId ?? null);
+              }
             }
           }
         } catch {}
@@ -564,8 +592,17 @@ function HomeContent() {
       let events: string[] = [];
       const res = await fetch(`/api/s3-proxy/list-events?agentName=${encodeURIComponent(pageAgentName)}`);
       if (res.ok) {
-        const data: { events?: string[] } = await res.json();
-        events = Array.from(new Set([...(data.events || [])])).sort();
+        const data: { events?: string[]; eventTypes?: Record<string, string>; allowedEvents?: string[]; personalEventId?: string | null } = await res.json();
+        const incomingEvents = Array.from(new Set([...(data.events || [])]));
+        const incomingTypes = (data.eventTypes && typeof data.eventTypes === 'object') ? data.eventTypes : {};
+        events = normalizeEventsOrder(incomingEvents, incomingTypes);
+        const allowedList = Array.isArray(data.allowedEvents) ? data.allowedEvents : null;
+        setEventTypes(incomingTypes);
+        setAllowedEvents(allowedList);
+        setPersonalEventId(data.personalEventId ?? null);
+        cacheEventTypes = incomingTypes;
+        cacheAllowedEvents = allowedList ?? undefined;
+        cachePersonalEventId = data.personalEventId ?? null;
         ok = true;
       } else if (res.status === 404) {
         // Fallback for older backends: list by prefix and derive event IDs
@@ -586,7 +623,19 @@ function HomeContent() {
             if (ev) setEv.add(ev);
           }
         }
-        events = Array.from(setEv).sort();
+        events = normalizeEventsOrder(Array.from(setEv), fallbackTypes);
+        const fallbackTypes: Record<string, string> = {};
+        for (const evt of events) {
+          fallbackTypes[evt] = evt.startsWith('p_') ? 'personal' : 'group';
+        }
+        fallbackTypes['0000'] = 'shared';
+        const fallbackAllowed = Array.from(new Set([...setEv, '0000']));
+        setEventTypes(fallbackTypes);
+        setAllowedEvents(fallbackAllowed);
+        setPersonalEventId(prev => (prev && events.includes(prev)) ? prev : null);
+        cacheEventTypes = fallbackTypes;
+        cacheAllowedEvents = fallbackAllowed;
+        cachePersonalEventId = null;
         ok = true;
       } else {
         const text = await res.text().catch(() => '');
@@ -596,7 +645,14 @@ function HomeContent() {
       if (ok) {
         setAvailableEvents(events);
         if (eventsCacheKey) {
-          try { localStorage.setItem(eventsCacheKey, JSON.stringify({ events, ts: Date.now() })); } catch {}
+          const cachePayload = {
+            events,
+            eventTypes: cacheEventTypes,
+            allowedEvents: cacheAllowedEvents,
+            personalEventId: cachePersonalEventId,
+            ts: Date.now(),
+          };
+          try { localStorage.setItem(eventsCacheKey, JSON.stringify(cachePayload)); } catch {}
         }
       }
     } catch (e: any) {
@@ -607,6 +663,64 @@ function HomeContent() {
       setIsLoadingEvents(false);
     }
   }, [pageAgentName, isLoadingEvents, eventsCacheKey]);
+
+  const personalMenuEvents = useMemo(
+    () => (availableEvents || []).filter(ev => eventTypes[ev] === 'personal'),
+    [availableEvents, eventTypes],
+  );
+
+  const groupMenuEvents = useMemo(
+    () => (availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] !== 'personal'),
+    [availableEvents, eventTypes],
+  );
+
+  const renderEventMenuItems = useCallback(() => {
+    const items: React.ReactNode[] = [];
+    if (personalMenuEvents.length > 0) {
+      personalMenuEvents.forEach(ev => {
+        items.push(
+          <DropdownMenuRadioItem key={`personal-${ev}`} value={ev}>
+            {labelForEvent(ev)}
+          </DropdownMenuRadioItem>,
+        );
+      });
+      items.push(<DropdownMenuSeparator key="sep-after-personal" />);
+    }
+
+    items.push(
+      <DropdownMenuRadioItem key="event-0000" value="0000">
+        {labelForEvent('0000')}
+      </DropdownMenuRadioItem>,
+    );
+
+    const showTrailingSection = isLoadingEvents || !!eventFetchError || groupMenuEvents.length > 0;
+    if (showTrailingSection) {
+      items.push(<DropdownMenuSeparator key="sep-after-0000" />);
+      if (isLoadingEvents) {
+        items.push(
+          <DropdownMenuRadioItem key="events-loading" value={pageEventId || '0000'} disabled>
+            Loading events...
+          </DropdownMenuRadioItem>,
+        );
+      } else if (eventFetchError) {
+        items.push(
+          <DropdownMenuRadioItem key="events-error" value={pageEventId || '0000'} disabled>
+            {eventFetchError}
+          </DropdownMenuRadioItem>,
+        );
+      } else {
+        groupMenuEvents.forEach(ev => {
+          items.push(
+            <DropdownMenuRadioItem key={`group-${ev}`} value={ev}>
+              {labelForEvent(ev)}
+            </DropdownMenuRadioItem>,
+          );
+        });
+      }
+    }
+
+    return items;
+  }, [personalMenuEvents, groupMenuEvents, isLoadingEvents, eventFetchError, pageEventId, labelForEvent]);
 
   const [showSwitchWhileRecordingConfirm, setShowSwitchWhileRecordingConfirm] = useState(false);
   const [pendingEventId, setPendingEventId] = useState<string | null>(null);
@@ -2297,22 +2411,7 @@ function HomeContent() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
                         <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                          {/* Always include Shared at top */}
-                          <DropdownMenuRadioItem value="0000">{labelForEvent('0000')}</DropdownMenuRadioItem>
-                          <DropdownMenuSeparator />
-                          {isLoadingEvents && (
-                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
-                              Loading events...
-                            </DropdownMenuRadioItem>
-                          )}
-                          {(!isLoadingEvents && eventFetchError) && (
-                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
-                              {eventFetchError}
-                            </DropdownMenuRadioItem>
-                          )}
-                          {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
-                            <DropdownMenuRadioItem key={ev} value={ev}>{labelForEvent(ev)}</DropdownMenuRadioItem>
-                          ))}
+                          {renderEventMenuItems()}
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -2336,21 +2435,7 @@ function HomeContent() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
                         <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                          <DropdownMenuRadioItem value="0000">{labelForEvent('0000')}</DropdownMenuRadioItem>
-                          <DropdownMenuSeparator />
-                          {isLoadingEvents && (
-                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
-                              Loading events...
-                            </DropdownMenuRadioItem>
-                          )}
-                          {(!isLoadingEvents && eventFetchError) && (
-                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
-                              {eventFetchError}
-                            </DropdownMenuRadioItem>
-                          )}
-                          {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
-                            <DropdownMenuRadioItem key={ev} value={ev}>{labelForEvent(ev)}</DropdownMenuRadioItem>
-                          ))}
+                          {renderEventMenuItems()}
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -2384,21 +2469,7 @@ function HomeContent() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-56" side="bottom" align="end" collisionPadding={8}>
                         <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                          <DropdownMenuRadioItem value="0000">{labelForEvent('0000')}</DropdownMenuRadioItem>
-                          <DropdownMenuSeparator />
-                          {isLoadingEvents && (
-                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
-                              Loading events...
-                            </DropdownMenuRadioItem>
-                          )}
-                          {(!isLoadingEvents && eventFetchError) && (
-                            <DropdownMenuRadioItem value={pageEventId || '0000'} disabled>
-                              {eventFetchError}
-                            </DropdownMenuRadioItem>
-                          )}
-                          {(!isLoadingEvents && !eventFetchError) && (availableEvents || []).filter(e => e !== '0000').map((ev) => (
-                            <DropdownMenuRadioItem key={ev} value={ev}>{labelForEvent(ev)}</DropdownMenuRadioItem>
-                          ))}
+                          {renderEventMenuItems()}
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>

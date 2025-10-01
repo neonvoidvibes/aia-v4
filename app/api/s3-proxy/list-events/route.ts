@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerActionClient } from '@/utils/supabase/server';
 import { getBackendUrl, formatErrorResponse } from '@/app/api/proxyUtils';
+import { loadAgentEventsForUser } from '@/lib/agent-events';
 
 const BACKEND_API_URLS_STRING = process.env.NEXT_PUBLIC_BACKEND_API_URLS || 'http://127.0.0.1:5001';
 const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url.trim()).filter(url => url);
@@ -13,6 +14,15 @@ export async function GET(req: NextRequest) {
 
     const agentName = req.nextUrl.searchParams.get('agentName');
     if (!agentName) return formatErrorResponse("Missing 'agentName' query parameter", 400);
+
+    try {
+      const payload = await loadAgentEventsForUser(supabase, agentName, user.id);
+      if ((payload.events || []).length > 0) {
+        return NextResponse.json(payload, { status: 200 });
+      }
+    } catch (err) {
+      console.warn('[s3-proxy] Failed to load events via Supabase, falling back to backend', err);
+    }
 
     const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) return formatErrorResponse('Backend unavailable', 503);
