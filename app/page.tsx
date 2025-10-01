@@ -1670,7 +1670,11 @@ function HomeContent() {
       const response = await fetch(proxyApiUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` }});
       if (!response.ok) throw new Error(`Failed to fetch ${description} via proxy: ${response.statusText} (URL: ${proxyApiUrl})`);
       const data: FetchedFile[] = await response.json();
-      onDataFetched(data);
+      const filtered = (data || []).filter(file => {
+        const key = file.s3Key || file.Key || '';
+        return !key.includes('/transcripts/archive/');
+      });
+      onDataFetched(filtered);
     } catch (error) {
       console.error(`Error fetching ${description} from proxy ${proxyApiUrl}:`, error);
       onDataFetched([]);
