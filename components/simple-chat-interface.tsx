@@ -4333,9 +4333,10 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                           {/* Inline listening indicator + optional count + timer (active only) */}
                           {(() => {
                             const active = (globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording) || isBrowserRecording;
+                            const hasGroupsEnabled = groupsReadMode !== 'none' && eventId === '0000' && allowedGroupEventsCount > 0;
 
-                            // Hide only if both transcript and memorized listening are disabled
-                            if (!active && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') return null;
+                            // Hide only if both transcript and memorized listening are disabled AND groups mode is disabled
+                            if (!active && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled) return null;
                             const parts: string[] = [];
                             const total = Math.max(0, listeningInfo.total);
                             const more = Math.max(0, total - 1);
@@ -4347,10 +4348,10 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               // Active recording
                               // Rule: If LATEST transcript is included, show "live", otherwise show "previous"
                               const includesLatest = transcriptListenMode === 'latest' || transcriptListenMode === 'all' || includesLatestFromSome;
-                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none';
+                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none' || hasGroupsEnabled;
                               const platform = isMobile ? 'mobile' : 'desktop';
-                              
-                              if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
+
+                              if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled) {
                                 parts.push('Not listening');
                               } else if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningLive`);
@@ -4365,6 +4366,14 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                   ? `${base} +${totalCount}`
                                   : base;
                                 parts.push(statusText);
+                              } else if (hasGroupsEnabled) {
+                                // Only groups enabled, no 0000 transcripts
+                                const groupCount = allowedGroupEventsCount;
+                                const base = groupsReadMode === 'latest'
+                                  ? t(`controlsMenu.statusText.${platform}.listeningLive`)
+                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const statusText = `${base.replace('Listening live', 'Listening to groups').replace('Live', 'Groups')} +${groupCount}`;
+                                parts.push(statusText);
                               } else if (hasAnySelection) {
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
                                 const statusText = more > 0
@@ -4378,9 +4387,9 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               // Not actively recording
                               // Rule: If LATEST transcript is included, show "latest", otherwise show "previous"
                               const includesLatest = transcriptListenMode === 'latest' || transcriptListenMode === 'all' || includesLatestFromSome;
-                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none';
+                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none' || hasGroupsEnabled;
                               const platform = isMobile ? 'mobile' : 'desktop';
-                              
+
                               if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
                                 // Add "groups" if groups read mode is enabled
@@ -4393,6 +4402,14 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 const statusText = totalCount > 0
                                   ? `${base} +${totalCount}`
                                   : base;
+                                parts.push(statusText);
+                              } else if (hasGroupsEnabled) {
+                                // Only groups enabled, no 0000 transcripts
+                                const groupCount = allowedGroupEventsCount;
+                                const base = groupsReadMode === 'latest'
+                                  ? t(`controlsMenu.statusText.${platform}.listeningToLatest`)
+                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const statusText = `${base.replace('Listening to latest', 'Listening to groups').replace('Latest', 'Groups')} +${groupCount}`;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);

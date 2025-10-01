@@ -317,10 +317,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const getTranscriptListenModeText = () => {
+    const hasGroupsEnabled = groupsReadMode !== 'none' && currentEventId === '0000' && allowedGroupEventsCount > 0;
+
+    // If only groups enabled (no 0000 transcripts), show "Groups +N" (no latest/all prefix)
+    if (hasGroupsEnabled && transcriptListenMode === 'none') {
+      return `Groups +${allowedGroupEventsCount}`;
+    }
+
     const baseText = transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
 
-    // If cross-group read is enabled for event 0000, insert "groups" and append "+N"
-    if (groupsReadMode !== 'none' && currentEventId === '0000' && allowedGroupEventsCount > 0) {
+    // If both 0000 and groups enabled, combine them
+    if (hasGroupsEnabled) {
       // For "Latest" or "All", insert "groups" after the mode word
       // Examples: "Latest groups +3", "All groups +5"
       return `${baseText} groups +${allowedGroupEventsCount}`;
