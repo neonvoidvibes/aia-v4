@@ -319,8 +319,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   const getTranscriptListenModeText = () => {
     const baseText = transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
 
-    // If cross-group read is enabled for event 0000, append "groups +N"
+    // If cross-group read is enabled for event 0000, insert "groups" and append "+N"
     if (crossGroupReadEnabled && currentEventId === '0000' && allowedGroupEventsCount > 0) {
+      // For "Latest" or "All", insert "groups" after the mode word
+      // Examples: "Latest groups +3", "All groups +5"
       return `${baseText} groups +${allowedGroupEventsCount}`;
     }
 
@@ -440,7 +442,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               {/* Transcript row - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_info?.includes('transcript') || isAdminOverride) && (
                 <div className="text-xs text-muted-foreground">
-                  Transcript <span className="font-bold">{getTranscriptListenModeText()}</span>
+                  {crossGroupReadEnabled && currentEventId === '0000' && allowedGroupEventsCount > 0 ? (
+                    <>Listening to <span className="font-bold">{getTranscriptListenModeText()}</span></>
+                  ) : (
+                    <>Transcript <span className="font-bold">{getTranscriptListenModeText()}</span></>
+                  )}
                 </div>
               )}
               {/* Summary row - Hidden if workspace config specifies */}
