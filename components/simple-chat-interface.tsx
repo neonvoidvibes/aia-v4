@@ -467,6 +467,9 @@ interface SimpleChatInterfaceProps {
   tooltips?: Record<string, string>;
   onOpenSettings?: () => void;
   onOpenLatestTranscript?: () => void;
+  // Cross-group read feature
+  crossGroupReadEnabled?: boolean;
+  allowedGroupEventsCount?: number;
 }
 
 export interface ChatInterfaceHandle {
@@ -525,7 +528,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript, crossGroupReadEnabled = false, allowedGroupEventsCount = 0 }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const { t } = useLocalization();
 
@@ -4749,7 +4752,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                             isBrowserPaused ? (
                               <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></>
                             ) : (
-                              <>live <span className="inline-block ml-1 h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span></>
+                              <>live{crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0 ? ' groups' : ''} <span className="inline-block ml-1 h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span></>
                             )
                           ) : globalRecordingStatus.isRecording ? (
                             <>busy <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500"></span></>
@@ -4768,6 +4771,19 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                           )}
                         </span>
                         {" "}· <span className={cn(wsStatus === 'open' && "text-green-500", wsStatus === 'error' && "text-red-500", wsStatus === 'closed' && "text-yellow-500")}>{wsStatus}</span>
+                        {/* Show transcript listening mode when not recording */}
+                        {!isBrowserRecording && transcriptListenMode !== 'none' && (
+                          <>
+                            {" "}·{" "}
+                            <span>
+                              {crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0 ? (
+                                <>Listening to {transcriptListenMode} groups +{allowedGroupEventsCount}</>
+                              ) : (
+                                <>Listening to {transcriptListenMode}</>
+                              )}
+                            </span>
+                          </>
+                        )}
                     </div>
                 )}
                 {isFullscreen && (

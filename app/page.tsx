@@ -2627,6 +2627,9 @@ function HomeContent() {
               activeUiConfig={activeUiConfig}
               tooltips={activeUiConfig.tooltips || {}}
               onOpenSettings={() => setShowSettings(true)}
+              // --- Cross-group read feature props ---
+              crossGroupReadEnabled={crossGroupReadEnabled}
+              allowedGroupEventsCount={(availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'group').length}
               onOpenLatestTranscript={async () => {
                 try {
                   if (!pageAgentName || !pageEventId) return;
