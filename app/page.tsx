@@ -2998,13 +2998,15 @@ function HomeContent() {
                         </ToggleGroup>
                       </div>
                       {/* Groups read mode toggle - only active for event 0000 */}
-                      <div className="flex flex-col gap-2 py-3 border-b mb-3">
-                        <Label className={cn("memory-section-title text-sm font-medium", pageEventId !== '0000' && "opacity-50")}>
-                          Read other groups&apos; transcripts
-                        </Label>
-                        {pageEventId !== '0000' && (
-                          <span className="text-xs text-muted-foreground">Only available in shared event (0000)</span>
-                        )}
+                      <div className={cn("flex items-center justify-between py-3 border-b mb-3", pageEventId !== '0000' && "opacity-50")}>
+                        <div className="flex flex-col gap-1">
+                          <Label htmlFor="groups-read-toggle-group" className="memory-section-title text-sm font-medium">
+                            Groups:
+                          </Label>
+                          {pageEventId !== '0000' && (
+                            <span className="text-xs text-muted-foreground">Only in event 0000</span>
+                          )}
+                        </div>
                         <ToggleGroup
                           type="single"
                           value={groupsReadMode}
@@ -3013,8 +3015,9 @@ function HomeContent() {
                               handleGroupsReadModeChange(value as 'latest' | 'none' | 'all');
                             }
                           }}
-                          className="justify-start gap-1"
+                          className="rounded-md bg-muted p-1"
                           disabled={pageEventId !== '0000'}
+                          id="groups-read-toggle-group"
                         >
                           <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>Latest</ToggleGroupItem>
                           <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>None</ToggleGroupItem>
