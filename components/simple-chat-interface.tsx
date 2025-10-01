@@ -4358,10 +4358,11 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 if (crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0) {
                                   base = base.replace('live', 'live groups');
                                 }
-                                const statusText = more > 0
-                                  ? `${base} +${more}`
-                                  : crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0
-                                  ? `${base} +${allowedGroupEventsCount}`
+                                // Calculate total count: memorized transcripts + group events (if cross-group enabled)
+                                const groupCount = (crossGroupReadEnabled && eventId === '0000') ? allowedGroupEventsCount : 0;
+                                const totalCount = more + groupCount;
+                                const statusText = totalCount > 0
+                                  ? `${base} +${totalCount}`
                                   : base;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
@@ -4386,10 +4387,11 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 if (crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0) {
                                   base = base.replace('latest', 'latest groups');
                                 }
-                                const statusText = more > 0
-                                  ? `${base} +${more}`
-                                  : crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0
-                                  ? `${base} +${allowedGroupEventsCount}`
+                                // Calculate total count: memorized transcripts + group events (if cross-group enabled)
+                                const groupCount = (crossGroupReadEnabled && eventId === '0000') ? allowedGroupEventsCount : 0;
+                                const totalCount = more + groupCount;
+                                const statusText = totalCount > 0
+                                  ? `${base} +${totalCount}`
                                   : base;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
