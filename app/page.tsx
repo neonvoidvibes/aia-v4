@@ -644,6 +644,11 @@ function HomeContent() {
 
       if (ok) {
         setAvailableEvents(events);
+        const normalizedCurrent = pageEventId || '0000';
+        if (!events.includes(normalizedCurrent)) {
+          const fallbackEvent = events.includes('0000') ? '0000' : (events[0] || '0000');
+          router.replace(`/?agent=${encodeURIComponent(pageAgentName)}&event=${encodeURIComponent(fallbackEvent)}`);
+        }
         if (eventsCacheKey) {
           const cachePayload = {
             events,
@@ -662,7 +667,7 @@ function HomeContent() {
     } finally {
       setIsLoadingEvents(false);
     }
-  }, [pageAgentName, isLoadingEvents, eventsCacheKey]);
+  }, [pageAgentName, pageEventId, router, isLoadingEvents, eventsCacheKey]);
 
   const personalMenuEvents = useMemo(
     () => (availableEvents || []).filter(ev => eventTypes[ev] === 'personal'),
