@@ -149,8 +149,8 @@ export async function POST(req: NextRequest) {
       safeEvent = '0000';
     }
 
-    // Fetch cross_group_read_enabled preference for this agent
-    let crossGroupReadEnabled = false;
+    // Fetch groups_read_mode preference for this agent
+    let groupsReadMode = 'none';
     if (agent && safeEvent === '0000') {
       try {
         const memoryPrefsUrl = `${req.nextUrl.origin}/api/agents/memory-prefs?agent=${encodeURIComponent(agent)}`;
@@ -162,10 +162,10 @@ export async function POST(req: NextRequest) {
         });
         if (memoryPrefsRes.ok) {
           const memoryPrefs = await memoryPrefsRes.json();
-          crossGroupReadEnabled = memoryPrefs.cross_group_read_enabled || false;
+          groupsReadMode = memoryPrefs.groups_read_mode || 'none';
         }
       } catch (err) {
-        log.warn('Failed to fetch cross_group_read_enabled, defaulting to false', { error: err });
+        log.warn('Failed to fetch groups_read_mode, defaulting to none', { error: err });
       }
     }
 
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
       individualMemoryToggleStates: individualMemoryToggleStates,
       savedTranscriptSummariesCount: savedTranscriptSummaries.length,
       transcriptionLanguage: transcriptionLanguageSetting,
-      crossGroupReadEnabled: crossGroupReadEnabled
+      groupsReadMode: groupsReadMode
     });
 
     // Construct the specific API endpoint using the active base URL
@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
       individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,
       rawTranscriptFiles: rawTranscriptFiles,
       transcriptionLanguage: transcriptionLanguageSetting, // Added
-      crossGroupReadEnabled: crossGroupReadEnabled, // Added for cross-group read feature
+      groupsReadMode: groupsReadMode, // Tri-state mode for groups reading
       initialContext: initialContext, // For _aicreator agent
       currentDraftContent: currentDraftContent, // For _aicreator feedback loop
       disableRetrieval: disableRetrieval, // To bypass RAG in wizard

@@ -7,7 +7,7 @@ export const maxDuration = 30;
 
 /**
  * GET /api/agents/memory-prefs?agent=<agent_name>
- * Returns memory preferences for an agent (cross_group_read_enabled)
+ * Returns memory preferences for an agent (groups_read_mode)
  */
 export async function GET(req: NextRequest) {
   const requestId = randomUUID();
@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing agent parameter" }, { status: 400 });
     }
 
-    // --- Query agents table for cross_group_read_enabled ---
+    // --- Query agents table for groups_read_mode ---
     const { data, error } = await supabase
       .from('agents')
-      .select('cross_group_read_enabled')
+      .select('groups_read_mode')
       .eq('name', agentName)
       .single();
 
@@ -54,11 +54,11 @@ export async function GET(req: NextRequest) {
 
     log.info("Agent memory prefs fetched", {
       agent: agentName,
-      crossGroupReadEnabled: data.cross_group_read_enabled
+      groupsReadMode: data.groups_read_mode
     });
 
     return NextResponse.json({
-      cross_group_read_enabled: data.cross_group_read_enabled || false
+      groups_read_mode: data.groups_read_mode || 'none'
     });
 
   } catch (error: any) {
@@ -72,8 +72,8 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/agents/memory-prefs
- * Updates memory preferences for an agent (cross_group_read_enabled)
- * Body: { agent: string, cross_group_read_enabled: boolean }
+ * Updates memory preferences for an agent (groups_read_mode)
+ * Body: { agent: string, groups_read_mode: 'latest' | 'none' | 'all' }
  */
 export async function POST(req: NextRequest) {
   const requestId = randomUUID();
@@ -94,22 +94,22 @@ export async function POST(req: NextRequest) {
 
     // --- Parse body ---
     const body = await req.json();
-    const { agent, cross_group_read_enabled } = body;
+    const { agent, groups_read_mode } = body;
 
     if (!agent) {
       log.warn("Missing agent in request body");
       return NextResponse.json({ error: "Missing agent parameter" }, { status: 400 });
     }
 
-    if (typeof cross_group_read_enabled !== 'boolean') {
-      log.warn("Invalid cross_group_read_enabled value", { value: cross_group_read_enabled });
-      return NextResponse.json({ error: "cross_group_read_enabled must be a boolean" }, { status: 400 });
+    if (!['latest', 'none', 'all'].includes(groups_read_mode)) {
+      log.warn("Invalid groups_read_mode value", { value: groups_read_mode });
+      return NextResponse.json({ error: "groups_read_mode must be 'latest', 'none', or 'all'" }, { status: 400 });
     }
 
     // --- Update agents table ---
     const { error } = await supabase
       .from('agents')
-      .update({ cross_group_read_enabled })
+      .update({ groups_read_mode })
       .eq('name', agent);
 
     if (error) {
@@ -119,12 +119,12 @@ export async function POST(req: NextRequest) {
 
     log.info("Agent memory prefs updated", {
       agent,
-      crossGroupReadEnabled: cross_group_read_enabled
+      groupsReadMode: groups_read_mode
     });
 
     return NextResponse.json({
       success: true,
-      cross_group_read_enabled
+      groups_read_mode
     });
 
   } catch (error: any) {

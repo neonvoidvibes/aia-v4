@@ -226,7 +226,7 @@ function HomeContent() {
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
   const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness | null>(null);
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
-  const [crossGroupReadEnabled, setCrossGroupReadEnabled] = useState<boolean>(false); // Cross-group read toggle for event 0000
+  const [groupsReadMode, setGroupsReadMode] = useState<'latest' | 'none' | 'all'>('none'); // Groups read mode for event 0000
 
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1416,16 +1416,16 @@ function HomeContent() {
     }
   }, [individualMemoryToggleStates, pageAgentName, userId]);
 
-  // Load crossGroupReadEnabled from Supabase and localStorage
+  // Load groupsReadMode from Supabase and localStorage
   useEffect(() => {
     if (!pageAgentName || !userId) return;
 
-    const loadCrossGroupRead = async () => {
+    const loadGroupsReadMode = async () => {
       // First check localStorage for immediate effect
-      const localKey = `crossGroupReadEnabled_${pageAgentName}_${userId}`;
+      const localKey = `groupsReadMode_${pageAgentName}_${userId}`;
       const localValue = localStorage.getItem(localKey);
-      if (localValue !== null) {
-        setCrossGroupReadEnabled(localValue === 'true');
+      if (localValue && ['latest', 'none', 'all'].includes(localValue)) {
+        setGroupsReadMode(localValue as 'latest' | 'none' | 'all');
       }
 
       // Then fetch from Supabase as source of truth
@@ -1433,27 +1433,27 @@ function HomeContent() {
         const response = await fetch(`/api/agents/memory-prefs?agent=${encodeURIComponent(pageAgentName)}`);
         if (response.ok) {
           const data = await response.json();
-          const dbValue = data.cross_group_read_enabled || false;
-          setCrossGroupReadEnabled(dbValue);
-          localStorage.setItem(localKey, String(dbValue));
+          const dbValue = data.groups_read_mode || 'none';
+          setGroupsReadMode(dbValue);
+          localStorage.setItem(localKey, dbValue);
         }
       } catch (error) {
-        console.error('Error loading cross-group read preference:', error);
+        console.error('Error loading groups read mode:', error);
       }
     };
 
-    loadCrossGroupRead();
+    loadGroupsReadMode();
   }, [pageAgentName, userId]);
 
-  // Persist crossGroupReadEnabled changes to Supabase and localStorage
-  const handleCrossGroupReadChange = useCallback(async (enabled: boolean) => {
+  // Persist groupsReadMode changes to Supabase and localStorage
+  const handleGroupsReadModeChange = useCallback(async (mode: 'latest' | 'none' | 'all') => {
     if (!pageAgentName || !userId) return;
 
-    setCrossGroupReadEnabled(enabled);
+    setGroupsReadMode(mode);
 
     // Persist to localStorage immediately
-    const localKey = `crossGroupReadEnabled_${pageAgentName}_${userId}`;
-    localStorage.setItem(localKey, String(enabled));
+    const localKey = `groupsReadMode_${pageAgentName}_${userId}`;
+    localStorage.setItem(localKey, mode);
 
     // Persist to Supabase
     try {
@@ -1462,28 +1462,22 @@ function HomeContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agent: pageAgentName,
-          cross_group_read_enabled: enabled
+          groups_read_mode: mode
         })
       });
 
       if (!response.ok) {
-        console.error('Failed to save cross-group read preference to Supabase');
+        console.error('Failed to save groups read mode to Supabase');
         toast.error('Failed to save preference');
       } else {
-        toast.success(enabled ? 'Cross-group read enabled' : 'Cross-group read disabled');
+        const modeText = mode === 'none' ? 'disabled' : mode === 'latest' ? 'latest' : 'all';
+        toast.success(`Groups read mode: ${modeText}`);
       }
     } catch (error) {
-      console.error('Error saving cross-group read preference:', error);
+      console.error('Error saving groups read mode:', error);
       toast.error('Failed to save preference');
     }
   }, [pageAgentName, userId]);
-
-  // Auto-disable cross-group read when transcript mode becomes 'none'
-  useEffect(() => {
-    if (transcriptListenMode === 'none' && crossGroupReadEnabled) {
-      handleCrossGroupReadChange(false);
-    }
-  }, [transcriptListenMode, crossGroupReadEnabled, handleCrossGroupReadChange]);
 
   // Auto-switch memory mode to 'some' when an individual toggle is turned on
   useEffect(() => {
@@ -2398,8 +2392,8 @@ function HomeContent() {
         eventLabels={eventLabels}
         workspaceId={(permissionsData && currentAgent) ? (permissionsData.agents.find((a: any) => a.name === currentAgent)?.workspaceId) : undefined}
         workspaceName={(permissionsData && currentAgent) ? (permissionsData.agents.find((a: any) => a.name === currentAgent)?.workspaceName || undefined) : undefined}
-        // --- Cross-group read feature props ---
-        crossGroupReadEnabled={crossGroupReadEnabled}
+        // --- Groups read feature props ---
+        groupsReadMode={groupsReadMode}
         allowedGroupEventsCount={(availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'group').length}
       />
       
@@ -2634,8 +2628,8 @@ function HomeContent() {
               activeUiConfig={activeUiConfig}
               tooltips={activeUiConfig.tooltips || {}}
               onOpenSettings={() => setShowSettings(true)}
-              // --- Cross-group read feature props ---
-              crossGroupReadEnabled={crossGroupReadEnabled}
+              // --- Groups read feature props ---
+              groupsReadMode={groupsReadMode}
               allowedGroupEventsCount={(availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'group').length}
               onOpenLatestTranscript={async () => {
                 try {
@@ -3003,24 +2997,29 @@ function HomeContent() {
                           <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">All</ToggleGroupItem>
                         </ToggleGroup>
                       </div>
-                      {/* Cross-group read toggle - only active for event 0000 and when transcript mode is not 'none' */}
-                      <div className="flex items-center justify-between py-3 border-b mb-3">
-                        <div className="flex flex-col gap-1">
-                          <Label htmlFor="cross-group-read-toggle" className={cn("memory-section-title text-sm font-medium", (pageEventId !== '0000' || transcriptListenMode === 'none') && "opacity-50")}>
-                            Read other groups&apos; transcripts
-                          </Label>
-                          {pageEventId !== '0000' ? (
-                            <span className="text-xs text-muted-foreground">Only available in shared event (0000)</span>
-                          ) : transcriptListenMode === 'none' ? (
-                            <span className="text-xs text-muted-foreground">Enable transcript listening first</span>
-                          ) : null}
-                        </div>
-                        <Switch
-                          id="cross-group-read-toggle"
-                          checked={crossGroupReadEnabled}
-                          onCheckedChange={handleCrossGroupReadChange}
-                          disabled={pageEventId !== '0000' || transcriptListenMode === 'none'}
-                        />
+                      {/* Groups read mode toggle - only active for event 0000 */}
+                      <div className="flex flex-col gap-2 py-3 border-b mb-3">
+                        <Label className={cn("memory-section-title text-sm font-medium", pageEventId !== '0000' && "opacity-50")}>
+                          Read other groups&apos; transcripts
+                        </Label>
+                        {pageEventId !== '0000' && (
+                          <span className="text-xs text-muted-foreground">Only available in shared event (0000)</span>
+                        )}
+                        <ToggleGroup
+                          type="single"
+                          value={groupsReadMode}
+                          onValueChange={(value) => {
+                            if (value && ['latest', 'none', 'all'].includes(value)) {
+                              handleGroupsReadModeChange(value as 'latest' | 'none' | 'all');
+                            }
+                          }}
+                          className="justify-start gap-1"
+                          disabled={pageEventId !== '0000'}
+                        >
+                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>Latest</ToggleGroupItem>
+                          <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>None</ToggleGroupItem>
+                          <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>All</ToggleGroupItem>
+                        </ToggleGroup>
                       </div>
                       <div className="pb-3 space-y-2 w-full">
                         {transcriptionS3Files.length > 0 ? (

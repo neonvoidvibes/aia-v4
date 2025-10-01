@@ -467,8 +467,8 @@ interface SimpleChatInterfaceProps {
   tooltips?: Record<string, string>;
   onOpenSettings?: () => void;
   onOpenLatestTranscript?: () => void;
-  // Cross-group read feature
-  crossGroupReadEnabled?: boolean;
+  // Groups read feature
+  groupsReadMode?: 'latest' | 'none' | 'all';
   allowedGroupEventsCount?: number;
 }
 
@@ -528,7 +528,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript, crossGroupReadEnabled = false, allowedGroupEventsCount = 0 }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript, groupsReadMode = 'none', allowedGroupEventsCount = 0 }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const { t } = useLocalization();
 
@@ -4354,12 +4354,12 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 parts.push('Not listening');
                               } else if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningLive`);
-                                // Add "groups" if cross-group read is enabled
-                                if (crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0) {
+                                // Add "groups" if groups read mode is enabled
+                                if (groupsReadMode !== 'none' && eventId === '0000' && allowedGroupEventsCount > 0) {
                                   base = base.replace('live', 'live groups');
                                 }
-                                // Calculate total count: memorized transcripts + group events (if cross-group enabled)
-                                const groupCount = (crossGroupReadEnabled && eventId === '0000') ? allowedGroupEventsCount : 0;
+                                // Calculate total count: memorized transcripts + group events (if groups mode enabled)
+                                const groupCount = (groupsReadMode !== 'none' && eventId === '0000') ? allowedGroupEventsCount : 0;
                                 const totalCount = more + groupCount;
                                 const statusText = totalCount > 0
                                   ? `${base} +${totalCount}`
@@ -4383,12 +4383,12 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               
                               if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
-                                // Add "groups" if cross-group read is enabled
-                                if (crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0) {
+                                // Add "groups" if groups read mode is enabled
+                                if (groupsReadMode !== 'none' && eventId === '0000' && allowedGroupEventsCount > 0) {
                                   base = base.replace('latest', 'latest groups');
                                 }
-                                // Calculate total count: memorized transcripts + group events (if cross-group enabled)
-                                const groupCount = (crossGroupReadEnabled && eventId === '0000') ? allowedGroupEventsCount : 0;
+                                // Calculate total count: memorized transcripts + group events (if groups mode enabled)
+                                const groupCount = (groupsReadMode !== 'none' && eventId === '0000') ? allowedGroupEventsCount : 0;
                                 const totalCount = more + groupCount;
                                 const statusText = totalCount > 0
                                   ? `${base} +${totalCount}`
@@ -4766,7 +4766,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                             isBrowserPaused ? (
                               <>paused <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span></>
                             ) : (
-                              <>live{crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0 ? ' groups' : ''} <span className="inline-block ml-1 h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span></>
+                              <>live{groupsReadMode !== 'none' && eventId === '0000' && allowedGroupEventsCount > 0 ? ' groups' : ''} <span className="inline-block ml-1 h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span></>
                             )
                           ) : globalRecordingStatus.isRecording ? (
                             <>busy <span className="inline-block ml-1 h-2 w-2 rounded-full bg-red-500"></span></>

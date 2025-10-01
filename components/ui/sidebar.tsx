@@ -77,8 +77,8 @@ interface SidebarProps {
   workspaceId?: string;
   workspaceSlug?: string;
   workspaceName?: string;
-  // Cross-group read feature
-  crossGroupReadEnabled?: boolean;
+  // Groups read feature
+  groupsReadMode?: 'latest' | 'none' | 'all';
   allowedGroupEventsCount?: number;
 }
 
@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   workspaceId,
   workspaceSlug,
   workspaceName,
-  crossGroupReadEnabled = false,
+  groupsReadMode = 'none',
   allowedGroupEventsCount = 0,
 }) => {
   const isMobile = useIsMobile();
@@ -320,7 +320,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     const baseText = transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
 
     // If cross-group read is enabled for event 0000, insert "groups" and append "+N"
-    if (crossGroupReadEnabled && currentEventId === '0000' && allowedGroupEventsCount > 0) {
+    if (groupsReadMode !== 'none' && currentEventId === '0000' && allowedGroupEventsCount > 0) {
       // For "Latest" or "All", insert "groups" after the mode word
       // Examples: "Latest groups +3", "All groups +5"
       return `${baseText} groups +${allowedGroupEventsCount}`;
@@ -442,7 +442,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               {/* Transcript row - Hidden if workspace config specifies */}
               {(!activeUiConfig.hide_sidebar_info?.includes('transcript') || isAdminOverride) && (
                 <div className="text-xs text-muted-foreground">
-                  {crossGroupReadEnabled && currentEventId === '0000' && allowedGroupEventsCount > 0 ? (
+                  {groupsReadMode !== 'none' && currentEventId === '0000' && allowedGroupEventsCount > 0 ? (
                     <>Listening to <span className="font-bold">{getTranscriptListenModeText()}</span></>
                   ) : (
                     <>Transcript <span className="font-bold">{getTranscriptListenModeText()}</span></>
