@@ -4353,13 +4353,19 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled) {
                                 parts.push('Not listening');
-                              } else if (hasGroupsEnabled && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
-                                // Only groups enabled, no 0000 transcripts
+                              } else if (hasGroupsEnabled && transcriptListenMode === 'none') {
+                                // Groups enabled, no 0000 raw transcripts (may have summarized)
+                                const memCount = savedTranscriptMemoryMode === 'some'
+                                  ? Object.values(individualMemoryToggleStates || {}).filter(Boolean).length
+                                  : savedTranscriptMemoryMode === 'all'
+                                    ? (savedTranscriptSummaries?.length || 0)
+                                    : 0;
                                 const groupCount = allowedGroupEventsCount;
+                                const totalCount = memCount + groupCount;
                                 const base = groupsReadMode === 'latest'
                                   ? t(`controlsMenu.statusText.${platform}.listeningLive`)
                                   : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
-                                const statusText = `${base.replace('Listening live', 'Listening to groups').replace('Live', 'Groups')} +${groupCount}`;
+                                const statusText = `${base.replace('Listening live', 'Listening to groups').replace('Live', 'Groups')} +${totalCount}`;
                                 parts.push(statusText);
                               } else if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningLive`);
@@ -4390,14 +4396,20 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none' || hasGroupsEnabled;
                               const platform = isMobile ? 'mobile' : 'desktop';
 
-                              // Check groups-only case first (when 0000 transcripts are disabled but groups enabled)
-                              if (hasGroupsEnabled && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
-                                // Only groups enabled, no 0000 transcripts
+                              // Check groups case when 0000 transcripts are disabled but groups enabled
+                              if (hasGroupsEnabled && transcriptListenMode === 'none') {
+                                // Groups enabled, no 0000 raw transcripts (may have summarized)
+                                const memCount = savedTranscriptMemoryMode === 'some'
+                                  ? Object.values(individualMemoryToggleStates || {}).filter(Boolean).length
+                                  : savedTranscriptMemoryMode === 'all'
+                                    ? (savedTranscriptSummaries?.length || 0)
+                                    : 0;
                                 const groupCount = allowedGroupEventsCount;
+                                const totalCount = memCount + groupCount;
                                 const base = groupsReadMode === 'latest'
                                   ? t(`controlsMenu.statusText.${platform}.listeningToGroups`)
                                   : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
-                                const statusText = `${base} +${groupCount}`;
+                                const statusText = `${base} +${totalCount}`;
                                 parts.push(statusText);
                               } else if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);

@@ -1734,7 +1734,15 @@ function HomeContent() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { console.warn(`Not fetching ${description}: no session.`); return; }
 
-    const proxyApiUrl = `/api/s3-proxy/list?prefix=${encodeURIComponent(prefix)}`;
+    // Include agent and event for cross-group read support
+    let proxyApiUrl = `/api/s3-proxy/list?prefix=${encodeURIComponent(prefix)}`;
+    if (pageAgentName) {
+      proxyApiUrl += `&agent=${encodeURIComponent(pageAgentName)}`;
+    }
+    if (pageEventId) {
+      proxyApiUrl += `&event=${encodeURIComponent(pageEventId)}`;
+    }
+
     try {
       const response = await fetch(proxyApiUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` }});
       if (!response.ok) throw new Error(`Failed to fetch ${description} via proxy: ${response.statusText} (URL: ${proxyApiUrl})`);
@@ -1744,14 +1752,14 @@ function HomeContent() {
         if (!key.includes('/transcripts/')) return true;
 
         // Block archive and saved subdirectories ONLY when listing from general transcripts/ prefix
-        // Allow them when explicitly requested (prefix ends with archive/ or saved/)
-        const isExplicitArchivedOrSaved = prefix.endsWith('/archive/') || prefix.endsWith('/saved/');
-        if (!isExplicitArchivedOrSaved && (key.includes('/transcripts/archive/') || key.includes('/transcripts/saved/'))) {
+        // Allow them when explicitly requested (prefix ends with archive/, saved/, or summarized/)
+        const isExplicitSubdir = prefix.endsWith('/archive/') || prefix.endsWith('/saved/') || prefix.endsWith('/summarized/');
+        if (!isExplicitSubdir && (key.includes('/transcripts/archive/') || key.includes('/transcripts/saved/'))) {
           return false;
         }
 
-        // When explicitly fetching from archive/ or saved/, allow all files
-        if (isExplicitArchivedOrSaved) {
+        // When explicitly fetching from archive/, saved/, or summarized/, allow all files
+        if (isExplicitSubdir) {
           return true;
         }
 
@@ -1763,7 +1771,7 @@ function HomeContent() {
       console.error(`Error fetching ${description} from proxy ${proxyApiUrl}:`, error);
       onDataFetched([]);
     }
-  }, [supabase.auth]);
+  }, [supabase.auth, pageAgentName, pageEventId]);
 
   // Effect for Transcriptions
   useEffect(() => {

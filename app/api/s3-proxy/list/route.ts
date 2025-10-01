@@ -22,12 +22,21 @@ export async function GET(req: NextRequest) {
       return formatErrorResponse("Missing 'prefix' query parameter", 400);
     }
 
+    const agent = req.nextUrl.searchParams.get('agent');
+    const event = req.nextUrl.searchParams.get('event');
+
     const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
       return formatErrorResponse("Could not connect to backend for S3 listing.", 503);
     }
 
-    const targetUrl = `${activeBackendUrl}/api/s3/list?prefix=${encodeURIComponent(prefix)}`;
+    let targetUrl = `${activeBackendUrl}/api/s3/list?prefix=${encodeURIComponent(prefix)}`;
+    if (agent) {
+      targetUrl += `&agent=${encodeURIComponent(agent)}`;
+    }
+    if (event) {
+      targetUrl += `&event=${encodeURIComponent(event)}`;
+    }
     console.log(`[S3 Proxy List] Forwarding GET to ${targetUrl}`);
 
     const { data: { session } } = await supabase.auth.getSession();
