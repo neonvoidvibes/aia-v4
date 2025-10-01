@@ -1478,6 +1478,13 @@ function HomeContent() {
     }
   }, [pageAgentName, userId]);
 
+  // Auto-disable cross-group read when transcript mode becomes 'none'
+  useEffect(() => {
+    if (transcriptListenMode === 'none' && crossGroupReadEnabled) {
+      handleCrossGroupReadChange(false);
+    }
+  }, [transcriptListenMode, crossGroupReadEnabled, handleCrossGroupReadChange]);
+
   // Auto-switch memory mode to 'some' when an individual toggle is turned on
   useEffect(() => {
     const hasTogglesOn = Object.values(individualMemoryToggleStates).some(v => v);
@@ -2996,21 +3003,23 @@ function HomeContent() {
                           <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">All</ToggleGroupItem>
                         </ToggleGroup>
                       </div>
-                      {/* Cross-group read toggle - only active for event 0000 */}
+                      {/* Cross-group read toggle - only active for event 0000 and when transcript mode is not 'none' */}
                       <div className="flex items-center justify-between py-3 border-b mb-3">
                         <div className="flex flex-col gap-1">
-                          <Label htmlFor="cross-group-read-toggle" className={cn("memory-section-title text-sm font-medium", pageEventId !== '0000' && "opacity-50")}>
+                          <Label htmlFor="cross-group-read-toggle" className={cn("memory-section-title text-sm font-medium", (pageEventId !== '0000' || transcriptListenMode === 'none') && "opacity-50")}>
                             Read other groups&apos; transcripts
                           </Label>
-                          {pageEventId !== '0000' && (
+                          {pageEventId !== '0000' ? (
                             <span className="text-xs text-muted-foreground">Only available in shared event (0000)</span>
-                          )}
+                          ) : transcriptListenMode === 'none' ? (
+                            <span className="text-xs text-muted-foreground">Enable transcript listening first</span>
+                          ) : null}
                         </div>
                         <Switch
                           id="cross-group-read-toggle"
                           checked={crossGroupReadEnabled}
                           onCheckedChange={handleCrossGroupReadChange}
-                          disabled={pageEventId !== '0000'}
+                          disabled={pageEventId !== '0000' || transcriptListenMode === 'none'}
                         />
                       </div>
                       <div className="pb-3 space-y-2 w-full">
