@@ -5,6 +5,7 @@
     "teamspace": "Teamspace",
     "allChats": "Alla chattar",
     "groupedChats": "Grupperade",
+    "groups": "Grupper",
     "logOut": "Logga ut",
     "dateLabels": {
       "today": "Idag",
@@ -31,11 +32,13 @@
     "statusText": {
       "desktop": {
         "listeningToLatest": "Lyssnar på senaste",
+        "listeningToGroups": "Lyssnar på grupper",
         "listeningToPrevious": "Lyssnar på tidigare",
         "listeningLive": "Lyssnar live"
       },
       "mobile": {
         "listeningToLatest": "Senaste",
+        "listeningToGroups": "Grupper",
         "listeningToPrevious": "Tidigare",
         "listeningLive": "Live"
       },

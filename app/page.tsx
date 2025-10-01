@@ -1328,36 +1328,41 @@ function HomeContent() {
   // Enforce transcriptListenMode from workspace if provided; otherwise use saved or fallback
   useEffect(() => {
     if (pageAgentName && userId) {
-      // ikea-pilot workspace override: always listen to all transcripts (highest priority)
-      if (pageAgentName === 'ikea-pilot') {
-        setTranscriptListenMode('all');
-        return;
-      }
+      const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
+      const canOverrideSettings = !activeUiConfig?.hide_sidebar_links?.includes('settings') || permissionsData?.isAdminOverride;
       const enforced = activeUiConfig?.default_transcript_listen_mode;
-      if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') {
+
+      // If workspace has default AND user cannot override (no Settings access), enforce it
+      if ((enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') && !canOverrideSettings) {
         setTranscriptListenMode(enforced);
         return;
       }
-      const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
+
+      // Otherwise, check localStorage for saved preference
       const savedMode = localStorage.getItem(key);
       if (savedMode === 'none' || savedMode === 'some' || savedMode === 'latest' || savedMode === 'all') {
         setTranscriptListenMode(savedMode as any);
+      } else if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') {
+        // No saved preference but workspace has default - use it as initial value
+        setTranscriptListenMode(enforced);
       } else {
         setTranscriptListenMode('latest');
       }
     }
-  }, [pageAgentName, userId, activeUiConfig]);
+  }, [pageAgentName, userId, activeUiConfig, permissionsData?.isAdminOverride]);
 
-  // Persist transcriptListenMode on any change (unless workspace enforces it)
+  // Persist transcriptListenMode on any change (unless workspace enforces it for users without Settings access)
   useEffect(() => {
     if (!pageAgentName || !userId) return;
-    // ikea-pilot workspace override: don't save to localStorage
-    if (pageAgentName === 'ikea-pilot') return;
+    const canOverrideSettings = !activeUiConfig?.hide_sidebar_links?.includes('settings') || permissionsData?.isAdminOverride;
     const enforced = activeUiConfig?.default_transcript_listen_mode;
-    if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') return;
+
+    // Only prevent saving if workspace enforces AND user cannot override
+    if ((enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') && !canOverrideSettings) return;
+
     const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
     try { localStorage.setItem(key, transcriptListenMode); } catch {}
-  }, [transcriptListenMode, pageAgentName, userId, activeUiConfig?.default_transcript_listen_mode]);
+  }, [transcriptListenMode, pageAgentName, userId, activeUiConfig, permissionsData?.isAdminOverride]);
 
 
   // Enforce savedTranscriptMemoryMode from workspace if provided; otherwise use saved or fallback

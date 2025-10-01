@@ -5,6 +5,7 @@
     "teamspace": "Teamspace",
     "allChats": "All my chats",
     "groupedChats": "Grouped chats",
+    "groups": "Groups",
     "logOut": "Log Out",
     "dateLabels": {
       "today": "Today",
@@ -31,11 +32,13 @@
     "statusText": {
       "desktop": {
         "listeningToLatest": "Listening to latest",
+        "listeningToGroups": "Listening to groups",
         "listeningToPrevious": "Listening to previous",
         "listeningLive": "Listening live"
       },
       "mobile": {
         "listeningToLatest": "Latest",
+        "listeningToGroups": "Groups",
         "listeningToPrevious": "Previous",
         "listeningLive": "Live"
       },

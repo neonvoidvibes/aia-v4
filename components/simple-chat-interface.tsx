@@ -4353,6 +4353,14 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled) {
                                 parts.push('Not listening');
+                              } else if (hasGroupsEnabled && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
+                                // Only groups enabled, no 0000 transcripts
+                                const groupCount = allowedGroupEventsCount;
+                                const base = groupsReadMode === 'latest'
+                                  ? t(`controlsMenu.statusText.${platform}.listeningLive`)
+                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const statusText = `${base.replace('Listening live', 'Listening to groups').replace('Live', 'Groups')} +${groupCount}`;
+                                parts.push(statusText);
                               } else if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningLive`);
                                 // Add "groups" if groups read mode is enabled
@@ -4365,14 +4373,6 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 const statusText = totalCount > 0
                                   ? `${base} +${totalCount}`
                                   : base;
-                                parts.push(statusText);
-                              } else if (hasGroupsEnabled) {
-                                // Only groups enabled, no 0000 transcripts
-                                const groupCount = allowedGroupEventsCount;
-                                const base = groupsReadMode === 'latest'
-                                  ? t(`controlsMenu.statusText.${platform}.listeningLive`)
-                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
-                                const statusText = `${base.replace('Listening live', 'Listening to groups').replace('Live', 'Groups')} +${groupCount}`;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
@@ -4390,7 +4390,16 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none' || hasGroupsEnabled;
                               const platform = isMobile ? 'mobile' : 'desktop';
 
-                              if (includesLatest) {
+                              // Check groups-only case first (when 0000 transcripts are disabled but groups enabled)
+                              if (hasGroupsEnabled && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
+                                // Only groups enabled, no 0000 transcripts
+                                const groupCount = allowedGroupEventsCount;
+                                const base = groupsReadMode === 'latest'
+                                  ? t(`controlsMenu.statusText.${platform}.listeningToGroups`)
+                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const statusText = `${base} +${groupCount}`;
+                                parts.push(statusText);
+                              } else if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
                                 // Add "groups" if groups read mode is enabled
                                 if (groupsReadMode !== 'none' && eventId === '0000' && allowedGroupEventsCount > 0) {
@@ -4402,14 +4411,6 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 const statusText = totalCount > 0
                                   ? `${base} +${totalCount}`
                                   : base;
-                                parts.push(statusText);
-                              } else if (hasGroupsEnabled) {
-                                // Only groups enabled, no 0000 transcripts
-                                const groupCount = allowedGroupEventsCount;
-                                const base = groupsReadMode === 'latest'
-                                  ? t(`controlsMenu.statusText.${platform}.listeningToLatest`)
-                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
-                                const statusText = `${base.replace('Listening to latest', 'Listening to groups').replace('Latest', 'Groups')} +${groupCount}`;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
