@@ -1673,6 +1673,20 @@ function HomeContent() {
       const filtered = (data || []).filter(file => {
         const key = (file.s3Key || file.Key || '').split('?')[0];
         if (!key.includes('/transcripts/')) return true;
+
+        // Block archive and saved subdirectories ONLY when listing from general transcripts/ prefix
+        // Allow them when explicitly requested (prefix ends with archive/ or saved/)
+        const isExplicitArchivedOrSaved = prefix.endsWith('/archive/') || prefix.endsWith('/saved/');
+        if (!isExplicitArchivedOrSaved && (key.includes('/transcripts/archive/') || key.includes('/transcripts/saved/'))) {
+          return false;
+        }
+
+        // When explicitly fetching from archive/ or saved/, allow all files
+        if (isExplicitArchivedOrSaved) {
+          return true;
+        }
+
+        // Otherwise, allow only direct files in transcripts/ (not in subdirectories)
         return /^.+\/events\/[^/]+\/transcripts\/[^/]+\.[^/]+$/.test(key);
       });
       onDataFetched(filtered);
