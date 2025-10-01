@@ -149,15 +149,36 @@ export async function POST(req: NextRequest) {
       safeEvent = '0000';
     }
 
-    log.info("Chat request validated", { 
-      agent, 
+    // Fetch cross_group_read_enabled preference for this agent
+    let crossGroupReadEnabled = false;
+    if (agent && safeEvent === '0000') {
+      try {
+        const memoryPrefsUrl = `${req.nextUrl.origin}/api/agents/memory-prefs?agent=${encodeURIComponent(agent)}`;
+        const memoryPrefsRes = await fetch(memoryPrefsUrl, {
+          method: 'GET',
+          headers: {
+            'Cookie': req.headers.get('cookie') || ''
+          }
+        });
+        if (memoryPrefsRes.ok) {
+          const memoryPrefs = await memoryPrefsRes.json();
+          crossGroupReadEnabled = memoryPrefs.cross_group_read_enabled || false;
+        }
+      } catch (err) {
+        log.warn('Failed to fetch cross_group_read_enabled, defaulting to false', { error: err });
+      }
+    }
+
+    log.info("Chat request validated", {
+      agent,
       event: safeEvent,
       messageCount: userMessages.length,
       transcriptListenMode: transcriptListenModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
       individualMemoryToggleStates: individualMemoryToggleStates,
       savedTranscriptSummariesCount: savedTranscriptSummaries.length,
-      transcriptionLanguage: transcriptionLanguageSetting
+      transcriptionLanguage: transcriptionLanguageSetting,
+      crossGroupReadEnabled: crossGroupReadEnabled
     });
 
     // Construct the specific API endpoint using the active base URL
@@ -175,6 +196,7 @@ export async function POST(req: NextRequest) {
       individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,
       rawTranscriptFiles: rawTranscriptFiles,
       transcriptionLanguage: transcriptionLanguageSetting, // Added
+      crossGroupReadEnabled: crossGroupReadEnabled, // Added for cross-group read feature
       initialContext: initialContext, // For _aicreator agent
       currentDraftContent: currentDraftContent, // For _aicreator feedback loop
       disableRetrieval: disableRetrieval, // To bypass RAG in wizard

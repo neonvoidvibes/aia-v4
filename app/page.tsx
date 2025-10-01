@@ -226,6 +226,7 @@ function HomeContent() {
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
   const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness | null>(null);
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
+  const [crossGroupReadEnabled, setCrossGroupReadEnabled] = useState<boolean>(false); // Cross-group read toggle for event 0000
 
   // Fullscreen mode state
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1415,6 +1416,68 @@ function HomeContent() {
     }
   }, [individualMemoryToggleStates, pageAgentName, userId]);
 
+  // Load crossGroupReadEnabled from Supabase and localStorage
+  useEffect(() => {
+    if (!pageAgentName || !userId) return;
+
+    const loadCrossGroupRead = async () => {
+      // First check localStorage for immediate effect
+      const localKey = `crossGroupReadEnabled_${pageAgentName}_${userId}`;
+      const localValue = localStorage.getItem(localKey);
+      if (localValue !== null) {
+        setCrossGroupReadEnabled(localValue === 'true');
+      }
+
+      // Then fetch from Supabase as source of truth
+      try {
+        const response = await fetch(`/api/agents/memory-prefs?agent=${encodeURIComponent(pageAgentName)}`);
+        if (response.ok) {
+          const data = await response.json();
+          const dbValue = data.cross_group_read_enabled || false;
+          setCrossGroupReadEnabled(dbValue);
+          localStorage.setItem(localKey, String(dbValue));
+        }
+      } catch (error) {
+        console.error('Error loading cross-group read preference:', error);
+      }
+    };
+
+    loadCrossGroupRead();
+  }, [pageAgentName, userId]);
+
+  // Persist crossGroupReadEnabled changes to Supabase and localStorage
+  const handleCrossGroupReadChange = useCallback(async (enabled: boolean) => {
+    if (!pageAgentName || !userId) return;
+
+    setCrossGroupReadEnabled(enabled);
+
+    // Persist to localStorage immediately
+    const localKey = `crossGroupReadEnabled_${pageAgentName}_${userId}`;
+    localStorage.setItem(localKey, String(enabled));
+
+    // Persist to Supabase
+    try {
+      const response = await fetch('/api/agents/memory-prefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: pageAgentName,
+          cross_group_read_enabled: enabled
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to save cross-group read preference to Supabase');
+        toast.error('Failed to save preference');
+      } else {
+        toast.success(enabled ? 'Cross-group read enabled' : 'Cross-group read disabled');
+      }
+    } catch (error) {
+      console.error('Error saving cross-group read preference:', error);
+      toast.error('Failed to save preference');
+    }
+  }, [pageAgentName, userId]);
+
   // Auto-switch memory mode to 'some' when an individual toggle is turned on
   useEffect(() => {
     const hasTogglesOn = Object.values(individualMemoryToggleStates).some(v => v);
@@ -2328,6 +2391,9 @@ function HomeContent() {
         eventLabels={eventLabels}
         workspaceId={(permissionsData && currentAgent) ? (permissionsData.agents.find((a: any) => a.name === currentAgent)?.workspaceId) : undefined}
         workspaceName={(permissionsData && currentAgent) ? (permissionsData.agents.find((a: any) => a.name === currentAgent)?.workspaceName || undefined) : undefined}
+        // --- Cross-group read feature props ---
+        crossGroupReadEnabled={crossGroupReadEnabled}
+        allowedGroupEventsCount={(availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'group').length}
       />
       
       {/* New Chat icon positioned right of sidebar */}
@@ -2926,6 +2992,23 @@ function HomeContent() {
                           <ToggleGroupItem value="some" aria-label="Some" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Some</ToggleGroupItem>
                           <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">All</ToggleGroupItem>
                         </ToggleGroup>
+                      </div>
+                      {/* Cross-group read toggle - only active for event 0000 */}
+                      <div className="flex items-center justify-between py-3 border-b mb-3">
+                        <div className="flex flex-col gap-1">
+                          <Label htmlFor="cross-group-read-toggle" className={cn("memory-section-title text-sm font-medium", pageEventId !== '0000' && "opacity-50")}>
+                            Read other groups&apos; transcripts
+                          </Label>
+                          {pageEventId !== '0000' && (
+                            <span className="text-xs text-muted-foreground">Only available in shared event (0000)</span>
+                          )}
+                        </div>
+                        <Switch
+                          id="cross-group-read-toggle"
+                          checked={crossGroupReadEnabled}
+                          onCheckedChange={handleCrossGroupReadChange}
+                          disabled={pageEventId !== '0000'}
+                        />
                       </div>
                       <div className="pb-3 space-y-2 w-full">
                         {transcriptionS3Files.length > 0 ? (

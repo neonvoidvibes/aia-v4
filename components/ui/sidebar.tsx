@@ -77,6 +77,9 @@ interface SidebarProps {
   workspaceId?: string;
   workspaceSlug?: string;
   workspaceName?: string;
+  // Cross-group read feature
+  crossGroupReadEnabled?: boolean;
+  allowedGroupEventsCount?: number;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -106,6 +109,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   workspaceId,
   workspaceSlug,
   workspaceName,
+  crossGroupReadEnabled = false,
+  allowedGroupEventsCount = 0,
 }) => {
   const isMobile = useIsMobile();
   const { t, language } = useLocalization();
@@ -312,7 +317,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const getTranscriptListenModeText = () => {
-    return transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
+    const baseText = transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1);
+
+    // If cross-group read is enabled for event 0000, append "groups +N"
+    if (crossGroupReadEnabled && currentEventId === '0000' && allowedGroupEventsCount > 0) {
+      return `${baseText} groups +${allowedGroupEventsCount}`;
+    }
+
+    return baseText;
   };
 
   const groupChatsByDate = (chats: ChatHistoryItem[]) => {
