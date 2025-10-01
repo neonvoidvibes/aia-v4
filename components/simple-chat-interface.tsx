@@ -4772,18 +4772,28 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                         </span>
                         {" "}· <span className={cn(wsStatus === 'open' && "text-green-500", wsStatus === 'error' && "text-red-500", wsStatus === 'closed' && "text-yellow-500")}>{wsStatus}</span>
                         {/* Show transcript listening mode when not recording */}
-                        {!isBrowserRecording && transcriptListenMode !== 'none' && (
-                          <>
-                            {" "}·{" "}
-                            <span>
-                              {crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0 ? (
-                                <>Listening to {transcriptListenMode} groups +{allowedGroupEventsCount}</>
-                              ) : (
-                                <>Listening to {transcriptListenMode}</>
-                              )}
-                            </span>
-                          </>
-                        )}
+                        {!isBrowserRecording && transcriptListenMode !== 'none' && (() => {
+                          // Debug cross-group read status
+                          const showGroups = crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0;
+                          console.log('[InputAreaStatus] Cross-group check:', {
+                            crossGroupReadEnabled,
+                            eventId,
+                            allowedGroupEventsCount,
+                            showGroups
+                          });
+                          return (
+                            <>
+                              {" "}·{" "}
+                              <span>
+                                {showGroups ? (
+                                  <>Listening to {transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1)} groups +{allowedGroupEventsCount}</>
+                                ) : (
+                                  <>Listening to {transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1)}</>
+                                )}
+                              </span>
+                            </>
+                          );
+                        })()}
                     </div>
                 )}
                 {isFullscreen && (
