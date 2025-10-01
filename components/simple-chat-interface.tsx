@@ -4353,9 +4353,15 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none') {
                                 parts.push('Not listening');
                               } else if (includesLatest) {
-                                const base = t(`controlsMenu.statusText.${platform}.listeningLive`);
+                                let base = t(`controlsMenu.statusText.${platform}.listeningLive`);
+                                // Add "groups" if cross-group read is enabled
+                                if (crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0) {
+                                  base = base.replace('live', 'live groups');
+                                }
                                 const statusText = more > 0
                                   ? `${base} +${more}`
+                                  : crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0
+                                  ? `${base} +${allowedGroupEventsCount}`
                                   : base;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
@@ -4375,9 +4381,15 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               const platform = isMobile ? 'mobile' : 'desktop';
                               
                               if (includesLatest) {
-                                const base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
+                                let base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
+                                // Add "groups" if cross-group read is enabled
+                                if (crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0) {
+                                  base = base.replace('latest', 'latest groups');
+                                }
                                 const statusText = more > 0
                                   ? `${base} +${more}`
+                                  : crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0
+                                  ? `${base} +${allowedGroupEventsCount}`
                                   : base;
                                 parts.push(statusText);
                               } else if (hasAnySelection) {
@@ -4771,29 +4783,6 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                           )}
                         </span>
                         {" "}· <span className={cn(wsStatus === 'open' && "text-green-500", wsStatus === 'error' && "text-red-500", wsStatus === 'closed' && "text-yellow-500")}>{wsStatus}</span>
-                        {/* Show transcript listening mode when not recording */}
-                        {!isBrowserRecording && transcriptListenMode !== 'none' && (() => {
-                          // Debug cross-group read status
-                          const showGroups = crossGroupReadEnabled && eventId === '0000' && allowedGroupEventsCount > 0;
-                          console.log('[InputAreaStatus] Cross-group check:', {
-                            crossGroupReadEnabled,
-                            eventId,
-                            allowedGroupEventsCount,
-                            showGroups
-                          });
-                          return (
-                            <>
-                              {" "}·{" "}
-                              <span>
-                                {showGroups ? (
-                                  <>Listening to {transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1)} groups +{allowedGroupEventsCount}</>
-                                ) : (
-                                  <>Listening to {transcriptListenMode.charAt(0).toUpperCase() + transcriptListenMode.slice(1)}</>
-                                )}
-                              </span>
-                            </>
-                          );
-                        })()}
                     </div>
                 )}
                 {isFullscreen && (
