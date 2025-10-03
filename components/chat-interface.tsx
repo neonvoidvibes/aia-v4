@@ -11,6 +11,7 @@ import { useMobile } from "@/hooks/use-mobile"
 import { useRecordingSupport } from "@/hooks/use-recording-support"
 import { cn } from "@/lib/utils"
 import { useTheme } from "next-themes"
+import { manager as recordingManager } from "@/lib/recordingManager"
 
 export default function ChatInterface() {
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop } = useChat({
@@ -20,8 +21,8 @@ export default function ChatInterface() {
   const [hoveredMessage, setHoveredMessage] = useState<string | null>(null)
   const [showPlusMenu, setShowPlusMenu] = useState(false)
   const [showRecordUI, setShowRecordUI] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
+  const [recordingState, setRecordingState] = useState(() => recordingManager.getState())
+  const [agentName, setAgentName] = useState<string | undefined>(undefined)
   const [recordUIFading, setRecordUIFading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const isMobile = useMobile()
@@ -32,10 +33,54 @@ export default function ChatInterface() {
   const recordUITimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasRecordingSupport = useRecordingSupport()
 
+  const hasRecordingSession = recordingState.phase === "active" || recordingState.phase === "starting" || recordingState.phase === "stopping" || recordingState.phase === "suspended"
+  const isRecordingLive = (recordingState.phase === "active" || recordingState.phase === "starting") && !recordingState.paused
+  const isPaused = Boolean(recordingState.paused)
+  const isRecordUIVisible = showRecordUI || hasRecordingSession
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  useEffect(() => {
+    const unsubscribe = recordingManager.subscribe(setRecordingState)
+    return () => {
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    ;(window as any).__recordingManager = recordingManager
+  }, [])
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[ChatInterface] recording state", recordingState)
+    }
+  }, [recordingState])
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[ChatInterface] agentName", agentName)
+    }
+  }, [agentName])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    const agentFromQuery = url.searchParams.get("agent")
+    let agentFromStorage: string | null = null
+    try {
+      agentFromStorage = window.localStorage.getItem("lastUsedAgent")
+    } catch {
+      agentFromStorage = null
+    }
+    const defaultAgent = process.env.NEXT_PUBLIC_DEFAULT_AGENT ?? process.env.NEXT_PUBLIC_DEFAULT_AGENT_NAME ?? null
+    const resolvedAgent = agentFromQuery ?? agentFromStorage ?? defaultAgent
+    setAgentName(resolvedAgent ?? undefined)
+  }, [])
 
   // Close plus menu and record UI when clicking outside
   useEffect(() => {
@@ -45,7 +90,7 @@ export default function ChatInterface() {
       }
       if (recordUIRef.current && !recordUIRef.current.contains(event.target as Node)) {
         // Don't close record UI if recording is active
-        if (!isRecording) {
+        if (!hasRecordingSession) {
           setShowRecordUI(false)
         }
       }
@@ -55,7 +100,7 @@ export default function ChatInterface() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
     }
-  }, [isRecording])
+  }, [hasRecordingSession])
 
   const handleMessageInteraction = (id: string) => {
     if (isMobile) {
@@ -103,28 +148,59 @@ export default function ChatInterface() {
   const startRecording = () => {
     setShowPlusMenu(false)
     setShowRecordUI(true)
+    setRecordUIFading(false)
   }
 
-  const toggleRecording = () => {
-    if (isRecording) {
-      if (isPaused) {
-        // Resume recording
-        setIsPaused(false)
-      } else {
-        // Pause recording
-        setIsPaused(true)
+  const handlePrimaryRecordingAction = async () => {
+    const currentState = recordingManager.getState()
+    try {
+      if (currentState.paused) {
+        recordingManager.resume()
+        setRecordUIFading(false)
+        return
       }
-    } else {
-      // Start recording
-      setIsRecording(true)
-      setIsPaused(false)
+
+      if (currentState.phase === "idle" || currentState.phase === "suspended") {
+        if (!agentName) {
+          console.warn("Recording manager start aborted: missing agentName")
+          return
+        }
+        setShowPlusMenu(false)
+        setShowRecordUI(true)
+        setRecordUIFading(false)
+        await recordingManager.start({ type: "chat", agentName })
+        return
+      }
+
+      if (currentState.phase === "active" && currentState.paused) {
+        recordingManager.resume()
+        setRecordUIFading(false)
+      }
+    } catch (error) {
+      console.error("Failed to start or resume recording", error)
     }
   }
 
-  const stopRecording = () => {
-    setIsRecording(false)
-    setIsPaused(false)
-    setShowRecordUI(false)
+  const handlePauseRecording = () => {
+    const currentState = recordingManager.getState()
+    if (currentState.phase === "active" && !currentState.paused) {
+      try {
+        recordingManager.pause()
+      } catch (error) {
+        console.error("Failed to pause recording", error)
+      }
+    }
+  }
+
+  const handleStopRecording = async () => {
+    try {
+      await recordingManager.stop()
+    } catch (error) {
+      console.error("Failed to stop recording", error)
+    } finally {
+      setShowRecordUI(false)
+      setRecordUIFading(false)
+    }
   }
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -142,7 +218,7 @@ export default function ChatInterface() {
       clearTimeout(recordUITimeoutRef.current)
     }
     recordUITimeoutRef.current = setTimeout(() => {
-      if (isRecording) return // Don't fade if actively recording
+      if (isRecordingLive) return // Don't fade if actively recording
       setRecordUIFading(true)
     }, 3000)
   }
@@ -259,7 +335,7 @@ export default function ChatInterface() {
               </AnimatePresence>
 
               <AnimatePresence>
-                {showRecordUI && (
+                {isRecordUIVisible && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -270,7 +346,7 @@ export default function ChatInterface() {
                     onMouseMove={handleRecordUIMouseMove}
                     onMouseEnter={() => setRecordUIFading(false)}
                     onMouseLeave={() => {
-                      if (!isRecording) {
+                      if (!isRecordingLive) {
                         recordUITimeoutRef.current = setTimeout(() => {
                           setRecordUIFading(true)
                         }, 3000)
@@ -281,18 +357,18 @@ export default function ChatInterface() {
                     <div
                       className={cn(
                         "record-ui-button",
-                        isRecording && !isPaused ? "active" : "",
-                        isRecording && isPaused ? "paused" : "",
+                        isRecordingLive ? "active" : "",
+                        hasRecordingSession && isPaused ? "paused" : "",
                       )}
-                      onClick={toggleRecording}
+                      onClick={isRecordingLive ? handlePauseRecording : handlePrimaryRecordingAction}
                     >
-                      {isRecording && !isPaused ? <Pause size={20} /> : <Play size={20} />}
+                      {isRecordingLive ? <Pause size={20} /> : <Play size={20} />}
                     </div>
                     <div
                       className="record-ui-button"
-                      onClick={stopRecording}
+                      onClick={handleStopRecording}
                       style={{
-                        color: !isRecording ? "#777 !important" : theme === "light" && isRecording ? "#333" : "",
+                        color: !hasRecordingSession ? "#777 !important" : theme === "light" && hasRecordingSession ? "#333" : "",
                       }}
                     >
                       <StopCircle size={20} />
@@ -352,10 +428,10 @@ export default function ChatInterface() {
 
         <div className="status-bar">
           river |{" "}
-          {isRecording ? (
+          {hasRecordingSession ? (
             <span>
               listen:{" "}
-              {isPaused ? (
+              {isPaused || !isRecordingLive ? (
                 <>
                   no <span className="inline-block ml-1 h-2 w-2 rounded-full bg-yellow-500"></span>
                 </>
