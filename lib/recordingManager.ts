@@ -146,6 +146,9 @@ class RecordingManagerImpl implements RecordingManager {
   }
 
   async start(opts: { type: RecordingType; chatId?: string; agentName?: string; eventId?: string | null }): Promise<{ sessionId: string }> {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[RecordingManager] start()', opts);
+    }
     if (!isRecordingPersistenceEnabled()) {
       throw new Error('Persistence flag disabled');
     }
@@ -252,6 +255,9 @@ class RecordingManagerImpl implements RecordingManager {
   }
 
   async stop(): Promise<void> {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[RecordingManager] stop()', { phase: this.state.phase, sessionId: this.state.sessionId });
+    }
     const { sessionId } = this.state;
     if (!sessionId) return;
     this.update({ ...this.state, phase: 'stopping' });
@@ -300,6 +306,9 @@ class RecordingManagerImpl implements RecordingManager {
 
   // Pause/resume controls (persistence mode)
   pause(): void {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[RecordingManager] pause()', { phase: this.state.phase, paused: this.state.paused });
+    }
     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
       try { this.mediaRecorder.pause(); } catch {}
       // onpause handler will update state and signal backend
@@ -307,6 +316,9 @@ class RecordingManagerImpl implements RecordingManager {
   }
 
   resume(): void {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[RecordingManager] resume()', { phase: this.state.phase, paused: this.state.paused });
+    }
     if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         const sid = this.state.sessionId;

@@ -694,6 +694,17 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         }
     }, [searchParams, agentName, isPageReady]);
 
+    useEffect(() => {
+        if (isRecordingPersistenceEnabled()) return;
+        try {
+            if (typeof window !== 'undefined') {
+                window.localStorage?.setItem('recording.persistence.enabled', 'true');
+            }
+        } catch (err) {
+            console.warn('[RecordingUI] unable to enable persistence flag via localStorage', err);
+        }
+    }, []);
+
     // Helper function to add error messages
     const addErrorMessage = useCallback((content: string, _canRetry: boolean = false) => {
         // Replace all in-chat status/errors with toasts only
@@ -2314,24 +2325,69 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         }
     }, [isPageReady, agentName, callHttpRecordingApi, resetRecordingStates, searchParams, addErrorMessage, connectWebSocket]);
     
+    const resolveAgentFallback = useCallback((): string | null => {
+        if (agentName) return agentName;
+        let resolved: string | null = null;
+        if (typeof window !== 'undefined') {
+            try { resolved = window.localStorage.getItem('lastUsedAgent'); } catch { resolved = null; }
+        }
+        if (!resolved) {
+            const envAgent = process.env.NEXT_PUBLIC_DEFAULT_AGENT || process.env.NEXT_PUBLIC_DEFAULT_AGENT_NAME || null;
+            resolved = envAgent || null;
+        }
+        if (!agentName && resolved) {
+            setAgentName(resolved);
+        }
+        return resolved;
+    }, [agentName]);
 
-    const showAndPrepareRecordingControls = useCallback(() => {
+    const startPersistentRecording = useCallback(async () => {
+        if (!isRecordingPersistenceEnabled()) {
+            try {
+                if (typeof window !== 'undefined') {
+                    window.localStorage?.setItem('recording.persistence.enabled', 'true');
+                }
+            } catch (err) {
+                console.warn('[RecordingUI] failed to set persistence flag in localStorage', err);
+            }
+            if (!isRecordingPersistenceEnabled()) {
+                addErrorMessage('Recording persistence is disabled. Enable it in settings or refresh the page.');
+                return false;
+            }
+        }
+
+        const resolvedAgent = resolveAgentFallback();
+        if (!resolvedAgent) {
+            addErrorMessage('Agent information is missing. Cannot start recording.');
+            return false;
+        }
+        if (process.env.NODE_ENV !== 'production') {
+            console.debug('[RecordingUI] startPersistentRecording', {
+                agent: resolvedAgent,
+                chatId: currentChatId,
+                eventId,
+            });
+        }
+        try {
+            await recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: resolvedAgent, eventId });
+            return true;
+        } catch (err: any) {
+            console.error('[RecordingUI] startPersistentRecording failed', err);
+            addErrorMessage(`Error: ${err?.message || 'Failed to start recording'}`);
+            return false;
+        }
+    }, [resolveAgentFallback, currentChatId, eventId, addErrorMessage]);
+
+
+    const showAndPrepareRecordingControls = useCallback(async () => {
         debugLog(`[Recording Controls UI] Show/Prepare. Pending: ${pendingActionRef.current}, GlobalRec: ${globalRecordingStatus.isRecording}`);
         if (pendingActionRef.current) return;
         if (isRecordingPersistenceEnabled()) {
           const st = recordingManager.getState();
           const active = st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended');
           if (!active) {
-            const resolvedAgent = resolveAgentFallback();
-            if (!resolvedAgent) { addErrorMessage('Agent information is missing. Cannot start recording.'); return; }
-            if (process.env.NODE_ENV !== 'production') {
-              console.debug('[RecordingUI] showAndPrepareRecordingControls:start', { agent: resolvedAgent, chatId: currentChatId, eventId });
-            }
-            try {
-              recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: resolvedAgent, eventId });
-            } catch (e:any) {
-              addErrorMessage(`Error: ${e?.message || 'Failed to start recording'}`);
-            }
+            const started = await startPersistentRecording();
+            if (!started) return;
           }
           return; // No extra UI per spec
         }
@@ -2343,7 +2399,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         } else {
             handleStartRecordingSession();
         }
-    }, [handleStartRecordingSession, startHideTimeout, globalRecordingStatus, resolveAgentFallback, currentChatId, eventId, addErrorMessage]);
+    }, [handleStartRecordingSession, startHideTimeout, globalRecordingStatus, startPersistentRecording]);
 
 
      useImperativeHandle(ref, () => ({
@@ -2882,19 +2938,6 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         return () => { try { bc?.close(); } catch {} };
     }, [handleStopRecording]);
 
-    const resolveAgentFallback = useCallback((): string | null => {
-        if (agentName) return agentName;
-        let resolved: string | null = null;
-        if (typeof window !== 'undefined') {
-            try { resolved = window.localStorage.getItem('lastUsedAgent'); } catch { resolved = null; }
-        }
-        if (!resolved) {
-            const envAgent = process.env.NEXT_PUBLIC_DEFAULT_AGENT || process.env.NEXT_PUBLIC_DEFAULT_AGENT_NAME || null;
-            resolved = envAgent || null;
-        }
-        return resolved;
-    }, [agentName]);
-
     const handlePlayPauseMicClick = useCallback(async (e?: React.MouseEvent) => {
         // Allow invocation from menu items where we don't have a real MouseEvent
         e?.stopPropagation?.();
@@ -2904,19 +2947,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
             const active = !!(st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended'));
             if (!active) {
                 // Not active yet: start via manager
-                const resolvedAgent = resolveAgentFallback();
-                if (!resolvedAgent) {
-                    addErrorMessage('Agent information is missing. Cannot start recording.');
-                    return;
-                }
-                if (process.env.NODE_ENV !== 'production') {
-                    console.debug('[RecordingUI] start()', { agent: resolvedAgent, chatId: currentChatId, eventId, phase: st.phase });
-                }
-                try {
-                    recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: resolvedAgent, eventId });
-                } catch (err: any) {
-                    addErrorMessage(`Error: ${err?.message || 'Failed to start recording'}`);
-                }
+                const started = await startPersistentRecording();
+                if (!started) return;
                 return;
             }
             // Active: toggle pause/resume via manager
@@ -2934,7 +2966,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         } else {
             handleToggleBrowserPause();
         }
-    }, [handleStartRecordingSession, handleToggleBrowserPause, resolveAgentFallback, currentChatId, eventId, addErrorMessage]);
+    }, [handleStartRecordingSession, handleToggleBrowserPause, startPersistentRecording]);
 
     const saveChat = useCallback(() => { console.info("[Save Chat] Initiated."); const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }, [messages, agentName, eventId]);
 
