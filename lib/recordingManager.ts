@@ -309,9 +309,23 @@ class RecordingManagerImpl implements RecordingManager {
     if (process.env.NODE_ENV !== 'production') {
       console.debug('[RecordingManager] pause()', { phase: this.state.phase, paused: this.state.paused });
     }
+    let handled = false;
     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-      try { this.mediaRecorder.pause(); } catch {}
+      try {
+        this.mediaRecorder.pause();
+        handled = true;
+      } catch {}
       // onpause handler will update state and signal backend
+    }
+
+    if (!handled && !this.state.paused) {
+      // Fallback for PCM pipeline or browsers without MediaRecorder pause support
+      this.update({ ...this.state, paused: true });
+      try {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ action: 'set_processing_state', paused: true }));
+        }
+      } catch {}
     }
   }
 
@@ -319,6 +333,7 @@ class RecordingManagerImpl implements RecordingManager {
     if (process.env.NODE_ENV !== 'production') {
       console.debug('[RecordingManager] resume()', { phase: this.state.phase, paused: this.state.paused });
     }
+    let handled = false;
     if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         const sid = this.state.sessionId;
@@ -328,8 +343,20 @@ class RecordingManagerImpl implements RecordingManager {
           return;
         }
       }
-      try { this.mediaRecorder.resume(); } catch {}
+      try {
+        this.mediaRecorder.resume();
+        handled = true;
+      } catch {}
       // onresume handler will update state and signal backend
+    }
+
+    if (!handled && this.state.paused) {
+      this.update({ ...this.state, paused: false });
+      try {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ action: 'set_processing_state', paused: false }));
+        }
+      } catch {}
     }
   }
 
