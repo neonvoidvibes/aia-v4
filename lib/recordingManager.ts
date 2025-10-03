@@ -860,3 +860,7 @@ class RecordingManagerImpl implements RecordingManager {
 }
 
 export const manager: RecordingManager = new RecordingManagerImpl();
+
+if (typeof window !== 'undefined') {
+  ;(window as any).__recordingManager = manager;
+}

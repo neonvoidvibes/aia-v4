@@ -636,14 +636,28 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
     useEffect(() => {
         const agentParam = searchParams?.get('agent');
-        const eventParam = searchParams?.get('event');
-        debugLog(`[InitEffect] Params - Agent: ${agentParam}, Event: ${eventParam}`);
-        
+        const eventParamRaw = searchParams?.get('event');
+        const eventFallback = eventParamRaw || '0000';
+
+        let derivedAgent: string | null = agentParam || null;
+        if (!derivedAgent && typeof window !== 'undefined') {
+            try {
+                derivedAgent = window.localStorage.getItem('lastUsedAgent');
+            } catch {
+                derivedAgent = null;
+            }
+        }
+        if (!derivedAgent) {
+            const envAgent = process.env.NEXT_PUBLIC_DEFAULT_AGENT || process.env.NEXT_PUBLIC_DEFAULT_AGENT_NAME || null;
+            derivedAgent = envAgent || null;
+        }
+
+        debugLog(`[InitEffect] Params - Agent: ${agentParam}, Derived: ${derivedAgent}, Event: ${eventFallback}`);
+
         const initializeAgent = async (agent: string) => {
             setAgentName(agent);
-            setEventId(eventParam || null);
-            
-            // Fetch agent capabilities
+            setEventId(eventFallback);
+
             try {
                 const permsResponse = await fetch('/api/user/permissions');
                 if (permsResponse.ok) {
@@ -653,11 +667,11 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                         setAgentCapabilities(currentAgentData.capabilities);
                         debugLog(`[Agent Init] Capabilities for ${agent}:`, currentAgentData.capabilities);
                     } else {
-                        setAgentCapabilities({ pinecone_index_exists: false }); // Default if agent not in list
+                        setAgentCapabilities({ pinecone_index_exists: false });
                     }
                 } else {
-                     debugLog(`[Agent Init] Failed to fetch agent capabilities.`);
-                     setAgentCapabilities({ pinecone_index_exists: false });
+                    debugLog(`[Agent Init] Failed to fetch agent capabilities.`);
+                    setAgentCapabilities({ pinecone_index_exists: false });
                 }
             } catch (error) {
                 console.error(`[Agent Init] Error fetching capabilities:`, error);
@@ -665,18 +679,20 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
             }
 
             setIsPageReady(true);
-            debugLog(`[InitEffect] Page is NOW ready. Agent: ${agent}, Event: ${eventParam}`);
+            debugLog(`[InitEffect] Page is NOW ready. Agent: ${agent}, Event: ${eventFallback}`);
         };
 
-        if (agentParam) {
-            if (agentParam !== agentName) { // Only re-initialize if agent has changed
-                initializeAgent(agentParam);
+        if (derivedAgent) {
+            if (derivedAgent !== agentName) {
+                initializeAgent(derivedAgent);
+            } else if (!isPageReady) {
+                setIsPageReady(true);
             }
         } else {
-            debugLog("[InitEffect] Chat Interface Waiting: Agent parameter missing from URL.");
+            debugLog('[InitEffect] Unable to resolve agent. Recording controls disabled.');
             setIsPageReady(false);
         }
-    }, [searchParams, agentName]);
+    }, [searchParams, agentName, isPageReady]);
 
     // Helper function to add error messages
     const addErrorMessage = useCallback((content: string, _canRetry: boolean = false) => {
@@ -2306,9 +2322,13 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
           const st = recordingManager.getState();
           const active = st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended');
           if (!active) {
-            if (!agentName) { addErrorMessage('Agent information is missing. Cannot start recording.'); return; }
+            const resolvedAgent = resolveAgentFallback();
+            if (!resolvedAgent) { addErrorMessage('Agent information is missing. Cannot start recording.'); return; }
+            if (process.env.NODE_ENV !== 'production') {
+              console.debug('[RecordingUI] showAndPrepareRecordingControls:start', { agent: resolvedAgent, chatId: currentChatId, eventId });
+            }
             try {
-              recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: agentName || undefined, eventId });
+              recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: resolvedAgent, eventId });
             } catch (e:any) {
               addErrorMessage(`Error: ${e?.message || 'Failed to start recording'}`);
             }
@@ -2323,7 +2343,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         } else {
             handleStartRecordingSession();
         }
-    }, [handleStartRecordingSession, startHideTimeout, globalRecordingStatus]);
+    }, [handleStartRecordingSession, startHideTimeout, globalRecordingStatus, resolveAgentFallback, currentChatId, eventId, addErrorMessage]);
 
 
      useImperativeHandle(ref, () => ({
@@ -2862,6 +2882,19 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         return () => { try { bc?.close(); } catch {} };
     }, [handleStopRecording]);
 
+    const resolveAgentFallback = useCallback((): string | null => {
+        if (agentName) return agentName;
+        let resolved: string | null = null;
+        if (typeof window !== 'undefined') {
+            try { resolved = window.localStorage.getItem('lastUsedAgent'); } catch { resolved = null; }
+        }
+        if (!resolved) {
+            const envAgent = process.env.NEXT_PUBLIC_DEFAULT_AGENT || process.env.NEXT_PUBLIC_DEFAULT_AGENT_NAME || null;
+            resolved = envAgent || null;
+        }
+        return resolved;
+    }, [agentName]);
+
     const handlePlayPauseMicClick = useCallback(async (e?: React.MouseEvent) => {
         // Allow invocation from menu items where we don't have a real MouseEvent
         e?.stopPropagation?.();
@@ -2871,9 +2904,16 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
             const active = !!(st.sessionId && (st.phase === 'starting' || st.phase === 'active' || st.phase === 'suspended'));
             if (!active) {
                 // Not active yet: start via manager
-                if (!agentName) { addErrorMessage('Agent information is missing. Cannot start recording.'); return; }
+                const resolvedAgent = resolveAgentFallback();
+                if (!resolvedAgent) {
+                    addErrorMessage('Agent information is missing. Cannot start recording.');
+                    return;
+                }
+                if (process.env.NODE_ENV !== 'production') {
+                    console.debug('[RecordingUI] start()', { agent: resolvedAgent, chatId: currentChatId, eventId, phase: st.phase });
+                }
                 try {
-                    recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: agentName || undefined, eventId });
+                    recordingManager.start({ type: 'chat', chatId: currentChatId || undefined, agentName: resolvedAgent, eventId });
                 } catch (err: any) {
                     addErrorMessage(`Error: ${err?.message || 'Failed to start recording'}`);
                 }
@@ -2882,6 +2922,9 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
             // Active: toggle pause/resume via manager
             const paused = !!st.paused;
             try {
+                if (process.env.NODE_ENV !== 'production') {
+                    console.debug('[RecordingUI] togglePause()', { paused, phase: st.phase });
+                }
                 if (paused) recordingManager.resume(); else recordingManager.pause();
             } catch {}
             return;
@@ -2891,7 +2934,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         } else {
             handleToggleBrowserPause();
         }
-    }, [handleStartRecordingSession, handleToggleBrowserPause, showAndPrepareRecordingControls, agentName, currentChatId, eventId, addErrorMessage]);
+    }, [handleStartRecordingSession, handleToggleBrowserPause, resolveAgentFallback, currentChatId, eventId, addErrorMessage]);
 
     const saveChat = useCallback(() => { console.info("[Save Chat] Initiated."); const chatContent = messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"); const blob = new Blob([chatContent], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `chat-${agentName || 'agent'}-${eventId || 'event'}-${new Date().toISOString().slice(0, 10)}.txt`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }, [messages, agentName, eventId]);
 

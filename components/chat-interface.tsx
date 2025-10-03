@@ -13,6 +13,10 @@ import { cn } from "@/lib/utils"
 import { useTheme } from "next-themes"
 import { manager as recordingManager } from "@/lib/recordingManager"
 
+if (typeof window !== "undefined") {
+  ;(window as any).__recordingManager = recordingManager
+}
+
 export default function ChatInterface() {
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop } = useChat({
     api: "/api/chat",
@@ -48,11 +52,6 @@ export default function ChatInterface() {
     return () => {
       unsubscribe()
     }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    ;(window as any).__recordingManager = recordingManager
   }, [])
 
   useEffect(() => {
