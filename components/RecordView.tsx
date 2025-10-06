@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { createClient } from '@/utils/supabase/client';
 import { useSilentChunkDetector } from '@/hooks/use-silent-chunk-detector';
+import { useAuthoritativeRecordingTimer } from '@/hooks/useAuthoritativeRecordingTimer';
 import { getClientTimezone } from '@/lib/timezone';
 
 // Utility for development-only logging
@@ -115,7 +116,6 @@ const RecordView: React.FC<RecordViewProps> = ({
   const audioStreamRef = useRef<MediaStream | null>(null);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const reconnectAttemptsRef = useRef(0);
   const prevDelayRef = useRef<number | null>(null);
@@ -135,6 +135,17 @@ const RecordView: React.FC<RecordViewProps> = ({
   
   const tryReconnectRef = React.useRef<() => void>(() => {});
   const supabase = createClient();
+
+  const { displayMs: timerMs, authoritativeRecording } =
+    useAuthoritativeRecordingTimer(webSocketRef.current, currentSessionId || '');
+
+  useEffect(() => {
+    setRecordingTime(Math.floor(timerMs / 1000));
+  }, [timerMs, setRecordingTime]);
+
+  useEffect(() => {
+    setGlobalRecordingStatus(prev => ({ ...prev, isRecording: authoritativeRecording }));
+  }, [authoritativeRecording, setGlobalRecordingStatus]);
 
   // Detect 10s of silence and toast no more than every 30s.
   const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
@@ -272,19 +283,9 @@ const RecordView: React.FC<RecordViewProps> = ({
     }
   }, [globalRecordingStatus.isRecording, pendingAction]);
 
-  const startTimer = () => {
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    timerIntervalRef.current = setInterval(() => {
-      setRecordingTime(prev => prev + 1);
-    }, 1000);
-  };
+  const startTimer = () => {};
 
-  const stopTimer = () => {
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-  };
+  const stopTimer = () => {};
 
   const resetRecordingStates = useCallback(() => {
     debugLog("[Resetting States] Initiated.");
