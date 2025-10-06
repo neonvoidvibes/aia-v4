@@ -20,7 +20,7 @@ export function useAuthoritativeRecordingTimer(
   const [authoritativeRecording, setAuthoritativeRecording] = useState(false);
 
   const showSticky = (msg: string) => {
-    toast.custom(msg, { id: stickyId, duration: Infinity });
+    toast(msg, { id: stickyId, duration: Infinity });
   };
   const dismissSticky = () => toast.dismiss(stickyId);
 
