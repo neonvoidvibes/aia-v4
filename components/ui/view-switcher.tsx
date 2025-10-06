@@ -3,19 +3,18 @@
 "use client"
 
 import * as React from "react"
-import { MessageSquare, LayoutGrid, AudioLines, Disc } from "lucide-react"
+import { MessageSquare, AudioLines, Disc } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useMobile } from "@/hooks/use-mobile"
 
-type View = "chat" | "canvas" | "transcribe" | "record";
+type View = "chat" | "transcribe" | "record";
 
 interface ViewSwitcherProps {
   currentView: View
   onViewChange: (view: View) => void
   agentName?: string | null
   className?: string
-  isCanvasEnabled?: boolean
 }
 
 export default function ViewSwitcher({
@@ -23,16 +22,13 @@ export default function ViewSwitcher({
   onViewChange,
   agentName,
   className,
-  isCanvasEnabled = false,
 }: ViewSwitcherProps) {
   const isMobile = useMobile()
 
   const chatLabel = "Chat"
   const transcribeLabel = isMobile ? "Audio" : "Transcribe"
   const recordLabel = "Record"
-  const canvasLabel = "Canvas"
-  
-  const gridColsClass = isCanvasEnabled ? "grid-cols-4" : "grid-cols-3";
+  const gridColsClass = "grid-cols-3"
 
   return (
     <Tabs
@@ -53,12 +49,6 @@ export default function ViewSwitcher({
           <AudioLines className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
           {transcribeLabel}
         </TabsTrigger>
-        {isCanvasEnabled && (
-          <TabsTrigger value="canvas" className="px-2 sm:px-3 text-xs sm:text-sm h-full">
-            <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            {canvasLabel}
-          </TabsTrigger>
-        )}
       </TabsList>
     </Tabs>
   )

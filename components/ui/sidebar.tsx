@@ -12,7 +12,6 @@ import {
   PlusSquare,
   Sidebar as SidebarIcon,
   Waves,
-  LayoutGrid,
   Pencil,
   MessageSquare,
   SquarePen,
@@ -34,7 +33,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from "sonner";
 import { useLocalization } from '@/context/LocalizationContext';
 
-type View = "chat" | "transcribe" | "record" | "canvas";
+type View = "chat" | "transcribe" | "record";
 
 interface ChatHistoryItem {
   id: string;
