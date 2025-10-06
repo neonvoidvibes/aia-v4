@@ -5,7 +5,6 @@ import { useChat, type Message } from "@ai-sdk/react"
 import { type FetchedFile } from "@/components/FetchedFileListItem"
 import {
   HEARTBEAT_INTERVAL_MS,
-  PONG_TIMEOUT_MS,
   MAX_HEARTBEAT_MISSES,
   adjusted,
   nextReconnectDelay,
@@ -587,7 +586,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     const [silentDetectStream, setSilentDetectStream] = useState<MediaStream | null>(null);
     const localRecordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastServerHeartbeatRef = useRef<number>(Date.now());
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const tryReconnectRef = React.useRef<() => void>(() => {});
     
@@ -1710,18 +1709,15 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
             clearInterval(heartbeatIntervalRef.current);
             heartbeatIntervalRef.current = null;
         }
-        if (pongTimeoutRef.current) {
-            clearTimeout(pongTimeoutRef.current);
-            pongTimeoutRef.current = null;
-        }
         if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = null;
         }
-        
+
         // Reset counters
         reconnectAttemptsRef.current = 0;
         heartbeatMissesRef.current = 0;
+        lastServerHeartbeatRef.current = Date.now();
         
         if (wsRef.current) {
             debugLog(`[Resetting Recording States] Cleaning up WebSocket (readyState: ${wsRef.current.readyState})`);
@@ -2063,37 +2059,31 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                 }
                 
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-                if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
                 heartbeatMissesRef.current = 0; 
+                lastServerHeartbeatRef.current = Date.now();
                 
-                heartbeatIntervalRef.current = setInterval(() => {
-                    if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
-                        // Do NOT client-close while recording; let the server own the cutoff.
-                        if (!isBrowserRecordingRef.current && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-                            console.warn("[Heartbeat] Already at max misses (not recording), closing connection to trigger reconnect.");
-                            newWs.close(1000, "Heartbeat timeout after multiple attempts");
-                            return;
-                        }
-                        
-                        debugLog(`[Heartbeat] Sending ping (miss count: ${heartbeatMissesRef.current})`);
-                        newWs.send(JSON.stringify({action: 'ping'}));
-                        
-                        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-                        pongTimeoutRef.current = setTimeout(() => {
-                            heartbeatMissesRef.current++;
-                            console.warn(`[Heartbeat] Pong not received in time (miss ${heartbeatMissesRef.current}/${MAX_HEARTBEAT_MISSES})`);
-                            
-                            // Do NOT client-close while recording; let the server own the cutoff.
-                            if (!isBrowserRecordingRef.current && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-                                console.error("[Heartbeat] Max heartbeat misses reached (not recording). Closing connection to trigger reconnect.");
-                                newWs.close(1000, "Heartbeat timeout");
-                            }
-                        }, adjusted(PONG_TIMEOUT_MS));
+                const heartbeatIntervalMs = adjusted(HEARTBEAT_INTERVAL_MS);
+                const maxSilenceMs = Math.max(90_000, heartbeatIntervalMs * 4);
+                const maxMisses = Math.max(1, MAX_HEARTBEAT_MISSES);
 
-                    } else if (newWs.readyState !== WebSocket.OPEN && heartbeatIntervalRef.current) {
-                        clearInterval(heartbeatIntervalRef.current);
+                heartbeatIntervalRef.current = setInterval(() => {
+                    if (newWs.readyState !== WebSocket.OPEN || isStoppingRef.current) {
+                        return;
                     }
-                }, adjusted(HEARTBEAT_INTERVAL_MS));
+
+                    const now = Date.now();
+                    if (now - lastServerHeartbeatRef.current > maxSilenceMs) {
+                        heartbeatMissesRef.current = Math.min(
+                            maxMisses,
+                            heartbeatMissesRef.current + 1,
+                        );
+                        if (heartbeatMissesRef.current === 1) {
+                            console.warn('[Heartbeat] No server heartbeat for >90s; connection marked degraded.');
+                        }
+                    } else {
+                        heartbeatMissesRef.current = 0;
+                    }
+                }, heartbeatIntervalMs);
                 
                 if (isReconnectingRef.current) {
                     console.info("[WebSocket onopen] Re-opened during reconnect. Resuming recorder and waiting for pong to finalize state.");
@@ -2113,12 +2103,16 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                 if (wsRef.current === newWs) {
                     try {
                         const messageData = JSON.parse(event.data);
-                        if (messageData.type === 'pong') {
-                            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-                            heartbeatMissesRef.current = 0; 
-                            debugLog("[Heartbeat] Pong received.");
-                            
-                            // after 30s of stable pongs, zero the backoff attempts
+                        if (messageData?.type === 'ping' || messageData?.action === 'ping') {
+                            lastServerHeartbeatRef.current = Date.now();
+                            heartbeatMissesRef.current = 0;
+                            debugLog('[Heartbeat] Server ping received. Responding with pong.');
+                            try {
+                                newWs.send(JSON.stringify({ type: 'pong' }));
+                            } catch (error) {
+                                console.debug('[Heartbeat] Failed to send pong response:', error);
+                            }
+
                             if (!stablePongsResetTimerRef.current) {
                               const t = window.setTimeout(() => {
                                 reconnectAttemptsRef.current = 0;
@@ -2129,15 +2123,34 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                             }
 
                             if (isReconnectingRef.current) {
-                                console.info("[WebSocket onmessage] First pong after reconnect received. Finalizing reconnect state.");
-                                setIsReconnecting(false); 
-                                reconnectAttemptsRef.current = 0; 
-                                // Use toast only, no chat system message
-                                toast.success("Connection re-established and stable.");
+                                console.info('[WebSocket onmessage] Server ping confirms reconnect. Finalizing state.');
+                                setIsReconnecting(false);
+                                reconnectAttemptsRef.current = 0;
+                                toast.success('Connection re-established and stable.');
                             }
-                        } else if (messageData.type === 'ping') {
-                            // reply to server keepalive
-                            newWs.send(JSON.stringify({ type: 'pong' }));
+
+                            return;
+                        } else if (messageData?.type === 'pong' || messageData?.action === 'pong') {
+                            lastServerHeartbeatRef.current = Date.now();
+                            heartbeatMissesRef.current = 0;
+                            debugLog('[Heartbeat] Pong received.');
+
+                            if (!stablePongsResetTimerRef.current) {
+                              const t = window.setTimeout(() => {
+                                reconnectAttemptsRef.current = 0;
+                                prevDelayRef.current = null;
+                                stablePongsResetTimerRef.current = null;
+                              }, 30000);
+                              stablePongsResetTimerRef.current = t;
+                            }
+
+                            if (isReconnectingRef.current) {
+                                console.info('[WebSocket onmessage] Pong confirms reconnect. Finalizing state.');
+                                setIsReconnecting(false);
+                                reconnectAttemptsRef.current = 0;
+                                toast.success('Connection re-established and stable.');
+                            }
+
                             return;
                         } else if (messageData.type === 'processing_state') {
                             const paused = !!messageData.paused;
@@ -2188,7 +2201,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
                 console.info(`[WebSocket] Connection closed for session ${currentSessionId}. Code: ${event.code}, Clean: ${event.wasClean}. Intentional: ${(wsRef.current as any)?.__intentionalClose}`);
                 if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-                if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+                lastServerHeartbeatRef.current = Date.now();
 
                 if (wsRef.current === newWs) {
                     const intentionalClientClose = (wsRef.current as any)?.__intentionalClose || pendingActionRef.current === 'stop';

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useSilentChunkDetector } from '@/hooks/use-silent-chunk-detector';
-import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from '@/lib/wsPolicy';
+import { HEARTBEAT_INTERVAL_MS, MAX_HEARTBEAT_MISSES } from '@/lib/wsPolicy';
 import { getClientTimezone } from '@/lib/timezone';
 
 type UseRecordingProps = {
@@ -21,8 +21,8 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatMissesRef = useRef(0);
+  const lastServerHeartbeatRef = useRef<number>(Date.now());
 
   // Silent-chunk detection: 10s window, 30s toast cooldown, ignore first chunk
   const { onChunkBoundary, resetDetector } = useSilentChunkDetector({
@@ -101,20 +101,25 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
       webSocket.onopen = () => {
         // Start WS keepalive ping/pong
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
         heartbeatMissesRef.current = 0;
+        lastServerHeartbeatRef.current = Date.now();
         heartbeatIntervalRef.current = setInterval(() => {
-          if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) return;
-          try {
-            webSocketRef.current.send(JSON.stringify({ action: 'ping' }));
-            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-            pongTimeoutRef.current = setTimeout(() => {
-              heartbeatMissesRef.current++;
-              if (heartbeatMissesRef.current >= (MAX_HEARTBEAT_MISSES || 3)) {
-                try { webSocketRef.current?.close(1000, 'Heartbeat timeout'); } catch {}
-              }
-            }, PONG_TIMEOUT_MS || 5000);
-          } catch {}
+          const ws = webSocketRef.current;
+          if (!ws || ws.readyState !== WebSocket.OPEN) return;
+          const now = Date.now();
+          const maxSilence = Math.max(90_000, (HEARTBEAT_INTERVAL_MS || 20_000) * 4);
+          if (now - lastServerHeartbeatRef.current > maxSilence) {
+            const maxMisses = Math.max(1, MAX_HEARTBEAT_MISSES || 3);
+            heartbeatMissesRef.current = Math.min(
+              maxMisses,
+              heartbeatMissesRef.current + 1,
+            );
+            if (heartbeatMissesRef.current === 1) {
+              console.warn('[Recording] No server heartbeat for >90s; connection may be degraded.');
+            }
+          } else {
+            heartbeatMissesRef.current = 0;
+          }
         }, HEARTBEAT_INTERVAL_MS || 15000);
 
         mediaRecorder.start(3000); // Send data every 3 seconds
@@ -130,9 +135,21 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
       webSocket.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg?.type === 'pong') {
-            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+          const ws = webSocketRef.current;
+          if (msg?.type === 'ping' || msg?.action === 'ping') {
+            lastServerHeartbeatRef.current = Date.now();
             heartbeatMissesRef.current = 0;
+            try {
+              ws?.send(JSON.stringify({ type: 'pong' }));
+            } catch {
+              /* ignore send errors */
+            }
+            return;
+          }
+          if (msg?.type === 'pong' || msg?.action === 'pong') {
+            lastServerHeartbeatRef.current = Date.now();
+            heartbeatMissesRef.current = 0;
+            return;
           }
         } catch {
           /* ignore non-JSON */
@@ -141,7 +158,6 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
 
       webSocket.onclose = async () => {
         if (heartbeatIntervalRef.current) { clearInterval(heartbeatIntervalRef.current); heartbeatIntervalRef.current = null; }
-        if (pongTimeoutRef.current) { clearTimeout(pongTimeoutRef.current); pongTimeoutRef.current = null; }
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
         }
@@ -190,7 +206,6 @@ export function useRecording({ agentName, onRecordingStopped }: UseRecordingProp
   const performStopRecording = async (sessionId: string) => {
     try {
       if (heartbeatIntervalRef.current) { clearInterval(heartbeatIntervalRef.current); heartbeatIntervalRef.current = null; }
-      if (pongTimeoutRef.current) { clearTimeout(pongTimeoutRef.current); pongTimeoutRef.current = null; }
       const response = await fetch('/api/audio-recording-proxy?action=stop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

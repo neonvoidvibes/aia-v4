@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 import { useMobile } from '@/hooks/use-mobile';
 import {
   HEARTBEAT_INTERVAL_MS,
-  PONG_TIMEOUT_MS,
   MAX_HEARTBEAT_MISSES,
   adjusted,
   nextReconnectDelay,
@@ -123,7 +122,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   const stablePongsResetTimerRef = useRef<number | null>(null);
   const isStoppingRef = useRef(false);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastServerHeartbeatRef = useRef<number>(Date.now());
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const BUFFER_GRACE_MS = 120_000;
@@ -209,7 +208,6 @@ const RecordView: React.FC<RecordViewProps> = ({
   // Industry-standard reconnection parameters
   const MAX_RECONNECT_ATTEMPTS = 10;
   const heartbeatMissesRef = useRef(0);
-  const pingStartTime = useRef<number>(0);
 
   const fetchRecordings = useCallback(async () => {
     if (!agentName) return;
@@ -302,11 +300,10 @@ const RecordView: React.FC<RecordViewProps> = ({
 
     // Clear all timers and intervals
     if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-    if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
     if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
     heartbeatIntervalRef.current = null;
-    pongTimeoutRef.current = null;
     reconnectTimeoutRef.current = null;
+    lastServerHeartbeatRef.current = Date.now();
 
     // Reset counters
     reconnectAttemptsRef.current = 0;
@@ -719,9 +716,9 @@ const RecordView: React.FC<RecordViewProps> = ({
         }
         
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
         heartbeatMissesRef.current = 0;
-        
+        lastServerHeartbeatRef.current = Date.now();
+
         const hadBufferedAudio = bufferedChunksRef.current.length > 0;
         flushBufferedChunks();
         if (!hadBufferedAudio) {
@@ -729,22 +726,25 @@ const RecordView: React.FC<RecordViewProps> = ({
           dismissBufferingToast('success', 'Connection re-established.');
         }
 
+        const heartbeatIntervalMs = adjusted(HEARTBEAT_INTERVAL_MS);
+        const maxSilenceMs = Math.max(90_000, heartbeatIntervalMs * 4);
         heartbeatIntervalRef.current = setInterval(() => {
-          if (newWs.readyState === WebSocket.OPEN && !isStoppingRef.current) {
-            if (!globalRecordingStatusRef.current.isRecording && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-              newWs.close(1000, "Heartbeat timeout (not recording)");
-              return;
+          if (newWs.readyState !== WebSocket.OPEN || isStoppingRef.current) return;
+
+          const now = Date.now();
+          if (now - lastServerHeartbeatRef.current > maxSilenceMs) {
+            const maxMisses = Math.max(1, MAX_HEARTBEAT_MISSES || 3);
+            heartbeatMissesRef.current = Math.min(
+              maxMisses,
+              heartbeatMissesRef.current + 1,
+            );
+            if (heartbeatMissesRef.current === 1) {
+              console.warn('[WebSocket] No server heartbeat for >90s; monitoring connection health.');
             }
-            pingStartTime.current = Date.now();
-            newWs.send(JSON.stringify({action: 'ping'}));
-            pongTimeoutRef.current = setTimeout(() => {
-              heartbeatMissesRef.current++;
-              if (!globalRecordingStatusRef.current.isRecording && heartbeatMissesRef.current >= MAX_HEARTBEAT_MISSES) {
-                newWs.close(1000, "Heartbeat timeout (not recording)");
-              }
-            }, adjusted(PONG_TIMEOUT_MS));
+          } else {
+            heartbeatMissesRef.current = 0;
           }
-        }, adjusted(HEARTBEAT_INTERVAL_MS));
+        }, heartbeatIntervalMs);
         
         if (isReconnecting) {
           if (mediaRecorderRef.current?.state === "paused" && !autoPausedRef.current) {
@@ -759,16 +759,30 @@ const RecordView: React.FC<RecordViewProps> = ({
       newWs.onmessage = (event) => {
         try {
           const messageData = JSON.parse(event.data);
-          if (messageData.type === 'pong') {
-            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-            const rtt = Date.now() - pingStartTime.current;
-            console.log(`[RTT] ${rtt}ms`);
-            if (rtt > 5000) {
-              console.warn('[Network] High latency detected:', rtt);
-            }
+          if (messageData?.type === 'ping' || messageData?.action === 'ping') {
+            lastServerHeartbeatRef.current = Date.now();
             heartbeatMissesRef.current = 0;
-            
-            // after 30s of stable pongs, zero the backoff attempts
+
+            const rawTs = typeof messageData.ts === 'number'
+              ? messageData.ts
+              : typeof messageData.t === 'number'
+                ? messageData.t
+                : undefined;
+            if (rawTs !== undefined) {
+              const serverMs = rawTs > 1e12 ? rawTs : rawTs * 1000;
+              const rtt = Math.max(0, Date.now() - serverMs);
+              console.log(`[RTT] ${rtt}ms`);
+              if (rtt > 5000) {
+                console.warn('[Network] High latency detected:', rtt);
+              }
+            }
+
+            try {
+              newWs.send(JSON.stringify({ type: 'pong' }));
+            } catch (err) {
+              console.debug('[WebSocket] Failed to send pong response:', err);
+            }
+
             if (!stablePongsResetTimerRef.current) {
               const t = window.setTimeout(() => {
                 reconnectAttemptsRef.current = 0;
@@ -777,11 +791,34 @@ const RecordView: React.FC<RecordViewProps> = ({
               }, 30000);
               stablePongsResetTimerRef.current = t;
             }
-            
+
             if (isReconnecting) {
               setIsReconnecting(false);
               reconnectAttemptsRef.current = 0;
             }
+
+            return;
+          }
+
+          if (messageData?.type === 'pong' || messageData?.action === 'pong') {
+            lastServerHeartbeatRef.current = Date.now();
+            heartbeatMissesRef.current = 0;
+
+            if (!stablePongsResetTimerRef.current) {
+              const t = window.setTimeout(() => {
+                reconnectAttemptsRef.current = 0;
+                prevDelayRef.current = null;
+                stablePongsResetTimerRef.current = null;
+              }, 30000);
+              stablePongsResetTimerRef.current = t;
+            }
+
+            if (isReconnecting) {
+              setIsReconnecting(false);
+              reconnectAttemptsRef.current = 0;
+            }
+
+            return;
           }
         } catch (e) { /* Non-JSON message */ }
       };
@@ -796,8 +833,6 @@ const RecordView: React.FC<RecordViewProps> = ({
 
       newWs.onclose = (event) => {
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-      
         if (webSocketRef.current !== newWs) return;
 
         // If the server intentionally rejected the connection because one already exists,

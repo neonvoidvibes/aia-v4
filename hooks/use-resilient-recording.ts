@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useSilentChunkDetector } from '@/hooks/use-silent-chunk-detector';
-import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from '@/lib/wsPolicy';
+import { HEARTBEAT_INTERVAL_MS, MAX_HEARTBEAT_MISSES } from '@/lib/wsPolicy';
 import { getClientTimezone } from '@/lib/timezone';
 
 type UseResilientRecordingProps = {
@@ -39,8 +39,8 @@ export function useResilientRecording({ agentName, onRecordingStopped }: UseResi
 
   // Heartbeat refs
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pongTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatMissesRef = useRef(0);
+  const lastServerHeartbeatRef = useRef<number>(Date.now());
 
   // Resilience features
   const audioBufferRef = useRef<AudioChunk[]>([]);
@@ -172,12 +172,13 @@ export function useResilientRecording({ agentName, onRecordingStopped }: UseResi
   }, []);
 
   const testConnectionHealth = useCallback(() => {
-    if (webSocketRef.current?.readyState === WebSocket.OPEN) {
-      try {
-        webSocketRef.current.send(JSON.stringify({ action: 'ping', timestamp: Date.now() }));
-      } catch (error) {
-        console.warn('[ResilientRecording] Health check ping failed:', error);
-      }
+    const ws = webSocketRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return;
+
+    const now = Date.now();
+    const maxSilence = Math.max(90_000, (HEARTBEAT_INTERVAL_MS || 20_000) * 4);
+    if (now - lastServerHeartbeatRef.current > maxSilence) {
+      console.warn('[ResilientRecording] No server heartbeat observed during visibility check.');
     }
   }, []);
 
@@ -285,15 +286,27 @@ export function useResilientRecording({ agentName, onRecordingStopped }: UseResi
       webSocket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          const ws = webSocketRef.current;
+
+          if (data?.type === 'ping' || data?.action === 'ping') {
+            lastServerHeartbeatRef.current = Date.now();
+            heartbeatMissesRef.current = 0;
+            try {
+              ws?.send(JSON.stringify({ type: 'pong' }));
+            } catch (error) {
+              console.debug('[ResilientRecording] Failed to send pong response:', error);
+            }
+            return;
+          }
+
+          if (data?.type === 'pong' || data?.action === 'pong') {
+            handlePong();
+            return;
+          }
 
           // Handle server status messages
           if (data.type === 'status' && data.state === 'RESUMED') {
             console.log('[ResilientRecording] Session successfully resumed');
-          }
-
-          // Handle pong responses
-          if (data.action === 'pong') {
-            handlePong();
           }
 
         } catch (error) {
@@ -330,43 +343,40 @@ export function useResilientRecording({ agentName, onRecordingStopped }: UseResi
   const startHeartbeat = useCallback(() => {
     stopHeartbeat();
 
+    heartbeatMissesRef.current = 0;
+    lastServerHeartbeatRef.current = Date.now();
+
     heartbeatIntervalRef.current = setInterval(() => {
-      if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) return;
+      const ws = webSocketRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-      try {
-        webSocketRef.current.send(JSON.stringify({ action: 'ping' }));
-        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-
-        pongTimeoutRef.current = setTimeout(() => {
-          heartbeatMissesRef.current++;
-          if (heartbeatMissesRef.current >= (MAX_HEARTBEAT_MISSES || 3)) {
-            console.warn('[ResilientRecording] Too many heartbeat misses, forcing reconnection');
-            webSocketRef.current?.close(1000, 'Heartbeat timeout');
-          }
-        }, PONG_TIMEOUT_MS || 5000);
-      } catch (error) {
-        console.warn('[ResilientRecording] Failed to send heartbeat:', error);
+      const now = Date.now();
+      const maxSilence = Math.max(90_000, (HEARTBEAT_INTERVAL_MS || 20_000) * 4);
+      if (now - lastServerHeartbeatRef.current > maxSilence) {
+        const maxMisses = Math.max(1, MAX_HEARTBEAT_MISSES || 3);
+        heartbeatMissesRef.current = Math.min(
+          maxMisses,
+          heartbeatMissesRef.current + 1,
+        );
+        if (heartbeatMissesRef.current === 1) {
+          console.warn('[ResilientRecording] No server heartbeat for >90s; connection marked degraded.');
+        }
+      } else {
+        heartbeatMissesRef.current = 0;
       }
     }, HEARTBEAT_INTERVAL_MS || 15000);
-  }, []);
+  }, [stopHeartbeat]);
 
   const stopHeartbeat = useCallback(() => {
     if (heartbeatIntervalRef.current) {
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
     }
-    if (pongTimeoutRef.current) {
-      clearTimeout(pongTimeoutRef.current);
-      pongTimeoutRef.current = null;
-    }
   }, []);
 
   const handlePong = useCallback(() => {
     heartbeatMissesRef.current = 0;
-    if (pongTimeoutRef.current) {
-      clearTimeout(pongTimeoutRef.current);
-      pongTimeoutRef.current = null;
-    }
+    lastServerHeartbeatRef.current = Date.now();
   }, []);
 
   const setupMediaRecorder = useCallback(async (sessionId: string) => {

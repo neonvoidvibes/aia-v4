@@ -1,6 +1,6 @@
 import { isRecordingPersistenceEnabled, isMobileRecordingEnabled, isTranscriptionPauseToastEnabled } from './featureFlags';
 import { acquireWakeLock, releaseWakeLock } from './wakeLock';
-import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
+import { HEARTBEAT_INTERVAL_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
 import { getClientTimezone } from './timezone';
 import {
   detectAudioCapabilities,
@@ -73,8 +73,8 @@ class RecordingManagerImpl implements RecordingManager {
   private tabId: string;
   private hbTimer: any = null;
   private wsHbTimer: any = null;
-  private wsPongTimer: any = null;
   private wsMisses: number = 0;
+  private lastServerHeartbeat = Date.now();
   private mediaRecorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
   private ws: WebSocket | null = null;
@@ -589,8 +589,18 @@ class RecordingManagerImpl implements RecordingManager {
     ws.onmessage = (e) => {
       try {
         const m = JSON.parse(e.data);
-        if (m?.type === 'pong') {
-          if (this.wsPongTimer) { clearTimeout(this.wsPongTimer); this.wsPongTimer = null; }
+        if (m?.type === 'ping' || m?.action === 'ping') {
+          this.lastServerHeartbeat = Date.now();
+          this.wsMisses = 0;
+          try {
+            this.ws?.send(JSON.stringify({ type: 'pong' }));
+          } catch (err) {
+            console.debug('[RecordingManager] Failed to send pong response:', err);
+          }
+          return;
+        }
+        if (m?.type === 'pong' || m?.action === 'pong') {
+          this.lastServerHeartbeat = Date.now();
           this.wsMisses = 0;
           return;
         }
@@ -877,24 +887,29 @@ class RecordingManagerImpl implements RecordingManager {
   private startWsKeepalive() {
     this.stopWsKeepalive();
     if (!this.ws) return;
+    const interval = Math.max(2000, (HEARTBEAT_INTERVAL_MS as any) || 2000);
+    const maxSilence = Math.max(90_000, interval * 4);
+    const maxMisses = Math.max(1, (MAX_HEARTBEAT_MISSES as any) || 3);
+
+    this.lastServerHeartbeat = Date.now();
+    this.wsMisses = 0;
     this.wsHbTimer = setInterval(() => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-      try {
-        this.ws.send(JSON.stringify({ action: 'ping' }));
-        if (this.wsPongTimer) clearTimeout(this.wsPongTimer);
-        this.wsPongTimer = setTimeout(() => {
-          this.wsMisses++;
-          if (this.wsMisses >= (MAX_HEARTBEAT_MISSES || 3)) {
-            try { this.ws?.close(1006, 'pong timeout'); } catch {}
-          }
-        }, (PONG_TIMEOUT_MS as any) || 5000);
-      } catch {}
-    }, Math.max(2000, (HEARTBEAT_INTERVAL_MS as any) || 2000));
+      const now = Date.now();
+      if (now - this.lastServerHeartbeat > maxSilence) {
+        this.wsMisses = Math.min(maxMisses, this.wsMisses + 1);
+        if (this.wsMisses === 1) {
+          console.warn('[RecordingManager] No server heartbeat for >90s; monitoring WebSocket health.');
+        }
+      } else {
+        this.wsMisses = 0;
+      }
+    }, interval);
   }
   private stopWsKeepalive() {
     if (this.wsHbTimer) { clearInterval(this.wsHbTimer); this.wsHbTimer = null; }
-    if (this.wsPongTimer) { clearTimeout(this.wsPongTimer); this.wsPongTimer = null; }
     this.wsMisses = 0;
+    this.lastServerHeartbeat = Date.now();
   }
 }
 

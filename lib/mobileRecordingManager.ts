@@ -11,7 +11,7 @@ import {
 } from './mobileRecordingCapabilities';
 import { isMobileRecordingEnabled } from './featureFlags';
 import { acquireWakeLock, releaseWakeLock } from './wakeLock';
-import { HEARTBEAT_INTERVAL_MS, PONG_TIMEOUT_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
+import { HEARTBEAT_INTERVAL_MS, MAX_HEARTBEAT_MISSES } from './wsPolicy';
 import { mobileRecordingTelemetry } from './mobileRecordingTelemetry';
 
 export interface MobileRecordingTelemetry {
@@ -42,8 +42,8 @@ export class MobileRecordingManager {
   private isPaused = false;
   private telemetry: MobileRecordingTelemetry;
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  private pongTimeout: NodeJS.Timeout | null = null;
   private heartbeatMisses = 0;
+  private lastServerHeartbeat = Date.now();
   private visibilityHandler: (() => void) | null = null;
   private pageHideHandler: (() => void) | null = null;
   private pageShowHandler: (() => void) | null = null;
@@ -230,11 +230,19 @@ export class MobileRecordingManager {
       this.webSocket.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg?.type === 'pong') {
-            if (this.pongTimeout) {
-              clearTimeout(this.pongTimeout);
-              this.pongTimeout = null;
+          if (msg?.type === 'ping' || msg?.action === 'ping') {
+            this.lastServerHeartbeat = Date.now();
+            this.heartbeatMisses = 0;
+            try {
+              this.webSocket?.send(JSON.stringify({ type: 'pong' }));
+            } catch (error: any) {
+              this.addTelemetryError('heartbeat_pong_failed', error?.message ?? 'Failed to respond to ping');
             }
+            return;
+          }
+
+          if (msg?.type === 'pong' || msg?.action === 'pong') {
+            this.lastServerHeartbeat = Date.now();
             this.heartbeatMisses = 0;
           }
         } catch {
@@ -467,25 +475,25 @@ export class MobileRecordingManager {
     this.stopHeartbeat();
 
     // Use faster heartbeat on mobile
+    const baseInterval = HEARTBEAT_INTERVAL_MS || 20_000;
     const interval = this.capabilities?.isMobile ?
-      Math.max(10000, HEARTBEAT_INTERVAL_MS / 2) :
-      HEARTBEAT_INTERVAL_MS;
+      Math.max(10_000, Math.floor(baseInterval / 2)) :
+      baseInterval;
+    const maxSilence = Math.max(90_000, interval * 4);
 
+    this.lastServerHeartbeat = Date.now();
     this.heartbeatInterval = setInterval(() => {
       if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) return;
 
-      try {
-        this.webSocket.send(JSON.stringify({ action: 'ping' }));
-
-        this.pongTimeout = setTimeout(() => {
-          this.heartbeatMisses++;
-          if (this.heartbeatMisses >= MAX_HEARTBEAT_MISSES) {
-            this.addTelemetryError('heartbeat_timeout', 'Too many missed heartbeats');
-            this.webSocket?.close(1000, 'Heartbeat timeout');
-          }
-        }, PONG_TIMEOUT_MS);
-      } catch (error: any) {
-        this.addTelemetryError('heartbeat_send_failed', error.message);
+      const now = Date.now();
+      if (now - this.lastServerHeartbeat > maxSilence) {
+        const maxMisses = Math.max(1, MAX_HEARTBEAT_MISSES || 3);
+        this.heartbeatMisses = Math.min(maxMisses, this.heartbeatMisses + 1);
+        if (this.heartbeatMisses === 1) {
+          console.warn('[MobileRecording] No server heartbeat for >90s; connection health degraded.');
+        }
+      } else {
+        this.heartbeatMisses = 0;
       }
     }, interval);
   }
@@ -495,11 +503,8 @@ export class MobileRecordingManager {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
-    if (this.pongTimeout) {
-      clearTimeout(this.pongTimeout);
-      this.pongTimeout = null;
-    }
     this.heartbeatMisses = 0;
+    this.lastServerHeartbeat = Date.now();
   }
 
   public async stopRecording(): Promise<void> {
