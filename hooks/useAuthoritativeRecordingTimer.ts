@@ -15,7 +15,8 @@ export function useAuthoritativeRecordingTimer(
   maxSilenceMs = 90_000,
   stickyId = 'rec-paused'
 ) {
-  const server = useRef({ isRecording: false, audioMs: 0, lastPingAt: 0, wsConnected: false });
+  const server = useRef({ isRecording: false, audioMs: 0, lastPingAt: Date.now(), wsConnected: false });
+  const hasEverConnected = useRef(false);
   const [displayMs, setDisplayMs] = useState(0);
   const [authoritativeRecording, setAuthoritativeRecording] = useState(false);
 
@@ -42,6 +43,10 @@ export function useAuthoritativeRecordingTimer(
       if (typeof m.audio_ms === 'number') server.current.audioMs = Math.max(0, m.audio_ms);
       if (typeof m.ws_connected === 'boolean') server.current.wsConnected = m.ws_connected;
 
+      if (server.current.wsConnected || server.current.isRecording) {
+        hasEverConnected.current = true;
+      }
+
       const ticking = server.current.isRecording && server.current.wsConnected;
       setAuthoritativeRecording(ticking);
       if (ticking) dismissSticky();
@@ -55,7 +60,9 @@ export function useAuthoritativeRecordingTimer(
     if (!ws) return;
     const onClose = () => {
       setAuthoritativeRecording(false);
-      showSticky('Connection lost. Recording paused.');
+      if (hasEverConnected.current) {
+        showSticky('Connection lost. Recording paused.');
+      }
     };
     ws.addEventListener('close', onClose);
     return () => ws.removeEventListener('close', onClose);
@@ -71,9 +78,15 @@ export function useAuthoritativeRecordingTimer(
         server.current.isRecording = !!s.is_recording;
         server.current.audioMs = Number(s.audio_ms || 0);
         server.current.wsConnected = !!s.ws_connected;
+        if (server.current.wsConnected || server.current.isRecording) {
+          hasEverConnected.current = true;
+        }
         setAuthoritativeRecording(server.current.isRecording && server.current.wsConnected);
-        if (server.current.isRecording && server.current.wsConnected) dismissSticky();
-        else showSticky('Connection lost. Recording paused.');
+        if (server.current.isRecording && server.current.wsConnected) {
+          dismissSticky();
+        } else if (hasEverConnected.current) {
+          showSticky('Connection lost. Recording paused.');
+        }
       } catch {
         // keep sticky, no state change
       }
@@ -95,7 +108,7 @@ export function useAuthoritativeRecordingTimer(
         setDisplayMs(server.current.audioMs);
       }
       // silence watchdog
-      if (Date.now() - server.current.lastPingAt > maxSilenceMs) {
+      if (hasEverConnected.current && server.current.isRecording && Date.now() - server.current.lastPingAt > maxSilenceMs) {
         if (authoritativeRecording) setAuthoritativeRecording(false);
         showSticky('Connection lost. Recording paused.');
       }
