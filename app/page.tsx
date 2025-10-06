@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react" // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { PenSquare, ChevronDown, AlertTriangle, Eye, LayoutGrid, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2, SquarePen, LogOut } from "lucide-react" // Added History, Brain, FileClock, LayoutGrid, Loader2, Trash2, SquarePen, LogOut
+import { PenSquare, ChevronDown, AlertTriangle, Eye, Loader2, History, Brain, FileClock, SlidersHorizontal, Waves, MessageCircle, Settings, Trash2, SquarePen, LogOut } from "lucide-react" // Added History, Brain, FileClock, Loader2, Trash2, SquarePen, LogOut
 import Sidebar from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Removed DialogClose
@@ -48,7 +48,6 @@ import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import them
 import { useTheme } from "next-themes"; // Import useTheme
 import ViewSwitcher from "@/components/ui/view-switcher";
 import RecordView from "@/components/RecordView";
-import CanvasView, { type CanvasInsightItem, type CanvasData } from "@/components/canvas-view"; 
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; 
@@ -200,9 +199,8 @@ function HomeContent() {
   const [agentDocuments, setAgentDocuments] = useState<FetchedFile[]>([]);
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
-  // State for Canvas View enablement and general view state
-  const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe" | "record">("chat");
-  const [isCanvasViewEnabled, setIsCanvasViewEnabled] = useState(false);
+  // State for view switching and layout
+  const [currentView, setCurrentView] = useState<"chat" | "transcribe" | "record">("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Event menu state
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
@@ -214,17 +212,6 @@ function HomeContent() {
   const EVENTS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
   
   
-  // Lifted state for CanvasView
-  const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
-  const [isCanvasLoading, setIsCanvasLoading] = useState(false);
-  const [canvasError, setCanvasError] = useState<string | null>(null);
-  const [selectedFilter, setSelectedFilter] = useState<"mirror" | "lens" | "portal">("mirror");
-  const [selectedTimeWindow, setSelectedTimeWindow] = useState<string>("Whole Meeting");
-  const [selectedCanvasFilter, setSelectedCanvasFilter] = useState<"mirror" | "lens" | "portal">("mirror");
-  const [selectedCanvasTimeWindow, setSelectedCanvasTimeWindow] = useState<string>("Whole Meeting"); 
-  
-  const [pinnedCanvasInsights, setPinnedCanvasInsights] = useState<CanvasInsightItem[]>([]);
-
   // State for new toggles in Documents tab
   const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "some" | "latest" | "all">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"none" | "some" | "all">("none");
@@ -1367,20 +1354,6 @@ function HomeContent() {
     }
   }, [pageAgentName, userId, setTheme, activeUiConfig?.theme_override]);
 
-  useEffect(() => {
-    const savedCanvasEnabled = debouncedGetItem("canvasViewEnabled");
-    if (savedCanvasEnabled !== null) {
-      setIsCanvasViewEnabled(JSON.parse(savedCanvasEnabled));
-    }
-  }, []);
-
-  useEffect(() => {
-    debouncedSetItem("canvasViewEnabled", JSON.stringify(isCanvasViewEnabled));
-    if (!isCanvasViewEnabled && currentView === "canvas") {
-      setCurrentView("chat"); 
-    }
-  }, [isCanvasViewEnabled, currentView]);
-
   // Enforce transcriptListenMode from workspace if provided; otherwise use saved or fallback
   useEffect(() => {
     if (pageAgentName && userId) {
@@ -2337,19 +2310,6 @@ function HomeContent() {
     }
   };
 
-  const handlePinInsight = (insight: CanvasInsightItem) => {
-    setPinnedCanvasInsights((prev) => {
-      if (!prev.find(p => p.highlight === insight.highlight && p.explanation === insight.explanation)) { 
-        return [...prev, { ...insight, id: insight.id || `${insight.category}-${Date.now()}` }]; 
-      }
-      return prev;
-    });
-  };
-
-  const handleUnpinInsight = (insightIdOrHighlight: string) => {
-    setPinnedCanvasInsights((prev) => prev.filter(p => (p.id || p.highlight) !== insightIdOrHighlight));
-  };
-
   const handleAgentChange = (newAgent: string) => {
     if (newAgent && newAgent !== pageAgentName) {
       const currentParams = new URLSearchParams(searchParams.toString());
@@ -2357,21 +2317,6 @@ function HomeContent() {
       // Reset event to main/default when switching agents
       currentParams.set('event', '0000');
       router.push(`/?${currentParams.toString()}`);
-    }
-  };
-  
-  const handleSendCanvasHighlightToChat = (message: string, originalHighlight: CanvasInsightItem) => {
-    if (chatInterfaceRef.current && pageAgentName) {
-      const prefixedMessage = `🎨 From Canvas: ${message}`;
-      
-      const chatDataForSubmit = {
-        current_canvas_time_window_label: selectedCanvasTimeWindow, 
-        active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}), 
-        pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
-      };
-      
-      chatInterfaceRef.current.submitMessageWithCanvasContext(prefixedMessage, chatDataForSubmit);
-      setCurrentView("chat"); 
     }
   };
 
@@ -2640,7 +2585,6 @@ function HomeContent() {
                 currentView={currentView} 
                 onViewChange={(newView) => setCurrentView(newView)}
                 agentName={pageAgentName} 
-                isCanvasEnabled={isCanvasViewEnabled} 
                 className="max-w-sm"
               />
             )}
@@ -2720,11 +2664,6 @@ function HomeContent() {
               globalRecordingStatus={globalRecordingStatus}
               setGlobalRecordingStatus={setGlobalRecordingStatus}
               transcriptListenMode={transcriptListenMode}
-              getCanvasContext={() => ({
-                  current_canvas_time_window_label: selectedTimeWindow,
-                  active_canvas_insights: canvasData ? JSON.stringify(canvasData) : JSON.stringify({mirror:[], lens:[], portal:[]}),
-                  pinned_canvas_insights: JSON.stringify(pinnedCanvasInsights)
-              })}
               onChatIdChange={setCurrentChatId}
               onHistoryRefreshNeeded={() => setHistoryNeedsRefresh(true)}
               savedTranscriptMemoryMode={savedTranscriptMemoryMode}
@@ -2809,35 +2748,6 @@ function HomeContent() {
             </div>
           </div>
         </div>
-        {currentView === "canvas" && isCanvasViewEnabled && (
-          <CanvasView 
-            agentName={pageAgentName} 
-            eventId={pageEventId} 
-            onSendHighlightToChat={handleSendCanvasHighlightToChat}
-            pinnedInsights={pinnedCanvasInsights}
-            onPinInsight={handlePinInsight}
-            onUnpinInsight={handleUnpinInsight}
-            className="flex-grow" // Simplified class
-            isEnabled={isCanvasViewEnabled}
-            initialCanvasData={canvasData}
-            setCanvasData={setCanvasData}
-            isCanvasLoading={isCanvasLoading}
-            setIsCanvasLoading={setIsCanvasLoading}
-            canvasError={canvasError}
-            setCanvasError={setCanvasError}
-            selectedFilter={selectedCanvasFilter} // Use dedicated state for canvas filter
-            setSelectedFilter={setSelectedCanvasFilter} // Use dedicated setter
-            selectedTimeWindow={selectedCanvasTimeWindow} // Use dedicated state for canvas time window
-            setSelectedTimeWindow={setSelectedCanvasTimeWindow} // Use dedicated setter
-          />
-        )}
-         {currentView === "canvas" && !isCanvasViewEnabled && (
-            <div className="p-4 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
-                <LayoutGrid className="w-12 h-12 mb-2 text-muted-foreground/50" />
-                <p>Canvas view is currently disabled.</p>
-                <p className="text-sm">You can enable it in the settings menu.</p>
-            </div>
-        )}
       </div>
     </main>
       </div>
