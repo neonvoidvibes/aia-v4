@@ -103,7 +103,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
           }}
         >
           {/* Text content area with scroll - absolute positioning to not affect layout */}
-          <div className="absolute inset-0 flex justify-center px-16 pt-16 pb-16">
+          <div className="absolute inset-0 flex justify-center px-16">
             {/* Scrollable text container */}
             <div
               ref={textContainerRef}
