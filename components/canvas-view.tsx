@@ -12,9 +12,7 @@ interface CanvasViewProps {
   onDepthChange?: (depth: Depth) => void;
 }
 
-const DEPTH_OPTIONS: Depth[] = ["mirror", "lens", "portal"];
-
-export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
+export default function CanvasView({ depth }: CanvasViewProps) {
   const [isPressing, setIsPressing] = useState(false);
 
   return (
@@ -22,7 +20,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
       <div
         className={cn(
           "relative w-full max-w-5xl aspect-[16/9] max-h-full",
-          "rounded-[3rem] bg-white/10 dark:bg-black/20",
+          "rounded-[2rem] bg-white/10 dark:bg-black/20",
           "backdrop-blur-2xl border border-white/20 shadow-2xl",
           "flex flex-col items-center justify-center"
         )}
@@ -46,7 +44,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
             onTouchStart={() => setIsPressing(true)}
             onTouchEnd={() => setIsPressing(false)}
             className={cn(
-              "relative h-20 w-20 md:h-24 md:w-24 rounded-full",
+              "relative h-16 w-16 md:h-20 md:w-20 rounded-full",
               "ring-4 ring-white/70",
               isPressing ? "scale-[1.05]" : "scale-100",
               "transition-transform duration-100 ease-out",
@@ -63,25 +61,10 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
           </button>
         </div>
 
-        {/* Depth selector */}
+        {/* Depth label */}
         <div className="absolute top-4 right-4">
-          <div className="inline-flex overflow-hidden rounded-full border border-white/30 bg-black/50 backdrop-blur">
-            {DEPTH_OPTIONS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => onDepthChange?.(option)}
-                className={cn(
-                  "px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors",
-                  depth === option
-                    ? "bg-white text-black"
-                    : "text-white/70 hover:text-white"
-                )}
-                aria-pressed={depth === option}
-              >
-                {option}
-              </button>
-            ))}
+          <div className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide bg-black/50 border border-white/30 text-white backdrop-blur">
+            {depth.toUpperCase()}
           </div>
         </div>
       </div>

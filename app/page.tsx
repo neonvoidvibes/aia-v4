@@ -2506,8 +2506,8 @@ function HomeContent() {
       )}
       <div
         className={cn(
-          "main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto",
-          currentView === "canvas" && "relative sm:max-w-full sm:mx-0"
+          "main-content flex flex-col flex-1 w-full",
+          currentView === "canvas" ? "max-w-none" : "sm:max-w-[800px] sm:mx-auto"
         )}
         data-current-view={currentView}
         data-theme={currentView === "canvas" ? "canvas" : undefined}
