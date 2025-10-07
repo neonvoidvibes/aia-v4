@@ -50,6 +50,7 @@ import CanvasView, { CANVAS_BACKGROUND_SRC } from "@/components/canvas-view";
 import RecordView from "@/components/RecordView";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; 
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
