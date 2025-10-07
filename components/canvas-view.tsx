@@ -63,15 +63,19 @@ export default function CanvasView({
     }
   }, [hasLlmOutput, isTranscribing, isStreaming]);
 
-  // Fade out existing content when starting new transcription
+  // Manage content visibility during transcription and streaming
   React.useEffect(() => {
-    if (isTranscribing) {
+    if (isTranscribing && hasLlmOutput) {
+      // Fade out existing content when transcribing starts
       setShowContent(false);
-    } else if (!isTranscribing && !isStreaming) {
-      // Only show content when not transcribing and not streaming
+    } else if (isStreaming && llmOutput.length > 0) {
+      // Show content immediately when streaming starts outputting
+      setShowContent(true);
+    } else if (!isTranscribing && !isStreaming && hasLlmOutput) {
+      // Show content when idle with output
       setShowContent(true);
     }
-  }, [isTranscribing, isStreaming]);
+  }, [isTranscribing, isStreaming, hasLlmOutput, llmOutput.length]);
 
   // Check scroll position to show/hide chevrons
   const checkScroll = React.useCallback(() => {
@@ -176,8 +180,8 @@ export default function CanvasView({
                   {welcomeText}
                 </h1>
               </div>
-            ) : !hasLlmOutput && (isTranscribing || isStreaming) ? (
-              /* Breathing dot while waiting for LLM - larger, centered */
+            ) : (isTranscribing || (isStreaming && !showContent)) ? (
+              /* Breathing dot while transcribing or streaming with faded content - larger, centered */
               <div className="flex items-center justify-center flex-1">
                 <div
                   className="rounded-full bg-white/80"
