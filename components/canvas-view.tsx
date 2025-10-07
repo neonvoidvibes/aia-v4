@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 export type Depth = "mirror" | "lens" | "portal";
 
-export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/aurora-01.jpg";
+export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/river_photo_01.png";
 
 interface CanvasViewProps {
   depth: Depth;

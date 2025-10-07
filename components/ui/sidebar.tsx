@@ -400,10 +400,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   const uniqueEvents = Array.from(new Set(chatHistory.map(c => c.eventId || '0000')));
   const hasOnlyShared = uniqueEvents.length <= 1 && uniqueEvents[0] === '0000';
   
+  const iconColorClass = currentView === 'canvas'
+    ? 'text-white hover:text-white/80'
+    : 'text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]';
+
   return (
     <div className={className}>
       {!isOpen && (
-        <Button onClick={onOpen} variant="ghost" className="top-left-icon p-2 text-white hover:text-white/80 hover:bg-transparent transition-colors" aria-label="Open sidebar">
+        <Button onClick={onOpen} variant="ghost" className={cn("top-left-icon p-2 hover:bg-transparent transition-colors", iconColorClass)} aria-label="Open sidebar">
           {isMobile ? (
             <ChevronRight className="!h-7 !w-7" />
           ) : (
@@ -428,7 +432,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div>
             <SheetHeader className="flex flex-row items-center justify-between -mt-2">
               <SheetTitle className="text-xl font-bold pl-2 mt-[10px]">River AI</SheetTitle>
-              <Button onClick={onClose} variant="ghost" className="top-left-icon p-2 rounded-md text-white hover:text-white/80 hover:bg-transparent transition-colors">
+              <Button onClick={onClose} variant="ghost" className={cn("top-left-icon p-2 rounded-md hover:bg-transparent transition-colors", iconColorClass)}>
                 {isMobile ? (
                   <ChevronLeft className="!h-7 !w-7" />
                 ) : (
