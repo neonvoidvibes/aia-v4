@@ -72,14 +72,16 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
     const container = textContainerRef.current;
     if (!container) return;
 
-    const scrollAmount = container.clientHeight;
+    // Use the visible height (clientHeight) minus padding for scroll amount
+    const scrollAmount = container.clientHeight * 0.9; // Scroll 90% of visible height
     const currentScrollTop = container.scrollTop;
+
     const targetScrollTop = direction === 'down'
-      ? Math.ceil((currentScrollTop + scrollAmount) / scrollAmount) * scrollAmount
-      : Math.floor((currentScrollTop - scrollAmount) / scrollAmount) * scrollAmount;
+      ? currentScrollTop + scrollAmount
+      : Math.max(0, currentScrollTop - scrollAmount);
 
     container.scrollTo({
-      top: Math.max(0, targetScrollTop),
+      top: targetScrollTop,
       behavior: 'smooth'
     });
   };
@@ -101,11 +103,11 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
           }}
         >
           {/* Text content area with scroll - absolute positioning to not affect layout */}
-          <div className="absolute inset-0 flex items-center justify-center px-16 pt-16 pb-16">
+          <div className="absolute inset-0 flex justify-center px-16 pt-16 pb-16">
             {/* Scrollable text container */}
             <div
               ref={textContainerRef}
-              className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-center pointer-events-none flex-1 max-w-4xl"
+              className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-center flex-1 max-w-4xl"
               onWheel={(e) => e.preventDefault()}
               onTouchMove={(e) => e.preventDefault()}
               style={{
