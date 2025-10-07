@@ -68,6 +68,8 @@ export default function CanvasView({
     if (isTranscribing && hasLlmOutput) {
       // Fade out existing content when transcribing starts
       setShowContent(false);
+      // Hide chevrons during transcription
+      setShowChevrons(false);
     } else if (isStreaming && llmOutput.length > 0) {
       // Show content immediately when streaming starts outputting
       setShowContent(true);
@@ -76,6 +78,13 @@ export default function CanvasView({
       setShowContent(true);
     }
   }, [isTranscribing, isStreaming, hasLlmOutput, llmOutput.length]);
+
+  // Hide chevrons when resetting (no output)
+  React.useEffect(() => {
+    if (!hasLlmOutput) {
+      setShowChevrons(false);
+    }
+  }, [hasLlmOutput]);
 
   // Check scroll position to show/hide chevrons
   const checkScroll = React.useCallback(() => {
@@ -159,13 +168,14 @@ export default function CanvasView({
         <div
           className={cn(
             "relative w-full max-w-5xl h-full",
-            "rounded-[1.5rem] bg-white/100 dark:bg-black/0",
+            "rounded-[1.5rem]",
             "backdrop-blur-md border border-white/20 shadow-2xl",
             "flex flex-col overflow-hidden"
           )}
           style={{
             aspectRatio: 'auto',
-            maxHeight: 'calc(100% - 100px)'
+            maxHeight: 'calc(100% - 100px)',
+            backgroundColor: 'rgba(0, 0, 0, 0)' // Force transparent regardless of theme
           }}
         >
           {/* Text content area - absolute positioning to not affect layout */}

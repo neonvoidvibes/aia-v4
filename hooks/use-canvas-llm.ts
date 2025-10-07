@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { getClientTimezone } from '@/lib/timezone';
 
 export type CanvasStreamStatus = 'idle' | 'streaming' | 'error' | 'complete';
 
@@ -15,7 +16,7 @@ export interface UseCanvasLLMOptions {
   conversationHistory?: Array<{ role: string; content: string }>;
   onStart?: () => void;
   onChunk?: (chunk: string) => void;
-  onComplete?: (fullText: string) => void;
+  onComplete?: (fullText: string, userTranscript: string) => void;
   onError?: (error: string) => void;
 }
 
@@ -68,6 +69,8 @@ export function useCanvasLLM({
     try {
       onStart?.();
 
+      const clientTimezone = getClientTimezone() || 'UTC';
+
       const response = await fetch('/api/canvas/stream', {
         method: 'POST',
         headers: {
@@ -80,6 +83,7 @@ export function useCanvasLLM({
           transcript,
           depth,
           history: conversationHistory,
+          timezone: clientTimezone,
         }),
       });
 
@@ -97,7 +101,7 @@ export function useCanvasLLM({
       let buffer = ''; // Buffer for character-by-character display
       let isFirstChar = true; // Track first character for immediate display
 
-      // Helper to delay between characters (20ms per character for slower display)
+      // Helper to delay between characters (40ms per character for slower display)
       const delayBetweenChars = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
       while (true) {
@@ -134,9 +138,9 @@ export function useCanvasLLM({
                   setOutput(fullText);
                   onChunk?.(char);
 
-                  // No delay for first character, then 20ms delay
+                  // No delay for first character, then 40ms delay
                   if (!isFirstChar) {
-                    await delayBetweenChars(20);
+                    await delayBetweenChars(40);
                   } else {
                     isFirstChar = false;
                   }
@@ -145,7 +149,7 @@ export function useCanvasLLM({
 
               if (data.done) {
                 setStatus('complete');
-                onComplete?.(fullText);
+                onComplete?.(fullText, transcript);
                 return;
               }
             } catch (e) {
@@ -156,7 +160,7 @@ export function useCanvasLLM({
       }
 
       setStatus('complete');
-      onComplete?.(fullText);
+      onComplete?.(fullText, transcript);
 
     } catch (err: any) {
       if (err.name === 'AbortError') {

@@ -452,14 +452,14 @@ function HomeContent() {
     onChunk: (chunk: string) => {
       setCanvasLlmOutput(prev => prev + chunk);
     },
-    onComplete: (fullText: string) => {
+    onComplete: (fullText: string, userTranscript: string) => {
       setCanvasIsStreaming(false);
       setCanvasLlmOutput(fullText);
 
-      // Add to conversation history
+      // Add to conversation history using the actual transcript that was sent
       setCanvasConversationHistory(prev => [
         ...prev,
-        { role: 'user', content: canvasTranscript },
+        { role: 'user', content: userTranscript },
         { role: 'assistant', content: fullText }
       ]);
     },
