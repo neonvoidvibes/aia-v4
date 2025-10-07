@@ -2360,27 +2360,6 @@ function HomeContent() {
     return <AgentSelector allowedAgents={allowedAgents} userName={userName} />;
   }
 
-  const depthToggle = (
-    <div className="inline-flex overflow-hidden rounded-full border border-border/60 bg-background/40 backdrop-blur-md">
-      {(["mirror", "lens", "portal"] as const).map((key) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => setCanvasDepth(key)}
-          className={cn(
-            "px-3 py-1.5 text-xs sm:text-sm font-medium capitalize transition-colors",
-            canvasDepth === key
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          aria-pressed={canvasDepth === key}
-        >
-          {key}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
     <div
       ref={mainLayoutRef}
@@ -2541,14 +2520,7 @@ function HomeContent() {
       >
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
           {currentView === 'canvas' ? (
-            <div className="flex h-full w-full items-center justify-between">
-              <span className="text-left text-lg font-semibold tracking-tight text-foreground/90">
-                Canvas
-              </span>
-              <div className="flex items-center gap-3">
-                {depthToggle}
-              </div>
-            </div>
+            <div className="flex h-full w-full items-center justify-end" />
           ) : (
             <div className="flex items-center justify-center h-full">
             {/* Desktop Agent Selector - Use workspace config only, no hardcoded logic */}
@@ -2772,7 +2744,7 @@ function HomeContent() {
             />
         </div>
         <div className={currentView === "canvas" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
-          <CanvasView depth={canvasDepth} />
+          <CanvasView depth={canvasDepth} onDepthChange={setCanvasDepth} />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>

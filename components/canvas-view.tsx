@@ -5,13 +5,16 @@ import { cn } from "@/lib/utils";
 
 export type Depth = "mirror" | "lens" | "portal";
 
-export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/river_photo_01.png";
+export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/aurora-01.jpg";
 
 interface CanvasViewProps {
   depth: Depth;
+  onDepthChange?: (depth: Depth) => void;
 }
 
-export default function CanvasView({ depth }: CanvasViewProps) {
+const DEPTH_OPTIONS: Depth[] = ["mirror", "lens", "portal"];
+
+export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   const [isPressing, setIsPressing] = useState(false);
 
   return (
@@ -60,10 +63,25 @@ export default function CanvasView({ depth }: CanvasViewProps) {
           </button>
         </div>
 
-        {/* Depth label badge (top-right inside surface) */}
+        {/* Depth selector */}
         <div className="absolute top-4 right-4">
-          <div className="px-3 py-1 rounded-full text-xs font-semibold bg-black/40 text-white border border-white/20">
-            {depth.toUpperCase()}
+          <div className="inline-flex overflow-hidden rounded-full border border-white/30 bg-black/50 backdrop-blur">
+            {DEPTH_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onDepthChange?.(option)}
+                className={cn(
+                  "px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors",
+                  depth === option
+                    ? "bg-white text-black"
+                    : "text-white/70 hover:text-white"
+                )}
+                aria-pressed={depth === option}
+              >
+                {option}
+              </button>
+            ))}
           </div>
         </div>
       </div>
