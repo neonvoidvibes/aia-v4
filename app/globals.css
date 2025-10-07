@@ -2646,6 +2646,11 @@ html body .main-content > :not(header) {
     transform: translateX(8rem); /* Center content in remaining space by shifting half sidebar width */
     max-width: calc(100vw - 16rem); /* Constrain to remaining space */
   }
+
+  .sidebar-open .main-content[data-current-view="canvas"] {
+    transform: none;
+    max-width: none;
+  }
 }
 
 /* Mobile sidebar behavior - push content to the right */
@@ -2653,6 +2658,10 @@ html body .main-content > :not(header) {
   .sidebar-open .main-content {
     transform: translateX(90vw); /* Push content by sidebar width (90% of viewport) */
     /* No max-width constraint - let content maintain full width and be pushed off-screen */
+  }
+
+  .sidebar-open .main-content[data-current-view="canvas"] {
+    transform: none;
   }
 }
 

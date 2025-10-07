@@ -201,7 +201,7 @@ function HomeContent() {
 
   // State for view switching and layout
   const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe" | "record">("chat");
-  const [canvasDepth, setCanvasDepth] = useState<'mirror' | 'lens' | 'portal'>('mirror');
+  const canvasDepth: 'mirror' = 'mirror';
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Event menu state
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
@@ -2744,7 +2744,7 @@ function HomeContent() {
             />
         </div>
         <div className={currentView === "canvas" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
-          <CanvasView depth={canvasDepth} onDepthChange={setCanvasDepth} />
+          <CanvasView depth={canvasDepth} />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>

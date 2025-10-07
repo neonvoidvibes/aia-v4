@@ -20,7 +20,7 @@ export default function CanvasView({ depth }: CanvasViewProps) {
       <div
         className={cn(
           "relative w-full max-w-5xl aspect-[16/9] max-h-full",
-          "rounded-[2rem] bg-white/10 dark:bg-black/20",
+          "rounded-[1.5rem] bg-white/10 dark:bg-black/20",
           "backdrop-blur-2xl border border-white/20 shadow-2xl",
           "flex flex-col items-center justify-center"
         )}
@@ -44,7 +44,7 @@ export default function CanvasView({ depth }: CanvasViewProps) {
             onTouchStart={() => setIsPressing(true)}
             onTouchEnd={() => setIsPressing(false)}
             className={cn(
-              "relative h-16 w-16 md:h-20 md:w-20 rounded-full",
+              "relative h-14 w-14 md:h-16 md:w-16 rounded-full",
               "ring-4 ring-white/70",
               isPressing ? "scale-[1.05]" : "scale-100",
               "transition-transform duration-100 ease-out",
