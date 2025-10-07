@@ -98,7 +98,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
           className={cn(
             "relative w-full max-w-5xl h-full",
             "rounded-[1.5rem] bg-white/100 dark:bg-black/0",
-            "backdrop-blur-xl border border-white/20 shadow-2xl",
+            "backdrop-blur-md border border-white/20 shadow-2xl",
             "flex flex-col overflow-hidden"
           )}
           style={{
