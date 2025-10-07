@@ -75,18 +75,18 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   };
 
   return (
-    <div className="relative flex flex-1 flex-col items-center px-4" style={{ minHeight: 0, paddingBottom: '3rem' }}>
+    <div className="relative flex flex-1 flex-col items-center px-4 py-4" style={{ minHeight: 0, paddingBottom: '3rem' }}>
       {/* Container wrapper to maintain aspect ratio and positioning */}
-      <div className="relative w-full flex items-center justify-center" style={{ minHeight: 0, flex: '1 1 0', maxHeight: '100%' }}>
+      <div className="relative w-full flex items-center justify-center" style={{ minHeight: 0, flex: '1 1 0', maxHeight: 'calc(100% - 2rem)' }}>
         <div
           className={cn(
-            "relative w-full max-w-5xl",
+            "relative w-full max-w-5xl h-full",
             "rounded-[1.5rem] bg-white/100 dark:bg-black/0",
             "backdrop-blur-xl border border-white/20 shadow-2xl",
             "flex flex-col overflow-hidden"
           )}
           style={{
-            aspectRatio: '16/9',
+            aspectRatio: 'auto',
             maxHeight: 'calc(100% - 100px)'
           }}
         >
