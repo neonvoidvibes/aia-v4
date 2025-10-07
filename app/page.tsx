@@ -2800,7 +2800,8 @@ function HomeContent() {
             depth={canvasDepth}
             onDepthChange={setCanvasDepth}
             llmOutput={canvasLlmOutput}
-            isStreaming={canvasIsStreaming || canvasPTT.status === 'processing'}
+            isStreaming={canvasIsStreaming}
+            isTranscribing={canvasPTT.status === 'transcribing'}
             isPTTActive={isCanvasPTTActive}
             statusMessage={
               canvasPTT.status === 'recording' ? 'Recording...' :

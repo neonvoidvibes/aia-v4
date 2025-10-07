@@ -91,6 +91,10 @@ export function useCanvasLLM({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullText = '';
+      let buffer = ''; // Buffer for character-by-character display
+
+      // Helper to delay between characters (30ms per character for slower display)
+      const delayBetweenChars = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
       while (true) {
         const { done, value } = await reader.read();
@@ -115,9 +119,18 @@ export function useCanvasLLM({
               }
 
               if (data.delta) {
-                fullText += data.delta;
-                setOutput(fullText);
-                onChunk?.(data.delta);
+                // Add chunk to buffer
+                buffer += data.delta;
+
+                // Display character by character from buffer
+                while (buffer.length > 0) {
+                  const char = buffer[0];
+                  buffer = buffer.slice(1);
+                  fullText += char;
+                  setOutput(fullText);
+                  onChunk?.(char);
+                  await delayBetweenChars(30); // 30ms delay between characters
+                }
               }
 
               if (data.done) {

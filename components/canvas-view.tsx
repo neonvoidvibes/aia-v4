@@ -18,6 +18,7 @@ interface CanvasViewProps {
   onPTTRelease?: () => void;
   isPTTActive?: boolean;
   statusMessage?: string;
+  isTranscribing?: boolean;
 }
 
 export default function CanvasView({
@@ -28,7 +29,8 @@ export default function CanvasView({
   onPTTPress,
   onPTTRelease,
   isPTTActive = false,
-  statusMessage = ""
+  statusMessage = "",
+  isTranscribing = false
 }: CanvasViewProps) {
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
@@ -42,6 +44,14 @@ export default function CanvasView({
   const welcomeText = welcomeConfig.text || G_DEFAULT_WELCOME_MESSAGE.text;
 
   const hasLlmOutput = llmOutput.length > 0;
+  const [showWelcome, setShowWelcome] = React.useState(true);
+
+  // Fade out welcome when PTT is released
+  React.useEffect(() => {
+    if (!isPTTActive && statusMessage) {
+      setShowWelcome(false);
+    }
+  }, [isPTTActive, statusMessage]);
 
   // Check scroll position to show/hide chevrons
   const checkScroll = React.useCallback(() => {
@@ -131,14 +141,29 @@ export default function CanvasView({
         >
           {/* Text content area - absolute positioning to not affect layout */}
           <div className="absolute inset-0 flex justify-center px-16">
-            {!hasLlmOutput ? (
-              /* Welcome message - vertically centered */
-              <div className="flex items-center justify-center flex-1 max-w-4xl text-center pointer-events-none">
+            {!hasLlmOutput && !isTranscribing && !isStreaming ? (
+              /* Welcome message - vertically centered, fades out when PTT released */
+              <div className={cn(
+                "flex items-center justify-center flex-1 max-w-4xl text-center pointer-events-none transition-opacity duration-500",
+                showWelcome ? "opacity-100" : "opacity-0"
+              )}>
                 <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
                   {welcomeText}
                 </h1>
               </div>
-            ) : (
+            ) : !hasLlmOutput && (isTranscribing || isStreaming) ? (
+              /* Breathing dot while waiting for LLM - larger, centered */
+              <div className="flex items-center justify-center flex-1">
+                <div
+                  className="rounded-full bg-white/80"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    animation: 'breathing-dot 2.5s ease-in-out infinite'
+                  }}
+                />
+              </div>
+            ) : hasLlmOutput ? (
               /* LLM output - scrollable, top-aligned */
               <div
                 ref={textContainerRef}
@@ -160,7 +185,7 @@ export default function CanvasView({
                   )} />
                 </h1>
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Chevron controls - positioned to the right of text, vertically centered */}
@@ -226,13 +251,6 @@ export default function CanvasView({
 
       {/* Push-to-talk ring button - positioned below container with fixed spacing */}
       <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2" style={{ marginTop: '0.5rem' }}>
-        {/* Status message */}
-        {statusMessage && (
-          <div className="text-white/70 text-sm font-medium px-4 py-1 bg-black/20 rounded-full backdrop-blur-sm">
-            {statusMessage}
-          </div>
-        )}
-
         <button
           type="button"
           aria-label="Push to talk"
