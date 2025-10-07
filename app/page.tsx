@@ -2816,6 +2816,11 @@ function HomeContent() {
               setIsCanvasPTTActive(false);
               await canvasPTT.stopRecording();
             }}
+            onReset={() => {
+              setCanvasLlmOutput('');
+              setCanvasIsStreaming(false);
+              canvasLLM.reset();
+            }}
           />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>

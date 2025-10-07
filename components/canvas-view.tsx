@@ -19,6 +19,7 @@ interface CanvasViewProps {
   isPTTActive?: boolean;
   statusMessage?: string;
   isTranscribing?: boolean;
+  onReset?: () => void;
 }
 
 export default function CanvasView({
@@ -30,7 +31,8 @@ export default function CanvasView({
   onPTTRelease,
   isPTTActive = false,
   statusMessage = "",
-  isTranscribing = false
+  isTranscribing = false,
+  onReset
 }: CanvasViewProps) {
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
@@ -52,6 +54,13 @@ export default function CanvasView({
       setShowWelcome(false);
     }
   }, [isPTTActive, statusMessage]);
+
+  // Reset welcome when output is cleared
+  React.useEffect(() => {
+    if (!hasLlmOutput && !isTranscribing && !isStreaming) {
+      setShowWelcome(true);
+    }
+  }, [hasLlmOutput, isTranscribing, isStreaming]);
 
   // Check scroll position to show/hide chevrons
   const checkScroll = React.useCallback(() => {
@@ -164,10 +173,10 @@ export default function CanvasView({
                 />
               </div>
             ) : hasLlmOutput ? (
-              /* LLM output - scrollable, top-aligned */
+              /* LLM output - scrollable, top-aligned, left-aligned text */
               <div
                 ref={textContainerRef}
-                className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-center flex-1 max-w-4xl"
+                className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-left flex-1 max-w-4xl"
                 onWheel={(e) => e.preventDefault()}
                 onTouchMove={(e) => e.preventDefault()}
                 style={{
@@ -244,6 +253,35 @@ export default function CanvasView({
               className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white/50 hover:text-white/70 transition-colors cursor-pointer"
             >
               {depth.toUpperCase()}
+            </button>
+          </div>
+
+          {/* Reset button - bottom right */}
+          <div className="absolute bottom-4 right-4">
+            <button
+              type="button"
+              onClick={() => {
+                onReset?.();
+              }}
+              className="text-white/50 hover:text-white/70 transition-colors cursor-pointer"
+              aria-label="Reset canvas"
+            >
+              <svg
+                className="w-8 h-8"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                {/* Circle */}
+                <circle cx="12" cy="12" r="10" />
+                {/* Counterclockwise arrow arc */}
+                <path d="M8 12 A4 4 0 1 1 12 8" />
+                {/* Arrow head pointing left */}
+                <path d="M8 12 L11 9 M8 12 L11 15" />
+              </svg>
             </button>
           </div>
         </div>
