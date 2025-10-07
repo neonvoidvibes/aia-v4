@@ -17,6 +17,7 @@ interface CanvasViewProps {
   onPTTPress?: () => void;
   onPTTRelease?: () => void;
   isPTTActive?: boolean;
+  statusMessage?: string;
 }
 
 export default function CanvasView({
@@ -26,7 +27,8 @@ export default function CanvasView({
   isStreaming = false,
   onPTTPress,
   onPTTRelease,
-  isPTTActive = false
+  isPTTActive = false,
+  statusMessage = ""
 }: CanvasViewProps) {
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
@@ -223,7 +225,14 @@ export default function CanvasView({
       </div>
 
       {/* Push-to-talk ring button - positioned below container with fixed spacing */}
-      <div className="flex-shrink-0 flex items-center justify-center" style={{ marginTop: '0.5rem' }}>
+      <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2" style={{ marginTop: '0.5rem' }}>
+        {/* Status message */}
+        {statusMessage && (
+          <div className="text-white/70 text-sm font-medium px-4 py-1 bg-black/20 rounded-full backdrop-blur-sm">
+            {statusMessage}
+          </div>
+        )}
+
         <button
           type="button"
           aria-label="Push to talk"

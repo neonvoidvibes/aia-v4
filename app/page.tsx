@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { useLocalization } from "@/context/LocalizationContext";
 import enTranslations from "@/lib/localization/en.json";
 import { useCanvasLLM } from "@/hooks/use-canvas-llm";
+import { useCanvasPTT } from "@/hooks/use-canvas-ptt";
 // Use both Dropdown and Sheet components
 import {
   DropdownMenu,
@@ -314,6 +315,19 @@ function HomeContent() {
     onError: (error: string) => {
       setCanvasIsStreaming(false);
       toast.error(`Canvas LLM error: ${error}`);
+    }
+  });
+
+  // Canvas PTT hook
+  const canvasPTT = useCanvasPTT({
+    agentName: pageAgentName,
+    onTranscriptReady: async (transcript: string) => {
+      setCanvasTranscript(transcript);
+      // Automatically stream to LLM when transcript is ready
+      await canvasLLM.streamResponse(transcript);
+    },
+    onError: (error: string) => {
+      toast.error(`Canvas PTT error: ${error}`);
     }
   });
 
@@ -2786,19 +2800,20 @@ function HomeContent() {
             depth={canvasDepth}
             onDepthChange={setCanvasDepth}
             llmOutput={canvasLlmOutput}
-            isStreaming={canvasIsStreaming}
+            isStreaming={canvasIsStreaming || canvasPTT.status === 'processing'}
             isPTTActive={isCanvasPTTActive}
-            onPTTPress={() => {
+            statusMessage={
+              canvasPTT.status === 'recording' ? 'Recording...' :
+              canvasPTT.status === 'processing' ? 'Transcribing...' :
+              canvasIsStreaming ? 'Thinking...' : ''
+            }
+            onPTTPress={async () => {
               setIsCanvasPTTActive(true);
-              // TODO: Start audio recording here
-              console.log('Canvas PTT pressed - start recording');
+              await canvasPTT.startRecording();
             }}
-            onPTTRelease={() => {
+            onPTTRelease={async () => {
               setIsCanvasPTTActive(false);
-              // TODO: Stop recording, get transcript, and stream to LLM
-              console.log('Canvas PTT released - stop recording and process');
-              // Placeholder: simulate getting transcript and calling LLM
-              // In real implementation, this will come from the audio recording system
+              await canvasPTT.stopRecording();
             }}
           />
         </div>
