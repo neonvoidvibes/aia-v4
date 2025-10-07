@@ -33,7 +33,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from "sonner";
 import { useLocalization } from '@/context/LocalizationContext';
 
-type View = "chat" | "transcribe" | "record";
+type View = "chat" | "canvas" | "transcribe" | "record";
 
 interface ChatHistoryItem {
   id: string;
@@ -52,6 +52,7 @@ interface SidebarProps {
   onOpen: () => void;
   className?: string;
   setCurrentView: (view: View) => void;
+  currentView?: View;
   setShowSettings: (show: boolean) => void;
   agentName?: string;
   currentEventId?: string;
@@ -89,6 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   className,
   setCurrentView,
   setShowSettings,
+  currentView,
   agentName,
   currentEventId,
   selectedModel,
@@ -465,10 +467,12 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
             <div className="mt-10 flex flex-col space-y-1 -ml-2">
-              <Button variant="ghost" className="justify-start rounded-xs" onClick={handleNewChat}>
-                <SquarePen className="mr-3 h-5 w-5" />
-                {t('sidebar.newChat')}
-              </Button>
+              {currentView !== 'canvas' && (
+                <Button variant="ghost" className="justify-start rounded-xs" onClick={handleNewChat}>
+                  <SquarePen className="mr-3 h-5 w-5" />
+                  {t('sidebar.newChat')}
+                </Button>
+              )}
               {/* Top separator - Always visible after "New Chat" */}
               <Separator className="my-2 bg-border/50" />
               {/* === ALL UI VISIBILITY CONTROLLED BY SUPABASE WORKSPACE CONFIG === */}
@@ -478,6 +482,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <Button variant="ghost" className="justify-start rounded-xs" onClick={() => handleNavigationClick('chat')}>
                   <MessageSquare className="mr-3 h-5 w-5" />
                   Chat
+                </Button>
+              )}
+              {/* Canvas link - Hidden if workspace config specifies */}
+              {(!activeUiConfig.hide_sidebar_links?.includes('canvas') || isAdminOverride) && (
+                <Button variant="ghost" className="justify-start rounded-xs" onClick={() => handleNavigationClick('canvas')}>
+                  <Waves className="mr-3 h-5 w-5" />
+                  Canvas
                 </Button>
               )}
               {/* Record link - Hidden if workspace config specifies */}

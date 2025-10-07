@@ -3,12 +3,12 @@
 "use client"
 
 import * as React from "react"
-import { MessageSquare, AudioLines, Disc } from "lucide-react"
+import { MessageSquare, AudioLines, Disc, LayoutGrid } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useMobile } from "@/hooks/use-mobile"
 
-type View = "chat" | "transcribe" | "record";
+type View = "chat" | "canvas" | "transcribe" | "record";
 
 interface ViewSwitcherProps {
   currentView: View
@@ -28,7 +28,7 @@ export default function ViewSwitcher({
   const chatLabel = "Chat"
   const transcribeLabel = isMobile ? "Audio" : "Transcribe"
   const recordLabel = "Record"
-  const gridColsClass = "grid-cols-3"
+  const gridColsClass = "grid-cols-4"
 
   return (
     <Tabs
@@ -40,6 +40,10 @@ export default function ViewSwitcher({
         <TabsTrigger value="chat" className="px-2 sm:px-3 text-xs sm:text-sm h-full">
           <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
           {chatLabel}
+        </TabsTrigger>
+        <TabsTrigger value="canvas" className="px-2 sm:px-3 text-xs sm:text-sm h-full">
+          <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+          Canvas
         </TabsTrigger>
         <TabsTrigger value="record" className="px-2 sm:px-3 text-xs sm:text-sm h-full">
           <Disc className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />

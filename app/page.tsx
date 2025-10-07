@@ -47,6 +47,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
 import ViewSwitcher from "@/components/ui/view-switcher";
+import CanvasView from "@/components/canvas-view";
 import RecordView from "@/components/RecordView";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
@@ -200,7 +201,8 @@ function HomeContent() {
   const [currentAgentTheme, setCurrentAgentTheme] = useState<string | undefined>(undefined);
 
   // State for view switching and layout
-  const [currentView, setCurrentView] = useState<"chat" | "transcribe" | "record">("chat");
+  const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe" | "record">("chat");
+  const [canvasDepth, setCanvasDepth] = useState<'mirror' | 'lens' | 'portal'>('mirror');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Event menu state
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
@@ -2370,6 +2372,7 @@ function HomeContent() {
         onClose={() => setIsSidebarOpen(false)}
         className="absolute top-[15px] left-2 md:left-6 z-20"
         setCurrentView={setCurrentView}
+        currentView={currentView}
         setShowSettings={setShowSettings}
         agentName={pageAgentName || undefined}
         currentEventId={pageEventId || undefined}
@@ -2429,14 +2432,16 @@ function HomeContent() {
       />
       
       {/* New Chat icon positioned right of sidebar */}
-      <button
-        onClick={handleNewChatRequest}
-        className="top-left-icon absolute top-[17px] left-[42px] md:left-[60px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
-        aria-label="Start new chat"
-        title="Start new chat"
-      >
-        <SquarePen size={20} />
-      </button>
+      {currentView !== 'canvas' && (
+        <button
+          onClick={handleNewChatRequest}
+          className="top-left-icon absolute top-[17px] left-[42px] md:left-[60px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
+          aria-label="Start new chat"
+          title="Start new chat"
+        >
+          <SquarePen size={20} />
+        </button>
+      )}
       
       {/* 
         NOTE: The 'Simple' view is the standard/default view for the application,
@@ -2502,7 +2507,32 @@ function HomeContent() {
       )}
       <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto" data-current-view={currentView}>
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
-          <div className="flex items-center justify-center h-full">
+          {currentView === 'canvas' ? (
+            <div className="flex items-center justify-between h-full">
+              <ViewSwitcher
+                currentView={currentView}
+                onViewChange={(newView) => setCurrentView(newView)}
+                agentName={pageAgentName}
+                className="max-w-sm"
+              />
+              <div className="hidden md:flex items-center">
+                <div className="rounded-md border border-border/60">
+                  <div className="flex">
+                    {(['mirror', 'lens', 'portal'] as const).map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => setCanvasDepth(key)}
+                        className={`px-3 py-1.5 text-sm ${canvasDepth === key ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        aria-pressed={canvasDepth === key}
+                      >
+                        {key.charAt(0).toUpperCase() + key.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
             {/* Center: Agent name (desktop) or ViewSwitcher fallback */}
             {/* Desktop Agent Selector - Use workspace config only, no hardcoded logic */}
             {!isMobile && pageAgentName && (!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
@@ -2584,10 +2614,11 @@ function HomeContent() {
               <ViewSwitcher 
                 currentView={currentView} 
                 onViewChange={(newView) => setCurrentView(newView)}
-                agentName={pageAgentName} 
+                agentName={pageAgentName}
                 className="max-w-sm"
               />
             )}
+
 
             {/* Right side: Agent name (mobile) */}
             {/* Mobile Agent Selector - Use workspace config only, no hardcoded logic */}
@@ -2632,15 +2663,105 @@ function HomeContent() {
                       try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'agent-switch' }); bc.close(); } catch {}
                     }}
                   />
-                ) : (
-                  <div className="text-sm font-medium header-workspace-title truncate max-w-[160px]">
-                    {permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </header>
+                  {/* Event dropdown (uses S3 events when available) */}
+                  {shouldShowEventDropdown ? (
+                      <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold hover:opacity-90"
+                            aria-label="Select event"
+                          >
+                            <span className="truncate max-w-[160px]">{labelForEvent(pageEventId)}</span>
+                            <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
+                          <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
+                            {renderEventMenuItems()}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                  ) : null}
+                </div>
+              )}
+              {/* Desktop Agent Name (when selector hidden) - Use workspace name from Supabase */}
+              {!isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
+                <div className="text-sm font-medium header-workspace-title flex items-center gap-2">
+                  <span>{permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}</span>
+                  {shouldShowEventDropdown ? (
+                      <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold hover:opacity-90"
+                            aria-label="Select event"
+                          >
+                            <span className="truncate max-w-[160px]">{labelForEvent(pageEventId)}</span>
+                            <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
+                          <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
+                            {renderEventMenuItems()}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                  ) : null}
+                </div>
+              )}
+              {!isMobile && !pageAgentName && (
+                <ViewSwitcher 
+                  currentView={currentView} 
+                  onViewChange={(newView) => setCurrentView(newView)}
+                  agentName={pageAgentName} 
+                  className="max-w-sm"
+                />
+              )}
+
+              {/* Right side: Agent name (mobile) */}
+              {/* Mobile Agent Selector - Use workspace config only, no hardcoded logic */}
+              {isMobile && pageAgentName && (
+                <div className="absolute right-6 flex items-center gap-2" style={{ marginTop: '2px' }}>
+                  {shouldShowEventDropdown ? (
+                      <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[140px] truncate font-semibold hover:opacity-90"
+                            aria-label="Select event"
+                          >
+                            <span className="truncate max-w-[100px]">{labelForEvent(pageEventId)}</span>
+                            <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56" side="bottom" align="end" collisionPadding={8}>
+                          <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
+                            {renderEventMenuItems()}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                  ) : null}
+                  {(!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) ? (
+                    <AgentSelectorMenu
+                      allowedAgents={allowedAgents}
+                      allAgents={permissionsData?.allAgentNames}
+                      currentAgent={pageAgentName}
+                      userRole={userRole}
+                      onDashboardClick={() => setShowAgentDashboard(true)}
+                      isRecordingActive={globalRecordingStatus.isRecording}
+                      onRequestStopRecording={async () => {
+                        try { if (isRecordingPersistenceEnabled()) { await recordingManager.stop(); } } catch {}
+                        try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'agent-switch' }); bc.close(); } catch {}
+                      }}
+                    />
+                  ) : (
+                    <div className="text-sm font-medium header-workspace-title truncate max-w-[160px]">
+                      {permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          )}
         
         <main className="flex-1 flex flex-col relative">
       {showLoadingSpinner && (
@@ -2721,6 +2842,9 @@ function HomeContent() {
                 }
               }}
             />
+        </div>
+        <div className={currentView === "canvas" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
+          <CanvasView depth={canvasDepth} />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
