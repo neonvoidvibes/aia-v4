@@ -46,8 +46,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
-import ViewSwitcher from "@/components/ui/view-switcher";
-import CanvasView from "@/components/canvas-view";
+import CanvasView, { CANVAS_BACKGROUND_SRC } from "@/components/canvas-view";
 import RecordView from "@/components/RecordView";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
@@ -2361,6 +2360,27 @@ function HomeContent() {
     return <AgentSelector allowedAgents={allowedAgents} userName={userName} />;
   }
 
+  const depthToggle = (
+    <div className="inline-flex overflow-hidden rounded-full border border-border/60 bg-background/40 backdrop-blur-md">
+      {(["mirror", "lens", "portal"] as const).map((key) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => setCanvasDepth(key)}
+          className={cn(
+            "px-3 py-1.5 text-xs sm:text-sm font-medium capitalize transition-colors",
+            canvasDepth === key
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          aria-pressed={canvasDepth === key}
+        >
+          {key}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div
       ref={mainLayoutRef}
@@ -2505,35 +2525,32 @@ function HomeContent() {
           </span>
         </div>
       )}
-      <div className="main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto" data-current-view={currentView}>
+      <div
+        className={cn(
+          "main-content flex flex-col flex-1 w-full sm:max-w-[800px] sm:mx-auto",
+          currentView === "canvas" && "relative sm:max-w-full sm:mx-0"
+        )}
+        data-current-view={currentView}
+        data-theme={currentView === "canvas" ? "canvas" : undefined}
+        style={currentView === "canvas" ? {
+          backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        } : undefined}
+      >
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
           {currentView === 'canvas' ? (
-            <div className="flex items-center justify-between h-full">
-              <ViewSwitcher
-                currentView={currentView}
-                onViewChange={(newView) => setCurrentView(newView)}
-                agentName={pageAgentName}
-                className="max-w-sm"
-              />
-              <div className="hidden md:flex items-center">
-                <div className="rounded-md border border-border/60">
-                  <div className="flex">
-                    {(['mirror', 'lens', 'portal'] as const).map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => setCanvasDepth(key)}
-                        className={`px-3 py-1.5 text-sm ${canvasDepth === key ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                        aria-pressed={canvasDepth === key}
-                      >
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className="flex h-full w-full items-center justify-between">
+              <span className="text-left text-lg font-semibold tracking-tight text-foreground/90">
+                Canvas
+              </span>
+              <div className="flex items-center gap-3">
+                {depthToggle}
               </div>
             </div>
           ) : (
-            {/* Center: Agent name (desktop) or ViewSwitcher fallback */}
+            <div className="flex items-center justify-center h-full">
             {/* Desktop Agent Selector - Use workspace config only, no hardcoded logic */}
             {!isMobile && pageAgentName && (!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) && (
               <div className="flex items-center gap-2">
@@ -2663,106 +2680,17 @@ function HomeContent() {
                       try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'agent-switch' }); bc.close(); } catch {}
                     }}
                   />
-                  {/* Event dropdown (uses S3 events when available) */}
-                  {shouldShowEventDropdown ? (
-                      <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold hover:opacity-90"
-                            aria-label="Select event"
-                          >
-                            <span className="truncate max-w-[160px]">{labelForEvent(pageEventId)}</span>
-                            <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
-                          <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                            {renderEventMenuItems()}
-                          </DropdownMenuRadioGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                  ) : null}
-                </div>
-              )}
-              {/* Desktop Agent Name (when selector hidden) - Use workspace name from Supabase */}
-              {!isMobile && pageAgentName && (activeUiConfig.hide_agent_selector && !permissionsData?.isAdminOverride) && (
-                <div className="text-sm font-medium header-workspace-title flex items-center gap-2">
-                  <span>{permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}</span>
-                  {shouldShowEventDropdown ? (
-                      <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[200px] truncate font-semibold hover:opacity-90"
-                            aria-label="Select event"
-                          >
-                            <span className="truncate max-w-[160px]">{labelForEvent(pageEventId)}</span>
-                            <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
-                          <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                            {renderEventMenuItems()}
-                          </DropdownMenuRadioGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                  ) : null}
-                </div>
-              )}
-              {!isMobile && !pageAgentName && (
-                <ViewSwitcher 
-                  currentView={currentView} 
-                  onViewChange={(newView) => setCurrentView(newView)}
-                  agentName={pageAgentName} 
-                  className="max-w-sm"
-                />
-              )}
-
-              {/* Right side: Agent name (mobile) */}
-              {/* Mobile Agent Selector - Use workspace config only, no hardcoded logic */}
-              {isMobile && pageAgentName && (
-                <div className="absolute right-6 flex items-center gap-2" style={{ marginTop: '2px' }}>
-                  {shouldShowEventDropdown ? (
-                      <DropdownMenu onOpenChange={(open) => { if (open && availableEvents == null) fetchAvailableEvents(); }}>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className="inline-flex items-center rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs max-w-[140px] truncate font-semibold hover:opacity-90"
-                            aria-label="Select event"
-                          >
-                            <span className="truncate max-w-[100px]">{labelForEvent(pageEventId)}</span>
-                            <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56" side="bottom" align="end" collisionPadding={8}>
-                          <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                            {renderEventMenuItems()}
-                          </DropdownMenuRadioGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                  ) : null}
-                  {(!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) ? (
-                    <AgentSelectorMenu
-                      allowedAgents={allowedAgents}
-                      allAgents={permissionsData?.allAgentNames}
-                      currentAgent={pageAgentName}
-                      userRole={userRole}
-                      onDashboardClick={() => setShowAgentDashboard(true)}
-                      isRecordingActive={globalRecordingStatus.isRecording}
-                      onRequestStopRecording={async () => {
-                        try { if (isRecordingPersistenceEnabled()) { await recordingManager.stop(); } } catch {}
-                        try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'agent-switch' }); bc.close(); } catch {}
-                      }}
-                    />
-                  ) : (
-                    <div className="text-sm font-medium header-workspace-title truncate max-w-[160px]">
-                      {permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}
-                    </div>
-                  )}
-                </div>
-              )}
+                ) : (
+                  <div className="text-sm font-medium header-workspace-title truncate max-w-[160px]">
+                    {permissionsData?.agents?.find(a => a.name === pageAgentName)?.workspaceName || pageAgentName}
+                  </div>
+                )}
+              </div>
+            )}
             </div>
           )}
-          )}
-        
+        </header>
+
         <main className="flex-1 flex flex-col relative">
       {showLoadingSpinner && (
         <div className="flex-1 flex items-center justify-center absolute inset-0 bg-background z-30">
