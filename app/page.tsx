@@ -2804,7 +2804,7 @@ function HomeContent() {
             isPTTActive={isCanvasPTTActive}
             statusMessage={
               canvasPTT.status === 'recording' ? 'Recording...' :
-              canvasPTT.status === 'processing' ? 'Transcribing...' :
+              canvasPTT.status === 'transcribing' ? 'Transcribing...' :
               canvasIsStreaming ? 'Thinking...' : ''
             }
             onPTTPress={async () => {
