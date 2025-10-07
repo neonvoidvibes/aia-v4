@@ -50,7 +50,6 @@ import CanvasView, { CANVAS_BACKGROUND_SRC } from "@/components/canvas-view";
 import RecordView from "@/components/RecordView";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"; 
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
@@ -202,6 +201,14 @@ function HomeContent() {
   // State for view switching and layout
   const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe" | "record">("chat");
   const canvasDepth: 'mirror' = 'mirror';
+  const layoutStyle = currentView === "canvas"
+    ? ({
+        backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat"
+      } as React.CSSProperties)
+    : undefined;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Event menu state
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
@@ -2364,6 +2371,7 @@ function HomeContent() {
     <div
       ref={mainLayoutRef}
       className={`relative overflow-hidden min-h-[calc(100dvh-var(--sys-banner-h))] h-[calc(100dvh-var(--sys-banner-h))] flex flex-col ${isSidebarOpen ? 'sidebar-open' : ''}`}
+      style={layoutStyle}
     >
       <Sidebar
         isOpen={isSidebarOpen}
@@ -2511,12 +2519,6 @@ function HomeContent() {
         )}
         data-current-view={currentView}
         data-theme={currentView === "canvas" ? "canvas" : undefined}
-        style={currentView === "canvas" ? {
-          backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat"
-        } : undefined}
       >
         <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
           {currentView === 'canvas' ? (

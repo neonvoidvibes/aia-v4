@@ -2624,7 +2624,7 @@ button {
 
 /* Sidebar Styles */
 .main-content {
-  transition: transform 0.3s ease-in-out, max-width 0.3s ease-in-out;
+  transition: transform 0.3s ease-in-out, max-width 0.3s ease-in-out, padding-left 0.3s ease-in-out;
   height: 100%; /* Fill parent (which is sized to 100dvh - banner) */
   overflow: hidden; /* Prevent extra scroll at container level */
   /* Move scrollbar to rightmost edge if any nested element scrolls */
@@ -2650,6 +2650,7 @@ html body .main-content > :not(header) {
   .sidebar-open .main-content[data-current-view="canvas"] {
     transform: none;
     max-width: none;
+    padding-left: 16rem;
   }
 }
 
@@ -2661,7 +2662,7 @@ html body .main-content > :not(header) {
   }
 
   .sidebar-open .main-content[data-current-view="canvas"] {
-    transform: none;
+    transform: translateX(90vw);
   }
 }
 
