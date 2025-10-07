@@ -219,36 +219,6 @@ function HomeContent() {
   const [canvasConversationHistory, setCanvasConversationHistory] = useState<Array<{ role: string; content: string }>>([]);
   const [canvasWarmedUp, setCanvasWarmedUp] = useState(false);
 
-  // Canvas warmup: Prime OpenAI Whisper and Anthropic caches when canvas view loads
-  useEffect(() => {
-    if (currentView === 'canvas' && pageAgentName && !canvasWarmedUp) {
-      console.log('[Canvas Warmup] Triggering warmup for agent:', pageAgentName);
-
-      // Fire warmup request in background (don't await)
-      fetch('/api/canvas/warmup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ agent: pageAgentName })
-      })
-        .then(res => res.json())
-        .then(result => {
-          console.log('[Canvas Warmup] Completed:', result);
-          setCanvasWarmedUp(true);
-        })
-        .catch(err => {
-          console.warn('[Canvas Warmup] Failed (non-critical):', err);
-          // Mark as warmed up anyway to avoid retries
-          setCanvasWarmedUp(true);
-        });
-    }
-
-    // Reset warmup flag when changing agents
-    if (pageAgentName && canvasWarmedUp) {
-      setCanvasWarmedUp(false);
-    }
-  }, [currentView, pageAgentName, canvasWarmedUp]);
-
   const layoutStyle = currentView === "canvas"
     ? ({
         backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
@@ -512,7 +482,37 @@ function HomeContent() {
       toast.error(`Canvas PTT error: ${error}`);
     }
   });
-  
+
+  // Canvas warmup: Prime Anthropic cache when canvas view loads
+  useEffect(() => {
+    if (currentView === 'canvas' && pageAgentName && !canvasWarmedUp) {
+      console.log('[Canvas Warmup] Triggering warmup for agent:', pageAgentName);
+
+      // Fire warmup request in background (don't await)
+      fetch('/api/canvas/warmup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ agent: pageAgentName })
+      })
+        .then(res => res.json())
+        .then(result => {
+          console.log('[Canvas Warmup] Completed:', result);
+          setCanvasWarmedUp(true);
+        })
+        .catch(err => {
+          console.warn('[Canvas Warmup] Failed (non-critical):', err);
+          // Mark as warmed up anyway to avoid retries
+          setCanvasWarmedUp(true);
+        });
+    }
+
+    // Reset warmup flag when changing agents
+    if (pageAgentName && canvasWarmedUp) {
+      setCanvasWarmedUp(false);
+    }
+  }, [currentView, pageAgentName, canvasWarmedUp]);
+
   // --- PHASE 3: New state management for dynamic workspaces ---
   const [permissionsData, setPermissionsData] = useState<{
     isAdminOverride: boolean;
