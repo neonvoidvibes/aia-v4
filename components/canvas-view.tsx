@@ -75,9 +75,9 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   };
 
   return (
-    <div className="relative flex flex-1 flex-col items-center" style={{ minHeight: 0, gap: '1.5rem', paddingBottom: '2rem' }}>
+    <div className="relative flex flex-1 flex-col items-center" style={{ minHeight: 0, paddingBottom: '3rem' }}>
       {/* Container wrapper to maintain aspect ratio and positioning */}
-      <div className="relative w-full flex items-center justify-center" style={{ minHeight: 0, flex: '1 1 auto' }}>
+      <div className="relative w-full flex items-center justify-center" style={{ minHeight: 0, flex: '1 1 0', maxHeight: '100%' }}>
         <div
           className={cn(
             "relative w-full max-w-5xl",
@@ -171,7 +171,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
       </div>
 
       {/* Push-to-talk ring button - positioned below container with fixed spacing */}
-      <div className="flex-shrink-0 flex items-center justify-center">
+      <div className="flex-shrink-0 flex items-center justify-center" style={{ marginTop: '0.5rem' }}>
         <button
           type="button"
           aria-label="Push to talk"
