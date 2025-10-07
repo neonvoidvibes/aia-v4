@@ -65,17 +65,13 @@ export default function CanvasView({
 
   // Fade out existing content when starting new transcription
   React.useEffect(() => {
-    if (isTranscribing && hasLlmOutput) {
+    if (isTranscribing) {
       setShowContent(false);
-      // Reset after fade completes
-      const timer = setTimeout(() => {
-        setShowContent(true);
-      }, 500);
-      return () => clearTimeout(timer);
-    } else {
+    } else if (!isTranscribing && !isStreaming) {
+      // Only show content when not transcribing and not streaming
       setShowContent(true);
     }
-  }, [isTranscribing, hasLlmOutput]);
+  }, [isTranscribing, isStreaming]);
 
   // Check scroll position to show/hide chevrons
   const checkScroll = React.useCallback(() => {
@@ -85,8 +81,8 @@ export default function CanvasView({
     const { scrollTop, scrollHeight, clientHeight } = container;
     // More sensitive detection - check if content is larger than visible area
     const hasScroll = scrollHeight > clientHeight + 1;
-    const isAtTop = scrollTop <= 1;
-    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+    const isAtTop = scrollTop <= 5;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
 
     setShowChevrons(hasScroll);
     setCanScrollUp(hasScroll && !isAtTop);
@@ -101,7 +97,8 @@ export default function CanvasView({
 
     const container = textContainerRef.current;
     if (container) {
-      container.addEventListener('scroll', checkScroll);
+      // Use passive event listener for better scroll performance
+      container.addEventListener('scroll', checkScroll, { passive: true });
       // Also check on resize
       const resizeObserver = new ResizeObserver(() => {
         // Delay check after resize to let layout settle
@@ -115,7 +112,7 @@ export default function CanvasView({
       };
     }
     return () => clearTimeout(timeoutId);
-  }, [checkScroll, welcomeText]);
+  }, [checkScroll, welcomeText, llmOutput]);
 
   // Auto-scroll to bottom when new content arrives during streaming
   React.useEffect(() => {
@@ -125,7 +122,8 @@ export default function CanvasView({
         top: container.scrollHeight,
         behavior: 'smooth'
       });
-      checkScroll();
+      // Delay checkScroll to allow scroll animation to complete
+      setTimeout(checkScroll, 300);
     }
   }, [llmOutput, isStreaming, hasLlmOutput, checkScroll]);
 
@@ -145,6 +143,9 @@ export default function CanvasView({
       top: targetScrollTop,
       behavior: 'smooth'
     });
+
+    // Update chevron state after scroll animation
+    setTimeout(checkScroll, 300);
   };
 
   return (
@@ -200,7 +201,8 @@ export default function CanvasView({
                 style={{
                   WebkitOverflowScrolling: 'auto',
                   maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)',
-                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)'
+                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)',
+                  userSelect: 'text'
                 }}
               >
                 <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
@@ -285,7 +287,7 @@ export default function CanvasView({
               aria-label="Reset canvas"
             >
               <svg
-                className="w-8 h-8"
+                className="w-6 h-6"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"

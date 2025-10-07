@@ -166,7 +166,7 @@ export function useCanvasLLM({
     } finally {
       abortControllerRef.current = null;
     }
-  }, [agentName, depth, onStart, onChunk, onComplete, onError]);
+  }, [agentName, depth, conversationHistory, onStart, onChunk, onComplete, onError]);
 
   return {
     streamResponse,
