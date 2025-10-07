@@ -25,8 +25,12 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   // Find the current theme configuration
   const currentTheme = predefinedThemes.find((t) => t.className === theme);
   const welcomeConfig = currentTheme?.welcomeMessage || G_DEFAULT_WELCOME_MESSAGE;
-  // const welcomeText = welcomeConfig.text || G_DEFAULT_WELCOME_MESSAGE.text;
-  const welcomeText = "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.";
+  const welcomeText = welcomeConfig.text || G_DEFAULT_WELCOME_MESSAGE.text;
+
+  // Placeholder for LLM output (will be replaced with actual output)
+  // const llmOutput = "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.";
+  const llmOutput = "";
+  const hasLlmOutput = llmOutput.length > 0; // Will be controlled by actual LLM state
 
   // Check scroll position to show/hide chevrons
   const checkScroll = React.useCallback(() => {
@@ -102,25 +106,35 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
             maxHeight: 'calc(100% - 100px)'
           }}
         >
-          {/* Text content area with scroll - absolute positioning to not affect layout */}
+          {/* Text content area - absolute positioning to not affect layout */}
           <div className="absolute inset-0 flex justify-center px-16">
-            {/* Scrollable text container */}
-            <div
-              ref={textContainerRef}
-              className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-center flex-1 max-w-4xl"
-              onWheel={(e) => e.preventDefault()}
-              onTouchMove={(e) => e.preventDefault()}
-              style={{
-                WebkitOverflowScrolling: 'auto',
-                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)',
-                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)'
-              }}
-            >
-              <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
-                {welcomeText}
-                <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
-              </h1>
-            </div>
+            {!hasLlmOutput ? (
+              /* Welcome message - vertically centered */
+              <div className="flex items-center justify-center flex-1 max-w-4xl text-center pointer-events-none">
+                <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
+                  {welcomeText}
+                  <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
+                </h1>
+              </div>
+            ) : (
+              /* LLM output - scrollable, top-aligned */
+              <div
+                ref={textContainerRef}
+                className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-center flex-1 max-w-4xl"
+                onWheel={(e) => e.preventDefault()}
+                onTouchMove={(e) => e.preventDefault()}
+                style={{
+                  WebkitOverflowScrolling: 'auto',
+                  maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)'
+                }}
+              >
+                <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
+                  {llmOutput}
+                  <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
+                </h1>
+              </div>
+            )}
           </div>
 
           {/* Chevron controls - positioned to the right of text, vertically centered */}
