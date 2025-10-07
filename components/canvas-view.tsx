@@ -34,9 +34,10 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
     if (!container) return;
 
     const { scrollTop, scrollHeight, clientHeight } = container;
-    const hasScroll = scrollHeight > clientHeight + 5;
-    const isAtTop = scrollTop <= 5;
-    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
+    // More sensitive detection - check if content is larger than visible area
+    const hasScroll = scrollHeight > clientHeight + 1;
+    const isAtTop = scrollTop <= 1;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
 
     setShowChevrons(hasScroll);
     setCanScrollUp(hasScroll && !isAtTop);
@@ -44,18 +45,27 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   }, []);
 
   React.useEffect(() => {
-    checkScroll();
+    // Add a small delay to ensure DOM has settled
+    const timeoutId = setTimeout(() => {
+      checkScroll();
+    }, 100);
+
     const container = textContainerRef.current;
     if (container) {
       container.addEventListener('scroll', checkScroll);
       // Also check on resize
-      const resizeObserver = new ResizeObserver(checkScroll);
+      const resizeObserver = new ResizeObserver(() => {
+        // Delay check after resize to let layout settle
+        setTimeout(checkScroll, 50);
+      });
       resizeObserver.observe(container);
       return () => {
+        clearTimeout(timeoutId);
         container.removeEventListener('scroll', checkScroll);
         resizeObserver.disconnect();
       };
     }
+    return () => clearTimeout(timeoutId);
   }, [checkScroll, welcomeText]);
 
   const scrollToPage = (direction: 'up' | 'down') => {
@@ -95,13 +105,13 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
             {/* Scrollable text container */}
             <div
               ref={textContainerRef}
-              className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 py-4 text-center pointer-events-none flex-1 max-w-4xl"
+              className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-center pointer-events-none flex-1 max-w-4xl"
               onWheel={(e) => e.preventDefault()}
               onTouchMove={(e) => e.preventDefault()}
               style={{
                 WebkitOverflowScrolling: 'auto',
-                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 8%, black 92%, rgba(0,0,0,0.6) 100%)',
-                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 8%, black 92%, rgba(0,0,0,0.6) 100%)'
+                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)'
               }}
             >
               <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
@@ -109,10 +119,12 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
                 <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
               </h1>
             </div>
+          </div>
 
-            {/* Chevron controls - positioned to the right of text */}
-            {showChevrons && (
-              <div className="flex flex-col items-center gap-2 ml-4 mr-8 pointer-events-auto z-10">
+          {/* Chevron controls - positioned to the right of text, vertically centered */}
+          {showChevrons && (
+            <div className="absolute top-1/2 -translate-y-1/2" style={{ right: '1.75rem' }}>
+              <div className="flex flex-col items-center gap-2 pointer-events-auto z-10">
                 {/* Up chevron */}
                 <button
                   type="button"
@@ -149,8 +161,8 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
                   </svg>
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Depth label */}
           <div className="absolute top-4 right-4">
