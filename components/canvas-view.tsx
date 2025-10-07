@@ -75,9 +75,9 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   };
 
   return (
-    <div className="relative flex flex-1 flex-col items-center p-4" style={{ minHeight: 0 }}>
+    <div className="relative flex flex-1 flex-col items-center" style={{ minHeight: 0, gap: '1.5rem', paddingBottom: '2rem' }}>
       {/* Container wrapper to maintain aspect ratio and positioning */}
-      <div className="relative w-full flex-1 flex items-center justify-center" style={{ minHeight: 0 }}>
+      <div className="relative w-full flex items-center justify-center" style={{ minHeight: 0, flex: '1 1 auto' }}>
         <div
           className={cn(
             "relative w-full max-w-5xl",
@@ -91,11 +91,11 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
           }}
         >
           {/* Text content area with scroll - absolute positioning to not affect layout */}
-          <div className="absolute inset-0 flex items-center justify-center px-8 pt-16 pb-16">
+          <div className="absolute inset-0 flex items-center justify-center px-16 pt-16 pb-16">
             {/* Scrollable text container */}
             <div
               ref={textContainerRef}
-              className="overflow-y-auto overflow-x-hidden scrollbar-hide px-2 py-4 text-center pointer-events-none flex-1 max-w-4xl"
+              className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 py-4 text-center pointer-events-none flex-1 max-w-4xl"
               onWheel={(e) => e.preventDefault()}
               onTouchMove={(e) => e.preventDefault()}
               style={{
@@ -171,7 +171,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
       </div>
 
       {/* Push-to-talk ring button - positioned below container with fixed spacing */}
-      <div className="flex-shrink-0 py-6 flex items-center justify-center">
+      <div className="flex-shrink-0 flex items-center justify-center">
         <button
           type="button"
           aria-label="Push to talk"
