@@ -180,7 +180,7 @@ export default function CanvasView({
         >
           {/* Text content area - absolute positioning to not affect layout */}
           <div className="absolute inset-0 flex justify-center px-16">
-            {!hasLlmOutput && !isTranscribing && !isStreaming ? (
+            {!hasLlmOutput && !isTranscribing && !isStreaming && showWelcome ? (
               /* Welcome message - vertically centered, fades out when PTT released */
               <div className={cn(
                 "flex items-center justify-center flex-1 max-w-4xl text-center pointer-events-none transition-opacity duration-500",
@@ -190,8 +190,8 @@ export default function CanvasView({
                   {welcomeText}
                 </h1>
               </div>
-            ) : (isTranscribing || (isStreaming && !showContent)) ? (
-              /* Breathing dot while transcribing or streaming with faded content - larger, centered */
+            ) : (!showWelcome && !hasLlmOutput) || isTranscribing || (isStreaming && !showContent) ? (
+              /* Breathing dot while transcribing, waiting for stream, or streaming with faded content - larger, centered */
               <div className="flex items-center justify-center flex-1">
                 <div
                   className="rounded-full bg-white/80"
