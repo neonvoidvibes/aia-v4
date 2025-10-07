@@ -21,7 +21,7 @@ export default function CanvasView({ depth }: CanvasViewProps) {
         className={cn(
           "relative w-full max-w-5xl aspect-[16/9] max-h-full",
           "rounded-[1.5rem] bg-white/10 dark:bg-black/20",
-          "backdrop-blur-xl border border-white/20 shadow-2xl",
+          "backdrop-blur-md border border-white/20 shadow-2xl",
           "-translate-y-[33px]",
           "flex flex-col items-center justify-center"
         )}
