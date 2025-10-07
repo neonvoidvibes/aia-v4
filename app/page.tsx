@@ -297,40 +297,6 @@ function HomeContent() {
     type: null,
   });
 
-  // Canvas LLM hook
-  const canvasLLM = useCanvasLLM({
-    agentName: pageAgentName,
-    depth: canvasDepth,
-    onStart: () => {
-      setCanvasIsStreaming(true);
-      setCanvasLlmOutput('');
-    },
-    onChunk: (chunk: string) => {
-      setCanvasLlmOutput(prev => prev + chunk);
-    },
-    onComplete: (fullText: string) => {
-      setCanvasIsStreaming(false);
-      setCanvasLlmOutput(fullText);
-    },
-    onError: (error: string) => {
-      setCanvasIsStreaming(false);
-      toast.error(`Canvas LLM error: ${error}`);
-    }
-  });
-
-  // Canvas PTT hook
-  const canvasPTT = useCanvasPTT({
-    agentName: pageAgentName,
-    onTranscriptReady: async (transcript: string) => {
-      setCanvasTranscript(transcript);
-      // Automatically stream to LLM when transcript is ready
-      await canvasLLM.streamResponse(transcript);
-    },
-    onError: (error: string) => {
-      toast.error(`Canvas PTT error: ${error}`);
-    }
-  });
-
   const eventLabel = useCallback((e?: string | null) => (!e || e === '0000') ? 'Shared' : e, []);
 
   // Persistent Recording: attach/subscribe
@@ -472,6 +438,40 @@ function HomeContent() {
   const [eventLabels, setEventLabels] = useState<Record<string, string>>({});
   // Events cache key (depends on pageAgentName) — defined after pageAgentName state
   const eventsCacheKey = useMemo(() => pageAgentName ? `events_cache_${pageAgentName}` : null, [pageAgentName]);
+
+  // Canvas LLM hook (after pageAgentName is declared)
+  const canvasLLM = useCanvasLLM({
+    agentName: pageAgentName || '',
+    depth: canvasDepth,
+    onStart: () => {
+      setCanvasIsStreaming(true);
+      setCanvasLlmOutput('');
+    },
+    onChunk: (chunk: string) => {
+      setCanvasLlmOutput(prev => prev + chunk);
+    },
+    onComplete: (fullText: string) => {
+      setCanvasIsStreaming(false);
+      setCanvasLlmOutput(fullText);
+    },
+    onError: (error: string) => {
+      setCanvasIsStreaming(false);
+      toast.error(`Canvas LLM error: ${error}`);
+    }
+  });
+
+  // Canvas PTT hook (after pageAgentName is declared)
+  const canvasPTT = useCanvasPTT({
+    agentName: pageAgentName || '',
+    onTranscriptReady: async (transcript: string) => {
+      setCanvasTranscript(transcript);
+      // Automatically stream to LLM when transcript is ready
+      await canvasLLM.streamResponse(transcript);
+    },
+    onError: (error: string) => {
+      toast.error(`Canvas PTT error: ${error}`);
+    }
+  });
   
   // --- PHASE 3: New state management for dynamic workspaces ---
   const [permissionsData, setPermissionsData] = useState<{
