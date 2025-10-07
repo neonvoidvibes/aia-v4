@@ -95,8 +95,9 @@ export function useCanvasLLM({
       const decoder = new TextDecoder();
       let fullText = '';
       let buffer = ''; // Buffer for character-by-character display
+      let isFirstChar = true; // Track first character for immediate display
 
-      // Helper to delay between characters (30ms per character for slower display)
+      // Helper to delay between characters (20ms per character for slower display)
       const delayBetweenChars = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
       while (true) {
@@ -132,7 +133,13 @@ export function useCanvasLLM({
                   fullText += char;
                   setOutput(fullText);
                   onChunk?.(char);
-                  await delayBetweenChars(30); // 30ms delay between characters
+
+                  // No delay for first character, then 20ms delay
+                  if (!isFirstChar) {
+                    await delayBetweenChars(20);
+                  } else {
+                    isFirstChar = false;
+                  }
                 }
               }
 
