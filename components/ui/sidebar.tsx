@@ -475,12 +475,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
             <div className="mt-10 flex flex-col space-y-1 -ml-2">
-              {currentView !== 'canvas' && (
-                <Button variant="ghost" className="justify-start rounded-xs" onClick={handleNewChat}>
-                  <SquarePen className="mr-3 h-5 w-5" />
-                  {t('sidebar.newChat')}
-                </Button>
-              )}
+              <Button variant="ghost" className="justify-start rounded-xs" onClick={handleNewChat}>
+                <SquarePen className="mr-3 h-5 w-5" />
+                {t('sidebar.newChat')}
+              </Button>
               {/* Top separator - Always visible after "New Chat" */}
               <Separator className="my-2 bg-border/50" />
               {/* === ALL UI VISIBILITY CONTROLLED BY SUPABASE WORKSPACE CONFIG === */}

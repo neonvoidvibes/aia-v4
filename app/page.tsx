@@ -2440,16 +2440,14 @@ function HomeContent() {
       />
       
       {/* New Chat icon positioned right of sidebar */}
-      {currentView !== 'canvas' && (
-        <button
-          onClick={handleNewChatRequest}
-          className="top-left-icon absolute top-[17px] left-[42px] md:left-[60px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
-          aria-label="Start new chat"
-          title="Start new chat"
-        >
-          <SquarePen size={20} />
-        </button>
-      )}
+      <button
+        onClick={handleNewChatRequest}
+        className="top-left-icon absolute top-[17px] left-[42px] md:left-[60px] z-20 p-2 text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))] transition-colors"
+        aria-label="Start new chat"
+        title="Start new chat"
+      >
+        <SquarePen size={20} />
+      </button>
       
       {/* 
         NOTE: The 'Simple' view is the standard/default view for the application,
