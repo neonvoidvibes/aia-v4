@@ -9,8 +9,8 @@ type Depth = "mirror" | "lens" | "portal";
 export default function CanvasView({ depth }: { depth: Depth }) {
   // swap backgrounds by changing this array or making it prop-driven later
   const backgrounds = useMemo(() => [
-    "/canvas/backgrounds/aurora-01.jpg",
-    // "/canvas/backgrounds/aurora-02.jpg",
+    // "/canvas/backgrounds/aurora-01.jpg",
+    "/canvas/backgrounds/river_photo_01.png",
   ], []);
   const bg = backgrounds[0];
 
