@@ -12,6 +12,7 @@ export type CanvasStreamStatus = 'idle' | 'streaming' | 'error' | 'complete';
 export interface UseCanvasLLMOptions {
   agentName: string;
   depth?: 'mirror' | 'lens' | 'portal';
+  conversationHistory?: Array<{ role: string; content: string }>;
   onStart?: () => void;
   onChunk?: (chunk: string) => void;
   onComplete?: (fullText: string) => void;
@@ -30,6 +31,7 @@ export interface UseCanvasLLMReturn {
 export function useCanvasLLM({
   agentName,
   depth = 'mirror',
+  conversationHistory = [],
   onStart,
   onChunk,
   onComplete,
@@ -77,6 +79,7 @@ export function useCanvasLLM({
           agent: agentName,
           transcript,
           depth,
+          history: conversationHistory,
         }),
       });
 

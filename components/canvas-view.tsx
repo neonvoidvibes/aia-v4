@@ -47,6 +47,7 @@ export default function CanvasView({
 
   const hasLlmOutput = llmOutput.length > 0;
   const [showWelcome, setShowWelcome] = React.useState(true);
+  const [showContent, setShowContent] = React.useState(true);
 
   // Fade out welcome when PTT is released
   React.useEffect(() => {
@@ -61,6 +62,20 @@ export default function CanvasView({
       setShowWelcome(true);
     }
   }, [hasLlmOutput, isTranscribing, isStreaming]);
+
+  // Fade out existing content when starting new transcription
+  React.useEffect(() => {
+    if (isTranscribing && hasLlmOutput) {
+      setShowContent(false);
+      // Reset after fade completes
+      const timer = setTimeout(() => {
+        setShowContent(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setShowContent(true);
+    }
+  }, [isTranscribing, hasLlmOutput]);
 
   // Check scroll position to show/hide chevrons
   const checkScroll = React.useCallback(() => {
@@ -173,10 +188,13 @@ export default function CanvasView({
                 />
               </div>
             ) : hasLlmOutput ? (
-              /* LLM output - scrollable, top-aligned, left-aligned text */
+              /* LLM output - scrollable, top-aligned, left-aligned text, fades out when transcribing */
               <div
                 ref={textContainerRef}
-                className="overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-left flex-1 max-w-4xl"
+                className={cn(
+                  "overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-left flex-1 max-w-4xl transition-opacity duration-500",
+                  showContent ? "opacity-100" : "opacity-0"
+                )}
                 onWheel={(e) => e.preventDefault()}
                 onTouchMove={(e) => e.preventDefault()}
                 style={{

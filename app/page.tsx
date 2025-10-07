@@ -216,6 +216,7 @@ function HomeContent() {
   const [canvasIsStreaming, setCanvasIsStreaming] = useState(false);
   const [canvasTranscript, setCanvasTranscript] = useState('');
   const [isCanvasPTTActive, setIsCanvasPTTActive] = useState(false);
+  const [canvasConversationHistory, setCanvasConversationHistory] = useState<Array<{ role: string; content: string }>>([]);
 
   const layoutStyle = currentView === "canvas"
     ? ({
@@ -443,6 +444,7 @@ function HomeContent() {
   const canvasLLM = useCanvasLLM({
     agentName: pageAgentName || '',
     depth: canvasDepth,
+    conversationHistory: canvasConversationHistory,
     onStart: () => {
       setCanvasIsStreaming(true);
       setCanvasLlmOutput('');
@@ -453,6 +455,13 @@ function HomeContent() {
     onComplete: (fullText: string) => {
       setCanvasIsStreaming(false);
       setCanvasLlmOutput(fullText);
+
+      // Add to conversation history
+      setCanvasConversationHistory(prev => [
+        ...prev,
+        { role: 'user', content: canvasTranscript },
+        { role: 'assistant', content: fullText }
+      ]);
     },
     onError: (error: string) => {
       setCanvasIsStreaming(false);
@@ -2819,6 +2828,8 @@ function HomeContent() {
             onReset={() => {
               setCanvasLlmOutput('');
               setCanvasIsStreaming(false);
+              setCanvasConversationHistory([]);
+              setCanvasTranscript('');
               canvasLLM.reset();
             }}
           />
