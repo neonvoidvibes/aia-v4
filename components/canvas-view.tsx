@@ -36,7 +36,7 @@ export default function CanvasView({ depth }: CanvasViewProps) {
       >
         {/* Headline placeholder */}
         <div className="pointer-events-none select-none px-8 text-center">
-          <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
+          <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
             {welcomeText}
             <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
           </h1>
@@ -63,7 +63,7 @@ export default function CanvasView({ depth }: CanvasViewProps) {
             <span
               className={cn(
                 "absolute inset-[6px] rounded-full",
-                isPressing ? "bg-white/40 canvas-ptt-pulse" : "opacity-0"
+                isPressing ? "bg-white/80 canvas-ptt-pulse" : "opacity-0"
               )}
             />
           </button>
@@ -71,9 +71,18 @@ export default function CanvasView({ depth }: CanvasViewProps) {
 
         {/* Depth label */}
         <div className="absolute top-4 right-4">
-          <div className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white/50">
+          <button
+            type="button"
+            onClick={() => {
+              const depths: Depth[] = ["mirror", "lens", "portal"];
+              const currentIndex = depths.indexOf(depth);
+              const nextIndex = (currentIndex + 1) % depths.length;
+              onDepthChange?.(depths[nextIndex]);
+            }}
+            className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white/50 hover:text-white/70 transition-colors cursor-pointer"
+          >
             {depth.toUpperCase()}
-          </div>
+          </button>
         </div>
       </div>
 
