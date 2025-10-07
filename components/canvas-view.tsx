@@ -12,10 +12,22 @@ export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/river_photo_01.png";
 interface CanvasViewProps {
   depth: Depth;
   onDepthChange?: (depth: Depth) => void;
+  llmOutput?: string;
+  isStreaming?: boolean;
+  onPTTPress?: () => void;
+  onPTTRelease?: () => void;
+  isPTTActive?: boolean;
 }
 
-export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
-  const [isPressing, setIsPressing] = useState(false);
+export default function CanvasView({
+  depth,
+  onDepthChange,
+  llmOutput = "",
+  isStreaming = false,
+  onPTTPress,
+  onPTTRelease,
+  isPTTActive = false
+}: CanvasViewProps) {
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
   const [showChevrons, setShowChevrons] = useState(false);
@@ -27,10 +39,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   const welcomeConfig = currentTheme?.welcomeMessage || G_DEFAULT_WELCOME_MESSAGE;
   const welcomeText = welcomeConfig.text || G_DEFAULT_WELCOME_MESSAGE.text;
 
-  // Placeholder for LLM output (will be replaced with actual output)
-  // const llmOutput = "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.";
-  const llmOutput = "";
-  const hasLlmOutput = llmOutput.length > 0; // Will be controlled by actual LLM state
+  const hasLlmOutput = llmOutput.length > 0;
 
   // Check scroll position to show/hide chevrons
   const checkScroll = React.useCallback(() => {
@@ -71,6 +80,18 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
     }
     return () => clearTimeout(timeoutId);
   }, [checkScroll, welcomeText]);
+
+  // Auto-scroll to bottom when new content arrives during streaming
+  React.useEffect(() => {
+    if (isStreaming && hasLlmOutput && textContainerRef.current) {
+      const container = textContainerRef.current;
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
+      checkScroll();
+    }
+  }, [llmOutput, isStreaming, hasLlmOutput, checkScroll]);
 
   const scrollToPage = (direction: 'up' | 'down') => {
     const container = textContainerRef.current;
@@ -113,7 +134,6 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
               <div className="flex items-center justify-center flex-1 max-w-4xl text-center pointer-events-none">
                 <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
                   {welcomeText}
-                  <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
                 </h1>
               </div>
             ) : (
@@ -131,7 +151,11 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
               >
                 <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
                   {llmOutput}
-                  <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
+                  {/* Show blinking cursor during streaming */}
+                  <span className={cn(
+                    "inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor",
+                    isStreaming ? "" : "hidden"
+                  )} />
                 </h1>
               </div>
             )}
@@ -203,15 +227,21 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
         <button
           type="button"
           aria-label="Push to talk"
-          onMouseDown={() => setIsPressing(true)}
-          onMouseUp={() => setIsPressing(false)}
-          onMouseLeave={() => setIsPressing(false)}
-          onTouchStart={() => setIsPressing(true)}
-          onTouchEnd={() => setIsPressing(false)}
+          onMouseDown={() => onPTTPress?.()}
+          onMouseUp={() => onPTTRelease?.()}
+          onMouseLeave={() => onPTTRelease?.()}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            onPTTPress?.();
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            onPTTRelease?.();
+          }}
           className={cn(
             "relative h-12 w-12 md:h-14 md:w-14 rounded-full",
             "ring-4 ring-white/40",
-            isPressing ? "scale-[1.05]" : "scale-100",
+            isPTTActive ? "scale-[1.05]" : "scale-100",
             "transition-transform duration-100 ease-out",
             "bg-white/5"
           )}
@@ -219,7 +249,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
           <span
             className={cn(
               "absolute inset-[6px] rounded-full",
-              isPressing ? "bg-white/80 canvas-ptt-pulse" : "opacity-0"
+              isPTTActive ? "bg-white/80 canvas-ptt-pulse" : "opacity-0"
             )}
           />
         </button>

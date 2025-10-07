@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocalization } from "@/context/LocalizationContext";
 import enTranslations from "@/lib/localization/en.json";
+import { useCanvasLLM } from "@/hooks/use-canvas-llm";
 // Use both Dropdown and Sheet components
 import {
   DropdownMenu,
@@ -208,6 +209,13 @@ function HomeContent() {
   // State for view switching and layout
   const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe" | "record">("chat");
   const [canvasDepth, setCanvasDepth] = useState<'mirror' | 'lens' | 'portal'>('mirror');
+
+  // Canvas-specific state
+  const [canvasLlmOutput, setCanvasLlmOutput] = useState('');
+  const [canvasIsStreaming, setCanvasIsStreaming] = useState(false);
+  const [canvasTranscript, setCanvasTranscript] = useState('');
+  const [isCanvasPTTActive, setIsCanvasPTTActive] = useState(false);
+
   const layoutStyle = currentView === "canvas"
     ? ({
         backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
@@ -286,6 +294,27 @@ function HomeContent() {
   const [globalRecordingStatus, setGlobalRecordingStatus] = useState<GlobalRecordingStatus>({
     isRecording: false,
     type: null,
+  });
+
+  // Canvas LLM hook
+  const canvasLLM = useCanvasLLM({
+    agentName: pageAgentName,
+    depth: canvasDepth,
+    onStart: () => {
+      setCanvasIsStreaming(true);
+      setCanvasLlmOutput('');
+    },
+    onChunk: (chunk: string) => {
+      setCanvasLlmOutput(prev => prev + chunk);
+    },
+    onComplete: (fullText: string) => {
+      setCanvasIsStreaming(false);
+      setCanvasLlmOutput(fullText);
+    },
+    onError: (error: string) => {
+      setCanvasIsStreaming(false);
+      toast.error(`Canvas LLM error: ${error}`);
+    }
   });
 
   const eventLabel = useCallback((e?: string | null) => (!e || e === '0000') ? 'Shared' : e, []);
@@ -2753,7 +2782,25 @@ function HomeContent() {
             />
         </div>
         <div className={currentView === "canvas" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
-          <CanvasView depth={canvasDepth} onDepthChange={setCanvasDepth} />
+          <CanvasView
+            depth={canvasDepth}
+            onDepthChange={setCanvasDepth}
+            llmOutput={canvasLlmOutput}
+            isStreaming={canvasIsStreaming}
+            isPTTActive={isCanvasPTTActive}
+            onPTTPress={() => {
+              setIsCanvasPTTActive(true);
+              // TODO: Start audio recording here
+              console.log('Canvas PTT pressed - start recording');
+            }}
+            onPTTRelease={() => {
+              setIsCanvasPTTActive(false);
+              // TODO: Stop recording, get transcript, and stream to LLM
+              console.log('Canvas PTT released - stop recording and process');
+              // Placeholder: simulate getting transcript and calling LLM
+              // In real implementation, this will come from the audio recording system
+            }}
+          />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>
