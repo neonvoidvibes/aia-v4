@@ -173,6 +173,12 @@ function HomeContent() {
     }
   }, [])
 
+  // Preload canvas background image
+  useEffect(() => {
+    const img = new Image();
+    img.src = CANVAS_BACKGROUND_SRC;
+  }, []);
+
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState("settings");
@@ -201,7 +207,7 @@ function HomeContent() {
 
   // State for view switching and layout
   const [currentView, setCurrentView] = useState<"chat" | "canvas" | "transcribe" | "record">("chat");
-  const canvasDepth: 'mirror' = 'mirror';
+  const [canvasDepth, setCanvasDepth] = useState<'mirror' | 'lens' | 'portal'>('mirror');
   const layoutStyle = currentView === "canvas"
     ? ({
         backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
@@ -2747,7 +2753,7 @@ function HomeContent() {
             />
         </div>
         <div className={currentView === "canvas" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
-          <CanvasView depth={canvasDepth} />
+          <CanvasView depth={canvasDepth} onDepthChange={setCanvasDepth} />
         </div>
         <div className={currentView === "transcribe" ? "flex flex-col flex-1" : "hidden"}>
           <div className="flex flex-col" style={{ height: 'calc(100vh - var(--header-height) - var(--input-area-height))' }}>

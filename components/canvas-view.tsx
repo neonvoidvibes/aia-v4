@@ -14,14 +14,15 @@ interface CanvasViewProps {
   onDepthChange?: (depth: Depth) => void;
 }
 
-export default function CanvasView({ depth }: CanvasViewProps) {
+export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   const [isPressing, setIsPressing] = useState(false);
   const { theme } = useTheme();
 
   // Find the current theme configuration
   const currentTheme = predefinedThemes.find((t) => t.className === theme);
   const welcomeConfig = currentTheme?.welcomeMessage || G_DEFAULT_WELCOME_MESSAGE;
-  const welcomeText = welcomeConfig.text || G_DEFAULT_WELCOME_MESSAGE.text;
+  // const welcomeText = welcomeConfig.text || G_DEFAULT_WELCOME_MESSAGE.text;
+  const welcomeText = "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.";
 
   return (
     <div className="relative flex flex-1 items-center justify-center p-4">
@@ -35,7 +36,7 @@ export default function CanvasView({ depth }: CanvasViewProps) {
         )}
       >
         {/* Headline placeholder */}
-        <div className="pointer-events-none select-none px-8 text-center">
+        <div className="pointer-events-none select-none px-12 py-16 text-center max-w-4xl">
           <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
             {welcomeText}
             <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
