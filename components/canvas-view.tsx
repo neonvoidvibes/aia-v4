@@ -256,14 +256,14 @@ export default function CanvasView({
             </button>
           </div>
 
-          {/* Reset button - bottom right */}
-          <div className="absolute bottom-4 right-4">
+          {/* Reset button - horizontally aligned with chevrons */}
+          <div className="absolute" style={{ right: '1.75rem', bottom: 'calc(1rem + 4px)' }}>
             <button
               type="button"
               onClick={() => {
                 onReset?.();
               }}
-              className="text-white/50 hover:text-white/70 transition-colors cursor-pointer"
+              className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
               aria-label="Reset canvas"
             >
               <svg
@@ -272,15 +272,11 @@ export default function CanvasView({
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
-                strokeLinejoin="round"
+                strokeDasharray="1 3.5"
                 viewBox="0 0 24 24"
               >
-                {/* Circle */}
-                <circle cx="12" cy="12" r="10" />
-                {/* Counterclockwise arrow arc */}
-                <path d="M8 12 A4 4 0 1 1 12 8" />
-                {/* Arrow head pointing left */}
-                <path d="M8 12 L11 9 M8 12 L11 15" />
+                {/* Dotted circle */}
+                <circle cx="12" cy="12" r="9" />
               </svg>
             </button>
           </div>
