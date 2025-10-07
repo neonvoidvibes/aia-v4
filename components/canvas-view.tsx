@@ -18,6 +18,7 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   const [isPressing, setIsPressing] = useState(false);
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
+  const [showChevrons, setShowChevrons] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [canScrollUp, setCanScrollUp] = useState(false);
 
@@ -33,10 +34,11 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
     if (!container) return;
 
     const { scrollTop, scrollHeight, clientHeight } = container;
-    const hasScroll = scrollHeight > clientHeight + 10;
-    const isAtTop = scrollTop <= 10;
-    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+    const hasScroll = scrollHeight > clientHeight + 5;
+    const isAtTop = scrollTop <= 5;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
 
+    setShowChevrons(hasScroll);
     setCanScrollUp(hasScroll && !isAtTop);
     setCanScrollDown(hasScroll && !isAtBottom);
   }, []);
@@ -73,118 +75,126 @@ export default function CanvasView({ depth, onDepthChange }: CanvasViewProps) {
   };
 
   return (
-    <div className="relative flex flex-1 items-center justify-center p-4">
-      <div
-        className={cn(
-          "relative w-full max-w-5xl aspect-[16/9] max-h-full",
-          "rounded-[1.5rem] bg-white/10 dark:bg-black/20",
-          "backdrop-blur-md border border-white/20 shadow-2xl",
-          "-translate-y-[33px]",
-          "flex flex-col overflow-hidden"
-        )}
-      >
-        {/* Text content area with scroll - absolute positioning to not affect layout */}
-        <div className="absolute inset-0 flex items-center justify-center px-8 pt-16 pb-24">
-          {/* Scrollable text container */}
-          <div
-            ref={textContainerRef}
-            className="overflow-y-auto overflow-x-hidden scrollbar-hide px-12 py-4 text-center pointer-events-none flex-1 max-w-4xl"
-            onWheel={(e) => e.preventDefault()}
-            onTouchMove={(e) => e.preventDefault()}
-            style={{
-              WebkitOverflowScrolling: 'auto',
-              maskImage: 'linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)'
-            }}
-          >
-            <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
-              {welcomeText}
-              <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
-            </h1>
-          </div>
-
-          {/* Chevron controls - positioned to the right of text */}
-          <div className="flex flex-col items-center gap-2 ml-4 pointer-events-auto z-10">
-            {/* Up chevron */}
-            <button
-              type="button"
-              onClick={() => canScrollUp && scrollToPage('up')}
-              className={cn(
-                "transition-all",
-                canScrollUp
-                  ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
-                  : "text-white/20 opacity-30 cursor-not-allowed"
-              )}
-              aria-label="Scroll up"
-              disabled={!canScrollUp}
+    <div className="relative flex flex-1 flex-col items-center p-4" style={{ minHeight: 0 }}>
+      {/* Container wrapper to maintain aspect ratio and positioning */}
+      <div className="relative w-full flex-1 flex items-center justify-center" style={{ minHeight: 0 }}>
+        <div
+          className={cn(
+            "relative w-full max-w-5xl",
+            "rounded-[1.5rem] bg-white/100 dark:bg-black/0",
+            "backdrop-blur-xl border border-white/20 shadow-2xl",
+            "flex flex-col overflow-hidden"
+          )}
+          style={{
+            aspectRatio: '16/9',
+            maxHeight: 'calc(100% - 100px)'
+          }}
+        >
+          {/* Text content area with scroll - absolute positioning to not affect layout */}
+          <div className="absolute inset-0 flex items-center justify-center px-8 pt-16 pb-16">
+            {/* Scrollable text container */}
+            <div
+              ref={textContainerRef}
+              className="overflow-y-auto overflow-x-hidden scrollbar-hide px-2 py-4 text-center pointer-events-none flex-1 max-w-4xl"
+              onWheel={(e) => e.preventDefault()}
+              onTouchMove={(e) => e.preventDefault()}
+              style={{
+                WebkitOverflowScrolling: 'auto',
+                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 8%, black 92%, rgba(0,0,0,0.6) 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 8%, black 92%, rgba(0,0,0,0.6) 100%)'
+              }}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-              </svg>
-            </button>
+              <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
+                {welcomeText}
+                <span className="hidden inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor" />
+              </h1>
+            </div>
 
-            {/* Down chevron */}
-            <button
-              type="button"
-              onClick={() => canScrollDown && scrollToPage('down')}
-              className={cn(
-                "transition-all",
-                canScrollDown
-                  ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
-                  : "text-white/20 opacity-30 cursor-not-allowed"
-              )}
-              aria-label="Scroll down"
-              disabled={!canScrollDown}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </div>
-        </div>
+            {/* Chevron controls - positioned to the right of text */}
+            {showChevrons && (
+              <div className="flex flex-col items-center gap-2 ml-4 mr-8 pointer-events-auto z-10">
+                {/* Up chevron */}
+                <button
+                  type="button"
+                  onClick={() => canScrollUp && scrollToPage('up')}
+                  className={cn(
+                    "transition-all",
+                    canScrollUp
+                      ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
+                      : "text-white/20 opacity-30 cursor-not-allowed"
+                  )}
+                  aria-label="Scroll up"
+                  disabled={!canScrollUp}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
 
-        {/* Push-to-talk ring button */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-          <button
-            type="button"
-            aria-label="Push to talk"
-            onMouseDown={() => setIsPressing(true)}
-            onMouseUp={() => setIsPressing(false)}
-            onMouseLeave={() => setIsPressing(false)}
-            onTouchStart={() => setIsPressing(true)}
-            onTouchEnd={() => setIsPressing(false)}
-            className={cn(
-              "relative h-12 w-12 md:h-14 md:w-14 rounded-full",
-              "ring-4 ring-white/40",
-              isPressing ? "scale-[1.05]" : "scale-100",
-              "transition-transform duration-100 ease-out",
-              "bg-white/5"
+                {/* Down chevron */}
+                <button
+                  type="button"
+                  onClick={() => canScrollDown && scrollToPage('down')}
+                  className={cn(
+                    "transition-all",
+                    canScrollDown
+                      ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
+                      : "text-white/20 opacity-30 cursor-not-allowed"
+                  )}
+                  aria-label="Scroll down"
+                  disabled={!canScrollDown}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
             )}
-          >
-            <span
-              className={cn(
-                "absolute inset-[6px] rounded-full",
-                isPressing ? "bg-white/80 canvas-ptt-pulse" : "opacity-0"
-              )}
-            />
-          </button>
-        </div>
+          </div>
 
-        {/* Depth label */}
-        <div className="absolute top-4 right-4">
-          <button
-            type="button"
-            onClick={() => {
-              const depths: Depth[] = ["mirror", "lens", "portal"];
-              const currentIndex = depths.indexOf(depth);
-              const nextIndex = (currentIndex + 1) % depths.length;
-              onDepthChange?.(depths[nextIndex]);
-            }}
-            className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white/50 hover:text-white/70 transition-colors cursor-pointer"
-          >
-            {depth.toUpperCase()}
-          </button>
+          {/* Depth label */}
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={() => {
+                const depths: Depth[] = ["mirror", "lens", "portal"];
+                const currentIndex = depths.indexOf(depth);
+                const nextIndex = (currentIndex + 1) % depths.length;
+                onDepthChange?.(depths[nextIndex]);
+              }}
+              className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white/50 hover:text-white/70 transition-colors cursor-pointer"
+            >
+              {depth.toUpperCase()}
+            </button>
+          </div>
         </div>
+      </div>
+
+      {/* Push-to-talk ring button - positioned below container with fixed spacing */}
+      <div className="flex-shrink-0 py-6 flex items-center justify-center">
+        <button
+          type="button"
+          aria-label="Push to talk"
+          onMouseDown={() => setIsPressing(true)}
+          onMouseUp={() => setIsPressing(false)}
+          onMouseLeave={() => setIsPressing(false)}
+          onTouchStart={() => setIsPressing(true)}
+          onTouchEnd={() => setIsPressing(false)}
+          className={cn(
+            "relative h-12 w-12 md:h-14 md:w-14 rounded-full",
+            "ring-4 ring-white/40",
+            isPressing ? "scale-[1.05]" : "scale-100",
+            "transition-transform duration-100 ease-out",
+            "bg-white/5"
+          )}
+        >
+          <span
+            className={cn(
+              "absolute inset-[6px] rounded-full",
+              isPressing ? "bg-white/80 canvas-ptt-pulse" : "opacity-0"
+            )}
+          />
+        </button>
       </div>
 
       {/* Local styles for cursor + pulse + scrollbar hide */}
