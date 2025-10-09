@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/agents/memory-prefs
  * Updates memory preferences for an agent (groups_read_mode)
- * Body: { agent: string, groups_read_mode: 'latest' | 'none' | 'all' }
+ * Body: { agent: string, groups_read_mode: 'latest' | 'none' | 'all' | 'breakout' }
  */
 export async function POST(req: NextRequest) {
   const requestId = randomUUID();
@@ -101,9 +101,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing agent parameter" }, { status: 400 });
     }
 
-    if (!['latest', 'none', 'all'].includes(groups_read_mode)) {
+    if (!['latest', 'none', 'all', 'breakout'].includes(groups_read_mode)) {
       log.warn("Invalid groups_read_mode value", { value: groups_read_mode });
-      return NextResponse.json({ error: "groups_read_mode must be 'latest', 'none', or 'all'" }, { status: 400 });
+      return NextResponse.json({ error: "groups_read_mode must be 'latest', 'none', 'all', or 'breakout'" }, { status: 400 });
     }
 
     // --- Update agents table ---

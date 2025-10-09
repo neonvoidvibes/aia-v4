@@ -1510,8 +1510,8 @@ function HomeContent() {
         console.error('Failed to save groups read mode to Supabase');
         toast.error('Failed to save preference');
       } else {
-        const modeText = mode === 'none' ? 'disabled' : mode === 'latest' ? 'latest' : 'all';
-        toast.success(`Groups read mode: ${modeText}`);
+        const modeText = mode === 'none' ? 'disabled' : mode === 'latest' ? 'latest' : mode === 'all' ? 'all' : 'breakout';
+        toast.success(`Transcript read mode: ${modeText}`);
       }
     } catch (error) {
       console.error('Error saving groups read mode:', error);
@@ -2459,6 +2459,7 @@ function HomeContent() {
         // --- Groups read feature props ---
         groupsReadMode={groupsReadMode}
         allowedGroupEventsCount={(availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'group').length}
+        allowedBreakoutEventsCount={(availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'breakout').length}
       />
       
       {/* New Chat icon positioned right of sidebar */}
@@ -2719,6 +2720,7 @@ function HomeContent() {
               // --- Groups read feature props ---
               groupsReadMode={groupsReadMode}
               allowedGroupEventsCount={(availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'group').length}
+              allowedBreakoutEventsCount={(availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'breakout').length}
               onOpenLatestTranscript={async () => {
                 try {
                   if (!pageAgentName || !pageEventId) return;
@@ -3109,7 +3111,7 @@ function HomeContent() {
                           <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>Latest</ToggleGroupItem>
                           <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>None</ToggleGroupItem>
                           <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>All</ToggleGroupItem>
-                          <ToggleGroupItem value="breakout" aria-label="Breakout" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>Breakout</ToggleGroupItem>
+                          <ToggleGroupItem value="breakout" aria-label="Breakout" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000' || ((availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'breakout').length === 0)}>Breakout</ToggleGroupItem>
                         </ToggleGroup>
                       </div>
                       <div className="pb-3 space-y-2 w-full">

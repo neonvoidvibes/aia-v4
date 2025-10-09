@@ -467,8 +467,9 @@ interface SimpleChatInterfaceProps {
   onOpenSettings?: () => void;
   onOpenLatestTranscript?: () => void;
   // Groups read feature
-  groupsReadMode?: 'latest' | 'none' | 'all';
+  groupsReadMode?: 'latest' | 'none' | 'all' | 'breakout';
   allowedGroupEventsCount?: number;
+  allowedBreakoutEventsCount?: number;
 }
 
 export interface ChatInterfaceHandle {
@@ -527,7 +528,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript, groupsReadMode = 'none', allowedGroupEventsCount = 0 }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript, groupsReadMode = 'none', allowedGroupEventsCount = 0, allowedBreakoutEventsCount = 0 }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const { t } = useLocalization();
 
@@ -4422,10 +4423,11 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                           {/* Inline listening indicator + optional count + timer (active only) */}
                           {(() => {
                             const active = (globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording) || isBrowserRecording;
-                            const hasGroupsEnabled = groupsReadMode !== 'none' && eventId === '0000' && allowedGroupEventsCount > 0;
+                            const hasGroupsEnabled = groupsReadMode !== 'none' && groupsReadMode !== 'breakout' && eventId === '0000' && allowedGroupEventsCount > 0;
+                            const hasBreakoutsEnabled = groupsReadMode === 'breakout' && eventId === '0000' && allowedBreakoutEventsCount > 0;
 
-                            // Hide only if both transcript and memorized listening are disabled AND groups mode is disabled
-                            if (!active && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled) return null;
+                            // Hide only if both transcript and memorized listening are disabled AND groups/breakouts mode is disabled
+                            if (!active && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled && !hasBreakoutsEnabled) return null;
                             const parts: string[] = [];
                             const total = Math.max(0, listeningInfo.total);
                             const more = Math.max(0, total - 1);
@@ -4437,11 +4439,25 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               // Active recording
                               // Rule: If LATEST transcript is included, show "live", otherwise show "previous"
                               const includesLatest = transcriptListenMode === 'latest' || transcriptListenMode === 'all' || includesLatestFromSome;
-                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none' || hasGroupsEnabled;
+                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none' || hasGroupsEnabled || hasBreakoutsEnabled;
                               const platform = isMobile ? 'mobile' : 'desktop';
 
-                              if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled) {
+                              if (transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled && !hasBreakoutsEnabled) {
                                 parts.push('Not listening');
+                              } else if (hasBreakoutsEnabled && transcriptListenMode === 'none') {
+                                // Breakouts enabled, no 0000 raw transcripts (may have summarized)
+                                const memCount = savedTranscriptMemoryMode === 'some'
+                                  ? Object.values(individualMemoryToggleStates || {}).filter(Boolean).length
+                                  : savedTranscriptMemoryMode === 'all'
+                                    ? (savedTranscriptSummaries?.length || 0)
+                                    : 0;
+                                const breakoutCount = allowedBreakoutEventsCount;
+                                const totalCount = memCount + breakoutCount;
+                                const base = t(`controlsMenu.statusText.${platform}.listeningLive`);
+                                const statusText = totalCount > 0
+                                  ? `${base.replace('Listening live', 'Listening to breakouts').replace('Live', 'Breakouts')} +${totalCount}`
+                                  : base.replace('Listening live', 'Listening to breakouts').replace('Live', 'Breakouts');
+                                parts.push(statusText);
                               } else if (hasGroupsEnabled && transcriptListenMode === 'none') {
                                 // Groups enabled, no 0000 raw transcripts (may have summarized)
                                 const memCount = savedTranscriptMemoryMode === 'some'
@@ -4458,13 +4474,15 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 parts.push(statusText);
                               } else if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningLive`);
-                                // Add "groups" if groups read mode is enabled
-                                if (groupsReadMode !== 'none' && eventId === '0000' && allowedGroupEventsCount > 0) {
+                                // Add "breakouts" if breakout mode is enabled, or "groups" if groups read mode is enabled
+                                if (hasBreakoutsEnabled) {
+                                  base = base.replace('live', 'live breakouts');
+                                } else if (hasGroupsEnabled) {
                                   base = base.replace('live', 'live groups');
                                 }
-                                // Calculate total count: memorized transcripts + group events (if groups mode enabled)
-                                const groupCount = (groupsReadMode !== 'none' && eventId === '0000') ? allowedGroupEventsCount : 0;
-                                const totalCount = more + groupCount;
+                                // Calculate total count: memorized transcripts + breakout/group events
+                                const extraCount = hasBreakoutsEnabled ? allowedBreakoutEventsCount : (hasGroupsEnabled ? allowedGroupEventsCount : 0);
+                                const totalCount = more + extraCount;
                                 const statusText = totalCount > 0
                                   ? `${base} +${totalCount}`
                                   : base;
@@ -4482,11 +4500,25 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                               // Not actively recording
                               // Rule: If LATEST transcript is included, show "latest", otherwise show "previous"
                               const includesLatest = transcriptListenMode === 'latest' || transcriptListenMode === 'all' || includesLatestFromSome;
-                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none' || hasGroupsEnabled;
+                              const hasAnySelection = transcriptListenMode !== 'none' || savedTranscriptMemoryMode !== 'none' || hasGroupsEnabled || hasBreakoutsEnabled;
                               const platform = isMobile ? 'mobile' : 'desktop';
 
-                              // Check groups case when 0000 transcripts are disabled but groups enabled
-                              if (hasGroupsEnabled && transcriptListenMode === 'none') {
+                              // Check breakouts case when 0000 transcripts are disabled but breakouts enabled
+                              if (hasBreakoutsEnabled && transcriptListenMode === 'none') {
+                                // Breakouts enabled, no 0000 raw transcripts (may have summarized)
+                                const memCount = savedTranscriptMemoryMode === 'some'
+                                  ? Object.values(individualMemoryToggleStates || {}).filter(Boolean).length
+                                  : savedTranscriptMemoryMode === 'all'
+                                    ? (savedTranscriptSummaries?.length || 0)
+                                    : 0;
+                                const breakoutCount = allowedBreakoutEventsCount;
+                                const totalCount = memCount + breakoutCount;
+                                const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const statusText = totalCount > 0
+                                  ? `${base.replace('previous', 'breakouts')} +${totalCount}`
+                                  : base.replace('previous', 'breakouts');
+                                parts.push(statusText);
+                              } else if (hasGroupsEnabled && transcriptListenMode === 'none') {
                                 // Groups enabled, no 0000 raw transcripts (may have summarized)
                                 const memCount = savedTranscriptMemoryMode === 'some'
                                   ? Object.values(individualMemoryToggleStates || {}).filter(Boolean).length
@@ -4502,13 +4534,15 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                 parts.push(statusText);
                               } else if (includesLatest) {
                                 let base = t(`controlsMenu.statusText.${platform}.listeningToLatest`);
-                                // Add "groups" if groups read mode is enabled
-                                if (groupsReadMode !== 'none' && eventId === '0000' && allowedGroupEventsCount > 0) {
+                                // Add "breakouts" if breakout mode is enabled, or "groups" if groups read mode is enabled
+                                if (hasBreakoutsEnabled) {
+                                  base = base.replace('latest', 'latest breakouts');
+                                } else if (hasGroupsEnabled) {
                                   base = base.replace('latest', 'latest groups');
                                 }
-                                // Calculate total count: memorized transcripts + group events (if groups mode enabled)
-                                const groupCount = (groupsReadMode !== 'none' && eventId === '0000') ? allowedGroupEventsCount : 0;
-                                const totalCount = more + groupCount;
+                                // Calculate total count: memorized transcripts + breakout/group events
+                                const extraCount = hasBreakoutsEnabled ? allowedBreakoutEventsCount : (hasGroupsEnabled ? allowedGroupEventsCount : 0);
+                                const totalCount = more + extraCount;
                                 const statusText = totalCount > 0
                                   ? `${base} +${totalCount}`
                                   : base;

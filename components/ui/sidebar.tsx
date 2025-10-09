@@ -78,8 +78,9 @@ interface SidebarProps {
   workspaceSlug?: string;
   workspaceName?: string;
   // Groups read feature
-  groupsReadMode?: 'latest' | 'none' | 'all';
+  groupsReadMode?: 'latest' | 'none' | 'all' | 'breakout';
   allowedGroupEventsCount?: number;
+  allowedBreakoutEventsCount?: number;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -111,6 +112,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   workspaceName,
   groupsReadMode = 'none',
   allowedGroupEventsCount = 0,
+  allowedBreakoutEventsCount = 0,
 }) => {
   const isMobile = useIsMobile();
   const { t, language } = useLocalization();
