@@ -4198,7 +4198,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                             </motion.div>
                           )}
                           {/* Retry affordance when LLM failed to respond for this user message */}
-                          {isUser && message.id === retryForMessageId && (
+                          {/* Only show if this is the last message overall, not just last user message */}
+                          {isUser && message.id === retryForMessageId && index === combinedMessages.length - 1 && (
                             <motion.div
                               initial={{ opacity: 0, y: 5 }}
                               animate={{ opacity: 1, y: 0 }}
