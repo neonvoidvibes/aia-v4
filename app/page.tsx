@@ -56,6 +56,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Slider } from "@/components/ui/slider";
 import { VADSettings, type VADAggressiveness } from "@/components/VADSettings";
 import AgentSelectorMenu from "@/components/ui/agent-selector";
+import { EventSelectorContent } from "@/components/ui/event-selector";
 import { MODEL_GROUPS } from "@/lib/model-map";
 import AgentDashboard from "@/components/agent-dashboard"; // New import
 import ConsentView from "@/components/consent-view"; // Phase 3 import
@@ -202,6 +203,7 @@ function HomeContent() {
   // Event menu state
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
   const [eventTypes, setEventTypes] = useState<Record<string, string>>({});
+  const [eventBreakout, setEventBreakout] = useState<Record<string, boolean>>({});
   const [, setAllowedEvents] = useState<string[] | null>(null);
   const [, setPersonalEventId] = useState<string | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
@@ -521,6 +523,27 @@ function HomeContent() {
     return Array.from(new Set(ordered));
   }, []);
 
+  /**
+   * Split events into main vs breakout sections for the picker.
+   * - Keep the existing high-level order: [personal..., '0000', others...]
+   * - Within each section, we'll carve out breakout=true into a separate array.
+   * - We render a horizontal separator iff there is at least one breakout event.
+   */
+  const partitionedEvents = useMemo(() => {
+    const list = availableEvents ?? [];
+    const main: string[] = [];
+    const breakout: string[] = [];
+    for (const id of list) {
+      if (eventBreakout[id]) breakout.push(id);
+      else main.push(id);
+    }
+    // alphabetical inside each section by label
+    const label = (id: string) => labelForEvent(id).toLowerCase();
+    main.sort((a, b) => label(a).localeCompare(label(b)));
+    breakout.sort((a, b) => label(a).localeCompare(label(b)));
+    return { main, breakout };
+  }, [availableEvents, eventBreakout, labelForEvent]);
+
   // Proactively fetch events when agent is available (prevents hidden dropdown due to empty chat history)
   useEffect(() => {
     if (pageAgentName) {
@@ -560,6 +583,7 @@ function HomeContent() {
     setIsLoadingEvents(true);
     setEventFetchError(null);
     let cacheEventTypes: Record<string, string> | undefined;
+    let cacheEventBreakout: Record<string, boolean> | undefined;
     let cacheAllowedEvents: string[] | undefined;
     let cachePersonalEventId: string | null | undefined;
     try {
@@ -571,6 +595,7 @@ function HomeContent() {
             const cached = JSON.parse(raw) as {
               events: string[];
               eventTypes?: Record<string, string>;
+              eventBreakout?: Record<string, boolean>;
               allowedEvents?: string[];
               personalEventId?: string | null;
               ts: number;
@@ -580,8 +605,11 @@ function HomeContent() {
               if (fresh) {
                 setAvailableEvents(cached.events);
                 setEventTypes(cached.eventTypes || {});
+                setEventBreakout(cached.eventBreakout || {});
                 setAllowedEvents(Array.isArray(cached.allowedEvents) ? cached.allowedEvents : null);
                 setPersonalEventId(cached.personalEventId ?? null);
+                cacheEventTypes = cached.eventTypes;
+                cacheEventBreakout = cached.eventBreakout;
               }
             }
           }
@@ -593,18 +621,39 @@ function HomeContent() {
       let events: string[] = [];
       const res = await fetch(`/api/s3-proxy/list-events?agentName=${encodeURIComponent(pageAgentName)}`);
       if (res.ok) {
-        const data: { events?: string[]; eventTypes?: Record<string, string>; allowedEvents?: string[]; personalEventId?: string | null } = await res.json();
+        const data: {
+          events?: string[];
+          eventTypes?: Record<string, string>;
+          eventBreakout?: Record<string, boolean>;
+          allowedEvents?: string[];
+          personalEventId?: string | null;
+        } = await res.json();
         const incomingEvents = Array.from(new Set([...(data.events || [])]));
         const incomingTypes = (data.eventTypes && typeof data.eventTypes === 'object') ? data.eventTypes : {};
         events = normalizeEventsOrder(incomingEvents, incomingTypes);
-        const allowedList = Array.isArray(data.allowedEvents) ? data.allowedEvents : null;
-        setEventTypes(incomingTypes);
-        setAllowedEvents(allowedList);
+        const okTypes = data.eventTypes ?? cacheEventTypes ?? {};
+        const okBreakout = data.eventBreakout ?? cacheEventBreakout ?? {};
+
+        setAvailableEvents(events);
+        setEventTypes(okTypes);
+        setEventBreakout(okBreakout);
+        setAllowedEvents(Array.isArray(data.allowedEvents) ? data.allowedEvents : null);
         setPersonalEventId(data.personalEventId ?? null);
-        cacheEventTypes = incomingTypes;
-        cacheAllowedEvents = allowedList ?? undefined;
-        cachePersonalEventId = data.personalEventId ?? null;
         ok = true;
+
+        // Update cache
+        if (eventsCacheKey) {
+          try {
+            localStorage.setItem(eventsCacheKey, JSON.stringify({
+              events,
+              eventTypes: okTypes,
+              eventBreakout: okBreakout,
+              allowedEvents: data.allowedEvents ?? null,
+              personalEventId: data.personalEventId ?? null,
+              ts: Date.now(),
+            }));
+          } catch {}
+        }
       } else if (res.status === 404) {
         // Fallback for older backends: list by prefix and derive event IDs
         const fallbackPrefix = `organizations/river/agents/${pageAgentName}/events/`;
@@ -649,16 +698,6 @@ function HomeContent() {
         if (!events.includes(normalizedCurrent)) {
           const fallbackEvent = events.includes('0000') ? '0000' : (events[0] || '0000');
           router.replace(`/?agent=${encodeURIComponent(pageAgentName)}&event=${encodeURIComponent(fallbackEvent)}`);
-        }
-        if (eventsCacheKey) {
-          const cachePayload = {
-            events,
-            eventTypes: cacheEventTypes,
-            allowedEvents: cacheAllowedEvents,
-            personalEventId: cachePersonalEventId,
-            ts: Date.now(),
-          };
-          try { localStorage.setItem(eventsCacheKey, JSON.stringify(cachePayload)); } catch {}
         }
       }
     } catch (e: any) {
@@ -2513,11 +2552,18 @@ function HomeContent() {
                           <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
-                        <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                          {renderEventMenuItems()}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuContent>
+                      <EventSelectorContent
+                        currentEventId={pageEventId ?? '0000'}
+                        events={availableEvents ?? []}
+                        mainEvents={partitionedEvents.main}
+                        breakoutEvents={partitionedEvents.breakout}
+                        onChange={(v) => {
+                          const params = new URLSearchParams(searchParams.toString());
+                          params.set('event', v);
+                          router.push(`/?${params.toString()}`);
+                        }}
+                        labelForEvent={labelForEvent}
+                      />
                     </DropdownMenu>
                 ) : null}
               </div>
@@ -2537,11 +2583,18 @@ function HomeContent() {
                           <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-56" side="bottom" align="start" collisionPadding={8}>
-                        <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                          {renderEventMenuItems()}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuContent>
+                      <EventSelectorContent
+                        currentEventId={pageEventId ?? '0000'}
+                        events={availableEvents ?? []}
+                        mainEvents={partitionedEvents.main}
+                        breakoutEvents={partitionedEvents.breakout}
+                        onChange={(v) => {
+                          const params = new URLSearchParams(searchParams.toString());
+                          params.set('event', v);
+                          router.push(`/?${params.toString()}`);
+                        }}
+                        labelForEvent={labelForEvent}
+                      />
                     </DropdownMenu>
                 ) : null}
               </div>
@@ -2571,11 +2624,18 @@ function HomeContent() {
                           <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-56" side="bottom" align="end" collisionPadding={8}>
-                        <DropdownMenuRadioGroup value={pageEventId || '0000'} onValueChange={handleEventChange}>
-                          {renderEventMenuItems()}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuContent>
+                      <EventSelectorContent
+                        currentEventId={pageEventId ?? '0000'}
+                        events={availableEvents ?? []}
+                        mainEvents={partitionedEvents.main}
+                        breakoutEvents={partitionedEvents.breakout}
+                        onChange={(v) => {
+                          const params = new URLSearchParams(searchParams.toString());
+                          params.set('event', v);
+                          router.push(`/?${params.toString()}`);
+                        }}
+                        labelForEvent={labelForEvent}
+                      />
                     </DropdownMenu>
                 ) : null}
                 {(!activeUiConfig.hide_agent_selector || permissionsData?.isAdminOverride) ? (
