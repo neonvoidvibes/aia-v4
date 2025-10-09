@@ -3081,8 +3081,9 @@ function HomeContent() {
                           aria-label="Transcript listen mode"
                           id="transcript-listen-toggle-group"
                         >
-                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Latest</ToggleGroupItem>
                           <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">None</ToggleGroupItem>
+                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Latest</ToggleGroupItem>
+                          <ToggleGroupItem value="some" aria-label="Some" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled>Some</ToggleGroupItem>
                           <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">All</ToggleGroupItem>
                         </ToggleGroup>
                       </div>
@@ -3108,8 +3109,8 @@ function HomeContent() {
                           disabled={pageEventId !== '0000'}
                           id="groups-read-toggle-group"
                         >
-                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>Latest</ToggleGroupItem>
                           <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>None</ToggleGroupItem>
+                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>Latest</ToggleGroupItem>
                           <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>All</ToggleGroupItem>
                           <ToggleGroupItem value="breakout" aria-label="Breakout" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000' || ((availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'breakout').length === 0)}>Breakout</ToggleGroupItem>
                         </ToggleGroup>
