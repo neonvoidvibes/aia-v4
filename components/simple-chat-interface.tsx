@@ -4451,8 +4451,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                   : savedTranscriptMemoryMode === 'all'
                                     ? (savedTranscriptSummaries?.length || 0)
                                     : 0;
-                                const breakoutCount = allowedBreakoutEventsCount;
-                                const totalCount = memCount + breakoutCount;
+                                // Only show count if there are memorized transcripts
+                                const totalCount = memCount;
                                 const base = t(`controlsMenu.statusText.${platform}.listeningLive`);
                                 const statusText = totalCount > 0
                                   ? `${base.replace('Listening live', 'Listening to breakouts').replace('Live', 'Breakouts')} +${totalCount}`
@@ -4467,9 +4467,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                     : 0;
                                 const groupCount = allowedGroupEventsCount;
                                 const totalCount = memCount + groupCount;
-                                const base = groupsReadMode === 'latest'
-                                  ? t(`controlsMenu.statusText.${platform}.listeningLive`)
-                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const base = t(`controlsMenu.statusText.${platform}.listeningLive`);
                                 const statusText = `${base.replace('Listening live', 'Listening to groups').replace('Live', 'Groups')} +${totalCount}`;
                                 parts.push(statusText);
                               } else if (includesLatest) {
@@ -4511,8 +4509,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                   : savedTranscriptMemoryMode === 'all'
                                     ? (savedTranscriptSummaries?.length || 0)
                                     : 0;
-                                const breakoutCount = allowedBreakoutEventsCount;
-                                const totalCount = memCount + breakoutCount;
+                                // Only show count if there are memorized transcripts
+                                const totalCount = memCount;
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
                                 const statusText = totalCount > 0
                                   ? `${base.replace('previous', 'breakouts')} +${totalCount}`
@@ -4527,9 +4525,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                     : 0;
                                 const groupCount = allowedGroupEventsCount;
                                 const totalCount = memCount + groupCount;
-                                const base = groupsReadMode === 'latest'
-                                  ? t(`controlsMenu.statusText.${platform}.listeningToGroups`)
-                                  : t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
+                                const base = t(`controlsMenu.statusText.${platform}.listeningToGroups`);
                                 const statusText = `${base} +${totalCount}`;
                                 parts.push(statusText);
                               } else if (includesLatest) {
