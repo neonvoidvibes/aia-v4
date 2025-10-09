@@ -134,6 +134,9 @@ const RecordView: React.FC<RecordViewProps> = ({
   const chunkTimesliceMsRef = useRef(3000);
   const lastChunkTimeRef = useRef<number>(Date.now());
   const mediaRecorderHealthIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isRestartingMediaRecorderRef = useRef(false);
+  const mediaRecorderRestartAttemptsRef = useRef(0);
+  const MAX_MEDIARECORDER_RESTART_ATTEMPTS = 3;
 
   const tryReconnectRef = React.useRef<() => void>(() => {});
   const supabase = createClient();
@@ -598,6 +601,112 @@ const RecordView: React.FC<RecordViewProps> = ({
     flushBufferedChunks();
   }, [enqueueBufferedChunk, flushBufferedChunks, showBufferingToast, startNetworkGraceTimer]);
 
+  // Stable restartMediaRecorder callback with guard and retry limit
+  const restartMediaRecorder = useCallback(async () => {
+    // Guard: prevent concurrent restarts
+    if (isRestartingMediaRecorderRef.current) {
+      console.warn("[MediaRecorder Health] Restart already in progress, skipping.");
+      return;
+    }
+
+    // Check retry limit
+    if (mediaRecorderRestartAttemptsRef.current >= MAX_MEDIARECORDER_RESTART_ATTEMPTS) {
+      console.error(`[MediaRecorder Health] Max restart attempts (${MAX_MEDIARECORDER_RESTART_ATTEMPTS}) reached. Stopping recording.`);
+      toast.error("Recording failed after multiple restart attempts. Stopping.");
+      handleStopRecording(undefined, true);
+      return;
+    }
+
+    isRestartingMediaRecorderRef.current = true;
+    mediaRecorderRestartAttemptsRef.current++;
+
+    console.error("[MediaRecorder Health] Attempting to restart MediaRecorder...");
+    toast.error("Recording stalled - attempting restart...");
+
+    try {
+      // Stop old recorder
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try { mediaRecorderRef.current.stop(); } catch (e) {}
+      }
+
+      // Get fresh media stream
+      const freshStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = freshStream;
+      setAudioStream(freshStream);
+
+      // Add audio stream health monitoring to fresh stream
+      const audioTrack = freshStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.onended = () => {
+          console.error("[Audio Track] Track ended unexpectedly!");
+          toast.error("Microphone disconnected. Please check your audio device.");
+          handleStopRecording(undefined, true);
+        };
+
+        audioTrack.onmute = () => {
+          console.warn("[Audio Track] Track muted");
+          toast.warning("Microphone muted. Recording may be paused.");
+        };
+
+        audioTrack.onunmute = () => {
+          console.info("[Audio Track] Track unmuted");
+          toast.success("Microphone unmuted.");
+        };
+      }
+
+      // Create new MediaRecorder
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        // @ts-ignore
+        delete options.mimeType;
+      }
+
+      const newRecorder = new MediaRecorder(freshStream, options);
+      mediaRecorderRef.current = newRecorder;
+
+      // Reattach handlers
+      newRecorder.ondataavailable = (event) => {
+        lastChunkTimeRef.current = Date.now();
+        if (event.data?.size > 0) {
+          sendChunkOrBuffer(event.data);
+          onChunkBoundary();
+        }
+      };
+
+      newRecorder.onstop = () => {
+        debugLog("[MediaRecorder] onstop triggered.");
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach(track => track.stop());
+          audioStreamRef.current = null;
+        }
+        setAudioStream(null);
+        resetDetector();
+      };
+
+      newRecorder.onerror = (event) => {
+        console.error("[MediaRecorder] Error:", event);
+        toast.error('Microphone recording error.');
+        handleStopRecording(undefined, true);
+      };
+
+      // Start recording again
+      newRecorder.start(chunkTimesliceMsRef.current);
+      lastChunkTimeRef.current = Date.now();
+
+      // Success: reset retry counter
+      mediaRecorderRestartAttemptsRef.current = 0;
+
+      toast.success("Recording restarted successfully.");
+      console.info("[MediaRecorder Health] Restart successful.");
+    } catch (restartErr) {
+      console.error("[MediaRecorder Health] Failed to restart:", restartErr);
+      toast.error("Failed to restart recording. Please stop and start manually.");
+      handleStopRecording(undefined, true);
+    } finally {
+      isRestartingMediaRecorderRef.current = false;
+    }
+  }, [sendChunkOrBuffer, onChunkBoundary, resetDetector, handleStopRecording, setAudioStream]);
+
   const startBrowserMediaRecording = useCallback(async () => {
     debugLog(`[MediaRecorder] Attempting start. WS state: ${webSocketRef.current?.readyState}`);
     if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) {
@@ -672,91 +781,11 @@ const RecordView: React.FC<RecordViewProps> = ({
       // Start MediaRecorder health monitoring
       lastChunkTimeRef.current = Date.now();
       const CHUNK_TIMEOUT_MS = 15000; // 15 seconds without chunks = stalled
-      const restartMediaRecorder = async () => {
-        console.error("[MediaRecorder Health] Attempting to restart MediaRecorder...");
-        toast.error("Recording stalled - attempting restart...");
-
-        try {
-          // Stop old recorder
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-            try { mediaRecorderRef.current.stop(); } catch (e) {}
-          }
-
-          // Get fresh media stream
-          const freshStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          audioStreamRef.current = freshStream;
-          setAudioStream(freshStream);
-
-          // Add audio stream health monitoring to fresh stream
-          const audioTrack = freshStream.getAudioTracks()[0];
-          if (audioTrack) {
-            audioTrack.onended = () => {
-              console.error("[Audio Track] Track ended unexpectedly!");
-              toast.error("Microphone disconnected. Please check your audio device.");
-              handleStopRecording(undefined, true);
-            };
-
-            audioTrack.onmute = () => {
-              console.warn("[Audio Track] Track muted");
-              toast.warning("Microphone muted. Recording may be paused.");
-            };
-
-            audioTrack.onunmute = () => {
-              console.info("[Audio Track] Track unmuted");
-              toast.success("Microphone unmuted.");
-            };
-          }
-
-          // Create new MediaRecorder
-          const options = { mimeType: 'audio/webm;codecs=opus' };
-          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            // @ts-ignore
-            delete options.mimeType;
-          }
-
-          const newRecorder = new MediaRecorder(freshStream, options);
-          mediaRecorderRef.current = newRecorder;
-
-          // Reattach handlers
-          newRecorder.ondataavailable = (event) => {
-            lastChunkTimeRef.current = Date.now();
-            if (event.data?.size > 0) {
-              sendChunkOrBuffer(event.data);
-              onChunkBoundary();
-            }
-          };
-
-          newRecorder.onstop = () => {
-            debugLog("[MediaRecorder] onstop triggered.");
-            if (audioStreamRef.current) {
-              audioStreamRef.current.getTracks().forEach(track => track.stop());
-              audioStreamRef.current = null;
-            }
-            setAudioStream(null);
-            resetDetector();
-          };
-
-          newRecorder.onerror = (event) => {
-            console.error("[MediaRecorder] Error:", event);
-            toast.error('Microphone recording error.');
-            handleStopRecording(undefined, true);
-          };
-
-          // Start recording again
-          newRecorder.start(chunkTimesliceMsRef.current);
-          lastChunkTimeRef.current = Date.now();
-          toast.success("Recording restarted successfully.");
-          console.info("[MediaRecorder Health] Restart successful.");
-        } catch (restartErr) {
-          console.error("[MediaRecorder Health] Failed to restart:", restartErr);
-          toast.error("Failed to restart recording. Please stop and start manually.");
-          handleStopRecording(undefined, true);
-        }
-      };
 
       mediaRecorderHealthIntervalRef.current = setInterval(() => {
         const timeSinceLastChunk = Date.now() - lastChunkTimeRef.current;
-        if (timeSinceLastChunk > CHUNK_TIMEOUT_MS && !isStoppingRef.current) {
+        // Check if stalled and not already restarting
+        if (timeSinceLastChunk > CHUNK_TIMEOUT_MS && !isStoppingRef.current && !isRestartingMediaRecorderRef.current) {
           console.error(`[MediaRecorder Health] Stalled! No chunks for ${timeSinceLastChunk}ms`);
           restartMediaRecorder();
         }
@@ -777,7 +806,7 @@ const RecordView: React.FC<RecordViewProps> = ({
       setWsStatus('error');
       if (pendingAction === 'start') setPendingAction(null);
     }
-  }, [pendingAction, setGlobalRecordingStatus, handleStopRecording, sendChunkOrBuffer, onChunkBoundary, resetDetector]);
+  }, [pendingAction, setGlobalRecordingStatus, handleStopRecording, sendChunkOrBuffer, onChunkBoundary, resetDetector, restartMediaRecorder]);
 
   const connectWebSocket = useCallback((sessionId: string) => {
     // Stable per-tab id (already used elsewhere in the app)
@@ -952,7 +981,8 @@ const RecordView: React.FC<RecordViewProps> = ({
               const silenceDuration = messageData.silence_duration_sec || 0;
               console.warn(`[Server Warning] No audio detected for ${silenceDuration}s`);
               toast.warning(`No audio received for ${silenceDuration} seconds. Check your microphone.`, {
-                duration: 5000
+                duration: 10000, // Increased from 5000ms to 10000ms
+                id: 'server-audio-timeout' // Prevent duplicate warnings
               });
             }
             return;
@@ -1053,6 +1083,9 @@ const RecordView: React.FC<RecordViewProps> = ({
   useEffect(() => {
     const handleOnline = () => {
       console.info("[Network] Browser reports online");
+      // Dismiss the network-offline toast when connection is restored
+      toast.dismiss('network-offline');
+
       if (globalRecordingStatusRef.current.isRecording && !webSocketRef.current) {
         console.info("[Network] Recording active but WebSocket disconnected. Attempting reconnect...");
         toast.info("Network reconnected. Attempting to resume recording...");
