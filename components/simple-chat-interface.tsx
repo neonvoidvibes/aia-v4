@@ -4451,8 +4451,9 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                   : savedTranscriptMemoryMode === 'all'
                                     ? (savedTranscriptSummaries?.length || 0)
                                     : 0;
-                                // Only show count if there are memorized transcripts
-                                const totalCount = memCount;
+                                // Show breakout event count + memorized transcripts
+                                const breakoutCount = allowedBreakoutEventsCount;
+                                const totalCount = memCount + breakoutCount;
                                 const base = t(`controlsMenu.statusText.${platform}.listeningLive`);
                                 const statusText = totalCount > 0
                                   ? `${base.replace('Listening live', 'Listening to breakouts').replace('Live', 'Breakouts')} +${totalCount}`
@@ -4509,8 +4510,9 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                   : savedTranscriptMemoryMode === 'all'
                                     ? (savedTranscriptSummaries?.length || 0)
                                     : 0;
-                                // Only show count if there are memorized transcripts
-                                const totalCount = memCount;
+                                // Show breakout event count + memorized transcripts
+                                const breakoutCount = allowedBreakoutEventsCount;
+                                const totalCount = memCount + breakoutCount;
                                 const base = t(`controlsMenu.statusText.${platform}.listeningToPrevious`);
                                 const statusText = totalCount > 0
                                   ? `${base.replace('previous', 'breakouts')} +${totalCount}`
