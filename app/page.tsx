@@ -136,6 +136,7 @@ function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
 // Main content component that uses useSearchParams
 function HomeContent() {
   const mainLayoutRef = useRef<HTMLDivElement>(null);
+  const isInitialLoadRef = useRef(true);
   const searchParams = useSearchParams();
   const { theme, setTheme } = useTheme(); 
 
@@ -1518,8 +1519,24 @@ function HomeContent() {
     }
   }, [pageAgentName, userId]);
 
+  // Mark initial load as complete after localStorage has been loaded
+  useEffect(() => {
+    if (pageAgentName && userId) {
+      // Reset flag when agent changes
+      isInitialLoadRef.current = true;
+      // Set a small timeout to ensure all localStorage effects have run
+      const timer = setTimeout(() => {
+        isInitialLoadRef.current = false;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [pageAgentName, userId]);
+
   // Auto-switch memory mode to 'some' when an individual toggle is turned on
   useEffect(() => {
+    // Skip during initial load to prevent overriding localStorage values
+    if (isInitialLoadRef.current) return;
+
     const hasTogglesOn = Object.values(individualMemoryToggleStates).some(v => v);
     if (hasTogglesOn && savedTranscriptMemoryMode === 'none') {
       setSavedTranscriptMemoryMode('some');
