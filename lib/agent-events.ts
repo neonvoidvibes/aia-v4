@@ -49,12 +49,17 @@ export async function loadAgentEventsForUser(
     if (!eventId) continue;
 
     const type = (row.type || 'group').toLowerCase();
-    const hidden = row.visibility_hidden ?? true;
+    // For breakout events, default to visible (false) if null; for others, default to hidden (true)
+    const defaultHidden = type === 'breakout' ? false : true;
+    const hidden = row.visibility_hidden ?? defaultHidden;
     const isOwner = row.owner_user_id === userId;
 
     allowedEvents.add(eventId);
     eventTypes[eventId] = type;
 
+    // Visibility rules:
+    // - Not hidden (visibility_hidden = false)
+    // - Personal events are visible to owner even if marked as hidden
     const isVisible = !hidden || (type === 'personal' && isOwner);
     if (isVisible) {
       visibleEvents.push(eventId);
