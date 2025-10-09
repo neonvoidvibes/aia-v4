@@ -2567,6 +2567,7 @@ function HomeContent() {
                           router.push(`/?${params.toString()}`);
                         }}
                         labelForEvent={labelForEvent}
+                        eventTypes={eventTypes}
                       />
                     </DropdownMenu>
                 ) : null}
@@ -2598,6 +2599,7 @@ function HomeContent() {
                           router.push(`/?${params.toString()}`);
                         }}
                         labelForEvent={labelForEvent}
+                        eventTypes={eventTypes}
                       />
                     </DropdownMenu>
                 ) : null}
@@ -2639,6 +2641,7 @@ function HomeContent() {
                           router.push(`/?${params.toString()}`);
                         }}
                         labelForEvent={labelForEvent}
+                        eventTypes={eventTypes}
                       />
                     </DropdownMenu>
                 ) : null}
