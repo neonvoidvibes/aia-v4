@@ -533,14 +533,18 @@ function HomeContent() {
     const list = availableEvents ?? [];
     const main: string[] = [];
     const breakout: string[] = [];
+
+    // Split into main vs breakout while preserving the original order
     for (const id of list) {
       if (eventBreakout[id]) breakout.push(id);
       else main.push(id);
     }
-    // alphabetical inside each section by label
+
+    // Sort breakout events alphabetically by label
     const label = (id: string) => labelForEvent(id).toLowerCase();
-    main.sort((a, b) => label(a).localeCompare(label(b)));
     breakout.sort((a, b) => label(a).localeCompare(label(b)));
+
+    // Keep main in the original order (already sorted as personal, '0000', others)
     return { main, breakout };
   }, [availableEvents, eventBreakout, labelForEvent]);
 
