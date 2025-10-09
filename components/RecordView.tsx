@@ -1059,19 +1059,23 @@ const RecordView: React.FC<RecordViewProps> = ({
     reconnectAttemptsRef.current++;
     const attempt = reconnectAttemptsRef.current;
 
+    // Capture sessionId NOW, before setTimeout - avoid stale closure
+    const sessionId = currentSessionId;
+    if (!sessionId) {
+      console.error("[Reconnect] No sessionId available, cannot reconnect");
+      toast.error("Cannot reconnect: session info lost.");
+      resetRecordingStates();
+      return;
+    }
+
     const delay = nextReconnectDelay(
       prevDelayRef.current,
       { isRecording: globalRecordingStatusRef.current.isRecording === true }
     );
     prevDelayRef.current = delay;
     reconnectTimeoutRef.current = setTimeout(() => {
-      const sessionId = currentSessionId;
-      if (sessionId) {
-        connectWebSocket(sessionId);
-      } else {
-        toast.error("Cannot reconnect: session info lost.");
-        resetRecordingStates();
-      }
+      // Use the sessionId captured at call time, not from state
+      connectWebSocket(sessionId);
     }, delay);
   }, [resetRecordingStates, connectWebSocket, currentSessionId]);
 
