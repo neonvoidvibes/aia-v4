@@ -203,7 +203,6 @@ function HomeContent() {
   // Event menu state
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
   const [eventTypes, setEventTypes] = useState<Record<string, string>>({});
-  const [eventBreakout, setEventBreakout] = useState<Record<string, boolean>>({});
   const [, setAllowedEvents] = useState<string[] | null>(null);
   const [, setPersonalEventId] = useState<string | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
@@ -223,7 +222,7 @@ function HomeContent() {
   const [pinnedCanvasInsights, setPinnedCanvasInsights] = useState<CanvasInsightItem[]>([]);
 
   // State for new toggles in Documents tab
-  const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "some" | "latest" | "all">("latest");
+  const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "some" | "latest" | "all" | "breakout">("latest");
   const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"none" | "some" | "all">("none");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
   const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness | null>(null);
@@ -526,7 +525,7 @@ function HomeContent() {
   /**
    * Split events into main vs breakout sections for the picker.
    * - Keep the existing high-level order: [personal..., '0000', others...]
-   * - Within each section, we'll carve out breakout=true into a separate array.
+   * - Within each section, we'll carve out type='breakout' into a separate array.
    * - We render a horizontal separator iff there is at least one breakout event.
    */
   const partitionedEvents = useMemo(() => {
@@ -536,7 +535,7 @@ function HomeContent() {
 
     // Split into main vs breakout while preserving the original order
     for (const id of list) {
-      if (eventBreakout[id]) breakout.push(id);
+      if (eventTypes[id] === 'breakout') breakout.push(id);
       else main.push(id);
     }
 
@@ -546,7 +545,7 @@ function HomeContent() {
 
     // Keep main in the original order (already sorted as personal, '0000', others)
     return { main, breakout };
-  }, [availableEvents, eventBreakout, labelForEvent]);
+  }, [availableEvents, eventTypes, labelForEvent]);
 
   // Proactively fetch events when agent is available (prevents hidden dropdown due to empty chat history)
   useEffect(() => {
@@ -587,7 +586,6 @@ function HomeContent() {
     setIsLoadingEvents(true);
     setEventFetchError(null);
     let cacheEventTypes: Record<string, string> | undefined;
-    let cacheEventBreakout: Record<string, boolean> | undefined;
     let cacheAllowedEvents: string[] | undefined;
     let cachePersonalEventId: string | null | undefined;
     try {
@@ -599,7 +597,6 @@ function HomeContent() {
             const cached = JSON.parse(raw) as {
               events: string[];
               eventTypes?: Record<string, string>;
-              eventBreakout?: Record<string, boolean>;
               allowedEvents?: string[];
               personalEventId?: string | null;
               ts: number;
@@ -609,11 +606,9 @@ function HomeContent() {
               if (fresh) {
                 setAvailableEvents(cached.events);
                 setEventTypes(cached.eventTypes || {});
-                setEventBreakout(cached.eventBreakout || {});
                 setAllowedEvents(Array.isArray(cached.allowedEvents) ? cached.allowedEvents : null);
                 setPersonalEventId(cached.personalEventId ?? null);
                 cacheEventTypes = cached.eventTypes;
-                cacheEventBreakout = cached.eventBreakout;
               }
             }
           }
@@ -628,7 +623,6 @@ function HomeContent() {
         const data: {
           events?: string[];
           eventTypes?: Record<string, string>;
-          eventBreakout?: Record<string, boolean>;
           allowedEvents?: string[];
           personalEventId?: string | null;
         } = await res.json();
@@ -636,11 +630,9 @@ function HomeContent() {
         const incomingTypes = (data.eventTypes && typeof data.eventTypes === 'object') ? data.eventTypes : {};
         events = normalizeEventsOrder(incomingEvents, incomingTypes);
         const okTypes = data.eventTypes ?? cacheEventTypes ?? {};
-        const okBreakout = data.eventBreakout ?? cacheEventBreakout ?? {};
 
         setAvailableEvents(events);
         setEventTypes(okTypes);
-        setEventBreakout(okBreakout);
         setAllowedEvents(Array.isArray(data.allowedEvents) ? data.allowedEvents : null);
         setPersonalEventId(data.personalEventId ?? null);
         ok = true;
@@ -651,7 +643,6 @@ function HomeContent() {
             localStorage.setItem(eventsCacheKey, JSON.stringify({
               events,
               eventTypes: okTypes,
-              eventBreakout: okBreakout,
               allowedEvents: data.allowedEvents ?? null,
               personalEventId: data.personalEventId ?? null,
               ts: Date.now(),
@@ -1237,8 +1228,8 @@ function HomeContent() {
     // When a user touches an individual toggle, we derive the new mode.
     let currentStates = { ...individualRawTranscriptToggleStates };
 
-    // If we were in 'all' or 'latest' mode, "materialize" the current state first.
-    if (transcriptListenMode === 'all') {
+    // If we were in 'all', 'latest', or 'breakout' mode, "materialize" the current state first.
+    if (transcriptListenMode === 'all' || transcriptListenMode === 'breakout') {
       currentStates = {}; // Start fresh
       transcriptionS3Files.forEach(f => { if(f.s3Key) currentStates[f.s3Key] = true; });
     } else if (transcriptListenMode === 'latest') {
@@ -1376,16 +1367,16 @@ function HomeContent() {
       const enforced = activeUiConfig?.default_transcript_listen_mode;
 
       // If workspace has default AND user cannot override (no Settings access), enforce it
-      if ((enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') && !canOverrideSettings) {
+      if ((enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all' || enforced === 'breakout') && !canOverrideSettings) {
         setTranscriptListenMode(enforced);
         return;
       }
 
       // Otherwise, check localStorage for saved preference
       const savedMode = localStorage.getItem(key);
-      if (savedMode === 'none' || savedMode === 'some' || savedMode === 'latest' || savedMode === 'all') {
+      if (savedMode === 'none' || savedMode === 'some' || savedMode === 'latest' || savedMode === 'all' || savedMode === 'breakout') {
         setTranscriptListenMode(savedMode as any);
-      } else if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') {
+      } else if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all' || enforced === 'breakout') {
         // No saved preference but workspace has default - use it as initial value
         setTranscriptListenMode(enforced);
       } else {
@@ -1401,7 +1392,7 @@ function HomeContent() {
     const enforced = activeUiConfig?.default_transcript_listen_mode;
 
     // Only prevent saving if workspace enforces AND user cannot override
-    if ((enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') && !canOverrideSettings) return;
+    if ((enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all' || enforced === 'breakout') && !canOverrideSettings) return;
 
     const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
     try { localStorage.setItem(key, transcriptListenMode); } catch {}
@@ -1821,18 +1812,59 @@ function HomeContent() {
     // Load transcriptions if settings are open OR if ikea-pilot is active (needs file counts for status display)
     const shouldLoad = showSettings || pageAgentName === 'ikea-pilot';
     if (!shouldLoad || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.transcriptions) return;
-    const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/`;
-    fetchS3Data(prefix, (data) => {
-      // Sort by lastModified date in descending order (newest first)
-      const sortedData = [...data].sort((a, b) => {
-        const dateA = new Date(a.lastModified || 0).getTime();
-        const dateB = new Date(b.lastModified || 0).getTime();
-        return dateB - dateA;
+
+    // Determine which events to fetch transcripts from
+    const eventsToFetch: string[] = [];
+
+    if (transcriptListenMode === 'breakout') {
+      // In breakout mode: fetch from visible breakout events only
+      const breakoutEventIds = (availableEvents ?? []).filter(evId => {
+        return eventTypes[evId] === 'breakout';
       });
-      setTranscriptionS3Files(sortedData);
-      setFetchedDataFlags(prev => ({ ...prev, transcriptions: true }));
-    }, "Transcriptions");
-  }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.transcriptions, fetchS3Data]);
+      eventsToFetch.push(...breakoutEventIds);
+      // Also include current event (main agent listens to its own transcripts)
+      if (!eventsToFetch.includes(pageEventId)) {
+        eventsToFetch.push(pageEventId);
+      }
+    } else if (transcriptListenMode === 'all' || transcriptListenMode === 'latest') {
+      // In 'all' or 'latest' mode: include both regular events and visible breakout events
+      eventsToFetch.push(pageEventId);
+      const breakoutEventIds = (availableEvents ?? []).filter(evId => {
+        return eventTypes[evId] === 'breakout';
+      });
+      eventsToFetch.push(...breakoutEventIds);
+    } else {
+      // Default: just current event
+      eventsToFetch.push(pageEventId);
+    }
+
+    // Fetch transcripts from all relevant events
+    if (eventsToFetch.length === 0) return;
+
+    const allTranscripts: FetchedFile[] = [];
+    let fetchesCompleted = 0;
+
+    eventsToFetch.forEach(eventId => {
+      const prefix = `organizations/river/agents/${pageAgentName}/events/${eventId}/transcripts/`;
+      fetchS3Data(prefix, (data) => {
+        // Add source event ID to each file for filtering later
+        const dataWithEvent = data.map(f => ({ ...f, sourceEventId: eventId }));
+        allTranscripts.push(...dataWithEvent);
+        fetchesCompleted++;
+
+        if (fetchesCompleted === eventsToFetch.length) {
+          // All fetches complete - sort and update state
+          const sortedData = [...allTranscripts].sort((a, b) => {
+            const dateA = new Date(a.lastModified || 0).getTime();
+            const dateB = new Date(b.lastModified || 0).getTime();
+            return dateB - dateA;
+          });
+          setTranscriptionS3Files(sortedData);
+          setFetchedDataFlags(prev => ({ ...prev, transcriptions: true }));
+        }
+      }, "Transcriptions");
+    });
+  }, [showSettings, pageAgentName, pageEventId, isAuthorized, fetchedDataFlags.transcriptions, fetchS3Data, transcriptListenMode, availableEvents, eventTypes]);
 
   // Effect for Base System Prompts
   useEffect(() => {
@@ -3054,7 +3086,7 @@ function HomeContent() {
                           value={transcriptListenMode}
                           onValueChange={(value) => {
                             if (value) {
-                              const newMode = value as "none" | "some" | "latest" | "all";
+                              const newMode = value as "none" | "some" | "latest" | "all" | "breakout";
                               setTranscriptListenMode(newMode);
                               // Manually save user's explicit choice to localStorage
                               if (pageAgentName && userId) {
@@ -3073,8 +3105,8 @@ function HomeContent() {
                         >
                           <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Latest</ToggleGroupItem>
                           <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">None</ToggleGroupItem>
-                          <ToggleGroupItem value="some" aria-label="Some" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Some</ToggleGroupItem>
                           <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">All</ToggleGroupItem>
+                          <ToggleGroupItem value="breakout" aria-label="Breakout" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs">Breakout</ToggleGroupItem>
                         </ToggleGroup>
                       </div>
                       {/* Groups read mode toggle - only active for event 0000 */}
@@ -3128,6 +3160,7 @@ function HomeContent() {
                                 showIndividualToggle={true}
                                 individualToggleChecked={
                                   transcriptListenMode === 'all' ||
+                                  transcriptListenMode === 'breakout' ||
                                   (transcriptListenMode === 'latest' && index === 0) ||
                                   (transcriptListenMode === 'some' && !!individualRawTranscriptToggleStates[fileWithPersistentStatus.s3Key!])
                                 }

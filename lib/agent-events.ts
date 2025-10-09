@@ -2,9 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type AgentEventsResponse = {
   events: string[];
-  eventTypes: Record<string, string>; // e.g. { "abc123": "personal" | "group" }
-  /** map of eventId -> true when it should be shown in "breakout" section */
-  eventBreakout?: Record<string, boolean>;
+  eventTypes: Record<string, string>; // e.g. { "abc123": "personal" | "group" | "breakout" }
   allowedEvents: string[];
   personalEventId: string | null;
 };
@@ -22,7 +20,6 @@ type AgentEventRow = {
   type?: string | null;
   visibility_hidden?: boolean | null;
   owner_user_id?: string | null;
-  breakout?: boolean | null;
 };
 
 export async function loadAgentEventsForUser(
@@ -33,7 +30,7 @@ export async function loadAgentEventsForUser(
   // 1) Read agent_events the user can see (RLS handles access)
   const { data, error } = await supabase
     .from('agent_events')
-    .select('event_id,type,visibility_hidden,owner_user_id,created_at,breakout')
+    .select('event_id,type,visibility_hidden,owner_user_id,created_at')
     .eq('agent_name', agentName)
     .order('created_at', { ascending: true });
 
@@ -44,7 +41,6 @@ export async function loadAgentEventsForUser(
   const eventRows: AgentEventRow[] = data || [];
   const allowedEvents = new Set<string>();
   const eventTypes: Record<string, string> = {};
-  const eventBreakout: Record<string, boolean> = {};
   const visibleEvents: string[] = [];
   let personalEventId: string | null = null;
 
@@ -58,7 +54,6 @@ export async function loadAgentEventsForUser(
 
     allowedEvents.add(eventId);
     eventTypes[eventId] = type;
-    if (typeof row.breakout === 'boolean') eventBreakout[eventId] = !!row.breakout;
 
     const isVisible = !hidden || (type === 'personal' && isOwner);
     if (isVisible) {
@@ -80,7 +75,6 @@ export async function loadAgentEventsForUser(
   return {
     events,
     eventTypes,
-    eventBreakout,
     allowedEvents: Array.from(allowedEvents),
     personalEventId,
   };

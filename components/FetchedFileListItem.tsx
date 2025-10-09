@@ -14,6 +14,7 @@ export type FetchedFile = {
   type?: string // e.g., 'text/plain', 'application/json', 'pinecone/document'
   id?: string // Optional, can be s3Key or generated
   status?: 'idle' | 'saving_to_memory' | 'archiving' | 'saved' | 'archived'; // New status field
+  sourceEventId?: string // event ID this file came from (for multi-event transcript fetching)
 }
 
 type FetchedFileListItemProps = {

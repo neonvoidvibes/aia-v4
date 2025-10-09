@@ -18,14 +18,7 @@ export async function GET(req: NextRequest) {
     try {
       const payload = await loadAgentEventsForUser(supabase, agentName, user.id);
       if ((payload.events || []).length > 0) {
-        // Pass breakout map through to the client (used by the picker)
-        return NextResponse.json({
-          events: payload.events,
-          eventTypes: payload.eventTypes,
-          allowedEvents: payload.allowedEvents,
-          personalEventId: payload.personalEventId,
-          eventBreakout: payload.eventBreakout ?? {},
-        }, { status: 200 });
+        return NextResponse.json(payload, { status: 200 });
       }
     } catch (err) {
       console.warn('[s3-proxy] Failed to load events via Supabase, falling back to backend', err);
