@@ -116,7 +116,8 @@ const RecordView: React.FC<RecordViewProps> = ({
   const audioStreamRef = useRef<MediaStream | null>(null);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
-  
+  const sessionIdRef = useRef<string | null>(null);  // Persists across state resets
+
   const reconnectAttemptsRef = useRef(0);
   const prevDelayRef = useRef<number | null>(null);
   const stablePongsResetTimerRef = useRef<number | null>(null);
@@ -409,7 +410,7 @@ const RecordView: React.FC<RecordViewProps> = ({
 
   const handleStopRecording = useCallback(async (e?: React.MouseEvent, dueToError: boolean = false) => {
     e?.stopPropagation();
-    const sessionId = currentSessionId;
+    const sessionId = sessionIdRef.current || currentSessionId;  // Try ref first, fallback to state
     if (!sessionId || pendingActionRef.current === 'stop') {
       debugLog(`[Stop Recording] Aborted. Session ID: ${sessionId}, Pending Action: ${pendingActionRef.current}`);
       return;
@@ -460,6 +461,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     setRecordingTime(0);
     setIsPaused(false);
     setCurrentSessionId(null);
+    sessionIdRef.current = null;  // Clear ref too
     setWsStatus('idle');
     setPendingAction(null);
     isStoppingRef.current = false;
@@ -1059,8 +1061,8 @@ const RecordView: React.FC<RecordViewProps> = ({
     reconnectAttemptsRef.current++;
     const attempt = reconnectAttemptsRef.current;
 
-    // Capture sessionId NOW, before setTimeout - avoid stale closure
-    const sessionId = currentSessionId;
+    // Use ref instead of state - survives resetRecordingStates()
+    const sessionId = sessionIdRef.current;
     if (!sessionId) {
       console.error("[Reconnect] No sessionId available, cannot reconnect");
       toast.error("Cannot reconnect: session info lost.");
@@ -1074,10 +1076,10 @@ const RecordView: React.FC<RecordViewProps> = ({
     );
     prevDelayRef.current = delay;
     reconnectTimeoutRef.current = setTimeout(() => {
-      // Use the sessionId captured at call time, not from state
+      // Use the sessionId captured at call time
       connectWebSocket(sessionId);
     }, delay);
-  }, [resetRecordingStates, connectWebSocket, currentSessionId]);
+  }, [resetRecordingStates, connectWebSocket]);
 
   useEffect(() => {
     tryReconnectRef.current = tryReconnect;
@@ -1140,6 +1142,7 @@ const RecordView: React.FC<RecordViewProps> = ({
     });
     if (result.success && result.data?.session_id) {
       const sessionId = result.data.session_id;
+      sessionIdRef.current = sessionId;  // Store in ref
       setCurrentSessionId(sessionId);
       setGlobalRecordingStatus({ type: 'long-form-note', isRecording: true });
       connectWebSocket(sessionId);
