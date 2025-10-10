@@ -1064,12 +1064,12 @@ const RecordView: React.FC<RecordViewProps> = ({
     // Use ref instead of state - survives resetRecordingStates()
     const sessionId = sessionIdRef.current;
     if (!sessionId) {
-      console.error("[Reconnect] No sessionId available, cannot reconnect");
-      toast.error("Cannot reconnect: session info lost.");
-      resetRecordingStates();
+      console.warn("[Reconnect] No sessionId in ref, skipping reconnection attempt");
+      // Don't show error toast or reset states - session may be stopping naturally
       return;
     }
 
+    console.log(`[Reconnect] Attempt ${attempt} with session ${sessionId}`);
     const delay = nextReconnectDelay(
       prevDelayRef.current,
       { isRecording: globalRecordingStatusRef.current.isRecording === true }
@@ -1092,6 +1092,8 @@ const RecordView: React.FC<RecordViewProps> = ({
       // Dismiss the network-offline toast when connection is restored
       toast.dismiss('network-offline');
 
+      // Don't attempt reconnection if WebSocket is still open (buffering mode)
+      // Only reconnect if WebSocket actually closed
       if (globalRecordingStatusRef.current.isRecording && !webSocketRef.current) {
         console.info("[Network] Recording active but WebSocket disconnected. Attempting reconnect...");
         toast.info("Network reconnected. Attempting to resume recording...");
