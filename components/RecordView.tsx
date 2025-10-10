@@ -541,17 +541,29 @@ const RecordView: React.FC<RecordViewProps> = ({
 
   const flushBufferedChunks = useCallback(() => {
     const ws = webSocketRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN || bufferedChunksRef.current.length === 0) {
+    const bufferCount = bufferedChunksRef.current.length;
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.log(`[Buffered Flush] Skipped - WS not open. Buffer has ${bufferCount} chunks.`);
       return;
     }
 
+    if (bufferCount === 0) {
+      console.log('[Buffered Flush] Skipped - no buffered chunks.');
+      return;
+    }
+
+    console.log(`[Buffered Flush] Flushing ${bufferCount} buffered chunks...`);
+    let flushed = 0;
     let failed = false;
+
     while (bufferedChunksRef.current.length > 0) {
       const next = bufferedChunksRef.current.shift();
       if (!next) break;
 
       try {
         ws.send(next.blob);
+        flushed++;
         bufferedDurationMsRef.current = Math.max(
           bufferedDurationMsRef.current - chunkTimesliceMsRef.current,
           0,
@@ -564,6 +576,8 @@ const RecordView: React.FC<RecordViewProps> = ({
       }
     }
 
+    console.log(`[Buffered Flush] Flushed ${flushed}/${bufferCount} chunks. Failed: ${failed}`);
+
     if (!failed && bufferedChunksRef.current.length === 0) {
       dismissBufferingToast('success', 'Connection restored. Buffered audio delivered.');
       clearNetworkGraceTimer();
@@ -573,6 +587,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   const enqueueBufferedChunk = useCallback((blob: Blob) => {
     bufferedChunksRef.current.push({ blob, queuedAt: Date.now() });
     bufferedDurationMsRef.current += chunkTimesliceMsRef.current;
+    console.log(`[Buffer] Enqueued chunk. Buffer now has ${bufferedChunksRef.current.length} chunks (${bufferedDurationMsRef.current}ms)`);
 
     if (bufferedDurationMsRef.current >= BUFFER_GRACE_MS && !autoPausedRef.current) {
       autoPauseDueToNetwork();
@@ -1093,8 +1108,8 @@ const RecordView: React.FC<RecordViewProps> = ({
       toast.dismiss('network-offline');
 
       // Don't attempt reconnection if WebSocket is still open (buffering mode)
-      // Only reconnect if WebSocket actually closed
-      if (globalRecordingStatusRef.current.isRecording && !webSocketRef.current) {
+      // Only reconnect if WebSocket actually closed AND we have a valid sessionId
+      if (globalRecordingStatusRef.current.isRecording && !webSocketRef.current && sessionIdRef.current) {
         console.info("[Network] Recording active but WebSocket disconnected. Attempting reconnect...");
         toast.info("Network reconnected. Attempting to resume recording...");
         if (!isReconnecting) {
