@@ -143,7 +143,7 @@ const RecordView: React.FC<RecordViewProps> = ({
   const supabase = createClient();
 
   const { displayMs: timerMs, authoritativeRecording } =
-    useAuthoritativeRecordingTimer(webSocketRef.current, currentSessionId || '');
+    useAuthoritativeRecordingTimer(webSocketRef.current, sessionIdRef.current || currentSessionId || '');
 
   useEffect(() => {
     setRecordingTime(Math.floor(timerMs / 1000));
