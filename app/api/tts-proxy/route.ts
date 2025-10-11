@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Wrap text in SSML for prosody control (calm, centered, serious delivery)
-    const textWithProsody = `<speak><prosody rate="95%" pitch="-5%">${text}</prosody></speak>`;
+    const textWithProsody = `<speak><prosody rate="85%" pitch="-12%">${text}</prosody></speak>`;
 
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}/stream`;
 
@@ -62,8 +62,8 @@ export async function GET(req: NextRequest) {
         text: textWithProsody,
         model_id: 'eleven_turbo_v2_5', // Faster model for lower latency
         voice_settings: {
-          stability: 0.75,           // Higher stability = more consistent, calm delivery
-          similarity_boost: 0.75,    // Voice clone quality
+          stability: 0.85,           // Very high stability = highly consistent, calm delivery
+          similarity_boost: 0.95,    // Maximum fidelity to base voice character (near-perfect clone)
           style: 0.25,               // Lower style = less dramatization, more measured/serious
           use_speaker_boost: true    // Enhanced clarity
         },
