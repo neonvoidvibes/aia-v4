@@ -143,15 +143,16 @@ export function useCanvasLLM({
           onSentenceReady(remaining);
           currentIndex = text.length;
         }
-        // 2. Text ends with sentence punctuation (even without trailing space)
-        else if (remaining.length > 10 && /[.!?]\s*$/.test(remaining)) {
-          console.log('[Canvas TTS] Emitting sentence ending with punctuation:', remaining.substring(0, 50) + '...');
+        // 2. Text with substantial content and any punctuation (40+ chars)
+        // This catches paragraphs after breaks and partial sentences
+        else if (remaining.length > 40 && /[.!?]/.test(remaining)) {
+          console.log('[Canvas TTS] Emitting substantial text (40+ chars with punctuation):', remaining.substring(0, 50) + '...');
           onSentenceReady(remaining);
           currentIndex = text.length;
         }
-        // 3. NEW: After paragraph break, emit next paragraph if it's substantial (60+ chars with punctuation)
-        else if (remaining.length > 60 && /[.!?]/.test(remaining)) {
-          console.log('[Canvas TTS] Emitting paragraph after break (60+ chars):', remaining.substring(0, 50) + '...');
+        // 3. Text ends with sentence punctuation (even short sentences, 10+ chars)
+        else if (remaining.length > 10 && /[.!?]\s*$/.test(remaining)) {
+          console.log('[Canvas TTS] Emitting sentence ending with punctuation:', remaining.substring(0, 50) + '...');
           onSentenceReady(remaining);
           currentIndex = text.length;
         }
