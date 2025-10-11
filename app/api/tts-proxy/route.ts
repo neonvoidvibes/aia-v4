@@ -29,6 +29,9 @@ export async function GET(req: NextRequest) {
       return new NextResponse(JSON.stringify({ error: 'TTS service is not configured' }), { status: 500 });
     }
 
+    // Wrap text in SSML for prosody control (calm, centered, serious delivery)
+    const textWithProsody = `<speak><prosody rate="95%" pitch="-5%">${text}</prosody></speak>`;
+
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}/stream`;
 
     async function fetchWithBackoff(url: string, init: RequestInit, attempts = 3, baseDelayMs = 400): Promise<Response> {
@@ -56,7 +59,7 @@ export async function GET(req: NextRequest) {
         'xi-api-key': elevenLabsApiKey,
       },
       body: JSON.stringify({
-        text: text,
+        text: textWithProsody,
         model_id: 'eleven_turbo_v2_5', // Faster model for lower latency
         voice_settings: {
           stability: 0.75,           // Higher stability = more consistent, calm delivery
