@@ -546,6 +546,22 @@ function HomeContent() {
     }
   };
 
+  // Auto-refresh canvas analysis when canvas view loads
+  useEffect(() => {
+    if (currentView === 'canvas' && pageAgentName && !isRefreshingCanvasAnalysis) {
+      // Check if analysis needs refresh (status is 'none' or timestamp is old)
+      const shouldRefresh = canvasAnalysisStatus.state === 'none' ||
+        (canvasAnalysisStatus.state === 'ready' && canvasAnalysisStatus.timestamp &&
+         (Date.now() - new Date(canvasAnalysisStatus.timestamp).getTime()) > 15 * 60 * 1000);
+
+      if (shouldRefresh) {
+        console.log('[Canvas] Auto-refreshing analysis on view load');
+        handleRefreshCanvasAnalysis();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView, pageAgentName]);
+
 
   // --- PHASE 3: New state management for dynamic workspaces ---
   const [permissionsData, setPermissionsData] = useState<{
