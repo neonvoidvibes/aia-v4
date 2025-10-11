@@ -22,6 +22,7 @@ interface CanvasViewProps {
   isTranscribing?: boolean;
   onReset?: () => void;
   isTTSPlaying?: boolean; // NEW: Show audio indicator when TTS is playing
+  messageHistory?: Array<{ role: string; content: string }>; // NEW: Message history for navigation
 }
 
 export default function CanvasView({
@@ -35,7 +36,8 @@ export default function CanvasView({
   statusMessage = "",
   isTranscribing = false,
   onReset,
-  isTTSPlaying = false
+  isTTSPlaying = false,
+  messageHistory = []
 }: CanvasViewProps) {
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
@@ -45,11 +47,34 @@ export default function CanvasView({
   const [userHasScrolled, setUserHasScrolled] = useState(false); // Track manual scroll
   const [copied, setCopied] = useState(false); // Track copy state
 
+  // Message navigation state
+  const assistantMessages = React.useMemo(() =>
+    messageHistory.filter(msg => msg.role === 'assistant'),
+    [messageHistory]
+  );
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(assistantMessages.length - 1);
+
+  // Update current message index when history changes (new message arrives)
+  React.useEffect(() => {
+    if (assistantMessages.length > 0) {
+      setCurrentMessageIndex(assistantMessages.length - 1);
+    }
+  }, [assistantMessages.length]);
+
+  const hasMultipleMessages = assistantMessages.length > 1;
+  const canNavigateLeft = hasMultipleMessages && currentMessageIndex > 0;
+  const canNavigateRight = hasMultipleMessages && currentMessageIndex < assistantMessages.length - 1;
+
+  // Use navigated message or fallback to llmOutput
+  const displayedOutput = (assistantMessages.length > 0 && currentMessageIndex >= 0 && currentMessageIndex < assistantMessages.length)
+    ? assistantMessages[currentMessageIndex].content
+    : llmOutput;
+
   // Canvas-only override: always show "The River flows." regardless of theme
   // Theme-specific messages are preserved for other views
   const welcomeText = "The River flows.";
 
-  const hasLlmOutput = llmOutput.length > 0;
+  const hasLlmOutput = displayedOutput.length > 0;
   const [showWelcome, setShowWelcome] = React.useState(true);
   const [showContent, setShowContent] = React.useState(true);
 
@@ -74,14 +99,14 @@ export default function CanvasView({
       setShowContent(false);
       // Hide chevrons during transcription
       setShowChevrons(false);
-    } else if (isStreaming && llmOutput.length > 0) {
+    } else if (isStreaming && displayedOutput.length > 0) {
       // Show content immediately when streaming starts outputting
       setShowContent(true);
     } else if (!isTranscribing && !isStreaming && hasLlmOutput) {
       // Show content when idle with output
       setShowContent(true);
     }
-  }, [isTranscribing, isStreaming, hasLlmOutput, llmOutput.length]);
+  }, [isTranscribing, isStreaming, hasLlmOutput, displayedOutput.length]);
 
   // Hide chevrons when resetting (no output)
   React.useEffect(() => {
@@ -149,7 +174,7 @@ export default function CanvasView({
       // Delay checkScroll to allow scroll animation to complete
       setTimeout(checkScroll, 300);
     }
-  }, [llmOutput, isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
+  }, [displayedOutput, isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
 
   const scrollToPage = (direction: 'up' | 'down') => {
     const container = textContainerRef.current;
@@ -174,7 +199,7 @@ export default function CanvasView({
 
   // Copy canvas output to clipboard
   const copyToClipboard = () => {
-    if (!llmOutput) return;
+    if (!displayedOutput) return;
 
     const notifySuccess = () => {
       setCopied(true);
@@ -186,13 +211,13 @@ export default function CanvasView({
     };
 
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(llmOutput).then(notifySuccess).catch(notifyFailure);
+      navigator.clipboard.writeText(displayedOutput).then(notifySuccess).catch(notifyFailure);
     } else {
       // Fallback for non-secure contexts
       console.warn("[Canvas Copy] Fallback copy (execCommand).");
       try {
         const ta = document.createElement("textarea");
-        ta.value = llmOutput;
+        ta.value = displayedOutput;
         ta.style.position = "fixed";
         ta.style.left = "-9999px";
         ta.style.top = "-9999px";
@@ -278,7 +303,7 @@ export default function CanvasView({
                 }}
               >
                 <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
-                  {llmOutput}
+                  {displayedOutput}
                   {/* Show blinking cursor during streaming */}
                   <span className={cn(
                     "inline-block align-baseline ml-2 h-[0.85em] w-[0.2em] bg-white canvas-thick-cursor",
@@ -332,37 +357,89 @@ export default function CanvasView({
             </div>
           )}
 
-          {/* Depth label and TTS indicator */}
-          <div className="absolute top-4 right-4 flex items-center gap-3">
-            {/* TTS Audio Indicator - subtle animated waves */}
-            {isTTSPlaying && (
-              <div className="flex items-center gap-[3px]" aria-label="Audio playing">
-                {[...Array(3)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-[3px] bg-white/60 rounded-full canvas-audio-wave"
-                    style={{
-                      height: '12px',
-                      animationDelay: `${i * 0.15}s`
-                    }}
-                  />
-                ))}
+          {/* Top row: Message navigation chevrons, TTS indicator, and Depth label */}
+          <div className="absolute top-4 left-0 right-0 flex items-center justify-center">
+            {/* Left/Right Message Navigation Chevrons - centered at top */}
+            {hasMultipleMessages && (
+              <div className="flex items-center gap-2 pointer-events-auto z-10">
+                {/* Left chevron */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (canNavigateLeft && !isStreaming) {
+                      setCurrentMessageIndex(prev => prev - 1);
+                    }
+                  }}
+                  className={cn(
+                    "transition-all",
+                    canNavigateLeft && !isStreaming
+                      ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
+                      : "text-white/20 opacity-30 cursor-not-allowed"
+                  )}
+                  aria-label="Previous message"
+                  disabled={!canNavigateLeft || isStreaming}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+
+                {/* Right chevron */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (canNavigateRight && !isStreaming) {
+                      setCurrentMessageIndex(prev => prev + 1);
+                    }
+                  }}
+                  className={cn(
+                    "transition-all",
+                    canNavigateRight && !isStreaming
+                      ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
+                      : "text-white/20 opacity-30 cursor-not-allowed"
+                  )}
+                  aria-label="Next message"
+                  disabled={!canNavigateRight || isStreaming}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             )}
 
-            {/* Depth mode button */}
-            <button
-              type="button"
-              onClick={() => {
-                const depths: Depth[] = ["mirror", "lens", "portal"];
-                const currentIndex = depths.indexOf(depth);
-                const nextIndex = (currentIndex + 1) % depths.length;
-                onDepthChange?.(depths[nextIndex]);
-              }}
-              className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white/50 hover:text-white/70 transition-colors cursor-pointer"
-            >
-              {depth.toUpperCase()}
-            </button>
+            {/* TTS indicator and Depth mode button - positioned at top right */}
+            <div className="absolute right-4 flex items-center gap-3">
+              {/* TTS Audio Indicator - subtle animated waves */}
+              {isTTSPlaying && (
+                <div className="flex items-center gap-[3px]" aria-label="Audio playing">
+                  {[...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-[3px] bg-white/60 rounded-full canvas-audio-wave"
+                      style={{
+                        height: '12px',
+                        animationDelay: `${i * 0.15}s`
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Depth mode button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const depths: Depth[] = ["mirror", "lens", "portal"];
+                  const currentIndex = depths.indexOf(depth);
+                  const nextIndex = (currentIndex + 1) % depths.length;
+                  onDepthChange?.(depths[nextIndex]);
+                }}
+                className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white/50 hover:text-white/70 transition-colors cursor-pointer"
+              >
+                {depth.toUpperCase()}
+              </button>
+            </div>
           </div>
 
           {/* Copy and Reset buttons - horizontally aligned with chevrons */}
@@ -414,23 +491,25 @@ export default function CanvasView({
         <button
           type="button"
           aria-label="Push to talk"
-          onMouseDown={() => onPTTPress?.()}
-          onMouseUp={() => onPTTRelease?.()}
-          onMouseLeave={() => onPTTRelease?.()}
+          disabled={isStreaming}
+          onMouseDown={() => !isStreaming && onPTTPress?.()}
+          onMouseUp={() => !isStreaming && onPTTRelease?.()}
+          onMouseLeave={() => !isStreaming && onPTTRelease?.()}
           onTouchStart={(e) => {
             e.preventDefault();
-            onPTTPress?.();
+            if (!isStreaming) onPTTPress?.();
           }}
           onTouchEnd={(e) => {
             e.preventDefault();
-            onPTTRelease?.();
+            if (!isStreaming) onPTTRelease?.();
           }}
           className={cn(
             "relative h-12 w-12 md:h-14 md:w-14 rounded-full",
-            "ring-4 ring-white/40",
-            isPTTActive ? "scale-[1.05]" : "scale-100",
-            "transition-transform duration-100 ease-out",
-            "bg-white/5"
+            "ring-4 transition-all duration-100 ease-out",
+            isStreaming
+              ? "ring-white/20 bg-white/5 opacity-30 cursor-not-allowed"
+              : "ring-white/40 hover:ring-white/60 bg-white/5 hover:bg-white/15",
+            isPTTActive ? "scale-[1.05]" : "scale-100"
           )}
         >
           <span

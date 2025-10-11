@@ -2833,6 +2833,7 @@ function HomeContent() {
             isTranscribing={canvasPTT.status === 'transcribing'}
             isPTTActive={isCanvasPTTActive}
             isTTSPlaying={canvasTTS.isPlaying}
+            messageHistory={canvasConversationHistory}
             statusMessage={
               canvasPTT.status === 'recording' ? 'Recording...' :
               canvasPTT.status === 'transcribing' ? 'Transcribing...' :
