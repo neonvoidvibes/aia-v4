@@ -57,10 +57,12 @@ export async function GET(req: NextRequest) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: 'eleven_multilingual_v2',
+        model_id: 'eleven_turbo_v2_5', // Faster model for lower latency
         voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
+          stability: 0.75,           // Higher stability = more consistent, calm delivery
+          similarity_boost: 0.75,    // Voice clone quality
+          style: 0.25,               // Lower style = less dramatization, more measured/serious
+          use_speaker_boost: true    // Enhanced clarity
         },
       }),
     });
