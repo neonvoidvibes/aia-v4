@@ -25,52 +25,46 @@ export async function getSupabaseUser(request: Request) {
 }
 
 /**
- * Finds the first active backend URL from a list by checking its /api/health endpoint concurrently.
+ * Finds the first active backend URL from a list by checking its /healthz endpoint concurrently.
+ * In development: Fast-fail health check (500ms timeout, returns immediately on first success)
+ * In production: Skips health check entirely, returns first URL
  * @param urls List of potential base URLs for the backend.
  * @returns The first active base URL found (respecting the original list's priority), or null if none respond successfully.
  */
 export async function findActiveBackend(urls: string[]): Promise<string | null> {
     if (!urls || urls.length === 0) {
-        // This case implies that the `POTENTIAL_BACKEND_URLS` array, formed from `process.env.BACKEND_API_URLS`,
-        // was empty *after* splitting, trimming, and filtering. This strongly suggests the env var is missing or misconfigured.
         console.error("[Proxy Util] CRITICAL: No backend URLs were provided to findActiveBackend. This usually means BACKEND_API_URLS is missing, empty, or contains only whitespace in the environment configuration. Cannot proceed to find an active backend.");
         return null;
     }
-    // This log was causing EPIPE errors with pino-pretty.
-    // We are replacing all console.log with a proper logger, but since the logger
-    // is not available in this utility file, we will comment it out for now.
-    // A more advanced solution would involve passing the logger instance.
-    // console.log("[Proxy Util] Checking potential backend URLs concurrently:", urls);
 
-    const healthCheckPromises = urls.map(baseUrl => {
-        const healthUrl = `${baseUrl}/healthz`;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-            controller.abort();
-        }, 5000);
+    // PRODUCTION MODE: Skip health check, use first URL (should be production URL)
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (isProduction) {
+        console.log("[Proxy Util] Production mode: Using first backend URL without health check:", urls[0]);
+        return urls[0];
+    }
 
-        return fetch(healthUrl, { method: 'GET', signal: controller.signal })
-            .finally(() => clearTimeout(timeoutId));
-    });
+    // DEVELOPMENT MODE: Fast-fail health check with race condition
+    console.log("[Proxy Util] Development mode: Checking backends with 500ms timeout each");
 
-    const results = await Promise.allSettled(healthCheckPromises);
+    // Try backends sequentially with fast timeout
+    for (const url of urls) {
+        try {
+            const healthUrl = `${url}/healthz`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 500); // 500ms timeout (was 5000ms)
 
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const url = urls[i];
- 
-        if (result.status === 'fulfilled' && result.value.ok) {
-            // This log was also causing EPIPE errors.
-            // console.log(`[Proxy Util] Success: ${url} is active.`);
-            return url;
-        } else {
-            let reason = "Unknown error";
-            if (result.status === 'fulfilled') {
-                reason = `Status ${result.value.status}`;
-            } else if (result.reason) {
-                // @ts-ignore
-                reason = result.reason.name === 'AbortError' ? 'Timeout' : result.reason.message;
+            const response = await fetch(healthUrl, {
+                method: 'GET',
+                signal: controller.signal
+            }).finally(() => clearTimeout(timeoutId));
+
+            if (response.ok) {
+                console.log(`[Proxy Util] Success: ${url} is active`);
+                return url;
             }
+        } catch (error: any) {
+            const reason = error.name === 'AbortError' ? 'Timeout (500ms)' : error.message;
             console.warn(`[Proxy Util] Health check failed for ${url}: ${reason}`);
         }
     }
