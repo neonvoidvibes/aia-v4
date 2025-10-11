@@ -100,6 +100,33 @@ export function useCanvasTTS({
     }
   }, [voiceId, onError]);
 
+  // Pre-fetch the next sentence in the queue to eliminate latency
+  const prefetchNext = useCallback(() => {
+    // Find the next pending sentence
+    const nextPendingIndex = queueRef.current.findIndex(
+      item => item.status === 'pending'
+    );
+
+    if (nextPendingIndex !== -1) {
+      const nextSentence = queueRef.current[nextPendingIndex];
+      nextSentence.status = 'fetching';
+
+      console.log('[Canvas TTS] Pre-fetching next sentence:', nextSentence.text.substring(0, 50) + '...');
+
+      // Fetch audio in background
+      fetchAudio(nextSentence.text).then(audio => {
+        if (audio && nextSentence.status === 'fetching') {
+          nextSentence.audio = audio;
+          nextSentence.status = 'ready';
+          console.log('[Canvas TTS] Pre-fetch complete, ready to play with 0 latency');
+        }
+      }).catch(err => {
+        console.error('[Canvas TTS] Pre-fetch failed:', err);
+        nextSentence.status = 'error';
+      });
+    }
+  }, [fetchAudio]);
+
   // Play the next item in the queue
   const playNext = useCallback(async () => {
     if (isProcessingRef.current) return;
@@ -127,8 +154,9 @@ export function useCanvasTTS({
 
     const sentence = queueRef.current[nextIndex];
 
-    // Fetch audio if not ready
+    // Fetch audio if not ready (should rarely happen with pre-fetching)
     if (sentence.status === 'pending') {
+      console.log('[Canvas TTS] Fetching audio (pre-fetch missed)');
       sentence.status = 'fetching';
       const audio = await fetchAudio(sentence.text);
 
@@ -145,6 +173,27 @@ export function useCanvasTTS({
       sentence.status = 'ready';
     }
 
+    // Wait for audio to be ready if still fetching
+    if (sentence.status === 'fetching') {
+      // Poll until ready or error
+      const maxWait = 100; // 10 seconds max
+      let waited = 0;
+      while (sentence.status === 'fetching' && waited < maxWait) {
+        await new Promise(r => setTimeout(r, 100));
+        waited++;
+      }
+
+      if (sentence.status !== 'ready') {
+        console.error('[Canvas TTS] Audio fetch timeout');
+        sentence.status = 'error';
+        queueRef.current.splice(nextIndex, 1);
+        setQueueLength(queueRef.current.length);
+        isProcessingRef.current = false;
+        playNext();
+        return;
+      }
+    }
+
     // Play the audio
     if (sentence.audio && sentence.status === 'ready') {
       sentence.status = 'playing';
@@ -154,6 +203,9 @@ export function useCanvasTTS({
       if (nextIndex === 0) {
         onStart?.(); // Only call onStart for the first sentence
       }
+
+      // Pre-fetch the next sentence while this one plays
+      prefetchNext();
 
       sentence.audio.onplaying = () => {
         console.log('[Canvas TTS] Audio playback started');
@@ -170,7 +222,7 @@ export function useCanvasTTS({
         currentAudioRef.current = null;
         isProcessingRef.current = false;
 
-        // Play next sentence
+        // Play next sentence (should be pre-fetched and ready = 0 latency)
         playNext();
       };
 
@@ -205,7 +257,7 @@ export function useCanvasTTS({
     } else {
       isProcessingRef.current = false;
     }
-  }, [fetchAudio, onStart, onComplete, onError]);
+  }, [fetchAudio, prefetchNext, onStart, onComplete, onError]);
 
   // Add a sentence to the queue
   const enqueueSentence = useCallback((text: string) => {
@@ -223,11 +275,16 @@ export function useCanvasTTS({
     queueRef.current.push(newSentence);
     setQueueLength(queueRef.current.length);
 
+    // If this is the first or second sentence, start pre-fetching immediately
+    if (queueRef.current.length <= 2) {
+      prefetchNext();
+    }
+
     // If autoPlay and not currently playing, start playing
     if (autoPlay && !isProcessingRef.current && !isPlaying) {
       playNext();
     }
-  }, [autoPlay, isPlaying, playNext]);
+  }, [autoPlay, isPlaying, playNext, prefetchNext]);
 
   // Stop current playback
   const stop = useCallback(() => {
