@@ -139,6 +139,10 @@ export function useCanvasLLM({
         if (remaining.length > 120) {
           onSentenceReady(remaining);
           currentIndex = text.length;
+        } else if (remaining.length > 10 && /[.!?]\s*$/.test(remaining)) {
+          // Text ends with sentence punctuation (even without trailing space) - emit it
+          onSentenceReady(remaining);
+          currentIndex = text.length;
         }
 
         return currentIndex;

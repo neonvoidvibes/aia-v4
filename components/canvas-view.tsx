@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE } from "@/lib/themes";
 import { useTheme } from "next-themes";
+import { Copy, Check } from "lucide-react";
 
 export type Depth = "mirror" | "lens" | "portal";
 
@@ -42,6 +43,7 @@ export default function CanvasView({
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [userHasScrolled, setUserHasScrolled] = useState(false); // Track manual scroll
+  const [copied, setCopied] = useState(false); // Track copy state
 
   // Find the current theme configuration
   const currentTheme = predefinedThemes.find((t) => t.className === theme);
@@ -169,6 +171,43 @@ export default function CanvasView({
 
     // Update chevron state after scroll animation
     setTimeout(checkScroll, 300);
+  };
+
+  // Copy canvas output to clipboard
+  const copyToClipboard = () => {
+    if (!llmOutput) return;
+
+    const notifySuccess = () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    const notifyFailure = (err?: any) => {
+      console.error("[Canvas Copy] Failed:", err);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(llmOutput).then(notifySuccess).catch(notifyFailure);
+    } else {
+      // Fallback for non-secure contexts
+      console.warn("[Canvas Copy] Fallback copy (execCommand).");
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = llmOutput;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) notifySuccess();
+        else throw new Error('execCommand fail');
+      } catch (err) {
+        notifyFailure(err);
+      }
+    }
   };
 
   return (
@@ -327,8 +366,25 @@ export default function CanvasView({
             </button>
           </div>
 
-          {/* Reset button - horizontally aligned with chevrons */}
-          <div className="absolute" style={{ right: '1.75rem', bottom: 'calc(1rem + 4px)' }}>
+          {/* Copy and Reset buttons - horizontally aligned with chevrons */}
+          <div className="absolute flex items-center gap-2" style={{ right: '1.75rem', bottom: 'calc(1rem + 4px)' }}>
+            {/* Copy button - only show when there's output */}
+            {hasLlmOutput && (
+              <button
+                type="button"
+                onClick={copyToClipboard}
+                className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+                aria-label="Copy canvas output"
+              >
+                {copied ? (
+                  <Check className="w-5 h-5" />
+                ) : (
+                  <Copy className="w-5 h-5" />
+                )}
+              </button>
+            )}
+
+            {/* Reset button */}
             <button
               type="button"
               onClick={() => {
