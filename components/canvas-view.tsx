@@ -62,13 +62,15 @@ export default function CanvasView({
   }, [assistantMessages.length]);
 
   const hasMultipleMessages = assistantMessages.length > 1;
-  const canNavigateLeft = hasMultipleMessages && currentMessageIndex > 0;
-  const canNavigateRight = hasMultipleMessages && currentMessageIndex < assistantMessages.length - 1;
+  const canNavigateLeft = hasMultipleMessages && currentMessageIndex > 0 && !isStreaming;
+  const canNavigateRight = hasMultipleMessages && currentMessageIndex < assistantMessages.length - 1 && !isStreaming;
 
-  // Use navigated message or fallback to llmOutput
-  const displayedOutput = (assistantMessages.length > 0 && currentMessageIndex >= 0 && currentMessageIndex < assistantMessages.length)
-    ? assistantMessages[currentMessageIndex].content
-    : llmOutput;
+  // When streaming, always show live llmOutput; otherwise show navigated message from history
+  const displayedOutput = isStreaming
+    ? llmOutput
+    : (assistantMessages.length > 0 && currentMessageIndex >= 0 && currentMessageIndex < assistantMessages.length)
+      ? assistantMessages[currentMessageIndex].content
+      : llmOutput;
 
   // Canvas-only override: always show "The River flows." regardless of theme
   // Theme-specific messages are preserved for other views
@@ -359,25 +361,25 @@ export default function CanvasView({
 
           {/* Top row: Message navigation chevrons, TTS indicator, and Depth label */}
           <div className="absolute top-4 left-0 right-0 flex items-center justify-center">
-            {/* Left/Right Message Navigation Chevrons - centered at top */}
-            {hasMultipleMessages && (
+            {/* Left/Right Message Navigation Chevrons - centered at top, hidden during streaming */}
+            {hasMultipleMessages && !isStreaming && (
               <div className="flex items-center gap-2 pointer-events-auto z-10">
                 {/* Left chevron */}
                 <button
                   type="button"
                   onClick={() => {
-                    if (canNavigateLeft && !isStreaming) {
+                    if (canNavigateLeft) {
                       setCurrentMessageIndex(prev => prev - 1);
                     }
                   }}
                   className={cn(
                     "transition-all",
-                    canNavigateLeft && !isStreaming
+                    canNavigateLeft
                       ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
                       : "text-white/20 opacity-30 cursor-not-allowed"
                   )}
                   aria-label="Previous message"
-                  disabled={!canNavigateLeft || isStreaming}
+                  disabled={!canNavigateLeft}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -388,18 +390,18 @@ export default function CanvasView({
                 <button
                   type="button"
                   onClick={() => {
-                    if (canNavigateRight && !isStreaming) {
+                    if (canNavigateRight) {
                       setCurrentMessageIndex(prev => prev + 1);
                     }
                   }}
                   className={cn(
                     "transition-all",
-                    canNavigateRight && !isStreaming
+                    canNavigateRight
                       ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
                       : "text-white/20 opacity-30 cursor-not-allowed"
                   )}
                   aria-label="Next message"
-                  disabled={!canNavigateRight || isStreaming}
+                  disabled={!canNavigateRight}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
