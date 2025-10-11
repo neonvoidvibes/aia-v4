@@ -45,10 +45,9 @@ export default function CanvasView({
   const [userHasScrolled, setUserHasScrolled] = useState(false); // Track manual scroll
   const [copied, setCopied] = useState(false); // Track copy state
 
-  // Find the current theme configuration
-  const currentTheme = predefinedThemes.find((t) => t.className === theme);
-  const welcomeConfig = currentTheme?.welcomeMessage || G_DEFAULT_WELCOME_MESSAGE;
-  const welcomeText = welcomeConfig.text || G_DEFAULT_WELCOME_MESSAGE.text;
+  // Canvas-only override: always show "The River flows." regardless of theme
+  // Theme-specific messages are preserved for other views
+  const welcomeText = "The River flows.";
 
   const hasLlmOutput = llmOutput.length > 0;
   const [showWelcome, setShowWelcome] = React.useState(true);
