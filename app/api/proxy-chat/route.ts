@@ -45,7 +45,11 @@ export async function POST(req: NextRequest) {
     // --- End Authentication ---
 
     // --- Find Active Backend URL ---
+    const backendUrlStart = Date.now();
+    log.info(`[PERF] Starting getBackendUrl(), delta from request: ${backendUrlStart - requestStartTime}ms`);
     const activeBackendUrl = await getBackendUrl();
+    const backendUrlTime = Date.now() - backendUrlStart;
+    log.info(`[PERF] getBackendUrl() completed in ${backendUrlTime}ms, delta from request: ${Date.now() - requestStartTime}ms`);
 
     if (!activeBackendUrl) {
         const errorMsg = `Could not connect to any configured backend: ${POTENTIAL_BACKEND_URLS.join(', ')}. Please ensure the backend server is running and accessible.`;
@@ -58,7 +62,11 @@ export async function POST(req: NextRequest) {
     }
     // --- Use activeBackendUrl from now on ---
 
+    const bodyParseStart = Date.now();
+    log.info(`[PERF] Starting req.json(), delta from request: ${bodyParseStart - requestStartTime}ms`);
     const body = await req.json();
+    const bodyParseTime = Date.now() - bodyParseStart;
+    log.info(`[PERF] req.json() completed in ${bodyParseTime}ms, delta from request: ${Date.now() - requestStartTime}ms`);
     log.debug("Request body parsed", sanitizeForLogging(body));
     // Filter out system messages added by the onError handler before proxying
     const userMessages = body.messages?.filter((msg: { role: string }) => msg.role === 'user' || msg.role === 'assistant') || [];
