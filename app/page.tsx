@@ -951,6 +951,11 @@ function HomeContent() {
             }
             setIsAuthorized(true);
 
+            console.log(`[Backend Prefetch] Warming up backend URL cache...`);
+            fetch('/api/backend/prefetch').catch(err => {
+              console.warn('[Backend Prefetch] Failed:', err);
+            });
+
             console.log(`[Cache Warmer] Triggering pre-caching for agent '${agentParam}'...`);
             fetch('/api/agent/warm-up', {
               method: 'POST',
@@ -976,6 +981,11 @@ function HomeContent() {
             console.log("Authorization Check: User authenticated, no valid last agent. Will show selector.");
             setCurrentAgent(null);
             setIsAuthorized(true);
+
+            console.log(`[Backend Prefetch] Warming up backend URL cache...`);
+            fetch('/api/backend/prefetch').catch(err => {
+              console.warn('[Backend Prefetch] Failed:', err);
+            });
           }
         }
       } catch (error) {

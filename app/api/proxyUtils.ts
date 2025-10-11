@@ -103,21 +103,38 @@ export function formatErrorChunk(errorMsg: string): string {
 // Add formatTextChunk if needed by other proxy routes, though it's chat-specific
 // export function formatTextChunk(text: string): string { ... }
 
-// A new function to get the backend URL
+// A new function to get the backend URL with shared promise for concurrent requests
 let _backendCache: { url: string | null; ts: number } = { url: null, ts: 0 };
+let _pendingHealthCheck: Promise<string | null> | null = null;
 const BACKEND_CACHE_TTL_MS = 90_000; // 90 seconds
 
 export async function getBackendUrl(): Promise<string | null> {
     const backendUrls = (process.env.BACKEND_API_URLS || '').split(',').map(url => url.trim()).filter(Boolean);
     const now = Date.now();
+
+    // Return cached URL if still valid
     if (_backendCache.url && (now - _backendCache.ts) < BACKEND_CACHE_TTL_MS) {
         return _backendCache.url;
     }
-    const url = await findActiveBackend(backendUrls);
-    if (url) {
-        _backendCache = { url, ts: now };
+
+    // If health check already in progress, wait for it instead of starting a new one
+    if (_pendingHealthCheck) {
+        return _pendingHealthCheck;
     }
-    return url;
+
+    // Start new health check and cache the promise
+    _pendingHealthCheck = findActiveBackend(backendUrls).then(url => {
+        if (url) {
+            _backendCache = { url, ts: Date.now() };
+        }
+        _pendingHealthCheck = null;
+        return url;
+    }).catch(err => {
+        _pendingHealthCheck = null;
+        throw err;
+    });
+
+    return _pendingHealthCheck;
 }
 
 interface ProxyApiRouteRequestParams {

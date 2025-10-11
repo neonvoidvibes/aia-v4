@@ -23,7 +23,8 @@ function formatTextChunk(text: string): string {
 export async function POST(req: NextRequest) {
   const requestId = randomUUID();
   const log = createRequestLogger(requestId);
-  
+  const requestStartTime = Date.now();
+
   log.info("Proxy-chat request received");
   // Instantiate client using our helper (handles cookies internally)
   const supabase = await createServerActionClient() // Use the correct helper, add await
@@ -149,26 +150,6 @@ export async function POST(req: NextRequest) {
       safeEvent = '0000';
     }
 
-    // Fetch groups_read_mode preference for this agent
-    let groupsReadMode = 'none';
-    if (agent && safeEvent === '0000') {
-      try {
-        const memoryPrefsUrl = `${req.nextUrl.origin}/api/agents/memory-prefs?agent=${encodeURIComponent(agent)}`;
-        const memoryPrefsRes = await fetch(memoryPrefsUrl, {
-          method: 'GET',
-          headers: {
-            'Cookie': req.headers.get('cookie') || ''
-          }
-        });
-        if (memoryPrefsRes.ok) {
-          const memoryPrefs = await memoryPrefsRes.json();
-          groupsReadMode = memoryPrefs.groups_read_mode || 'none';
-        }
-      } catch (err) {
-        log.warn('Failed to fetch groups_read_mode, defaulting to none', { error: err });
-      }
-    }
-
     log.info("Chat request validated", {
       agent,
       event: safeEvent,
@@ -177,8 +158,7 @@ export async function POST(req: NextRequest) {
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
       individualMemoryToggleStates: individualMemoryToggleStates,
       savedTranscriptSummariesCount: savedTranscriptSummaries.length,
-      transcriptionLanguage: transcriptionLanguageSetting,
-      groupsReadMode: groupsReadMode
+      transcriptionLanguage: transcriptionLanguageSetting
     });
 
     // Construct the specific API endpoint using the active base URL
@@ -196,7 +176,6 @@ export async function POST(req: NextRequest) {
       individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,
       rawTranscriptFiles: rawTranscriptFiles,
       transcriptionLanguage: transcriptionLanguageSetting, // Added
-      groupsReadMode: groupsReadMode, // Tri-state mode for groups reading
       initialContext: initialContext, // For _aicreator agent
       currentDraftContent: currentDraftContent, // For _aicreator feedback loop
       disableRetrieval: disableRetrieval, // To bypass RAG in wizard
@@ -250,16 +229,20 @@ export async function POST(req: NextRequest) {
       throw new Error('Unknown error contacting backend');
     }
 
+    const backendFetchStart = Date.now();
+    log.info(`[PERF] Sending to backend, delta from request: ${backendFetchStart - requestStartTime}ms`);
+
     const backendResponse = await fetchWithBackoff(backendChatUrl, {
       method: 'POST',
       headers: backendHeaders, // Use headers potentially including Authorization
       body: requestBody,
     });
 
+    const backendResponseTime = Date.now() - backendFetchStart;
     // Log raw status immediately
-    log.info("Backend response received", { 
-      status: backendResponse.status, 
-      statusText: backendResponse.statusText 
+    log.info(`[PERF] Backend response received: ${backendResponseTime}ms`, {
+      status: backendResponse.status,
+      statusText: backendResponse.statusText
     });
 
     // Check if the backend responded successfully
@@ -298,6 +281,8 @@ export async function POST(req: NextRequest) {
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
         let buffer = "";
+        let firstChunkTime: number | null = null;
+        let lastChunkTime: number = Date.now();
 
         function pushToClient(chunk: string) {
           controller.enqueue(encoder.encode(chunk));
@@ -323,6 +308,11 @@ export async function POST(req: NextRequest) {
                     const data = JSON.parse(jsonStr);
 
                     if (data.delta) {
+                      if (!firstChunkTime) {
+                        firstChunkTime = Date.now();
+                        log.info(`[PERF] First chunk received from backend: ${firstChunkTime - backendFetchStart}ms from fetch start, ${firstChunkTime - requestStartTime}ms from request start`);
+                      }
+                      lastChunkTime = Date.now();
                       // This is a text chunk. Translate to AI SDK format.
                       // The format is `0:"<text_chunk>"\n`
                       pushToClient(`0:${JSON.stringify(data.delta)}\n`);
@@ -363,6 +353,9 @@ export async function POST(req: NextRequest) {
           log.error("Error reading from backend stream", { error });
           pushToClient(formatErrorChunk("Error reading from backend service."));
         } finally {
+          const totalStreamTime = Date.now() - requestStartTime;
+          const streamProcessingTime = firstChunkTime ? Date.now() - firstChunkTime : 0;
+          log.info(`[PERF] Stream complete: total=${totalStreamTime}ms, processing=${streamProcessingTime}ms`);
           log.debug("Closing client stream controller");
           controller.close();
         }
