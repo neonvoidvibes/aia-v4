@@ -401,7 +401,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const hasOnlyShared = uniqueEvents.length <= 1 && uniqueEvents[0] === '0000';
   
   const outerIconColorClass = currentView === 'canvas'
-    ? 'text-white hover:text-white/80'
+    ? 'text-white hover:text-white/80 opacity-50'
     : 'text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]';
 
   return (
