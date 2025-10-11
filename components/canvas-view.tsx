@@ -41,6 +41,7 @@ export default function CanvasView({
   const [showChevrons, setShowChevrons] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [canScrollUp, setCanScrollUp] = useState(false);
+  const [userHasScrolled, setUserHasScrolled] = useState(false); // Track manual scroll
 
   // Find the current theme configuration
   const currentTheme = predefinedThemes.find((t) => t.className === theme);
@@ -129,9 +130,16 @@ export default function CanvasView({
     return () => clearTimeout(timeoutId);
   }, [checkScroll, welcomeText, llmOutput]);
 
-  // Auto-scroll to bottom when new content arrives during streaming
+  // Reset manual scroll flag when streaming starts
   React.useEffect(() => {
-    if (isStreaming && hasLlmOutput && textContainerRef.current) {
+    if (isStreaming) {
+      setUserHasScrolled(false);
+    }
+  }, [isStreaming]);
+
+  // Auto-scroll to bottom when new content arrives during streaming (only if user hasn't scrolled)
+  React.useEffect(() => {
+    if (isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
       container.scrollTo({
         top: container.scrollHeight,
@@ -140,7 +148,7 @@ export default function CanvasView({
       // Delay checkScroll to allow scroll animation to complete
       setTimeout(checkScroll, 300);
     }
-  }, [llmOutput, isStreaming, hasLlmOutput, checkScroll]);
+  }, [llmOutput, isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
 
   const scrollToPage = (direction: 'up' | 'down') => {
     const container = textContainerRef.current;
@@ -212,8 +220,18 @@ export default function CanvasView({
                   "overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-left flex-1 max-w-4xl transition-opacity duration-500",
                   showContent ? "opacity-100" : "opacity-0"
                 )}
-                onWheel={(e) => e.preventDefault()}
-                onTouchMove={(e) => e.preventDefault()}
+                onScroll={() => {
+                  // User manually scrolled - release auto-scroll anchor
+                  if (isStreaming) {
+                    setUserHasScrolled(true);
+                  }
+                }}
+                onWheel={(e) => {
+                  // Allow scrolling but mark as manual scroll
+                  if (isStreaming) {
+                    setUserHasScrolled(true);
+                  }
+                }}
                 style={{
                   WebkitOverflowScrolling: 'auto',
                   maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)',

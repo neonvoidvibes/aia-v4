@@ -285,8 +285,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Helper functions for navigation items that auto-close sidebar on mobile
   const handleNavigationClick = (view: View) => {
     setCurrentView(view);
-    // Auto-close sidebar on mobile for navigation items
-    if (isMobile) {
+    // Auto-close sidebar on mobile for navigation items, or always for Canvas
+    if (isMobile || view === 'canvas') {
       onClose();
     }
   };
