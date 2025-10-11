@@ -65,7 +65,8 @@ export async function GET(req: NextRequest) {
           stability: 1.0,              // Maximum stability = most consistent across separate API calls
           similarity_boost: 1.0,       // Maximum clone fidelity = least variation from base voice
           style: 0.0,                  // Zero style exaggeration = minimal variance between generations
-          use_speaker_boost: true      // Enhanced clarity
+          use_speaker_boost: true,     // Enhanced clarity
+          volume: 1.0                  // Maximum volume (range: -1 to 1, where 1 is loudest)
         },
       }),
     });
