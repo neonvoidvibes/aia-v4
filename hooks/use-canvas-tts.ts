@@ -275,14 +275,15 @@ export function useCanvasTTS({
     queueRef.current.push(newSentence);
     setQueueLength(queueRef.current.length);
 
-    // If this is the first or second sentence, start pre-fetching immediately
-    if (queueRef.current.length <= 2) {
-      prefetchNext();
-    }
-
-    // If autoPlay and not currently playing, start playing
+    // If autoPlay and not currently playing, start playing FIRST
+    // (before prefetchNext changes status to 'fetching')
     if (autoPlay && !isProcessingRef.current && !isPlaying) {
       playNext();
+    }
+
+    // Then pre-fetch the next sentence (if any) for zero-latency transitions
+    if (queueRef.current.length <= 2) {
+      prefetchNext();
     }
   }, [autoPlay, isPlaying, playNext, prefetchNext]);
 

@@ -137,10 +137,12 @@ export function useCanvasLLM({
         // Fallback: Emit long text without punctuation (120+ chars)
         const remaining = text.slice(currentIndex);
         if (remaining.length > 120) {
+          console.log('[Canvas TTS] Emitting long text (120+ chars):', remaining.substring(0, 50) + '...');
           onSentenceReady(remaining);
           currentIndex = text.length;
         } else if (remaining.length > 10 && /[.!?]\s*$/.test(remaining)) {
           // Text ends with sentence punctuation (even without trailing space) - emit it
+          console.log('[Canvas TTS] Emitting sentence ending with punctuation:', remaining.substring(0, 50) + '...');
           onSentenceReady(remaining);
           currentIndex = text.length;
         }
@@ -212,8 +214,11 @@ export function useCanvasLLM({
                 if (lastEmittedIndex < realTextAccumulator.length && onSentenceReady) {
                   const remaining = realTextAccumulator.slice(lastEmittedIndex).trim();
                   if (remaining.length > 0) {
+                    console.log('[Canvas TTS] Cleanup: Emitting remaining text from data.done:', remaining.substring(0, 50) + '...');
                     onSentenceReady(remaining);
                   }
+                } else {
+                  console.log('[Canvas TTS] Cleanup: No remaining text to emit (lastEmittedIndex:', lastEmittedIndex, 'accumulator length:', realTextAccumulator.length, ')');
                 }
 
                 setStatus('complete');
@@ -227,12 +232,15 @@ export function useCanvasLLM({
         }
       }
 
-      // Emit any remaining text
+      // Emit any remaining text (fallback after while loop)
       if (lastEmittedIndex < realTextAccumulator.length && onSentenceReady) {
         const remaining = realTextAccumulator.slice(lastEmittedIndex).trim();
         if (remaining.length > 0) {
+          console.log('[Canvas TTS] Final cleanup: Emitting remaining text:', remaining.substring(0, 50) + '...');
           onSentenceReady(remaining);
         }
+      } else {
+        console.log('[Canvas TTS] Final cleanup: No remaining text to emit');
       }
 
       setStatus('complete');
