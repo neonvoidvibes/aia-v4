@@ -16,6 +16,7 @@ export interface UseCanvasLLMOptions {
   conversationHistory?: Array<{ role: string; content: string }>;
   onStart?: () => void;
   onChunk?: (chunk: string) => void;
+  onSentenceReady?: (sentence: string) => void; // NEW: Triggered on sentence boundary for TTS
   onComplete?: (fullText: string, userTranscript: string) => void;
   onError?: (error: string) => void;
 }
@@ -35,6 +36,7 @@ export function useCanvasLLM({
   conversationHistory = [],
   onStart,
   onChunk,
+  onSentenceReady,
   onComplete,
   onError,
 }: UseCanvasLLMOptions): UseCanvasLLMReturn {
@@ -97,12 +99,50 @@ export function useCanvasLLM({
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let fullText = '';
-      let buffer = ''; // Buffer for character-by-character display
-      let isFirstChar = true; // Track first character for immediate display
 
-      // Helper to delay between characters (40ms per character for slower display)
+      // PATH 1: Real-time accumulator for TTS (immediate, no delay)
+      let realTextAccumulator = '';
+      let lastEmittedIndex = 0; // Track what we've already emitted to TTS
+
+      // PATH 2: Display buffer (40ms delay + sentence pauses)
+      let displayText = '';
+      let displayBuffer = '';
+      let isFirstChar = true;
+
+      // Helper functions
       const delayBetweenChars = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+      // Sentence detection: . ! ? followed by space, or double newline, or 100+ chars without punctuation
+      const sentencePattern = /[.!?][\s]+|[\n]{2,}/g;
+
+      const checkAndEmitSentences = (text: string, lastIndex: number) => {
+        if (!onSentenceReady) return lastIndex;
+
+        let match;
+        let currentIndex = lastIndex;
+
+        // Reset regex lastIndex
+        sentencePattern.lastIndex = 0;
+
+        while ((match = sentencePattern.exec(text)) !== null) {
+          if (match.index >= lastIndex) {
+            const sentence = text.slice(lastIndex, match.index + match[0].length).trim();
+            if (sentence.length > 10) { // Avoid tiny fragments
+              onSentenceReady(sentence);
+              currentIndex = match.index + match[0].length;
+            }
+          }
+        }
+
+        // Fallback: Emit long text without punctuation (120+ chars)
+        const remaining = text.slice(currentIndex);
+        if (remaining.length > 120) {
+          onSentenceReady(remaining);
+          currentIndex = text.length;
+        }
+
+        return currentIndex;
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -127,15 +167,19 @@ export function useCanvasLLM({
               }
 
               if (data.delta) {
-                // Add chunk to buffer
-                buffer += data.delta;
+                // PATH 1: Real-time TTS sentence detection
+                realTextAccumulator += data.delta;
+                lastEmittedIndex = checkAndEmitSentences(realTextAccumulator, lastEmittedIndex);
+
+                // PATH 2: Buffered visual display with sentence pauses
+                displayBuffer += data.delta;
 
                 // Display character by character from buffer
-                while (buffer.length > 0) {
-                  const char = buffer[0];
-                  buffer = buffer.slice(1);
-                  fullText += char;
-                  setOutput(fullText);
+                while (displayBuffer.length > 0) {
+                  const char = displayBuffer[0];
+                  displayBuffer = displayBuffer.slice(1);
+                  displayText += char;
+                  setOutput(displayText);
                   onChunk?.(char);
 
                   // No delay for first character, then 40ms delay
@@ -144,12 +188,32 @@ export function useCanvasLLM({
                   } else {
                     isFirstChar = false;
                   }
+
+                  // Add 400ms pause at sentence boundaries for natural reading rhythm
+                  if (char === '.' || char === '!' || char === '?') {
+                    // Check if next char is a space (actual sentence end, not abbreviation)
+                    if (displayBuffer.length > 0 && displayBuffer[0] === ' ') {
+                      await delayBetweenChars(400);
+                    }
+                  }
+                  // Also pause at double newlines
+                  if (char === '\n' && displayText.endsWith('\n\n')) {
+                    await delayBetweenChars(400);
+                  }
                 }
               }
 
               if (data.done) {
+                // Emit any remaining text that didn't form a complete sentence
+                if (lastEmittedIndex < realTextAccumulator.length && onSentenceReady) {
+                  const remaining = realTextAccumulator.slice(lastEmittedIndex).trim();
+                  if (remaining.length > 0) {
+                    onSentenceReady(remaining);
+                  }
+                }
+
                 setStatus('complete');
-                onComplete?.(fullText, transcript);
+                onComplete?.(displayText, transcript);
                 return;
               }
             } catch (e) {
@@ -159,8 +223,16 @@ export function useCanvasLLM({
         }
       }
 
+      // Emit any remaining text
+      if (lastEmittedIndex < realTextAccumulator.length && onSentenceReady) {
+        const remaining = realTextAccumulator.slice(lastEmittedIndex).trim();
+        if (remaining.length > 0) {
+          onSentenceReady(remaining);
+        }
+      }
+
       setStatus('complete');
-      onComplete?.(fullText, transcript);
+      onComplete?.(displayText, transcript);
 
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -177,7 +249,7 @@ export function useCanvasLLM({
     } finally {
       abortControllerRef.current = null;
     }
-  }, [agentName, depth, conversationHistory, onStart, onChunk, onComplete, onError]);
+  }, [agentName, depth, conversationHistory, onStart, onChunk, onSentenceReady, onComplete, onError]);
 
   return {
     streamResponse,

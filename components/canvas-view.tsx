@@ -20,6 +20,7 @@ interface CanvasViewProps {
   statusMessage?: string;
   isTranscribing?: boolean;
   onReset?: () => void;
+  isTTSPlaying?: boolean; // NEW: Show audio indicator when TTS is playing
 }
 
 export default function CanvasView({
@@ -32,7 +33,8 @@ export default function CanvasView({
   isPTTActive = false,
   statusMessage = "",
   isTranscribing = false,
-  onReset
+  onReset,
+  isTTSPlaying = false
 }: CanvasViewProps) {
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
@@ -274,8 +276,25 @@ export default function CanvasView({
             </div>
           )}
 
-          {/* Depth label */}
-          <div className="absolute top-4 right-4">
+          {/* Depth label and TTS indicator */}
+          <div className="absolute top-4 right-4 flex items-center gap-3">
+            {/* TTS Audio Indicator - subtle animated waves */}
+            {isTTSPlaying && (
+              <div className="flex items-center gap-[3px]" aria-label="Audio playing">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-[3px] bg-white/60 rounded-full canvas-audio-wave"
+                    style={{
+                      height: '12px',
+                      animationDelay: `${i * 0.15}s`
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Depth mode button */}
             <button
               type="button"
               onClick={() => {
@@ -350,7 +369,7 @@ export default function CanvasView({
         </button>
       </div>
 
-      {/* Local styles for cursor + pulse + scrollbar hide */}
+      {/* Local styles for cursor + pulse + audio wave + scrollbar hide */}
       <style>{`
         @keyframes canvas-thick-cursor-keyframe {
           0%, 49% { opacity: 1; }
@@ -364,6 +383,12 @@ export default function CanvasView({
           100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
         }
         .canvas-ptt-pulse { animation: canvas-ptt-pulse-keyframe 1.6s ease-out infinite; }
+
+        @keyframes canvas-audio-wave-keyframe {
+          0%, 100% { height: 6px; opacity: 0.5; }
+          50% { height: 16px; opacity: 1; }
+        }
+        .canvas-audio-wave { animation: canvas-audio-wave-keyframe 0.9s ease-in-out infinite; }
 
         /* Hide scrollbar but keep functionality */
         .scrollbar-hide {

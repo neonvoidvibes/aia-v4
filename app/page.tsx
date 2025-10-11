@@ -29,6 +29,7 @@ import { useLocalization } from "@/context/LocalizationContext";
 import enTranslations from "@/lib/localization/en.json";
 import { useCanvasLLM } from "@/hooks/use-canvas-llm";
 import { useCanvasPTT } from "@/hooks/use-canvas-ptt";
+import { useCanvasTTS } from "@/hooks/use-canvas-tts";
 // Use both Dropdown and Sheet components
 import {
   DropdownMenu,
@@ -440,6 +441,20 @@ function HomeContent() {
   // Events cache key (depends on pageAgentName) — defined after pageAgentName state
   const eventsCacheKey = useMemo(() => pageAgentName ? `events_cache_${pageAgentName}` : null, [pageAgentName]);
 
+  // Canvas TTS hook - must be declared before canvasLLM
+  const canvasTTS = useCanvasTTS({
+    autoPlay: true,
+    onStart: () => {
+      console.log('[Canvas] TTS playback started');
+    },
+    onComplete: () => {
+      console.log('[Canvas] TTS playback completed');
+    },
+    onError: (error: string) => {
+      toast.error(`Canvas TTS error: ${error}`);
+    }
+  });
+
   // Canvas LLM hook (after pageAgentName is declared)
   const canvasLLM = useCanvasLLM({
     agentName: pageAgentName || '',
@@ -451,6 +466,10 @@ function HomeContent() {
     },
     onChunk: (chunk: string) => {
       setCanvasLlmOutput(prev => prev + chunk);
+    },
+    onSentenceReady: (sentence: string) => {
+      // Feed sentences to TTS as they're detected
+      canvasTTS.enqueueSentence(sentence);
     },
     onComplete: (fullText: string, userTranscript: string) => {
       setCanvasIsStreaming(false);
@@ -2813,12 +2832,17 @@ function HomeContent() {
             isStreaming={canvasIsStreaming}
             isTranscribing={canvasPTT.status === 'transcribing'}
             isPTTActive={isCanvasPTTActive}
+            isTTSPlaying={canvasTTS.isPlaying}
             statusMessage={
               canvasPTT.status === 'recording' ? 'Recording...' :
               canvasPTT.status === 'transcribing' ? 'Transcribing...' :
               canvasIsStreaming ? 'Thinking...' : ''
             }
             onPTTPress={async () => {
+              // Stop and clear TTS before starting new recording
+              canvasTTS.stop();
+              canvasTTS.clear();
+
               setIsCanvasPTTActive(true);
               await canvasPTT.startRecording();
             }}
@@ -2827,11 +2851,14 @@ function HomeContent() {
               await canvasPTT.stopRecording();
             }}
             onReset={() => {
+              // Clear all canvas state including TTS
               setCanvasLlmOutput('');
               setCanvasIsStreaming(false);
               setCanvasConversationHistory([]);
               setCanvasTranscript('');
               canvasLLM.reset();
+              canvasTTS.stop();
+              canvasTTS.clear();
             }}
           />
         </div>
