@@ -511,12 +511,17 @@ function HomeContent() {
     setCanvasAnalysisStatus({ state: 'analyzing' });
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No authentication session');
+      }
+
       const response = await fetch('/api/canvas/analysis/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
-        credentials: 'include',
         body: JSON.stringify({
           agent: pageAgentName,
         }),
