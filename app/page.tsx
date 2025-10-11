@@ -49,7 +49,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
-import CanvasView, { CANVAS_BACKGROUND_SRC } from "@/components/canvas-view";
+import CanvasView, { CANVAS_BACKGROUND_SRC, type AnalysisStatus } from "@/components/canvas-view";
 import RecordView from "@/components/RecordView";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
@@ -218,6 +218,8 @@ function HomeContent() {
   const [canvasTranscript, setCanvasTranscript] = useState('');
   const [isCanvasPTTActive, setIsCanvasPTTActive] = useState(false);
   const [canvasConversationHistory, setCanvasConversationHistory] = useState<Array<{ role: string; content: string }>>([]);
+  const [canvasAnalysisStatus, setCanvasAnalysisStatus] = useState<AnalysisStatus>({ state: 'none' });
+  const [isRefreshingCanvasAnalysis, setIsRefreshingCanvasAnalysis] = useState(false);
 
   const layoutStyle = currentView === "canvas"
     ? ({
@@ -500,6 +502,49 @@ function HomeContent() {
       toast.error(`Canvas PTT error: ${error}`);
     }
   });
+
+  // Canvas analysis refresh handler
+  const handleRefreshCanvasAnalysis = async () => {
+    if (!pageAgentName || isRefreshingCanvasAnalysis) return;
+
+    setIsRefreshingCanvasAnalysis(true);
+    setCanvasAnalysisStatus({ state: 'analyzing' });
+
+    try {
+      const response = await fetch('/api/canvas/analysis/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          agent: pageAgentName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to refresh analysis: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.timestamp) {
+        setCanvasAnalysisStatus({
+          state: 'ready',
+          timestamp: data.timestamp
+        });
+        toast.success('Analysis refreshed successfully');
+      } else {
+        throw new Error('Analysis refresh failed');
+      }
+    } catch (error: any) {
+      console.error('Canvas analysis refresh error:', error);
+      toast.error(`Failed to refresh analysis: ${error.message}`);
+      setCanvasAnalysisStatus({ state: 'none' });
+    } finally {
+      setIsRefreshingCanvasAnalysis(false);
+    }
+  };
 
 
   // --- PHASE 3: New state management for dynamic workspaces ---
@@ -2834,6 +2879,9 @@ function HomeContent() {
             isPTTActive={isCanvasPTTActive}
             isTTSPlaying={canvasTTS.isPlaying}
             messageHistory={canvasConversationHistory}
+            analysisStatus={canvasAnalysisStatus}
+            onRefreshAnalysis={handleRefreshCanvasAnalysis}
+            isRefreshingAnalysis={isRefreshingCanvasAnalysis}
             statusMessage={
               canvasPTT.status === 'recording' ? 'Recording...' :
               canvasPTT.status === 'transcribing' ? 'Transcribing...' :

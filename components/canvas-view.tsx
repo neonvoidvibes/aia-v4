@@ -4,11 +4,16 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE } from "@/lib/themes";
 import { useTheme } from "next-themes";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Sparkles, RotateCcw } from "lucide-react";
 
 export type Depth = "mirror" | "lens" | "portal";
 
 export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/river_photo_01.png";
+
+export interface AnalysisStatus {
+  state: 'none' | 'analyzing' | 'ready';
+  timestamp?: string; // ISO format
+}
 
 interface CanvasViewProps {
   depth: Depth;
@@ -23,6 +28,9 @@ interface CanvasViewProps {
   onReset?: () => void;
   isTTSPlaying?: boolean; // NEW: Show audio indicator when TTS is playing
   messageHistory?: Array<{ role: string; content: string }>; // NEW: Message history for navigation
+  analysisStatus?: AnalysisStatus; // NEW: Analysis document status
+  onRefreshAnalysis?: () => void; // NEW: Manual refresh callback
+  isRefreshingAnalysis?: boolean; // NEW: Loading state for refresh
 }
 
 export default function CanvasView({
@@ -37,7 +45,10 @@ export default function CanvasView({
   isTranscribing = false,
   onReset,
   isTTSPlaying = false,
-  messageHistory = []
+  messageHistory = [],
+  analysisStatus = { state: 'none' },
+  onRefreshAnalysis,
+  isRefreshingAnalysis = false
 }: CanvasViewProps) {
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
@@ -234,6 +245,33 @@ export default function CanvasView({
       } catch (err) {
         notifyFailure(err);
       }
+    }
+  };
+
+  // Format analysis status text for display
+  const getAnalysisStatusText = () => {
+    if (isRefreshingAnalysis) {
+      return 'Analyzing';
+    }
+
+    switch (analysisStatus.state) {
+      case 'none':
+        return 'No Analysis';
+      case 'analyzing':
+        return 'Analyzing';
+      case 'ready':
+        if (analysisStatus.timestamp) {
+          try {
+            const date = new Date(analysisStatus.timestamp);
+            const formatted = `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} at ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+            return `Analysis Ready · ${formatted}`;
+          } catch (e) {
+            return 'Analysis Ready';
+          }
+        }
+        return 'Analysis Ready';
+      default:
+        return 'No Analysis';
     }
   };
 
@@ -446,8 +484,33 @@ export default function CanvasView({
             </div>
           </div>
 
-          {/* Copy and Reset buttons - horizontally aligned with chevrons */}
+          {/* Analysis status text - bottom center, same style as depth mode indicator */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
+            <span className="text-xs font-semibold uppercase tracking-wide text-white/50">
+              {getAnalysisStatusText()}
+            </span>
+          </div>
+
+          {/* Action buttons - horizontally aligned with chevrons */}
           <div className="absolute flex items-center gap-2" style={{ right: '1.75rem', bottom: 'calc(1rem + 4px)' }}>
+            {/* Refresh Analysis button (sparkles) */}
+            <button
+              type="button"
+              onClick={() => {
+                onRefreshAnalysis?.();
+              }}
+              className={cn(
+                "transition-colors",
+                isRefreshingAnalysis
+                  ? "text-white/50 cursor-wait animate-pulse"
+                  : "text-white/30 hover:text-white/50 cursor-pointer"
+              )}
+              aria-label="Refresh analysis"
+              disabled={isRefreshingAnalysis}
+            >
+              <Sparkles className="w-5 h-5" />
+            </button>
+
             {/* Copy button - only show when there's output */}
             {hasLlmOutput && (
               <button
@@ -464,27 +527,16 @@ export default function CanvasView({
               </button>
             )}
 
-            {/* Reset button */}
+            {/* Restart button (left-pointing triangle icon) */}
             <button
               type="button"
               onClick={() => {
                 onReset?.();
               }}
               className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
-              aria-label="Reset canvas"
+              aria-label="Restart canvas session"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeDasharray="1 3.5"
-                viewBox="0 0 24 24"
-              >
-                {/* Dotted circle */}
-                <circle cx="12" cy="12" r="9" />
-              </svg>
+              <RotateCcw className="w-5 h-5" />
             </button>
           </div>
         </div>
