@@ -62,10 +62,10 @@ export async function GET(req: NextRequest) {
         text: textWithProsody,
         model_id: 'eleven_turbo_v2_5', // Faster model for lower latency
         voice_settings: {
-          stability: 0.85,           // Very high stability = highly consistent, calm delivery
-          similarity_boost: 0.95,    // Maximum fidelity to base voice character (near-perfect clone)
-          style: 0.25,               // Lower style = less dramatization, more measured/serious
-          use_speaker_boost: true    // Enhanced clarity
+          stability: 1.0,              // Maximum stability = most consistent across separate API calls
+          similarity_boost: 1.0,       // Maximum clone fidelity = least variation from base voice
+          style: 0.0,                  // Zero style exaggeration = minimal variance between generations
+          use_speaker_boost: true      // Enhanced clarity
         },
       }),
     });

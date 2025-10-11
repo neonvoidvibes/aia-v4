@@ -103,7 +103,6 @@ export function useCanvasLLM({
       // PATH 1: Real-time accumulator for TTS (immediate, no delay)
       let realTextAccumulator = '';
       let lastEmittedIndex = 0; // Track what we've already emitted to TTS
-      let sentenceBuffer: string[] = []; // Buffer to batch 2 sentences together
 
       // PATH 2: Display buffer (40ms delay + sentence pauses)
       let displayText = '';
@@ -129,15 +128,8 @@ export function useCanvasLLM({
           if (match.index >= lastIndex) {
             const sentence = text.slice(lastIndex, match.index + match[0].length).trim();
             if (sentence.length > 10) { // Avoid tiny fragments
-              sentenceBuffer.push(sentence);
+              onSentenceReady(sentence);
               currentIndex = match.index + match[0].length;
-
-              // Emit when we have 2 sentences
-              if (sentenceBuffer.length >= 2) {
-                const batchedText = sentenceBuffer.join(' ');
-                onSentenceReady(batchedText);
-                sentenceBuffer = []; // Clear buffer
-              }
             }
           }
         }
@@ -145,12 +137,6 @@ export function useCanvasLLM({
         // Fallback: Emit long text without punctuation (120+ chars)
         const remaining = text.slice(currentIndex);
         if (remaining.length > 120) {
-          // Flush any buffered sentences first
-          if (sentenceBuffer.length > 0) {
-            const batchedText = sentenceBuffer.join(' ');
-            onSentenceReady(batchedText);
-            sentenceBuffer = [];
-          }
           onSentenceReady(remaining);
           currentIndex = text.length;
         }
@@ -218,13 +204,6 @@ export function useCanvasLLM({
               }
 
               if (data.done) {
-                // Flush any buffered sentences (even if < 2)
-                if (sentenceBuffer.length > 0 && onSentenceReady) {
-                  const batchedText = sentenceBuffer.join(' ');
-                  onSentenceReady(batchedText);
-                  sentenceBuffer = [];
-                }
-
                 // Emit any remaining text that didn't form a complete sentence
                 if (lastEmittedIndex < realTextAccumulator.length && onSentenceReady) {
                   const remaining = realTextAccumulator.slice(lastEmittedIndex).trim();
@@ -242,13 +221,6 @@ export function useCanvasLLM({
             }
           }
         }
-      }
-
-      // Flush any buffered sentences (even if < 2)
-      if (sentenceBuffer.length > 0 && onSentenceReady) {
-        const batchedText = sentenceBuffer.join(' ');
-        onSentenceReady(batchedText);
-        sentenceBuffer = [];
       }
 
       // Emit any remaining text
