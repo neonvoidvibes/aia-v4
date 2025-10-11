@@ -134,15 +134,24 @@ export function useCanvasLLM({
           }
         }
 
-        // Fallback: Emit long text without punctuation (120+ chars)
+        // Fallback strategies for text that doesn't have clear sentence boundaries
         const remaining = text.slice(currentIndex);
+
+        // 1. Long text without punctuation (120+ chars)
         if (remaining.length > 120) {
           console.log('[Canvas TTS] Emitting long text (120+ chars):', remaining.substring(0, 50) + '...');
           onSentenceReady(remaining);
           currentIndex = text.length;
-        } else if (remaining.length > 10 && /[.!?]\s*$/.test(remaining)) {
-          // Text ends with sentence punctuation (even without trailing space) - emit it
+        }
+        // 2. Text ends with sentence punctuation (even without trailing space)
+        else if (remaining.length > 10 && /[.!?]\s*$/.test(remaining)) {
           console.log('[Canvas TTS] Emitting sentence ending with punctuation:', remaining.substring(0, 50) + '...');
+          onSentenceReady(remaining);
+          currentIndex = text.length;
+        }
+        // 3. NEW: After paragraph break, emit next paragraph if it's substantial (60+ chars with punctuation)
+        else if (remaining.length > 60 && /[.!?]/.test(remaining)) {
+          console.log('[Canvas TTS] Emitting paragraph after break (60+ chars):', remaining.substring(0, 50) + '...');
           onSentenceReady(remaining);
           currentIndex = text.length;
         }
