@@ -62,8 +62,9 @@ export default function CanvasView({
   }, [assistantMessages.length]);
 
   const hasMultipleMessages = assistantMessages.length > 1;
-  const canNavigateLeft = hasMultipleMessages && currentMessageIndex > 0 && !isStreaming;
-  const canNavigateRight = hasMultipleMessages && currentMessageIndex < assistantMessages.length - 1 && !isStreaming;
+  const isNavigationDisabled = isStreaming || isTTSPlaying;
+  const canNavigateLeft = hasMultipleMessages && currentMessageIndex > 0 && !isNavigationDisabled;
+  const canNavigateRight = hasMultipleMessages && currentMessageIndex < assistantMessages.length - 1 && !isNavigationDisabled;
 
   // When streaming, always show live llmOutput; otherwise show navigated message from history
   const displayedOutput = isStreaming
@@ -361,54 +362,55 @@ export default function CanvasView({
 
           {/* Top row: Message navigation chevrons, TTS indicator, and Depth label */}
           <div className="absolute top-4 left-0 right-0 flex items-center justify-center">
-            {/* Left/Right Message Navigation Chevrons - centered at top, hidden during streaming */}
-            {hasMultipleMessages && !isStreaming && (
-              <div className="flex items-center gap-2 pointer-events-auto z-10">
-                {/* Left chevron */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (canNavigateLeft) {
-                      setCurrentMessageIndex(prev => prev - 1);
-                    }
-                  }}
-                  className={cn(
-                    "transition-all",
-                    canNavigateLeft
-                      ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
-                      : "text-white/20 opacity-30 cursor-not-allowed"
-                  )}
-                  aria-label="Previous message"
-                  disabled={!canNavigateLeft}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
+            {/* Left/Right Message Navigation Chevrons - centered at top, dimmed during streaming/TTS, invisible when <=1 messages */}
+            <div className={cn(
+              "flex items-center gap-2 pointer-events-auto z-10",
+              hasMultipleMessages ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}>
+              {/* Left chevron */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (canNavigateLeft) {
+                    setCurrentMessageIndex(prev => prev - 1);
+                  }
+                }}
+                className={cn(
+                  "transition-all",
+                  canNavigateLeft
+                    ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
+                    : "text-white/20 opacity-30 cursor-not-allowed"
+                )}
+                aria-label="Previous message"
+                disabled={!canNavigateLeft}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
 
-                {/* Right chevron */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (canNavigateRight) {
-                      setCurrentMessageIndex(prev => prev + 1);
-                    }
-                  }}
-                  className={cn(
-                    "transition-all",
-                    canNavigateRight
-                      ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
-                      : "text-white/20 opacity-30 cursor-not-allowed"
-                  )}
-                  aria-label="Next message"
-                  disabled={!canNavigateRight}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            )}
+              {/* Right chevron */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (canNavigateRight) {
+                    setCurrentMessageIndex(prev => prev + 1);
+                  }
+                }}
+                className={cn(
+                  "transition-all",
+                  canNavigateRight
+                    ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
+                    : "text-white/20 opacity-30 cursor-not-allowed"
+                )}
+                aria-label="Next message"
+                disabled={!canNavigateRight}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
 
             {/* TTS indicator and Depth mode button - positioned at top right */}
             <div className="absolute right-4 flex items-center gap-3">
