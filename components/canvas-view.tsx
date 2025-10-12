@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE } from "@/lib/themes";
 import { useTheme } from "next-themes";
-import { Copy, Check, Sparkles, RotateCcw } from "lucide-react";
+import { Copy, Check, Play, RotateCcw } from "lucide-react";
 
 export type Depth = "mirror" | "lens" | "portal";
 
@@ -493,24 +493,6 @@ export default function CanvasView({
 
           {/* Action buttons - horizontally aligned with chevrons */}
           <div className="absolute flex items-center gap-2" style={{ right: '1.75rem', bottom: 'calc(1rem + 4px)' }}>
-            {/* Refresh Analysis button (sparkles) */}
-            <button
-              type="button"
-              onClick={() => {
-                onRefreshAnalysis?.();
-              }}
-              className={cn(
-                "transition-colors",
-                isRefreshingAnalysis
-                  ? "text-white/50 cursor-wait animate-pulse"
-                  : "text-white/30 hover:text-white/50 cursor-pointer"
-              )}
-              aria-label="Refresh analysis"
-              disabled={isRefreshingAnalysis}
-            >
-              <Sparkles className="w-5 h-5" />
-            </button>
-
             {/* Copy button - only show when there's output */}
             {hasLlmOutput && (
               <button
@@ -537,6 +519,24 @@ export default function CanvasView({
               aria-label="Restart canvas session"
             >
               <RotateCcw className="w-5 h-5" />
+            </button>
+
+            {/* Refresh Analysis button (play icon) */}
+            <button
+              type="button"
+              onClick={() => {
+                onRefreshAnalysis?.();
+              }}
+              className={cn(
+                "transition-colors",
+                isRefreshingAnalysis
+                  ? "text-white/50 cursor-wait animate-pulse"
+                  : "text-white/30 hover:text-white/50 cursor-pointer"
+              )}
+              aria-label="Refresh analysis"
+              disabled={isRefreshingAnalysis}
+            >
+              <Play className="w-5 h-5" />
             </button>
           </div>
         </div>
