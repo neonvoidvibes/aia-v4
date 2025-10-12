@@ -158,19 +158,41 @@ export function useCanvasLLM({
           }
         }
 
+        // Helper: Find last word boundary before maxIndex to avoid mid-word splits
+        const findLastWordBoundary = (str: string, maxIndex: number): number => {
+          if (maxIndex >= str.length) return str.length;
+
+          // Look for last whitespace (space, newline, tab) before maxIndex
+          const beforeMax = str.slice(0, maxIndex);
+          const lastSpace = Math.max(
+            beforeMax.lastIndexOf(' '),
+            beforeMax.lastIndexOf('\n'),
+            beforeMax.lastIndexOf('\t')
+          );
+
+          // If we found a space, split after it; otherwise use maxIndex as fallback
+          return lastSpace > 0 ? lastSpace + 1 : maxIndex;
+        };
+
         // Fallback strategies for text that doesn't have clear sentence boundaries
         const remaining = text.slice(currentIndex);
 
-        // 1. Long text without punctuation (120+ chars)
-        if (remaining.length > 120) {
-          console.log('[Canvas TTS] Emitting long text (120+ chars):', remaining.substring(0, 50) + '...');
-          onSentenceReady(remaining);
-          currentIndex = text.length;
+        // 1. Long text without punctuation (150+ chars) - WORD BOUNDARY AWARE
+        if (remaining.length > 150) {
+          // Find last word boundary before char 150 to avoid splitting mid-word
+          const splitPoint = findLastWordBoundary(remaining, 150);
+          const chunk = remaining.slice(0, splitPoint).trim();
+
+          if (chunk.length > 10) {
+            console.log('[Canvas TTS] Emitting long text at word boundary (150+ chars):', chunk.substring(0, 50) + '...');
+            onSentenceReady(chunk);
+            currentIndex += splitPoint;
+          }
         }
-        // 2. Text with substantial content and any punctuation (40+ chars)
+        // 2. Text with substantial content and any punctuation (50+ chars)
         // This catches paragraphs after breaks and partial sentences
-        else if (remaining.length > 40 && /[.!?]/.test(remaining)) {
-          console.log('[Canvas TTS] Emitting substantial text (40+ chars with punctuation):', remaining.substring(0, 50) + '...');
+        else if (remaining.length > 50 && /[.!?]/.test(remaining)) {
+          console.log('[Canvas TTS] Emitting substantial text (50+ chars with punctuation):', remaining.substring(0, 50) + '...');
           onSentenceReady(remaining);
           currentIndex = text.length;
         }
