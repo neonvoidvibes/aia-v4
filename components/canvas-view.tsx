@@ -181,13 +181,8 @@ export default function CanvasView({
   React.useEffect(() => {
     if (isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
-      // Use setTimeout to ensure DOM has updated with new content before scrolling
-      setTimeout(() => {
-        if (container && isStreaming && !userHasScrolled) {
-          // Scroll to max possible position to ensure we reach the bottom
-          container.scrollTop = container.scrollHeight - container.clientHeight + 1000;
-        }
-      }, 0);
+      // Direct scroll to bottom - browser handles smoothness via CSS
+      container.scrollTop = 999999;
     }
   }, [displayedOutput, isStreaming, hasLlmOutput, userHasScrolled]);
 
@@ -195,12 +190,8 @@ export default function CanvasView({
   React.useEffect(() => {
     if (!isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
-      // Ensure we stay scrolled to bottom when streaming ends
-      setTimeout(() => {
-        if (container) {
-          container.scrollTop = container.scrollHeight - container.clientHeight + 1000;
-        }
-      }, 100);
+      // Final scroll to bottom when streaming completes
+      container.scrollTop = 999999;
     }
   }, [isStreaming, hasLlmOutput, userHasScrolled]);
 
@@ -359,18 +350,8 @@ export default function CanvasView({
                   "overflow-y-auto overflow-x-hidden scrollbar-hide px-2 md:px-4 pt-24 pb-24 text-left flex-1 max-w-4xl transition-opacity duration-500",
                   showContent ? "opacity-100" : "opacity-0"
                 )}
-                onScroll={(e) => {
-                  const container = e.currentTarget;
-                  // Only mark as manual scroll if user scrolls UP or away from bottom
-                  if (isStreaming) {
-                    const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
-                    if (!isAtBottom) {
-                      setUserHasScrolled(true);
-                    }
-                  }
-                }}
                 onWheel={(e) => {
-                  // Only mark as manual scroll if scrolling up during streaming
+                  // Detect user scrolling up to de-anchor
                   if (isStreaming && e.deltaY < 0) {
                     setUserHasScrolled(true);
                   }
