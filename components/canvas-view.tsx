@@ -333,7 +333,7 @@ export default function CanvasView({
               <div
                 ref={textContainerRef}
                 className={cn(
-                  "overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 pb-24 text-left flex-1 max-w-4xl transition-opacity duration-500",
+                  "overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-24 pb-24 text-left flex-1 max-w-4xl transition-opacity duration-500",
                   showContent ? "opacity-100" : "opacity-0"
                 )}
                 onScroll={(e) => {
@@ -581,7 +581,7 @@ export default function CanvasView({
             "relative h-12 w-12 md:h-14 md:w-14 rounded-full",
             "ring-4 transition-all duration-100 ease-out",
             (isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing')
-              ? "ring-white/30 bg-white/10 opacity-60 cursor-not-allowed"
+              ? "ring-white/35 bg-white/12 opacity-80 cursor-not-allowed"
               : "ring-white/40 hover:ring-white/60 bg-white/5 hover:bg-white/15",
             isPTTActive ? "scale-[1.05]" : "scale-100"
           )}
