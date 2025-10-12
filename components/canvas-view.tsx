@@ -181,29 +181,28 @@ export default function CanvasView({
   React.useEffect(() => {
     if (isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
-      // Smooth continuous scroll to bottom during streaming
-      requestAnimationFrame(() => {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: 'smooth'
-        });
-        // Check scroll state after update
-        setTimeout(checkScroll, 150);
-      });
+      // Use setTimeout to ensure DOM has updated with new content before scrolling
+      setTimeout(() => {
+        if (container && isStreaming && !userHasScrolled) {
+          // Scroll to max possible position to ensure we reach the bottom
+          container.scrollTop = container.scrollHeight - container.clientHeight + 1000;
+        }
+      }, 0);
     }
-  }, [displayedOutput, isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
+  }, [displayedOutput, isStreaming, hasLlmOutput, userHasScrolled]);
 
   // Keep scroll at bottom after streaming finishes (unless user has de-anchored)
   React.useEffect(() => {
     if (!isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
       // Ensure we stay scrolled to bottom when streaming ends
-      requestAnimationFrame(() => {
-        container.scrollTop = container.scrollHeight;
-        setTimeout(checkScroll, 50);
-      });
+      setTimeout(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight - container.clientHeight + 1000;
+        }
+      }, 100);
     }
-  }, [isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
+  }, [isStreaming, hasLlmOutput, userHasScrolled]);
 
   const scrollToPage = (direction: 'up' | 'down') => {
     const container = textContainerRef.current;
@@ -378,7 +377,8 @@ export default function CanvasView({
                 }}
                 style={{
                   WebkitOverflowScrolling: 'auto',
-                  userSelect: 'text'
+                  userSelect: 'text',
+                  scrollBehavior: 'smooth'
                 }}
               >
                 <h1 className="font-semibold leading-tight tracking-tight text-[min(7vw,52px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]" style={{
