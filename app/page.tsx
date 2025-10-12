@@ -594,6 +594,7 @@ function HomeContent() {
   const previousGroupsReadModeRef = useRef<string>(groupsReadMode);
   const previousTranscriptionLanguageRef = useRef<string>(transcriptionLanguage);
   const previousTranscriptListenModeRef = useRef<string>(transcriptListenMode);
+  const previousToggleStatesRef = useRef<string>(JSON.stringify(individualRawTranscriptToggleStates));
 
   useEffect(() => {
     // Detect new recording session starting
@@ -623,6 +624,16 @@ function HomeContent() {
       previousTranscriptListenModeRef.current = transcriptListenMode;
     }
 
+    // Detect changes to which specific transcripts are toggled (for "some" mode)
+    const currentToggleStatesStr = JSON.stringify(individualRawTranscriptToggleStates);
+    if (transcriptListenMode === 'some' && currentToggleStatesStr !== previousToggleStatesRef.current) {
+      console.log(`[Canvas] Transcript toggle selection changed in "some" mode, triggering analysis refresh with clearPrevious=true`);
+      if (currentView === 'canvas') {
+        handleRefreshCanvasAnalysis(true);
+      }
+    }
+    previousToggleStatesRef.current = currentToggleStatesStr;
+
     // Detect Settings > Memory > Transcripts > Language (transcription language) changes
     if (transcriptionLanguage !== previousTranscriptionLanguageRef.current) {
       console.log(`[Canvas] Transcription language changed from ${previousTranscriptionLanguageRef.current} to ${transcriptionLanguage}, triggering analysis refresh with clearPrevious=true`);
@@ -631,7 +642,7 @@ function HomeContent() {
       }
       previousTranscriptionLanguageRef.current = transcriptionLanguage;
     }
-  }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptListenMode, transcriptionLanguage, currentView]);
+  }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptListenMode, transcriptionLanguage, individualRawTranscriptToggleStates, currentView]);
 
 
   // --- PHASE 3: New state management for dynamic workspaces ---
