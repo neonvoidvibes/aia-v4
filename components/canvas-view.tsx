@@ -181,13 +181,12 @@ export default function CanvasView({
   React.useEffect(() => {
     if (isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
-      // Smooth continuous scroll to bottom
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'smooth'
+      // Immediate scroll to bottom during streaming
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+        // Check scroll state after update
+        setTimeout(checkScroll, 50);
       });
-      // Delay checkScroll to allow scroll animation to complete
-      setTimeout(checkScroll, 150);
     }
   }, [displayedOutput, isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
 
@@ -198,9 +197,10 @@ export default function CanvasView({
       // Ensure we stay scrolled to bottom when streaming ends
       requestAnimationFrame(() => {
         container.scrollTop = container.scrollHeight;
+        setTimeout(checkScroll, 50);
       });
     }
-  }, [isStreaming, hasLlmOutput, userHasScrolled]);
+  }, [isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
 
   const scrollToPage = (direction: 'up' | 'down') => {
     const container = textContainerRef.current;
