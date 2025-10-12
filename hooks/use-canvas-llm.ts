@@ -79,6 +79,15 @@ export function useCanvasLLM({
 
       const clientTimezone = getClientTimezone() || 'UTC';
 
+      // DEBUG: Log toggle states being sent
+      if (individualRawTranscriptToggleStates && Object.keys(individualRawTranscriptToggleStates).length > 0) {
+        console.log('[Canvas Hook DEBUG] Sending toggle states:', {
+          count: Object.keys(individualRawTranscriptToggleStates).length,
+          keys: Object.keys(individualRawTranscriptToggleStates).slice(0, 3),
+          sample: Object.entries(individualRawTranscriptToggleStates).slice(0, 2)
+        });
+      }
+
       const response = await fetch('/api/canvas/stream', {
         method: 'POST',
         headers: {

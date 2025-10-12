@@ -560,30 +560,37 @@ function HomeContent() {
   };
 
   // Auto-refresh canvas analysis when canvas view opens (once per session per agent)
+  // Also trigger pending refreshes from settings changes
   useEffect(() => {
     // Reset checked flag if agent changes
     if (canvasAnalysisCheckedRef.current.agent !== pageAgentName) {
       canvasAnalysisCheckedRef.current = { agent: pageAgentName, checked: false };
     }
 
-    // Only auto-refresh if:
-    // 1. Currently in canvas view
-    // 2. Agent is loaded
-    // 3. Not already refreshing
-    // 4. Haven't checked for this agent yet in this session
-    if (currentView === 'canvas' && pageAgentName && !isRefreshingCanvasAnalysis && !canvasAnalysisCheckedRef.current.checked) {
-      canvasAnalysisCheckedRef.current.checked = true;
+    if (currentView === 'canvas' && pageAgentName && !isRefreshingCanvasAnalysis) {
+      // Priority 1: Check for pending refresh from settings changes
+      if (pendingCanvasRefreshRef.current) {
+        console.log('[Canvas] Triggering pending analysis refresh from settings changes');
+        pendingCanvasRefreshRef.current = false;
+        handleRefreshCanvasAnalysis(true);
+        return;
+      }
 
-      // Check if analysis needs refresh (status is 'none' or timestamp is old)
-      const shouldRefresh = canvasAnalysisStatus.state === 'none' ||
-        (canvasAnalysisStatus.state === 'ready' && canvasAnalysisStatus.timestamp &&
-         (Date.now() - new Date(canvasAnalysisStatus.timestamp).getTime()) > 15 * 60 * 1000);
+      // Priority 2: Only auto-refresh if haven't checked for this agent yet in this session
+      if (!canvasAnalysisCheckedRef.current.checked) {
+        canvasAnalysisCheckedRef.current.checked = true;
 
-      if (shouldRefresh) {
-        console.log('[Canvas] Auto-refreshing analysis on first canvas view open for this session');
-        handleRefreshCanvasAnalysis();
-      } else {
-        console.log('[Canvas] Analysis is fresh, skipping auto-refresh');
+        // Check if analysis needs refresh (status is 'none' or timestamp is old)
+        const shouldRefresh = canvasAnalysisStatus.state === 'none' ||
+          (canvasAnalysisStatus.state === 'ready' && canvasAnalysisStatus.timestamp &&
+           (Date.now() - new Date(canvasAnalysisStatus.timestamp).getTime()) > 15 * 60 * 1000);
+
+        if (shouldRefresh) {
+          console.log('[Canvas] Auto-refreshing analysis on first canvas view open for this session');
+          handleRefreshCanvasAnalysis();
+        } else {
+          console.log('[Canvas] Analysis is fresh, skipping auto-refresh');
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -595,6 +602,7 @@ function HomeContent() {
   const previousTranscriptionLanguageRef = useRef<string>(transcriptionLanguage);
   const previousTranscriptListenModeRef = useRef<string>(transcriptListenMode);
   const previousToggleStatesRef = useRef<string>(JSON.stringify(individualRawTranscriptToggleStates));
+  const pendingCanvasRefreshRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Detect new recording session starting
@@ -602,6 +610,8 @@ function HomeContent() {
       console.log('[Canvas] New recording session detected, triggering analysis refresh with clearPrevious=true');
       if (currentView === 'canvas') {
         handleRefreshCanvasAnalysis(true);
+      } else {
+        pendingCanvasRefreshRef.current = true;
       }
     }
     previousRecordingRef.current = globalRecordingStatus.isRecording;
@@ -611,6 +621,8 @@ function HomeContent() {
       console.log(`[Canvas] Groups read mode changed from ${previousGroupsReadModeRef.current} to ${groupsReadMode}, triggering analysis refresh with clearPrevious=true`);
       if (currentView === 'canvas') {
         handleRefreshCanvasAnalysis(true);
+      } else {
+        pendingCanvasRefreshRef.current = true;
       }
       previousGroupsReadModeRef.current = groupsReadMode;
     }
@@ -620,6 +632,8 @@ function HomeContent() {
       console.log(`[Canvas] Transcript listen mode changed from ${previousTranscriptListenModeRef.current} to ${transcriptListenMode}, triggering analysis refresh with clearPrevious=true`);
       if (currentView === 'canvas') {
         handleRefreshCanvasAnalysis(true);
+      } else {
+        pendingCanvasRefreshRef.current = true;
       }
       previousTranscriptListenModeRef.current = transcriptListenMode;
     }
@@ -630,6 +644,8 @@ function HomeContent() {
       console.log(`[Canvas] Transcript toggle selection changed in "some" mode, triggering analysis refresh with clearPrevious=true`);
       if (currentView === 'canvas') {
         handleRefreshCanvasAnalysis(true);
+      } else {
+        pendingCanvasRefreshRef.current = true;
       }
     }
     previousToggleStatesRef.current = currentToggleStatesStr;
