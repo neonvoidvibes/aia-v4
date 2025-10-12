@@ -181,11 +181,14 @@ export default function CanvasView({
   React.useEffect(() => {
     if (isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
-      // Immediate scroll to bottom during streaming
+      // Smooth continuous scroll to bottom during streaming
       requestAnimationFrame(() => {
-        container.scrollTop = container.scrollHeight;
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
         // Check scroll state after update
-        setTimeout(checkScroll, 50);
+        setTimeout(checkScroll, 150);
       });
     }
   }, [displayedOutput, isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
