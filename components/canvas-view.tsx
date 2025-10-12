@@ -181,12 +181,13 @@ export default function CanvasView({
   React.useEffect(() => {
     if (isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
-      // Use requestAnimationFrame to ensure DOM has updated before scrolling
-      requestAnimationFrame(() => {
-        container.scrollTop = container.scrollHeight;
+      // Smooth continuous scroll to bottom
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
       });
-      // Delay checkScroll to allow scroll to complete
-      setTimeout(checkScroll, 100);
+      // Delay checkScroll to allow scroll animation to complete
+      setTimeout(checkScroll, 150);
     }
   }, [displayedOutput, isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
 
@@ -353,8 +354,8 @@ export default function CanvasView({
                 }}
                 style={{
                   WebkitOverflowScrolling: 'auto',
-                  maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 5%, rgba(0,0,0,0.7) 12%, black 18%, black 82%, rgba(0,0,0,0.7) 88%, rgba(0,0,0,0.3) 95%, rgba(0,0,0,0) 100%)',
-                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 5%, rgba(0,0,0,0.7) 12%, black 18%, black 82%, rgba(0,0,0,0.7) 88%, rgba(0,0,0,0.3) 95%, rgba(0,0,0,0) 100%)',
+                  maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 4%, rgba(0,0,0,0.4) 8%, rgba(0,0,0,0.7) 15%, black 25%, black 75%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0.4) 92%, rgba(0,0,0,0.2) 96%, rgba(0,0,0,0) 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 4%, rgba(0,0,0,0.4) 8%, rgba(0,0,0,0.7) 15%, black 25%, black 75%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0.4) 92%, rgba(0,0,0,0.2) 96%, rgba(0,0,0,0) 100%)',
                   userSelect: 'text'
                 }}
               >
@@ -564,23 +565,23 @@ export default function CanvasView({
         <button
           type="button"
           aria-label="Push to talk"
-          disabled={isStreaming}
-          onMouseDown={() => !isStreaming && onPTTPress?.()}
-          onMouseUp={() => !isStreaming && onPTTRelease?.()}
-          onMouseLeave={() => !isStreaming && onPTTRelease?.()}
+          disabled={isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing'}
+          onMouseDown={() => !isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && onPTTPress?.()}
+          onMouseUp={() => !isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && onPTTRelease?.()}
+          onMouseLeave={() => !isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && onPTTRelease?.()}
           onTouchStart={(e) => {
             e.preventDefault();
-            if (!isStreaming) onPTTPress?.();
+            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing') onPTTPress?.();
           }}
           onTouchEnd={(e) => {
             e.preventDefault();
-            if (!isStreaming) onPTTRelease?.();
+            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing') onPTTRelease?.();
           }}
           className={cn(
             "relative h-12 w-12 md:h-14 md:w-14 rounded-full",
             "ring-4 transition-all duration-100 ease-out",
-            isStreaming
-              ? "ring-white/20 bg-white/5 opacity-30 cursor-not-allowed"
+            (isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing')
+              ? "ring-white/30 bg-white/10 opacity-60 cursor-not-allowed"
               : "ring-white/40 hover:ring-white/60 bg-white/5 hover:bg-white/15",
             isPTTActive ? "scale-[1.05]" : "scale-100"
           )}
