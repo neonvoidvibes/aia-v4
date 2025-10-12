@@ -181,14 +181,25 @@ export default function CanvasView({
   React.useEffect(() => {
     if (isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'smooth'
+      // Use requestAnimationFrame to ensure DOM has updated before scrolling
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
       });
-      // Delay checkScroll to allow scroll animation to complete
-      setTimeout(checkScroll, 300);
+      // Delay checkScroll to allow scroll to complete
+      setTimeout(checkScroll, 100);
     }
   }, [displayedOutput, isStreaming, hasLlmOutput, userHasScrolled, checkScroll]);
+
+  // Keep scroll at bottom after streaming finishes (unless user has de-anchored)
+  React.useEffect(() => {
+    if (!isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
+      const container = textContainerRef.current;
+      // Ensure we stay scrolled to bottom when streaming ends
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    }
+  }, [isStreaming, hasLlmOutput, userHasScrolled]);
 
   const scrollToPage = (direction: 'up' | 'down') => {
     const container = textContainerRef.current;
@@ -321,29 +332,35 @@ export default function CanvasView({
               <div
                 ref={textContainerRef}
                 className={cn(
-                  "overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 text-left flex-1 max-w-4xl transition-opacity duration-500",
+                  "overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-16 pb-24 text-left flex-1 max-w-4xl transition-opacity duration-500",
                   showContent ? "opacity-100" : "opacity-0"
                 )}
-                onScroll={() => {
-                  // User manually scrolled - release auto-scroll anchor
+                onScroll={(e) => {
+                  const container = e.currentTarget;
+                  // Only mark as manual scroll if user scrolls UP or away from bottom
                   if (isStreaming) {
-                    setUserHasScrolled(true);
+                    const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+                    if (!isAtBottom) {
+                      setUserHasScrolled(true);
+                    }
                   }
                 }}
                 onWheel={(e) => {
-                  // Allow scrolling but mark as manual scroll
-                  if (isStreaming) {
+                  // Only mark as manual scroll if scrolling up during streaming
+                  if (isStreaming && e.deltaY < 0) {
                     setUserHasScrolled(true);
                   }
                 }}
                 style={{
                   WebkitOverflowScrolling: 'auto',
-                  maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)',
-                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, black 10%, black 90%, rgba(0,0,0,0.6) 100%)',
+                  maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 5%, rgba(0,0,0,0.7) 12%, black 18%, black 82%, rgba(0,0,0,0.7) 88%, rgba(0,0,0,0.3) 95%, rgba(0,0,0,0) 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 5%, rgba(0,0,0,0.7) 12%, black 18%, black 82%, rgba(0,0,0,0.7) 88%, rgba(0,0,0,0.3) 95%, rgba(0,0,0,0) 100%)',
                   userSelect: 'text'
                 }}
               >
-                <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
+                <h1 className="font-semibold leading-tight tracking-tight text-[min(7vw,52px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]" style={{
+                  paddingBottom: displayedOutput.split('\n').length > 5 ? '8rem' : '0'
+                }}>
                   {displayedOutput}
                   {/* Show blinking cursor during streaming */}
                   <span className={cn(
@@ -486,7 +503,7 @@ export default function CanvasView({
 
           {/* Analysis status text - bottom center, same style as depth mode indicator */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
-            <span className="text-xs font-semibold uppercase tracking-wide text-white/50">
+            <span className="text-xs regularmedium uppercase tracking-wide text-white/35">
               {getAnalysisStatusText()}
             </span>
           </div>
