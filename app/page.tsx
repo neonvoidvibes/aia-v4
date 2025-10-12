@@ -591,6 +591,7 @@ function HomeContent() {
   const previousRecordingRef = useRef<boolean>(false);
   const previousGroupsReadModeRef = useRef<string>(groupsReadMode);
   const previousTranscriptionLanguageRef = useRef<string>(transcriptionLanguage);
+  const previousTranscriptListenModeRef = useRef<string>(transcriptListenMode);
 
   useEffect(() => {
     // Detect new recording session starting
@@ -611,7 +612,16 @@ function HomeContent() {
       previousGroupsReadModeRef.current = groupsReadMode;
     }
 
-    // Detect Settings > Memory > Transcripts > Listen (transcription language) changes
+    // Detect Settings > Memory > Transcripts > Listen mode (transcript_listen_mode) changes
+    if (transcriptListenMode !== previousTranscriptListenModeRef.current) {
+      console.log(`[Canvas] Transcript listen mode changed from ${previousTranscriptListenModeRef.current} to ${transcriptListenMode}, triggering analysis refresh with clearPrevious=true`);
+      if (currentView === 'canvas') {
+        handleRefreshCanvasAnalysis(true);
+      }
+      previousTranscriptListenModeRef.current = transcriptListenMode;
+    }
+
+    // Detect Settings > Memory > Transcripts > Language (transcription language) changes
     if (transcriptionLanguage !== previousTranscriptionLanguageRef.current) {
       console.log(`[Canvas] Transcription language changed from ${previousTranscriptionLanguageRef.current} to ${transcriptionLanguage}, triggering analysis refresh with clearPrevious=true`);
       if (currentView === 'canvas') {
@@ -619,7 +629,7 @@ function HomeContent() {
       }
       previousTranscriptionLanguageRef.current = transcriptionLanguage;
     }
-  }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptionLanguage, currentView]);
+  }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptListenMode, transcriptionLanguage, currentView]);
 
 
   // --- PHASE 3: New state management for dynamic workspaces ---
@@ -1716,6 +1726,40 @@ function HomeContent() {
       }
     } catch (error) {
       console.error('Error saving groups read mode:', error);
+      toast.error('Failed to save preference');
+    }
+  }, [pageAgentName, userId]);
+
+  // Persist transcriptListenMode changes to Supabase and localStorage
+  const handleTranscriptListenModeChange = useCallback(async (mode: 'none' | 'latest' | 'some' | 'all') => {
+    if (!pageAgentName || !userId) return;
+
+    setTranscriptListenMode(mode);
+
+    // Persist to localStorage immediately
+    const localKey = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
+    localStorage.setItem(localKey, mode);
+
+    // Persist to Supabase
+    try {
+      const response = await fetch('/api/agents/memory-prefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: pageAgentName,
+          transcript_listen_mode: mode
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to save transcript listen mode to Supabase');
+        toast.error('Failed to save preference');
+      } else {
+        const modeText = mode === 'none' ? 'none' : mode === 'latest' ? 'latest' : mode === 'some' ? 'some' : 'all';
+        toast.success(`Transcript listen mode: ${modeText}`);
+      }
+    } catch (error) {
+      console.error('Error saving transcript listen mode:', error);
       toast.error('Failed to save preference');
     }
   }, [pageAgentName, userId]);
@@ -3259,13 +3303,8 @@ function HomeContent() {
                           value={transcriptListenMode}
                           onValueChange={(value) => {
                             if (value) {
-                              const newMode = value as "none" | "some" | "latest" | "all" | "breakout";
-                              setTranscriptListenMode(newMode);
-                              // Manually save user's explicit choice to localStorage
-                              if (pageAgentName && userId) {
-                                const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
-                                debouncedSetItem(key, newMode);
-                              }
+                              const newMode = value as "none" | "some" | "latest" | "all";
+                              handleTranscriptListenModeChange(newMode);
                               // When an explicit mode is chosen, clear manual overrides
                               if (newMode !== 'some') {
                                 setIndividualRawTranscriptToggleStates({});
