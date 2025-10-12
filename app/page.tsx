@@ -1729,72 +1729,36 @@ function HomeContent() {
     loadGroupsReadMode();
   }, [pageAgentName, userId]);
 
-  // Persist groupsReadMode changes to Supabase and localStorage
+  // Persist groupsReadMode changes to localStorage
+  // Note: Mode is sent in every canvas request payload, so no Supabase persistence needed
   const handleGroupsReadModeChange = useCallback(async (mode: 'latest' | 'none' | 'all' | 'breakout') => {
     if (!pageAgentName || !userId) return;
 
     setGroupsReadMode(mode);
 
-    // Persist to localStorage immediately
+    // Persist to localStorage for UI state
     const localKey = `groupsReadMode_${pageAgentName}_${userId}`;
     debouncedSetItem(localKey, mode);
 
-    // Persist to Supabase
-    try {
-      const response = await fetch('/api/agents/memory-prefs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent: pageAgentName,
-          groups_read_mode: mode
-        })
-      });
-
-      if (!response.ok) {
-        console.error('Failed to save groups read mode to Supabase');
-        toast.error('Failed to save preference');
-      } else {
-        const modeText = mode === 'none' ? 'disabled' : mode === 'latest' ? 'latest' : mode === 'all' ? 'all' : 'breakout';
-        toast.success(`Transcript read mode: ${modeText}`);
-      }
-    } catch (error) {
-      console.error('Error saving groups read mode:', error);
-      toast.error('Failed to save preference');
-    }
+    // Show success feedback
+    const modeText = mode === 'none' ? 'disabled' : mode === 'latest' ? 'latest' : mode === 'all' ? 'all' : 'breakout';
+    toast.success(`Transcript read mode: ${modeText}`);
   }, [pageAgentName, userId]);
 
-  // Persist transcriptListenMode changes to Supabase and localStorage
+  // Persist transcriptListenMode changes to localStorage
+  // Note: Mode is sent in every canvas request payload, so no Supabase persistence needed
   const handleTranscriptListenModeChange = useCallback(async (mode: 'none' | 'latest' | 'some' | 'all') => {
     if (!pageAgentName || !userId) return;
 
     setTranscriptListenMode(mode);
 
-    // Persist to localStorage immediately
+    // Persist to localStorage for UI state
     const localKey = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
     localStorage.setItem(localKey, mode);
 
-    // Persist to Supabase
-    try {
-      const response = await fetch('/api/agents/memory-prefs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent: pageAgentName,
-          transcript_listen_mode: mode
-        })
-      });
-
-      if (!response.ok) {
-        console.error('Failed to save transcript listen mode to Supabase');
-        toast.error('Failed to save preference');
-      } else {
-        const modeText = mode === 'none' ? 'none' : mode === 'latest' ? 'latest' : mode === 'some' ? 'some' : 'all';
-        toast.success(`Transcript listen mode: ${modeText}`);
-      }
-    } catch (error) {
-      console.error('Error saving transcript listen mode:', error);
-      toast.error('Failed to save preference');
-    }
+    // Show success feedback
+    const modeText = mode === 'none' ? 'none' : mode === 'latest' ? 'latest' : mode === 'some' ? 'some' : 'all';
+    toast.success(`Transcript listen mode: ${modeText}`);
   }, [pageAgentName, userId]);
 
   // Mark initial load as complete after localStorage has been loaded
