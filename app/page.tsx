@@ -2610,9 +2610,25 @@ function HomeContent() {
   return (
     <div
       ref={mainLayoutRef}
-      className={`relative overflow-hidden min-h-[calc(100dvh-var(--sys-banner-h))] h-[calc(100dvh-var(--sys-banner-h))] flex flex-col ${isSidebarOpen ? 'sidebar-open' : ''}`}
-      style={layoutStyle}
+      className={cn(
+        "relative overflow-hidden min-h-[calc(100dvh-var(--sys-banner-h))] h-[calc(100dvh-var(--sys-banner-h))] flex flex-col",
+        isSidebarOpen ? 'sidebar-open' : ''
+      )}
     >
+      {/* Canvas background layer - blur only on mobile */}
+      {currentView === 'canvas' && (
+        <div
+          className="absolute blur-[12px] md:blur-none"
+          style={{
+            ...layoutStyle,
+            zIndex: 0,
+            top: '-20px',
+            left: '-20px',
+            right: '-20px',
+            bottom: '-20px'
+          }}
+        />
+      )}
       <Sidebar
         isOpen={isSidebarOpen}
         onOpen={() => setIsSidebarOpen(true)}
@@ -2754,13 +2770,16 @@ function HomeContent() {
       )}
       <div
         className={cn(
-          "main-content flex flex-col flex-1 w-full",
-          currentView === "canvas" ? "max-w-none" : "sm:max-w-[800px] sm:mx-auto"
+          "main-content flex flex-col flex-1 w-full relative",
+          currentView === "canvas" ? "max-w-none z-10" : "sm:max-w-[800px] sm:mx-auto"
         )}
         data-current-view={currentView}
         data-theme={currentView === "canvas" ? "canvas" : undefined}
       >
-        <header className={`py-2 px-4 text-center relative flex-shrink-0 ${isFullscreen ? 'fullscreen-header' : ''}`} style={{ height: 'var(--header-height)' }}>
+        <header className={cn(
+          "py-2 px-4 text-center relative flex-shrink-0",
+          isFullscreen ? 'fullscreen-header' : ''
+        )} style={{ height: 'var(--header-height)' }}>
           {currentView === 'canvas' ? (
             <div className="flex h-full w-full items-center justify-end" />
           ) : (

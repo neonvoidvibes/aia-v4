@@ -260,6 +260,18 @@ export default function CanvasView({
     }
   };
 
+  // Check if mobile viewport
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Format analysis status text for display
   const getAnalysisStatusText = () => {
     if (isRefreshingAnalysis) {
@@ -272,6 +284,11 @@ export default function CanvasView({
       case 'analyzing':
         return 'Analyzing';
       case 'ready':
+        // On mobile, skip date/time formatting
+        if (isMobile) {
+          return 'Analysis Ready';
+        }
+        // On desktop, show full timestamp
         if (analysisStatus.timestamp) {
           try {
             const date = new Date(analysisStatus.timestamp);
@@ -288,24 +305,28 @@ export default function CanvasView({
   };
 
   return (
-    <div className="relative flex flex-1 flex-col items-center px-4 py-4" style={{ minHeight: 0, paddingBottom: '3rem' }}>
+    <div className={cn(
+      "relative flex flex-1 flex-col items-center pt-0 pb-4 md:px-4 md:py-4",
+      isMobile ? "px-0" : "px-4"
+    )} style={{ minHeight: 0, paddingBottom: '3rem' }}>
       {/* Container wrapper to maintain aspect ratio and positioning */}
       <div className="relative w-full flex items-center justify-center" style={{ minHeight: 0, flex: '1 1 0', maxHeight: 'calc(100% - 2rem)' }}>
         <div
           className={cn(
-            "relative w-full max-w-5xl h-full",
-            "rounded-[1.5rem]",
-            "backdrop-blur-md border border-white/20 shadow-2xl",
-            "flex flex-col overflow-hidden"
+            "relative w-full h-full flex flex-col overflow-hidden",
+            isMobile ? "" : "max-w-5xl rounded-[1.5rem] backdrop-blur-md border border-white/20 shadow-2xl"
           )}
           style={{
             aspectRatio: 'auto',
-            maxHeight: 'calc(100% - 100px)',
+            maxHeight: isMobile ? '100%' : 'calc(100% - 100px)',
             backgroundColor: 'rgba(0, 0, 0, 0)' // Force transparent regardless of theme
           }}
         >
           {/* Text content area - absolute positioning to not affect layout */}
-          <div className="absolute inset-0 flex justify-center px-16">
+          <div className={cn(
+            "absolute inset-0 flex justify-center",
+            isMobile ? "px-4" : "px-16"
+          )}>
             {!hasLlmOutput && !isTranscribing && !isStreaming && showWelcome ? (
               /* Welcome message - vertically centered, fades out when PTT released */
               <div className={cn(
@@ -333,7 +354,7 @@ export default function CanvasView({
               <div
                 ref={textContainerRef}
                 className={cn(
-                  "overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pt-24 pb-24 text-left flex-1 max-w-4xl transition-opacity duration-500",
+                  "overflow-y-auto overflow-x-hidden scrollbar-hide px-2 md:px-4 pt-24 pb-24 text-left flex-1 max-w-4xl transition-opacity duration-500",
                   showContent ? "opacity-100" : "opacity-0"
                 )}
                 onScroll={(e) => {
@@ -354,8 +375,6 @@ export default function CanvasView({
                 }}
                 style={{
                   WebkitOverflowScrolling: 'auto',
-                  maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 4%, rgba(0,0,0,0.4) 8%, rgba(0,0,0,0.7) 15%, black 25%, black 75%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0.4) 92%, rgba(0,0,0,0.2) 96%, rgba(0,0,0,0) 100%)',
-                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 4%, rgba(0,0,0,0.4) 8%, rgba(0,0,0,0.7) 15%, black 25%, black 75%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0.4) 92%, rgba(0,0,0,0.2) 96%, rgba(0,0,0,0) 100%)',
                   userSelect: 'text'
                 }}
               >
