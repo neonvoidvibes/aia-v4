@@ -221,6 +221,9 @@ function HomeContent() {
   const [canvasAnalysisStatus, setCanvasAnalysisStatus] = useState<AnalysisStatus>({ state: 'none' });
   const [isRefreshingCanvasAnalysis, setIsRefreshingCanvasAnalysis] = useState(false);
 
+  // Track if canvas analysis has been checked for this agent in this session
+  const canvasAnalysisCheckedRef = useRef<{ agent: string | null; checked: boolean }>({ agent: null, checked: false });
+
   const layoutStyle = currentView === "canvas"
     ? ({
         backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
@@ -551,17 +554,31 @@ function HomeContent() {
     }
   };
 
-  // Auto-refresh canvas analysis when canvas view loads
+  // Auto-refresh canvas analysis when canvas view opens (once per session per agent)
   useEffect(() => {
-    if (currentView === 'canvas' && pageAgentName && !isRefreshingCanvasAnalysis) {
+    // Reset checked flag if agent changes
+    if (canvasAnalysisCheckedRef.current.agent !== pageAgentName) {
+      canvasAnalysisCheckedRef.current = { agent: pageAgentName, checked: false };
+    }
+
+    // Only auto-refresh if:
+    // 1. Currently in canvas view
+    // 2. Agent is loaded
+    // 3. Not already refreshing
+    // 4. Haven't checked for this agent yet in this session
+    if (currentView === 'canvas' && pageAgentName && !isRefreshingCanvasAnalysis && !canvasAnalysisCheckedRef.current.checked) {
+      canvasAnalysisCheckedRef.current.checked = true;
+
       // Check if analysis needs refresh (status is 'none' or timestamp is old)
       const shouldRefresh = canvasAnalysisStatus.state === 'none' ||
         (canvasAnalysisStatus.state === 'ready' && canvasAnalysisStatus.timestamp &&
          (Date.now() - new Date(canvasAnalysisStatus.timestamp).getTime()) > 15 * 60 * 1000);
 
       if (shouldRefresh) {
-        console.log('[Canvas] Auto-refreshing analysis on view load');
+        console.log('[Canvas] Auto-refreshing analysis on first canvas view open for this session');
         handleRefreshCanvasAnalysis();
+      } else {
+        console.log('[Canvas] Analysis is fresh, skipping auto-refresh');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
