@@ -190,8 +190,20 @@ export default function CanvasView({
   React.useEffect(() => {
     if (!isStreaming && hasLlmOutput && !userHasScrolled && textContainerRef.current) {
       const container = textContainerRef.current;
-      // Final scroll to bottom when streaming completes
-      container.scrollTop = 999999;
+      // Temporarily disable smooth scrolling to avoid jerky interruption
+      const originalBehavior = container.style.scrollBehavior;
+      container.style.scrollBehavior = 'auto';
+
+      // Wait for cursor removal and layout to settle before final scroll
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          container.scrollTop = 999999;
+          // Restore smooth scrolling after positioning
+          requestAnimationFrame(() => {
+            container.style.scrollBehavior = originalBehavior;
+          });
+        });
+      });
     }
   }, [isStreaming, hasLlmOutput, userHasScrolled]);
 
