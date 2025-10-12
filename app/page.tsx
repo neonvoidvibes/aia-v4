@@ -466,6 +466,8 @@ function HomeContent() {
     depth: canvasDepth,
     conversationHistory: canvasConversationHistory,
     individualRawTranscriptToggleStates,
+    transcriptListenMode,  // FIXED: Send mode to canvas
+    groupsReadMode,        // FIXED: Send mode to canvas
     onStart: () => {
       setCanvasIsStreaming(true);
       setCanvasLlmOutput('');
@@ -532,6 +534,8 @@ function HomeContent() {
           agent: pageAgentName,
           clearPrevious,
           individualRawTranscriptToggleStates,
+          transcriptListenMode,  // FIXED: Send mode to refresh
+          groupsReadMode,        // FIXED: Send mode to refresh
         }),
       });
 
@@ -1502,16 +1506,16 @@ function HomeContent() {
     const latestFileKey = transcriptionS3Files[0]?.s3Key;
 
     if (totalFiles > 0 && toggledOnCount === totalFiles) {
-      setTranscriptListenMode('all');
+      handleTranscriptListenModeChange('all');  // FIXED: Persist to Supabase
       setIndividualRawTranscriptToggleStates({});
     } else if (toggledOnCount === 1 && latestFileKey && currentStates[latestFileKey]) {
-      setTranscriptListenMode('latest');
+      handleTranscriptListenModeChange('latest');  // FIXED: Persist to Supabase
       setIndividualRawTranscriptToggleStates({}); // 'latest' is also a primary mode
     } else if (toggledOnCount > 0) {
-      setTranscriptListenMode('some');
+      handleTranscriptListenModeChange('some');  // FIXED: Persist to Supabase
       setIndividualRawTranscriptToggleStates(currentStates);
     } else {
-      setTranscriptListenMode('none');
+      handleTranscriptListenModeChange('none');  // FIXED: Persist to Supabase
       setIndividualRawTranscriptToggleStates({});
     }
   };

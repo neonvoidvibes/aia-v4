@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     console.log(`[API /api/canvas/stream] Authenticated user: ${user.id}`);
 
     const body = await req.json();
-    const { agent, transcript, depth, history, timezone, forceRefreshAnalysis, clearPrevious, individualRawTranscriptToggleStates } = body;
+    const { agent, transcript, depth, history, timezone, forceRefreshAnalysis, clearPrevious, individualRawTranscriptToggleStates, transcriptListenMode, groupsReadMode } = body;
 
     if (!agent) {
       return formatErrorResponse("Missing 'agent' in request body", 400);
@@ -65,7 +65,9 @@ export async function POST(req: NextRequest) {
         timezone,
         forceRefreshAnalysis,
         clearPrevious,
-        individualRawTranscriptToggleStates
+        individualRawTranscriptToggleStates,
+        transcriptListenMode,  // FIXED: Forward mode to backend
+        groupsReadMode         // FIXED: Forward mode to backend
       }),
       signal: controller.signal
     });
