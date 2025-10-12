@@ -507,7 +507,7 @@ function HomeContent() {
   });
 
   // Canvas analysis refresh handler
-  const handleRefreshCanvasAnalysis = async () => {
+  const handleRefreshCanvasAnalysis = async (clearPrevious: boolean = false) => {
     if (!pageAgentName || isRefreshingCanvasAnalysis) return;
 
     setIsRefreshingCanvasAnalysis(true);
@@ -519,6 +519,8 @@ function HomeContent() {
         throw new Error('No authentication session');
       }
 
+      console.log(`[Canvas] Refreshing analysis (clearPrevious=${clearPrevious})`);
+
       const response = await fetch('/api/canvas/analysis/refresh', {
         method: 'POST',
         headers: {
@@ -527,6 +529,7 @@ function HomeContent() {
         },
         body: JSON.stringify({
           agent: pageAgentName,
+          clearPrevious,
         }),
       });
 
@@ -583,6 +586,40 @@ function HomeContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, pageAgentName]);
+
+  // Trigger canvas analysis refresh with clearPrevious when new recording starts or settings change
+  const previousRecordingRef = useRef<boolean>(false);
+  const previousGroupsReadModeRef = useRef<string>(groupsReadMode);
+  const previousTranscriptionLanguageRef = useRef<string>(transcriptionLanguage);
+
+  useEffect(() => {
+    // Detect new recording session starting
+    if (globalRecordingStatus.isRecording && !previousRecordingRef.current) {
+      console.log('[Canvas] New recording session detected, triggering analysis refresh with clearPrevious=true');
+      if (currentView === 'canvas') {
+        handleRefreshCanvasAnalysis(true);
+      }
+    }
+    previousRecordingRef.current = globalRecordingStatus.isRecording;
+
+    // Detect Settings > Memory > Transcripts > Groups read mode changes
+    if (groupsReadMode !== previousGroupsReadModeRef.current) {
+      console.log(`[Canvas] Groups read mode changed from ${previousGroupsReadModeRef.current} to ${groupsReadMode}, triggering analysis refresh with clearPrevious=true`);
+      if (currentView === 'canvas') {
+        handleRefreshCanvasAnalysis(true);
+      }
+      previousGroupsReadModeRef.current = groupsReadMode;
+    }
+
+    // Detect Settings > Memory > Transcripts > Listen (transcription language) changes
+    if (transcriptionLanguage !== previousTranscriptionLanguageRef.current) {
+      console.log(`[Canvas] Transcription language changed from ${previousTranscriptionLanguageRef.current} to ${transcriptionLanguage}, triggering analysis refresh with clearPrevious=true`);
+      if (currentView === 'canvas') {
+        handleRefreshCanvasAnalysis(true);
+      }
+      previousTranscriptionLanguageRef.current = transcriptionLanguage;
+    }
+  }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptionLanguage, currentView]);
 
 
   // --- PHASE 3: New state management for dynamic workspaces ---

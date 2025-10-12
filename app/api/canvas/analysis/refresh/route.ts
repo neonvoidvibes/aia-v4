@@ -20,13 +20,13 @@ export async function POST(req: NextRequest) {
     console.log(`[API /api/canvas/analysis/refresh] Authenticated user: ${user.id}`);
 
     const body = await req.json();
-    const { agent } = body;
+    const { agent, clearPrevious } = body;
 
     if (!agent) {
       return formatErrorResponse("Missing 'agent' in request body", 400);
     }
 
-    console.log(`[API /api/canvas/analysis/refresh] Agent: ${agent}`);
+    console.log(`[API /api/canvas/analysis/refresh] Agent: ${agent}, Clear previous: ${clearPrevious || false}`);
 
     const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const backendResponse = await fetch(targetUrl, {
       method: 'POST',
       headers: backendHeaders,
-      body: JSON.stringify({ agent }),
+      body: JSON.stringify({ agent, clearPrevious }),
       signal: controller.signal
     });
 

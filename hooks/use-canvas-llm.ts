@@ -14,10 +14,11 @@ export interface UseCanvasLLMOptions {
   agentName: string;
   depth?: 'mirror' | 'lens' | 'portal';
   conversationHistory?: Array<{ role: string; content: string }>;
-  forceRefreshAnalysis?: boolean; // NEW: Force refresh analysis documents
+  forceRefreshAnalysis?: boolean; // Force refresh analysis documents
+  clearPrevious?: boolean; // Clear previous analysis on new meeting/context
   onStart?: () => void;
   onChunk?: (chunk: string) => void;
-  onSentenceReady?: (sentence: string) => void; // NEW: Triggered on sentence boundary for TTS
+  onSentenceReady?: (sentence: string) => void; // Triggered on sentence boundary for TTS
   onComplete?: (fullText: string, userTranscript: string) => void;
   onError?: (error: string) => void;
 }
@@ -36,6 +37,7 @@ export function useCanvasLLM({
   depth = 'mirror',
   conversationHistory = [],
   forceRefreshAnalysis = false,
+  clearPrevious = false,
   onStart,
   onChunk,
   onSentenceReady,
@@ -89,6 +91,7 @@ export function useCanvasLLM({
           history: conversationHistory,
           timezone: clientTimezone,
           forceRefreshAnalysis,
+          clearPrevious,
         }),
       });
 
@@ -274,7 +277,7 @@ export function useCanvasLLM({
     } finally {
       abortControllerRef.current = null;
     }
-  }, [agentName, depth, conversationHistory, forceRefreshAnalysis, onStart, onChunk, onSentenceReady, onComplete, onError]);
+  }, [agentName, depth, conversationHistory, forceRefreshAnalysis, clearPrevious, onStart, onChunk, onSentenceReady, onComplete, onError]);
 
   return {
     streamResponse,
