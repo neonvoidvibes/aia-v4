@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     console.log(`[API /api/canvas/analysis/refresh] Authenticated user: ${user.id}`);
 
     const body = await req.json();
-    const { agent, clearPrevious } = body;
+    const { agent, clearPrevious, individualRawTranscriptToggleStates } = body;
 
     if (!agent) {
       return formatErrorResponse("Missing 'agent' in request body", 400);
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const backendResponse = await fetch(targetUrl, {
       method: 'POST',
       headers: backendHeaders,
-      body: JSON.stringify({ agent, clearPrevious }),
+      body: JSON.stringify({ agent, clearPrevious, individualRawTranscriptToggleStates }),
       signal: controller.signal
     });
 

@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     console.log(`[API /api/canvas/stream] Authenticated user: ${user.id}`);
 
     const body = await req.json();
-    const { agent, transcript, depth, history, timezone, forceRefreshAnalysis, clearPrevious } = body;
+    const { agent, transcript, depth, history, timezone, forceRefreshAnalysis, clearPrevious, individualRawTranscriptToggleStates } = body;
 
     if (!agent) {
       return formatErrorResponse("Missing 'agent' in request body", 400);
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return formatErrorResponse("Missing 'transcript' in request body", 400);
     }
 
-    console.log(`[API /api/canvas/stream] Agent: ${agent}, Depth: ${depth || 'mirror'}, Transcript length: ${transcript?.length || 0}, History length: ${history?.length || 0}, Timezone: ${timezone || 'none'}, Force refresh: ${forceRefreshAnalysis || false}, Clear previous: ${clearPrevious || false}`);
+    console.log(`[API /api/canvas/stream] Agent: ${agent}, Depth: ${depth || 'mirror'}, Transcript length: ${transcript?.length || 0}, History length: ${history?.length || 0}, Timezone: ${timezone || 'none'}, Force refresh: ${forceRefreshAnalysis || false}, Clear previous: ${clearPrevious || false}, Toggle states: ${Object.keys(individualRawTranscriptToggleStates || {}).length} files`);
 
     const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
         history,
         timezone,
         forceRefreshAnalysis,
-        clearPrevious
+        clearPrevious,
+        individualRawTranscriptToggleStates
       }),
       signal: controller.signal
     });

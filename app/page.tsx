@@ -465,6 +465,7 @@ function HomeContent() {
     agentName: pageAgentName || '',
     depth: canvasDepth,
     conversationHistory: canvasConversationHistory,
+    individualRawTranscriptToggleStates,
     onStart: () => {
       setCanvasIsStreaming(true);
       setCanvasLlmOutput('');
@@ -530,6 +531,7 @@ function HomeContent() {
         body: JSON.stringify({
           agent: pageAgentName,
           clearPrevious,
+          individualRawTranscriptToggleStates,
         }),
       });
 

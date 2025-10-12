@@ -16,6 +16,7 @@ export interface UseCanvasLLMOptions {
   conversationHistory?: Array<{ role: string; content: string }>;
   forceRefreshAnalysis?: boolean; // Force refresh analysis documents
   clearPrevious?: boolean; // Clear previous analysis on new meeting/context
+  individualRawTranscriptToggleStates?: Record<string, boolean>; // For "some" mode
   onStart?: () => void;
   onChunk?: (chunk: string) => void;
   onSentenceReady?: (sentence: string) => void; // Triggered on sentence boundary for TTS
@@ -38,6 +39,7 @@ export function useCanvasLLM({
   conversationHistory = [],
   forceRefreshAnalysis = false,
   clearPrevious = false,
+  individualRawTranscriptToggleStates = {},
   onStart,
   onChunk,
   onSentenceReady,
@@ -92,6 +94,7 @@ export function useCanvasLLM({
           timezone: clientTimezone,
           forceRefreshAnalysis,
           clearPrevious,
+          individualRawTranscriptToggleStates,
         }),
       });
 
@@ -277,7 +280,7 @@ export function useCanvasLLM({
     } finally {
       abortControllerRef.current = null;
     }
-  }, [agentName, depth, conversationHistory, forceRefreshAnalysis, clearPrevious, onStart, onChunk, onSentenceReady, onComplete, onError]);
+  }, [agentName, depth, conversationHistory, forceRefreshAnalysis, clearPrevious, individualRawTranscriptToggleStates, onStart, onChunk, onSentenceReady, onComplete, onError]);
 
   return {
     streamResponse,
