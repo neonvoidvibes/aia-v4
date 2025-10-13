@@ -311,9 +311,93 @@ export default function CanvasView({
 
   return (
     <div className={cn(
-      "relative flex flex-1 flex-col items-center pt-0 pb-4 md:px-4 md:py-4",
-      isMobile ? "px-0" : "px-4"
+      "relative flex flex-1 flex-col items-center pb-4 md:px-4 md:py-4",
+      isMobile ? "px-0 pt-0" : "px-4 pt-0"
     )} style={{ minHeight: 0, paddingBottom: '3rem' }}>
+      {/* Mobile: Top header row outside canvas container */}
+      {isMobile && (
+        <div className="fixed left-0 right-0 flex items-center px-4 z-50" style={{ top: '12px', height: '48px' }}>
+          {/* Left/Right Message Navigation Chevrons - centered */}
+          <div className={cn(
+            "absolute left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-auto z-10",
+            hasMultipleMessages ? "opacity-100" : "opacity-0 pointer-events-none"
+          )}>
+            <button
+              type="button"
+              onClick={() => {
+                if (canNavigateLeft) {
+                  setCurrentMessageIndex(prev => prev - 1);
+                }
+              }}
+              className={cn(
+                "transition-all",
+                canNavigateLeft
+                  ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
+                  : "text-white/20 opacity-30 cursor-not-allowed"
+              )}
+              aria-label="Previous message"
+              disabled={!canNavigateLeft}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (canNavigateRight) {
+                  setCurrentMessageIndex(prev => prev + 1);
+                }
+              }}
+              className={cn(
+                "transition-all",
+                canNavigateRight
+                  ? "text-white/50 hover:text-white/70 opacity-100 cursor-pointer"
+                  : "text-white/20 opacity-30 cursor-not-allowed"
+              )}
+              aria-label="Next message"
+              disabled={!canNavigateRight}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* TTS indicator and Depth mode button - right side */}
+          <div className="absolute right-0 flex items-center gap-3">
+            {isTTSPlaying && (
+              <div className="flex items-center gap-[3px]" aria-label="Audio playing">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-[3px] bg-white/60 rounded-full canvas-audio-wave"
+                    style={{
+                      height: '12px',
+                      animationDelay: `${i * 0.15}s`
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                const depths: Depth[] = ["mirror", "lens", "portal"];
+                const currentIndex = depths.indexOf(depth);
+                const nextIndex = (currentIndex + 1) % depths.length;
+                onDepthChange?.(depths[nextIndex]);
+              }}
+              className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white/50 hover:text-white/70 transition-colors cursor-pointer"
+            >
+              {depth.toUpperCase()}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Container wrapper to maintain aspect ratio and positioning */}
       <div className="relative w-full flex items-center justify-center" style={{ minHeight: 0, flex: '1 1 0', maxHeight: 'calc(100% - 2rem)' }}>
         <div
@@ -431,8 +515,9 @@ export default function CanvasView({
             </div>
           )}
 
-          {/* Top row: Message navigation chevrons, TTS indicator, and Depth label */}
-          <div className="absolute top-4 left-0 right-0 flex items-center justify-center">
+          {/* Desktop: Top row inside canvas container */}
+          {!isMobile && (
+            <div className="absolute top-4 left-0 right-0 flex items-center justify-center">
             {/* Left/Right Message Navigation Chevrons - centered at top, dimmed during streaming/TTS, invisible when <=1 messages */}
             <div className={cn(
               "flex items-center gap-2 pointer-events-auto z-10",
@@ -484,7 +569,10 @@ export default function CanvasView({
             </div>
 
             {/* TTS indicator and Depth mode button - positioned at top right */}
-            <div className="absolute right-4 flex items-center gap-3">
+            <div className={cn(
+              "absolute flex items-center gap-3",
+              isMobile ? "right-0" : "right-4"
+            )}>
               {/* TTS Audio Indicator - subtle animated waves */}
               {isTTSPlaying && (
                 <div className="flex items-center gap-[3px]" aria-label="Audio playing">
@@ -516,6 +604,7 @@ export default function CanvasView({
               </button>
             </div>
           </div>
+          )}
 
           {/* Analysis status text - bottom center, same style as depth mode indicator */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
@@ -524,59 +613,67 @@ export default function CanvasView({
             </span>
           </div>
 
-          {/* Action buttons - horizontally aligned with chevrons */}
-          <div className="absolute flex items-center gap-2" style={{ right: '1.75rem', bottom: 'calc(1rem + 4px)' }}>
-            {/* Copy button - only show when there's output */}
-            {hasLlmOutput && (
+          {/* Action buttons - desktop: aligned with chevrons, mobile: hidden (moved to bottom row) */}
+          {!isMobile && (
+            <div className="absolute flex items-center gap-2" style={{ right: '1.75rem', bottom: 'calc(1rem + 4px)' }}>
+              {/* Copy button - only show when there's output */}
+              {hasLlmOutput && (
+                <button
+                  type="button"
+                  onClick={copyToClipboard}
+                  className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+                  aria-label="Copy canvas output"
+                >
+                  {copied ? (
+                    <Check className="w-5 h-5" />
+                  ) : (
+                    <Copy className="w-5 h-5" />
+                  )}
+                </button>
+              )}
+
+              {/* Restart button (left-pointing triangle icon) */}
               <button
                 type="button"
-                onClick={copyToClipboard}
+                onClick={() => {
+                  onReset?.();
+                }}
                 className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
-                aria-label="Copy canvas output"
+                aria-label="Restart canvas session"
               >
-                {copied ? (
-                  <Check className="w-5 h-5" />
-                ) : (
-                  <Copy className="w-5 h-5" />
-                )}
+                <RotateCcw className="w-5 h-5" />
               </button>
-            )}
 
-            {/* Restart button (left-pointing triangle icon) */}
-            <button
-              type="button"
-              onClick={() => {
-                onReset?.();
-              }}
-              className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
-              aria-label="Restart canvas session"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </button>
-
-            {/* Refresh Analysis button (play icon) */}
-            <button
-              type="button"
-              onClick={() => {
-                onRefreshAnalysis?.();
-              }}
-              className={cn(
-                "transition-colors",
-                isRefreshingAnalysis
-                  ? "text-white/50 cursor-wait animate-pulse"
-                  : "text-white/30 hover:text-white/50 cursor-pointer"
-              )}
-              aria-label="Refresh analysis"
-              disabled={isRefreshingAnalysis}
-            >
-              <Play className="w-5 h-5" />
-            </button>
-          </div>
+              {/* Refresh Analysis button (play icon) */}
+              <button
+                type="button"
+                onClick={() => {
+                  onRefreshAnalysis?.();
+                }}
+                className={cn(
+                  "transition-colors",
+                  isRefreshingAnalysis
+                    ? "text-white/50 cursor-wait animate-pulse"
+                    : "text-white/30 hover:text-white/50 cursor-pointer"
+                )}
+                aria-label="Refresh analysis"
+                disabled={isRefreshingAnalysis}
+              >
+                <Play className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Push-to-talk ring button - positioned below container with fixed spacing */}
-      <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2" style={{ marginTop: '0.5rem' }}>
+      <div className={cn(
+        "flex-shrink-0 flex items-center gap-2",
+        isMobile ? "w-full justify-between px-4" : "flex-col justify-center"
+      )} style={{ marginTop: '0.5rem' }}>
+        {/* Spacer for mobile to push PTT to center */}
+        {isMobile && <div className="flex-1" />}
+
         <button
           type="button"
           aria-label="Push to talk"
@@ -608,6 +705,57 @@ export default function CanvasView({
             )}
           />
         </button>
+
+        {/* Mobile: Action buttons on same row as PTT, right-aligned */}
+        {isMobile && (
+          <div className="flex-1 flex items-center justify-end gap-2">
+            {/* Copy button - only show when there's output */}
+            {hasLlmOutput && (
+              <button
+                type="button"
+                onClick={copyToClipboard}
+                className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+                aria-label="Copy canvas output"
+              >
+                {copied ? (
+                  <Check className="w-5 h-5" />
+                ) : (
+                  <Copy className="w-5 h-5" />
+                )}
+              </button>
+            )}
+
+            {/* Restart button */}
+            <button
+              type="button"
+              onClick={() => {
+                onReset?.();
+              }}
+              className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+              aria-label="Restart canvas session"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
+
+            {/* Refresh Analysis button */}
+            <button
+              type="button"
+              onClick={() => {
+                onRefreshAnalysis?.();
+              }}
+              className={cn(
+                "transition-colors",
+                isRefreshingAnalysis
+                  ? "text-white/50 cursor-wait animate-pulse"
+                  : "text-white/30 hover:text-white/50 cursor-pointer"
+              )}
+              aria-label="Refresh analysis"
+              disabled={isRefreshingAnalysis}
+            >
+              <Play className="w-5 h-5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Local styles for cursor + pulse + audio wave + scrollbar hide */}
