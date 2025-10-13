@@ -693,17 +693,15 @@ export default function CanvasView({
             "relative h-12 w-12 md:h-14 md:w-14 rounded-full overflow-visible",
             "transition-all duration-300 ease-out",
             (isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing')
-              ? "ring-4 ring-white/35 bg-white/12 opacity-80 cursor-not-allowed"
+              ? "ring-4 ring-white/35 opacity-80 cursor-not-allowed"
               : isPTTActive
                 ? "canvas-ptt-active-ring scale-[1.15]"
-                : "ring-4 ring-white/40 hover:ring-white/60 bg-white/5 hover:bg-white/15 scale-100"
+                : "ring-4 ring-white/40 hover:ring-white/60 scale-100"
           )}
         >
-          <span
-            className={cn(
-              "absolute inset-[6px] rounded-full bg-white/5 backdrop-blur-sm transition-all duration-200"
-            )}
-          />
+          {!isPTTActive && (
+            <span className="absolute inset-0 rounded-full bg-transparent" />
+          )}
         </button>
 
         {/* Mobile: Action buttons on same row as PTT, right-aligned */}
@@ -773,75 +771,118 @@ export default function CanvasView({
         }
         .canvas-ptt-pulse { animation: canvas-ptt-pulse-keyframe 1.6s ease-out infinite; }
 
-        /* Fluid organic animation - colors flowing like water */
-        @keyframes canvas-ptt-fluid-flow {
-          0% {
-            background-position: 0% 50%;
-            filter: blur(8px) saturate(1.8) brightness(1.1);
+        /* Fluid crashing waves animation - contained in ring */
+        @keyframes canvas-ptt-wave-crash-1 {
+          0%, 100% {
+            transform: rotate(0deg) scale(1);
+            opacity: 0.9;
           }
-          25% {
-            background-position: 50% 100%;
-            filter: blur(10px) saturate(2) brightness(1.2);
+          33% {
+            transform: rotate(120deg) scale(1.05);
+            opacity: 1;
           }
-          50% {
-            background-position: 100% 50%;
-            filter: blur(8px) saturate(1.8) brightness(1.1);
-          }
-          75% {
-            background-position: 50% 0%;
-            filter: blur(10px) saturate(2) brightness(1.2);
-          }
-          100% {
-            background-position: 0% 50%;
-            filter: blur(8px) saturate(1.8) brightness(1.1);
+          66% {
+            transform: rotate(240deg) scale(0.95);
+            opacity: 0.8;
           }
         }
 
-        @keyframes canvas-ptt-organic-pulse {
+        @keyframes canvas-ptt-wave-crash-2 {
+          0%, 100% {
+            transform: rotate(180deg) scale(1);
+            opacity: 0.8;
+          }
+          33% {
+            transform: rotate(60deg) scale(1.08);
+            opacity: 1;
+          }
+          66% {
+            transform: rotate(300deg) scale(0.92);
+            opacity: 0.7;
+          }
+        }
+
+        @keyframes canvas-ptt-wave-crash-3 {
+          0%, 100% {
+            transform: rotate(90deg) scale(1);
+            opacity: 0.85;
+          }
+          50% {
+            transform: rotate(270deg) scale(1.1);
+            opacity: 1;
+          }
+        }
+
+        @keyframes canvas-ptt-glow-pulse {
           0%, 100% {
             box-shadow:
-              0 0 20px 2px rgba(255, 0, 110, 0.4),
-              0 0 40px 4px rgba(131, 56, 236, 0.3),
-              0 0 60px 6px rgba(58, 134, 255, 0.2);
+              inset 0 0 20px 2px rgba(255, 0, 110, 0.4),
+              inset 0 0 30px 4px rgba(131, 56, 236, 0.3),
+              0 0 15px 1px rgba(58, 134, 255, 0.3);
           }
           50% {
             box-shadow:
-              0 0 30px 3px rgba(255, 0, 110, 0.5),
-              0 0 50px 5px rgba(131, 56, 236, 0.4),
-              0 0 70px 8px rgba(58, 134, 255, 0.3);
+              inset 0 0 25px 3px rgba(131, 56, 236, 0.5),
+              inset 0 0 35px 5px rgba(58, 134, 255, 0.4),
+              0 0 20px 2px rgba(6, 255, 165, 0.4);
           }
         }
 
         .canvas-ptt-active-ring {
           position: relative;
-          border: none;
+          border: 4px solid transparent;
+          background: transparent;
+          overflow: visible;
         }
 
+        /* First wave layer - pink to purple in RING */
         .canvas-ptt-active-ring::before {
           content: '';
           position: absolute;
-          inset: -8px;
+          inset: -4px;
           border-radius: 50%;
-          background: radial-gradient(
-            circle at 30% 50%,
-            #ff006e 0%,
-            #8338ec 25%,
-            #3a86ff 50%,
-            #06ffa5 75%,
-            #ffbe0b 90%,
-            #ff006e 100%
+          padding: 4px;
+          background: conic-gradient(
+            from 0deg,
+            #ff006e 0deg,
+            #8338ec 90deg,
+            transparent 180deg,
+            transparent 360deg
           );
-          background-size: 300% 300%;
-          animation: canvas-ptt-fluid-flow 8s ease-in-out infinite;
-          z-index: -1;
+          -webkit-mask:
+            radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 4px));
+          mask:
+            radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 4px));
+          filter: blur(3px) saturate(1.8);
+          animation: canvas-ptt-wave-crash-1 5s ease-in-out infinite;
         }
 
+        /* Second wave layer - purple to blue in RING */
         .canvas-ptt-active-ring::after {
           content: '';
           position: absolute;
           inset: -4px;
           border-radius: 50%;
-          animation: canvas-ptt-organic-pulse 3s ease-in-out infinite;
+          padding: 4px;
+          background: conic-gradient(
+            from 120deg,
+            #8338ec 0deg,
+            #3a86ff 90deg,
+            #06ffa5 180deg,
+            transparent 270deg,
+            transparent 360deg
+          );
+          -webkit-mask:
+            radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 4px));
+          mask:
+            radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 4px));
+          filter: blur(3px) saturate(1.8);
+          animation: canvas-ptt-wave-crash-2 6s ease-in-out infinite 1s;
+        }
+
+        /* Glow effect on main element */
+        .canvas-ptt-active-ring {
+          animation: canvas-ptt-glow-pulse 3s ease-in-out infinite;
         }
 
         @keyframes canvas-audio-wave-keyframe {
