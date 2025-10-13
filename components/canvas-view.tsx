@@ -694,14 +694,16 @@ export default function CanvasView({
             "ring-4 transition-all duration-100 ease-out",
             (isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing')
               ? "ring-white/35 bg-white/12 opacity-80 cursor-not-allowed"
-              : "ring-white/40 hover:ring-white/60 bg-white/5 hover:bg-white/15",
+              : isPTTActive
+                ? "canvas-ptt-active-ring"
+                : "ring-white/40 hover:ring-white/60 bg-white/5 hover:bg-white/15",
             isPTTActive ? "scale-[1.05]" : "scale-100"
           )}
         >
           <span
             className={cn(
-              "absolute inset-[6px] rounded-full",
-              isPTTActive ? "bg-white/80 canvas-ptt-pulse" : "opacity-0"
+              "absolute inset-[6px] rounded-full transition-all duration-200",
+              isPTTActive ? "canvas-ptt-active-fill canvas-ptt-pulse" : "opacity-0"
             )}
           />
         </button>
@@ -772,6 +774,52 @@ export default function CanvasView({
           100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
         }
         .canvas-ptt-pulse { animation: canvas-ptt-pulse-keyframe 1.6s ease-out infinite; }
+
+        /* Vibrant gradient ring animation */
+        @keyframes canvas-ptt-ring-rotate {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes canvas-ptt-ring-glow {
+          0%, 100% { filter: brightness(1) saturate(1.5); }
+          50% { filter: brightness(1.3) saturate(2); }
+        }
+
+        .canvas-ptt-active-ring {
+          position: relative;
+          background: conic-gradient(
+            from 0deg,
+            #ff006e 0deg,
+            #8338ec 72deg,
+            #3a86ff 144deg,
+            #06ffa5 216deg,
+            #ffbe0b 288deg,
+            #ff006e 360deg
+          );
+          animation: canvas-ptt-ring-rotate 3s linear infinite, canvas-ptt-ring-glow 2s ease-in-out infinite;
+          border: none;
+        }
+
+        /* Vibrant gradient fill */
+        @keyframes canvas-ptt-fill-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+
+        .canvas-ptt-active-fill {
+          background: linear-gradient(
+            135deg,
+            #ff006e 0%,
+            #8338ec 25%,
+            #3a86ff 50%,
+            #06ffa5 75%,
+            #ffbe0b 100%
+          );
+          background-size: 200% 200%;
+          animation: canvas-ptt-fill-shift 4s ease infinite, canvas-ptt-pulse-keyframe 1.6s ease-out infinite;
+        }
 
         @keyframes canvas-audio-wave-keyframe {
           0%, 100% { height: 6px; opacity: 0.5; }
