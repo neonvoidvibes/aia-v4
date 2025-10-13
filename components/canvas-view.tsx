@@ -690,20 +690,18 @@ export default function CanvasView({
             if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing') onPTTRelease?.();
           }}
           className={cn(
-            "relative h-12 w-12 md:h-14 md:w-14 rounded-full",
-            "ring-4 transition-all duration-100 ease-out",
+            "relative h-12 w-12 md:h-14 md:w-14 rounded-full overflow-visible",
+            "transition-all duration-300 ease-out",
             (isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing')
-              ? "ring-white/35 bg-white/12 opacity-80 cursor-not-allowed"
+              ? "ring-4 ring-white/35 bg-white/12 opacity-80 cursor-not-allowed"
               : isPTTActive
-                ? "canvas-ptt-active-ring"
-                : "ring-white/40 hover:ring-white/60 bg-white/5 hover:bg-white/15",
-            isPTTActive ? "scale-[1.05]" : "scale-100"
+                ? "canvas-ptt-active-ring scale-[1.15]"
+                : "ring-4 ring-white/40 hover:ring-white/60 bg-white/5 hover:bg-white/15 scale-100"
           )}
         >
           <span
             className={cn(
-              "absolute inset-[6px] rounded-full transition-all duration-200",
-              isPTTActive ? "canvas-ptt-active-fill canvas-ptt-pulse" : "opacity-0"
+              "absolute inset-[6px] rounded-full bg-white/5 backdrop-blur-sm transition-all duration-200"
             )}
           />
         </button>
@@ -775,50 +773,75 @@ export default function CanvasView({
         }
         .canvas-ptt-pulse { animation: canvas-ptt-pulse-keyframe 1.6s ease-out infinite; }
 
-        /* Vibrant gradient ring animation */
-        @keyframes canvas-ptt-ring-rotate {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        /* Fluid organic animation - colors flowing like water */
+        @keyframes canvas-ptt-fluid-flow {
+          0% {
+            background-position: 0% 50%;
+            filter: blur(8px) saturate(1.8) brightness(1.1);
+          }
+          25% {
+            background-position: 50% 100%;
+            filter: blur(10px) saturate(2) brightness(1.2);
+          }
+          50% {
+            background-position: 100% 50%;
+            filter: blur(8px) saturate(1.8) brightness(1.1);
+          }
+          75% {
+            background-position: 50% 0%;
+            filter: blur(10px) saturate(2) brightness(1.2);
+          }
+          100% {
+            background-position: 0% 50%;
+            filter: blur(8px) saturate(1.8) brightness(1.1);
+          }
         }
 
-        @keyframes canvas-ptt-ring-glow {
-          0%, 100% { filter: brightness(1) saturate(1.5); }
-          50% { filter: brightness(1.3) saturate(2); }
+        @keyframes canvas-ptt-organic-pulse {
+          0%, 100% {
+            box-shadow:
+              0 0 20px 2px rgba(255, 0, 110, 0.4),
+              0 0 40px 4px rgba(131, 56, 236, 0.3),
+              0 0 60px 6px rgba(58, 134, 255, 0.2);
+          }
+          50% {
+            box-shadow:
+              0 0 30px 3px rgba(255, 0, 110, 0.5),
+              0 0 50px 5px rgba(131, 56, 236, 0.4),
+              0 0 70px 8px rgba(58, 134, 255, 0.3);
+          }
         }
 
         .canvas-ptt-active-ring {
           position: relative;
-          background: conic-gradient(
-            from 0deg,
-            #ff006e 0deg,
-            #8338ec 72deg,
-            #3a86ff 144deg,
-            #06ffa5 216deg,
-            #ffbe0b 288deg,
-            #ff006e 360deg
-          );
-          animation: canvas-ptt-ring-rotate 3s linear infinite, canvas-ptt-ring-glow 2s ease-in-out infinite;
           border: none;
         }
 
-        /* Vibrant gradient fill */
-        @keyframes canvas-ptt-fill-shift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-
-        .canvas-ptt-active-fill {
-          background: linear-gradient(
-            135deg,
+        .canvas-ptt-active-ring::before {
+          content: '';
+          position: absolute;
+          inset: -8px;
+          border-radius: 50%;
+          background: radial-gradient(
+            circle at 30% 50%,
             #ff006e 0%,
             #8338ec 25%,
             #3a86ff 50%,
             #06ffa5 75%,
-            #ffbe0b 100%
+            #ffbe0b 90%,
+            #ff006e 100%
           );
-          background-size: 200% 200%;
-          animation: canvas-ptt-fill-shift 4s ease infinite, canvas-ptt-pulse-keyframe 1.6s ease-out infinite;
+          background-size: 300% 300%;
+          animation: canvas-ptt-fluid-flow 8s ease-in-out infinite;
+          z-index: -1;
+        }
+
+        .canvas-ptt-active-ring::after {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border-radius: 50%;
+          animation: canvas-ptt-organic-pulse 3s ease-in-out infinite;
         }
 
         @keyframes canvas-audio-wave-keyframe {
