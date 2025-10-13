@@ -773,8 +773,11 @@ export default function CanvasView({
 
         /* Fluid crashing waves animation - contained in ring */
         @keyframes canvas-ptt-wave-crash-1 {
-          0%, 100% {
+          0% {
             transform: rotate(0deg) scale(1);
+            opacity: 0;
+          }
+          8% {
             opacity: 0.9;
           }
           33% {
@@ -785,11 +788,18 @@ export default function CanvasView({
             transform: rotate(240deg) scale(0.95);
             opacity: 0.8;
           }
+          100% {
+            transform: rotate(360deg) scale(1);
+            opacity: 0.9;
+          }
         }
 
         @keyframes canvas-ptt-wave-crash-2 {
-          0%, 100% {
+          0% {
             transform: rotate(180deg) scale(1);
+            opacity: 0;
+          }
+          8% {
             opacity: 0.8;
           }
           33% {
@@ -799,6 +809,10 @@ export default function CanvasView({
           66% {
             transform: rotate(300deg) scale(0.92);
             opacity: 0.7;
+          }
+          100% {
+            transform: rotate(540deg) scale(1);
+            opacity: 0.8;
           }
         }
 
@@ -855,6 +869,8 @@ export default function CanvasView({
           mask:
             radial-gradient(farthest-side, transparent calc(100% - 6px), white calc(100% - 6px));
           filter: blur(2px) saturate(2);
+          transform-origin: center center;
+          will-change: transform, opacity;
           animation: canvas-ptt-wave-crash-1 5s ease-in-out infinite;
         }
 
@@ -879,6 +895,8 @@ export default function CanvasView({
           mask:
             radial-gradient(farthest-side, transparent calc(100% - 6px), white calc(100% - 6px));
           filter: blur(2px) saturate(2);
+          transform-origin: center center;
+          will-change: transform, opacity;
           animation: canvas-ptt-wave-crash-2 6s ease-in-out infinite 1s;
         }
 
