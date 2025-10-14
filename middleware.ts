@@ -4,7 +4,23 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 // import type { Database } from '@/types/supabase' // Keep commented out
 
+const PUBLIC_API = [
+  "^/api/recording(?:/|$)",
+  "^/api/agent/warm-up$",
+  "^/api/backend(?:/|$)",
+  "^/api/s3-proxy(?:/|$)",
+  "^/api/chat/history/(?:list|save)$",
+  "^/api/runtime$"
+];
+
 export async function middleware(req: NextRequest) {
+  const url = req.nextUrl.pathname;
+
+  // Skip auth middleware for public API routes - let handlers do their own auth
+  if (PUBLIC_API.some(rx => new RegExp(rx).test(url))) {
+    return NextResponse.next();
+  }
+
   const res = NextResponse.next()
 
   // Create a Supabase client configured to use cookies accessible in middleware

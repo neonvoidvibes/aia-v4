@@ -72,8 +72,12 @@ export function useAuthoritativeRecordingTimer(
   useEffect(() => {
     const onVis = async () => {
       if (document.visibilityState !== 'visible') return;
+      // Skip if sessionId is empty to avoid unnecessary middleware hits
+      if (!sessionId) return;
       try {
-        const r = await fetch(`/api/recording/status?session=${encodeURIComponent(sessionId)}`);
+        const r = await fetch(`/api/recording/status?session=${encodeURIComponent(sessionId)}`, {
+          credentials: 'include'
+        });
         const s = await r.json();
         server.current.isRecording = !!s.is_recording;
         server.current.audioMs = Number(s.audio_ms || 0);

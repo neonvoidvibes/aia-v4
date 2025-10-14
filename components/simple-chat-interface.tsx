@@ -1023,6 +1023,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
             const response = await fetch('/api/chat/history/save', {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.access_token}`,
@@ -3065,6 +3066,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
             const response = await fetch('/api/chat/history/save', {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
                 body: JSON.stringify({
                     agent: agentName,
@@ -3483,6 +3485,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
             const response = await fetch('/api/chat/history/delete', {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.access_token}`,
