@@ -16,6 +16,8 @@ const POTENTIAL_BACKEND_URLS = BACKEND_API_URLS_STRING.split(',').map(url => url
 export const maxDuration = 60;
 
 // Chat-specific text formatting remains here
+// NOTE: This route now returns 403 when a requested event is not allowed
+// instead of silently rewriting to '0000'.
 function formatTextChunk(text: string): string {
     return `0:${JSON.stringify(text)}\n`;
 }
@@ -116,14 +118,33 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Missing agent' }), { status: 400 });
     }
 
-    // Validate event against available events for this agent; default to main event "0000" if missing/invalid
-    let safeEvent: string = inputEvent || '0000';
+    // Validate event against available events for this agent.
+    // Change: if a specific event is requested and not allowed -> 403 (no silent downgrade).
+    let safeEvent: string = inputEvent ?? '0000';
     if (agent) {
       let verifiedViaSupabase = false;
       try {
         const agentEvents = await loadAgentEventsForUser(supabase, agent, user.id);
-        const allowedSet = new Set<string>([...(agentEvents.allowedEvents || agentEvents.events || []), '0000']);
-        if (!allowedSet.has(safeEvent)) {
+        const allowedSet = new Set<string>([
+          ...(agentEvents.allowedEvents || agentEvents.events || []),
+          '0000',
+        ]);
+        if (inputEvent) {
+          if (!allowedSet.has(inputEvent)) {
+            log.warn('event_not_allowed', {
+              userId: user.id,
+              agent,
+              requestedEvent: inputEvent,
+            });
+            return NextResponse.json(
+              { error: `Forbidden: event '${inputEvent}' is not accessible for this user.` },
+              { status: 403 }
+            );
+          }
+          // allowed -> pass through
+          safeEvent = inputEvent;
+        } else {
+          // no specific event requested -> default to '0000' which may aggregate if enabled
           safeEvent = '0000';
         }
         verifiedViaSupabase = true;
@@ -141,17 +162,30 @@ export async function POST(req: NextRequest) {
             if (res.ok) {
               const json = await res.json().catch(() => ({}));
               const events: string[] = Array.isArray(json?.events) ? json.events : [];
-              if (!events.includes(safeEvent)) {
+              if (inputEvent) {
+                if (!events.includes(inputEvent)) {
+                  log.warn('event_not_allowed_backend_fallback', {
+                    userId: user.id,
+                    agent,
+                    requestedEvent: inputEvent,
+                  });
+                  return NextResponse.json(
+                    { error: `Forbidden: event '${inputEvent}' is not accessible for this user.` },
+                    { status: 403 }
+                  );
+                }
+                safeEvent = inputEvent;
+              } else {
                 safeEvent = '0000';
               }
             } else {
-              safeEvent = '0000';
+              // backend list failed: keep default '0000' (no specific event requested)
             }
           } else {
-            safeEvent = '0000';
+            // no token: keep default '0000' unless a specific event was requested (handled above)
           }
         } catch {
-          safeEvent = '0000';
+          // network error listing events: keep default '0000' unless a specific event was requested
         }
       }
     } else {
@@ -161,6 +195,8 @@ export async function POST(req: NextRequest) {
     log.info("Chat request validated", {
       agent,
       event: safeEvent,
+      requestedEvent: inputEvent ?? null,
+      eventValidation: inputEvent ? 'specific' : 'default_0000',
       messageCount: userMessages.length,
       transcriptListenMode: transcriptListenModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
