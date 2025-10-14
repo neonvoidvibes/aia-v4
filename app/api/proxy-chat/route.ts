@@ -74,7 +74,10 @@ export async function POST(req: NextRequest) {
     const userMessages = body.messages?.filter((msg: { role: string }) => msg.role === 'user' || msg.role === 'assistant') || [];
     // Prioritize settings from body.data if they exist, as simple-chat-interface places them there.
     const agent = body.agent || body.data?.agent;
-    const inputEvent = body.event || body.data?.event;
+    const inputEventRaw = body.event || body.data?.event;
+    const inputEvent = typeof inputEventRaw === 'string'
+      ? inputEventRaw.trim().toLowerCase()
+      : undefined;
     const model = body.model || body.data?.model;
     const temperature = body.temperature ?? body.data?.temperature ?? 0.5;
     
@@ -126,7 +129,7 @@ export async function POST(req: NextRequest) {
       try {
         const agentEvents = await loadAgentEventsForUser(supabase, agent, user.id);
         const allowedSet = new Set<string>([
-          ...(agentEvents.allowedEvents || agentEvents.events || []),
+          ...((agentEvents.allowedEvents || agentEvents.events || []).map((e: string) => e.trim().toLowerCase())),
           '0000',
         ]);
         if (inputEvent) {
@@ -135,6 +138,7 @@ export async function POST(req: NextRequest) {
               userId: user.id,
               agent,
               requestedEvent: inputEvent,
+              allowedSample: Array.from(allowedSet).slice(0, 10),
             });
             return NextResponse.json(
               { error: `Forbidden: event '${inputEvent}' is not accessible for this user.` },
@@ -161,7 +165,7 @@ export async function POST(req: NextRequest) {
             const res = await fetch(eventsUrl, { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) {
               const json = await res.json().catch(() => ({}));
-              const events: string[] = Array.isArray(json?.events) ? json.events : [];
+              const events: string[] = Array.isArray(json?.events) ? json.events.map((e: string)=>e.trim().toLowerCase()) : [];
               if (inputEvent) {
                 if (!events.includes(inputEvent)) {
                   log.warn('event_not_allowed_backend_fallback', {
@@ -325,6 +329,7 @@ export async function POST(req: NextRequest) {
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
         let buffer = "";
+        const toClient = (text: string) => pushToClient(`0:${JSON.stringify(text)}\n`);
         let firstChunkTime: number | null = null;
         let lastChunkTime: number = Date.now();
 
@@ -345,6 +350,8 @@ export async function POST(req: NextRequest) {
             buffer = lines.pop() || ''; // Keep the last (potentially incomplete) line
 
             for (const line of lines) {
+              // Ignore keep-alives / comments / empty lines
+              if (!line || line === '\r' || line.startsWith(':')) continue;
               if (line.startsWith('data: ')) {
                 const jsonStr = line.substring(6);
                 if (jsonStr.trim()) {
@@ -357,9 +364,8 @@ export async function POST(req: NextRequest) {
                         log.info(`[PERF] First chunk received from backend: ${firstChunkTime - backendFetchStart}ms from fetch start, ${firstChunkTime - requestStartTime}ms from request start`);
                       }
                       lastChunkTime = Date.now();
-                      // This is a text chunk. Translate to AI SDK format.
-                      // The format is `0:"<text_chunk>"\n`
-                      pushToClient(`0:${JSON.stringify(data.delta)}\n`);
+                      // Text chunk -> always frame as 0:"..."
+                      toClient(String(data.delta));
                     } else if (data.done) {
                       // This is the final message from the backend.
                       // Handle reinforcement and then we're done.
@@ -382,12 +388,16 @@ export async function POST(req: NextRequest) {
                       }
                       // We don't forward the 'done' message. The stream closing is the signal.
                     } else if (data.error) {
-                        // Forward error from backend stream
-                        log.error("Error in backend stream", { error: data.error });
-                        pushToClient(formatErrorChunk(data.error));
+                      // Normalize errors to text; never emit non-0 codes
+                      log.error("Error in backend stream", { error: data.error });
+                      pushToClient(formatErrorChunk(String(data.error)));
+                    } else {
+                      // Unknown provider-native chunk: swallow, do not abort stream
+                      log.debug("Ignoring provider-native SSE chunk", { jsonStr });
                     }
                   } catch (e) {
-                    log.error("Failed to parse backend stream JSON", { jsonStr, error: e });
+                    // Bad JSON in SSE data: log and continue
+                    log.warn("Non-JSON or bad SSE data line; ignoring", { jsonStr, error: String(e) });
                   }
                 }
               }
@@ -395,7 +405,7 @@ export async function POST(req: NextRequest) {
           }
         } catch (error) {
           log.error("Error reading from backend stream", { error });
-          pushToClient(formatErrorChunk("Error reading from backend service."));
+          pushToClient(formatErrorChunk("Streaming error from backend"));
         } finally {
           const totalStreamTime = Date.now() - requestStartTime;
           const streamProcessingTime = firstChunkTime ? Date.now() - firstChunkTime : 0;

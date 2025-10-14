@@ -45,7 +45,8 @@ export async function loadAgentEventsForUser(
   let personalEventId: string | null = null;
 
   for (const row of eventRows) {
-    const eventId = row.event_id;
+    const rawId = row.event_id;
+    const eventId = (rawId || '').trim().toLowerCase();
     if (!eventId) continue;
 
     const type = (row.type || 'group').toLowerCase();
