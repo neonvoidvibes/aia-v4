@@ -62,6 +62,9 @@ import AgentDashboard from "@/components/agent-dashboard"; // New import
 import ConsentView from "@/components/consent-view"; // Phase 3 import
 import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
 import { manager as recordingManager } from "@/lib/recordingManager";
+import { getCachedSession, invalidateSessionCache } from "@/lib/sessionCache";
+import { debouncedSetItem, debouncedGetItem } from "@/lib/debouncedStorage";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 interface ChatHistoryItem {
   id: string;
@@ -85,7 +88,7 @@ function AgentSelector({ allowedAgents, userName }: AgentSelectorProps) {
 
   const handleContinue = () => {
     if (selectedAgent) {
-      localStorage.setItem('lastUsedAgent', selectedAgent);
+      debouncedSetItem('lastUsedAgent', selectedAgent);
       router.push(`/?agent=${selectedAgent}&event=0000`);
     }
   };
@@ -456,10 +459,10 @@ function HomeContent() {
     
     setIsLoadingHistory(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getCachedSession(supabase);
       if (!session?.access_token) return;
 
-      const response = await fetch(`/api/chat/history/list?agentName=${encodeURIComponent(agentToFetch)}`, {
+      const response = await fetchWithTimeout(`/api/chat/history/list?agentName=${encodeURIComponent(agentToFetch)}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
@@ -593,7 +596,7 @@ function HomeContent() {
       // Seed from local cache (fast path)
       if (eventsCacheKey) {
         try {
-          const raw = localStorage.getItem(eventsCacheKey);
+          const raw = debouncedGetItem(eventsCacheKey);
           if (raw) {
             const cached = JSON.parse(raw) as {
               events: string[];
@@ -641,7 +644,7 @@ function HomeContent() {
         // Update cache
         if (eventsCacheKey) {
           try {
-            localStorage.setItem(eventsCacheKey, JSON.stringify({
+            debouncedSetItem(eventsCacheKey, JSON.stringify({
               events,
               eventTypes: okTypes,
               allowedEvents: data.allowedEvents ?? null,
@@ -869,7 +872,7 @@ function HomeContent() {
       setAuthError(null);
 
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await getCachedSession(supabase);
 
         if (sessionError || !session) {
           // This case should be handled by middleware, but as a fallback:
@@ -879,9 +882,13 @@ function HomeContent() {
           return;
         }
 
-        const response = await fetch('/api/user/permissions', {
+        // Phase 2 optimization: Set authorized immediately after session validation
+        // This unblocks the UI while we fetch capabilities in the background
+        setIsAuthorized(true);
+
+        const response = await fetchWithTimeout('/api/user/permissions', {
           headers: { 'Authorization': `Bearer ${session.access_token}` },
-        });
+        }, 10000); // 10s timeout for permissions fetch
 
         if (response.status === 401) {
           console.error("Authorization Check: Unauthorized fetching permissions.");
@@ -913,14 +920,14 @@ function HomeContent() {
         setUserId(session.user.id); // Set the user ID
         try {
           // Expose current user id for client-only components that need per-user persistence
-          localStorage.setItem('currentUserId', session.user.id);
+          debouncedSetItem('currentUserId', session.user.id);
         } catch {}
 
         if (agentParam) {
           // Agent is in URL, validate it
           if (agentNames.includes(agentParam)) {
             console.log(`Authorization Check: Access GRANTED for agent '${agentParam}'.`);
-            localStorage.setItem('lastUsedAgent', agentParam);
+            debouncedSetItem('lastUsedAgent', agentParam);
             
             // --- PHASE 3: Set current agent and check for consent ---
             setCurrentAgent(agentParam);
@@ -929,7 +936,7 @@ function HomeContent() {
             if (agentData && agentData.workspaceId && agentData.workspaceUiConfig.require_consent) {
               // Check if user has consented to this workspace
               try {
-                const consentResponse = await fetch(`/api/user/consent?workspaceId=${agentData.workspaceId}`);
+                const consentResponse = await fetchWithTimeout(`/api/user/consent?workspaceId=${agentData.workspaceId}`, {}, 5000);
                 if (consentResponse.ok) {
                   const consentData = await consentResponse.json();
                   if (!consentData.hasConsented) {
@@ -952,15 +959,17 @@ function HomeContent() {
             setIsAuthorized(true);
 
             console.log(`[Backend Prefetch] Warming up backend URL cache...`);
-            fetch('/api/backend/prefetch').catch(err => {
+            fetchWithTimeout('/api/backend/prefetch', {}, 5000).catch(err => {
               console.warn('[Backend Prefetch] Failed:', err);
             });
 
             console.log(`[Cache Warmer] Triggering pre-caching for agent '${agentParam}'...`);
-            fetch('/api/agent/warm-up', {
+            fetchWithTimeout('/api/agent/warm-up', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
               body: JSON.stringify({ agent: agentParam, event: eventParam || '0000' })
+            }, 5000).catch(err => {
+              console.warn('[Cache Warmer] Failed:', err);
             });
 
             fetchChatHistory(agentParam);
@@ -971,7 +980,7 @@ function HomeContent() {
           }
         } else {
           // No agent in URL, check localStorage for last used agent
-          const lastUsedAgent = localStorage.getItem('lastUsedAgent');
+          const lastUsedAgent = debouncedGetItem('lastUsedAgent');
           if (lastUsedAgent && agentNames.includes(lastUsedAgent)) {
             console.log(`Redirecting to last used agent: ${lastUsedAgent}`);
             router.push(`/?agent=${lastUsedAgent}&event=0000`);
@@ -983,7 +992,7 @@ function HomeContent() {
             setIsAuthorized(true);
 
             console.log(`[Backend Prefetch] Warming up backend URL cache...`);
-            fetch('/api/backend/prefetch').catch(err => {
+            fetchWithTimeout('/api/backend/prefetch', {}, 5000).catch(err => {
               console.warn('[Backend Prefetch] Failed:', err);
             });
           }
@@ -992,7 +1001,9 @@ function HomeContent() {
         console.error("Authorization Check: Error during permission flow:", error);
         const message = error instanceof Error ? error.message : "An unknown error occurred while checking permissions.";
         setAuthError(message);
-        setIsAuthorized(false);
+        // Phase 2: Don't block UI for capability fetch failures
+        // User has valid session, just couldn't load capabilities
+        // isAuthorized remains true from line 887
       }
     };
 
@@ -1091,12 +1102,12 @@ function HomeContent() {
     }
 
     try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getCachedSession(supabase);
         if (!session?.access_token) {
             throw new Error("Authentication error. Cannot delete chat.");
         }
 
-        const response = await fetch(`/api/chat/history/delete`, {
+        const response = await fetchWithTimeout(`/api/chat/history/delete`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${session.access_token}`,
@@ -1310,9 +1321,9 @@ function HomeContent() {
       }
       if (pageAgentName && userId) {
         const agentThemeKey = `agent-theme-${pageAgentName}_${userId}`;
-        localStorage.setItem(agentThemeKey, newThemeValue);
+        debouncedSetItem(agentThemeKey, newThemeValue);
         if (predefinedThemes.some(t => t.className === newThemeValue)) {
-            localStorage.setItem(`agent-custom-theme-${pageAgentName}_${userId}`, newThemeValue);
+            debouncedSetItem(`agent-custom-theme-${pageAgentName}_${userId}`, newThemeValue);
         } else {
             localStorage.removeItem(`agent-custom-theme-${pageAgentName}_${userId}`);
         }
@@ -1331,13 +1342,13 @@ function HomeContent() {
       }
       const perUserKey = `agent-theme-${pageAgentName}_${userId}`;
       const legacyKey = `agent-theme-${pageAgentName}`;
-      let savedAgentTheme = localStorage.getItem(perUserKey);
+      let savedAgentTheme = debouncedGetItem(perUserKey);
 
       // Migrate legacy, agent-only saved theme if present
       if (!savedAgentTheme) {
-        const legacy = localStorage.getItem(legacyKey);
+        const legacy = debouncedGetItem(legacyKey);
         if (legacy) {
-          try { localStorage.setItem(perUserKey, legacy); } catch {}
+          try { debouncedSetItem(perUserKey, legacy); } catch {}
           savedAgentTheme = legacy;
         }
       }
@@ -1346,7 +1357,7 @@ function HomeContent() {
         setTheme(savedAgentTheme);
         setCurrentAgentTheme(savedAgentTheme);
         if (predefinedThemes.some(t => t.className === savedAgentTheme)) {
-          localStorage.setItem(`agent-custom-theme-${pageAgentName}_${userId}`, savedAgentTheme);
+          debouncedSetItem(`agent-custom-theme-${pageAgentName}_${userId}`, savedAgentTheme);
         }
       } else {
         // No saved theme for this agent+user: default to System
@@ -1357,14 +1368,14 @@ function HomeContent() {
   }, [pageAgentName, userId, setTheme, activeUiConfig?.theme_override]);
 
   useEffect(() => {
-    const savedCanvasEnabled = localStorage.getItem("canvasViewEnabled");
+    const savedCanvasEnabled = debouncedGetItem("canvasViewEnabled");
     if (savedCanvasEnabled !== null) {
       setIsCanvasViewEnabled(JSON.parse(savedCanvasEnabled));
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("canvasViewEnabled", JSON.stringify(isCanvasViewEnabled));
+    debouncedSetItem("canvasViewEnabled", JSON.stringify(isCanvasViewEnabled));
     if (!isCanvasViewEnabled && currentView === "canvas") {
       setCurrentView("chat"); 
     }
@@ -1384,7 +1395,7 @@ function HomeContent() {
       }
 
       // Otherwise, check localStorage for saved preference
-      const savedMode = localStorage.getItem(key);
+      const savedMode = debouncedGetItem(key);
       if (savedMode === 'none' || savedMode === 'some' || savedMode === 'latest' || savedMode === 'all') {
         setTranscriptListenMode(savedMode as any);
       } else if (enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') {
@@ -1406,7 +1417,7 @@ function HomeContent() {
     if ((enforced === 'none' || enforced === 'some' || enforced === 'latest' || enforced === 'all') && !canOverrideSettings) return;
 
     const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
-    try { localStorage.setItem(key, transcriptListenMode); } catch {}
+    try { debouncedSetItem(key, transcriptListenMode); } catch {}
   }, [transcriptListenMode, pageAgentName, userId, activeUiConfig, permissionsData?.isAdminOverride]);
 
 
@@ -1424,7 +1435,7 @@ function HomeContent() {
         return;
       }
       const key = `savedTranscriptMemoryModeSetting_${pageAgentName}_${userId}`;
-      const savedMode = localStorage.getItem(key);
+      const savedMode = debouncedGetItem(key);
       if (savedMode === 'none' || savedMode === 'some' || savedMode === 'all') {
         setSavedTranscriptMemoryMode(savedMode as any);
       } else {
@@ -1438,7 +1449,7 @@ function HomeContent() {
       // ikea-pilot workspace override: don't save to localStorage
       if (pageAgentName === 'ikea-pilot') return;
       const key = `savedTranscriptMemoryModeSetting_${pageAgentName}_${userId}`;
-      localStorage.setItem(key, savedTranscriptMemoryMode);
+      debouncedSetItem(key, savedTranscriptMemoryMode);
     }
   }, [savedTranscriptMemoryMode, pageAgentName, userId]);
 
@@ -1446,7 +1457,7 @@ function HomeContent() {
   useEffect(() => {
     if (pageAgentName && userId) {
       const key = `individualMemoryToggleStates_${pageAgentName}_${userId}`;
-      const savedStates = localStorage.getItem(key);
+      const savedStates = debouncedGetItem(key);
       if (savedStates) {
         try {
           const parsedStates = JSON.parse(savedStates);
@@ -1462,7 +1473,7 @@ function HomeContent() {
   useEffect(() => {
     if (pageAgentName && userId && Object.keys(individualMemoryToggleStates).length > 0) {
       const key = `individualMemoryToggleStates_${pageAgentName}_${userId}`;
-      localStorage.setItem(key, JSON.stringify(individualMemoryToggleStates));
+      debouncedSetItem(key, JSON.stringify(individualMemoryToggleStates));
     }
   }, [individualMemoryToggleStates, pageAgentName, userId]);
 
@@ -1473,7 +1484,7 @@ function HomeContent() {
     const loadGroupsReadMode = async () => {
       // First check localStorage for immediate effect
       const localKey = `groupsReadMode_${pageAgentName}_${userId}`;
-      const localValue = localStorage.getItem(localKey);
+      const localValue = debouncedGetItem(localKey);
       if (localValue && ['latest', 'none', 'all'].includes(localValue)) {
         setGroupsReadMode(localValue as 'latest' | 'none' | 'all');
       }
@@ -1485,7 +1496,7 @@ function HomeContent() {
           const data = await response.json();
           const dbValue = data.groups_read_mode || 'none';
           setGroupsReadMode(dbValue);
-          localStorage.setItem(localKey, dbValue);
+          debouncedSetItem(localKey, dbValue);
         }
       } catch (error) {
         console.error('Error loading groups read mode:', error);
@@ -1503,7 +1514,7 @@ function HomeContent() {
 
     // Persist to localStorage immediately
     const localKey = `groupsReadMode_${pageAgentName}_${userId}`;
-    localStorage.setItem(localKey, mode);
+    debouncedSetItem(localKey, mode);
 
     // Persist to Supabase
     try {
@@ -1571,7 +1582,7 @@ function HomeContent() {
   useEffect(() => {
     if (pageAgentName && userId) {
       const key = `individualRawTranscriptToggleStates_${pageAgentName}_${userId}`;
-      const savedStates = localStorage.getItem(key);
+      const savedStates = debouncedGetItem(key);
       if (savedStates) {
         try {
           const parsedStates = JSON.parse(savedStates);
@@ -1587,7 +1598,7 @@ function HomeContent() {
   useEffect(() => {
     if (pageAgentName && userId && Object.keys(individualRawTranscriptToggleStates).length > 0) {
       const key = `individualRawTranscriptToggleStates_${pageAgentName}_${userId}`;
-      localStorage.setItem(key, JSON.stringify(individualRawTranscriptToggleStates));
+      debouncedSetItem(key, JSON.stringify(individualRawTranscriptToggleStates));
     }
   }, [individualRawTranscriptToggleStates, pageAgentName, userId]);
 
@@ -1615,7 +1626,7 @@ function HomeContent() {
 
     console.log('[VAD] Processing VAD with pageAgentName:', pageAgentName, 'userId:', userId);
     const key = `vadAggressivenessSetting_${pageAgentName}_${userId}`;
-    const savedValue = localStorage.getItem(key);
+    const savedValue = debouncedGetItem(key);
     console.log('[VAD] localStorage check:', { key, savedValue });
 
     if (savedValue && ["1", "2", "3"].includes(savedValue)) {
@@ -1644,7 +1655,7 @@ function HomeContent() {
   useEffect(() => {
     if (pageAgentName && userId && vadAggressiveness !== null) {
       const key = `vadAggressivenessSetting_${pageAgentName}_${userId}`;
-      localStorage.setItem(key, vadAggressiveness.toString());
+      debouncedSetItem(key, vadAggressiveness.toString());
     }
   }, [vadAggressiveness, pageAgentName, userId]);
 
@@ -1657,7 +1668,7 @@ function HomeContent() {
       }
 
       const key = `transcriptionLanguageSetting_${pageAgentName}_${userId}`;
-      const savedLang = localStorage.getItem(key);
+      const savedLang = debouncedGetItem(key);
 
       // 1. Check for a valid user-saved preference in localStorage
       if (savedLang === "en" || savedLang === "sv" || savedLang === "any") {
@@ -1688,7 +1699,7 @@ function HomeContent() {
   useEffect(() => {
     if (pageAgentName && userId) {
       const key = `useChatMemory_${pageAgentName}_${userId}`;
-      const savedValue = localStorage.getItem(key);
+      const savedValue = debouncedGetItem(key);
       setUseChatMemory(savedValue === 'true');
     }
   }, [pageAgentName, userId]);
@@ -1696,7 +1707,7 @@ function HomeContent() {
   const handleUseChatMemoryChange = (checked: boolean) => {
     setUseChatMemory(checked);
     if (pageAgentName && userId) {
-      localStorage.setItem(`useChatMemory_${pageAgentName}_${userId}`, String(checked));
+      debouncedSetItem(`useChatMemory_${pageAgentName}_${userId}`, String(checked));
     }
   };
 
@@ -1737,7 +1748,7 @@ function HomeContent() {
         return;
       }
       const key = `agent-model-${pageAgentName}_${userId}`;
-      const savedModel = localStorage.getItem(key);
+      const savedModel = debouncedGetItem(key);
       if (savedModel) {
         setSelectedModel(savedModel);
       } else {
@@ -1750,7 +1761,7 @@ function HomeContent() {
     setSelectedModel(model);
     if (pageAgentName && userId) {
       const key = `agent-model-${pageAgentName}_${userId}`;
-      localStorage.setItem(key, model);
+      debouncedSetItem(key, model);
     }
   };
   
@@ -1758,7 +1769,7 @@ function HomeContent() {
   useEffect(() => {
     if (pageAgentName && userId) {
       const key = `agent-temperature-${pageAgentName}_${userId}`;
-      const savedTemp = localStorage.getItem(key);
+      const savedTemp = debouncedGetItem(key);
       if (savedTemp !== null && !isNaN(parseFloat(savedTemp))) {
         setTemperature(parseFloat(savedTemp));
       } else {
@@ -1772,7 +1783,7 @@ function HomeContent() {
     setTemperature(newTemp);
     if (pageAgentName && userId) {
       const key = `agent-temperature-${pageAgentName}_${userId}`;
-      localStorage.setItem(key, newTemp.toString());
+      debouncedSetItem(key, newTemp.toString());
     }
   };
 
@@ -1792,7 +1803,7 @@ function HomeContent() {
   }, [showSettings]); 
 
   const fetchS3Data = useCallback(async (prefix: string, onDataFetched: (data: FetchedFile[]) => void, description: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await getCachedSession(supabase);
     if (!session) { console.warn(`Not fetching ${description}: no session.`); return; }
 
     // Include agent and event for cross-group read support
@@ -1955,7 +1966,7 @@ function HomeContent() {
   useEffect(() => {
     const fetchPinecone = async () => {
       if (!showSettings || !pageAgentName || isAuthorized !== true || fetchedDataFlags.pineconeMemory) return;
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getCachedSession(supabase);
       if (!session) return;
       try {
         const url = `/api/pinecone-proxy/list-docs?agentName=${encodeURIComponent(pageAgentName)}&namespace=${encodeURIComponent(pageAgentName)}`;
@@ -1979,7 +1990,7 @@ function HomeContent() {
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getCachedSession(supabase);
       if (!session) return;
       const commonHeaders = { 'Authorization': `Bearer ${session.access_token}` };
 
@@ -2076,7 +2087,7 @@ function HomeContent() {
     );
     setShowArchiveConfirmModal(false); // Close modal immediately
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await getCachedSession(supabase);
     if (!session) {
       console.error("Archive Error: No active session.");
       // Optionally show an error toast to the user
@@ -2086,7 +2097,7 @@ function HomeContent() {
     }
 
     try {
-      const response = await fetch('/api/s3-proxy/manage-file', {
+      const response = await fetchWithTimeout('/api/s3-proxy/manage-file', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2159,7 +2170,7 @@ function HomeContent() {
 
     console.log(`Starting 'Save to Memory' for: ${name} (S3 Key: ${s3Key})`);
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await getCachedSession(supabase);
     if (!session) {
       console.error("Save As Memory Error: No active session.");
       setTranscriptionS3Files(prevFiles =>
@@ -2171,7 +2182,7 @@ function HomeContent() {
     }
 
     try {
-      const response = await fetch('/api/s3-proxy/summarize-transcript', { // Changed endpoint name to match s3-proxy structure
+      const response = await fetchWithTimeout('/api/s3-proxy/summarize-transcript', { // Changed endpoint name to match s3-proxy structure
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2183,7 +2194,7 @@ function HomeContent() {
           eventId: pageEventId,
           originalFilename: name,
         }),
-      });
+      }, 30000); // 30s timeout for LLM summarization
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Failed to process summarization request."}));
@@ -3031,7 +3042,7 @@ function HomeContent() {
                             // Manually save user's explicit choice to localStorage
                             if (pageAgentName && userId) {
                               const key = `transcriptionLanguageSetting_${pageAgentName}_${userId}`;
-                              localStorage.setItem(key, newLang);
+                              debouncedSetItem(key, newLang);
                               console.log(`[LangSetting] User saved '${newLang}' for agent '${pageAgentName}' to localStorage.`);
                             }
                           }
@@ -3079,7 +3090,7 @@ function HomeContent() {
                               // Manually save user's explicit choice to localStorage
                               if (pageAgentName && userId) {
                                 const key = `transcriptListenModeSetting_${pageAgentName}_${userId}`;
-                                localStorage.setItem(key, newMode);
+                                debouncedSetItem(key, newMode);
                               }
                               // When an explicit mode is chosen, clear manual overrides
                               if (newMode !== 'some') {
