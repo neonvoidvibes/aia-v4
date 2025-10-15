@@ -830,15 +830,15 @@ export default function CanvasView({
         @keyframes canvas-ptt-glow-pulse {
           0%, 100% {
             box-shadow:
-              inset 0 0 20px 2px rgba(138, 43, 226, 0.5),
-              inset 0 0 30px 4px rgba(6, 255, 165, 0.4),
-              0 0 15px 1px rgba(255, 140, 0, 0.4);
+              inset 0 0 20px 2px rgba(255, 255, 255, 0.4),
+              inset 0 0 30px 4px rgba(255, 255, 255, 0.3),
+              0 0 15px 1px rgba(255, 255, 255, 0.3);
           }
           50% {
             box-shadow:
-              inset 0 0 25px 3px rgba(6, 255, 165, 0.6),
-              inset 0 0 35px 5px rgba(255, 140, 0, 0.5),
-              0 0 20px 2px rgba(138, 43, 226, 0.5);
+              inset 0 0 25px 3px rgba(255, 255, 255, 0.5),
+              inset 0 0 35px 5px rgba(255, 255, 255, 0.4),
+              0 0 20px 2px rgba(255, 255, 255, 0.4);
           }
         }
 
@@ -849,7 +849,7 @@ export default function CanvasView({
           overflow: visible;
         }
 
-        /* First wave layer - violet to neon green in RING */
+        /* First wave layer - white gradient in RING */
         .canvas-ptt-active-ring::before {
           content: '';
           position: absolute;
@@ -858,9 +858,9 @@ export default function CanvasView({
           padding: 6px;
           background: conic-gradient(
             from 0deg,
-            #8a2be2 0deg,
-            #06ffa5 80deg,
-            rgba(138, 43, 226, 0.3) 160deg,
+            rgba(255, 255, 255, 0.9) 0deg,
+            rgba(255, 255, 255, 0.7) 80deg,
+            rgba(255, 255, 255, 0.3) 160deg,
             transparent 240deg,
             transparent 360deg
           );
@@ -874,7 +874,7 @@ export default function CanvasView({
           animation: canvas-ptt-wave-crash-1 5s ease-in-out infinite;
         }
 
-        /* Second wave layer - neon green to orange in RING */
+        /* Second wave layer - white gradient in RING */
         .canvas-ptt-active-ring::after {
           content: '';
           position: absolute;
@@ -883,10 +883,10 @@ export default function CanvasView({
           padding: 6px;
           background: conic-gradient(
             from 120deg,
-            #06ffa5 0deg,
-            #ff8c00 70deg,
-            #8a2be2 150deg,
-            rgba(255, 140, 0, 0.3) 220deg,
+            rgba(255, 255, 255, 0.8) 0deg,
+            rgba(255, 255, 255, 0.9) 70deg,
+            rgba(255, 255, 255, 0.7) 150deg,
+            rgba(255, 255, 255, 0.3) 220deg,
             transparent 290deg,
             transparent 360deg
           );
