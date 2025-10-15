@@ -67,6 +67,7 @@ export default function CanvasView({
   const [userHasScrolled, setUserHasScrolled] = useState(false); // Track manual scroll
   const [copied, setCopied] = useState(false); // Track copy state
   const [showResetConfirm, setShowResetConfirm] = useState(false); // Track reset confirmation modal
+  const [showAnalysisConfirm, setShowAnalysisConfirm] = useState(false); // Track analysis confirmation modal
 
   // Message navigation state
   const assistantMessages = React.useMemo(() =>
@@ -243,6 +244,12 @@ export default function CanvasView({
   const handleResetConfirm = () => {
     setShowResetConfirm(false);
     onReset?.();
+  };
+
+  // Handle analysis refresh confirmation
+  const handleAnalysisConfirm = () => {
+    setShowAnalysisConfirm(false);
+    onRefreshAnalysis?.();
   };
 
   // Copy canvas output to clipboard
@@ -662,9 +669,7 @@ export default function CanvasView({
               {/* Refresh Analysis button (play icon) */}
               <button
                 type="button"
-                onClick={() => {
-                  onRefreshAnalysis?.();
-                }}
+                onClick={() => setShowAnalysisConfirm(true)}
                 className={cn(
                   "transition-colors",
                   isRefreshingAnalysis
@@ -751,9 +756,7 @@ export default function CanvasView({
             {/* Refresh Analysis button */}
             <button
               type="button"
-              onClick={() => {
-                onRefreshAnalysis?.();
-              }}
+              onClick={() => setShowAnalysisConfirm(true)}
               className={cn(
                 "transition-colors",
                 isRefreshingAnalysis
@@ -790,6 +793,32 @@ export default function CanvasView({
               onClick={handleResetConfirm}
             >
               Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Analysis Refresh Confirmation Modal */}
+      <Dialog open={showAnalysisConfirm} onOpenChange={setShowAnalysisConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Refresh Analysis</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to refresh the analysis? This will generate a new analysis document based on the current conversation.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowAnalysisConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleAnalysisConfirm}
+            >
+              Refresh
             </Button>
           </DialogFooter>
         </DialogContent>
