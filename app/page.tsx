@@ -608,6 +608,13 @@ function HomeContent() {
   const previousToggleStatesRef = useRef<string>(JSON.stringify(individualRawTranscriptToggleStates));
   const pendingCanvasRefreshRef = useRef<boolean>(false);
 
+  // Track initial settings state when Settings modal opens (for batched refresh on close)
+  const settingsModalInitialStateRef = useRef<{
+    groupsReadMode: string;
+    transcriptListenMode: string;
+    toggleStates: string;
+  } | null>(null);
+
   useEffect(() => {
     // Detect new recording session starting
     if (globalRecordingStatus.isRecording && !previousRecordingRef.current) {
@@ -619,6 +626,12 @@ function HomeContent() {
       }
     }
     previousRecordingRef.current = globalRecordingStatus.isRecording;
+
+    // Skip settings-related auto-refresh while Settings modal is open
+    // (will trigger batched refresh on modal close instead)
+    if (showSettings) {
+      return;
+    }
 
     // Detect Settings > Memory > Transcripts > Groups read mode changes
     if (groupsReadMode !== previousGroupsReadModeRef.current) {
@@ -662,7 +675,55 @@ function HomeContent() {
       }
       previousTranscriptionLanguageRef.current = transcriptionLanguage;
     }
-  }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptListenMode, transcriptionLanguage, individualRawTranscriptToggleStates, currentView]);
+  }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptListenMode, transcriptionLanguage, individualRawTranscriptToggleStates, currentView, showSettings]);
+
+  // Handle Settings modal open/close: batch toggle changes and only refresh on close if changed
+  useEffect(() => {
+    if (showSettings) {
+      // Modal opened - capture initial state
+      settingsModalInitialStateRef.current = {
+        groupsReadMode,
+        transcriptListenMode,
+        toggleStates: JSON.stringify(individualRawTranscriptToggleStates),
+      };
+      console.log('[Canvas] Settings modal opened, captured initial state:', settingsModalInitialStateRef.current);
+    } else if (settingsModalInitialStateRef.current) {
+      // Modal closed - compare initial vs final state
+      const initialState = settingsModalInitialStateRef.current;
+      const currentState = {
+        groupsReadMode,
+        transcriptListenMode,
+        toggleStates: JSON.stringify(individualRawTranscriptToggleStates),
+      };
+
+      const hasChanges =
+        initialState.groupsReadMode !== currentState.groupsReadMode ||
+        initialState.transcriptListenMode !== currentState.transcriptListenMode ||
+        initialState.toggleStates !== currentState.toggleStates;
+
+      console.log('[Canvas] Settings modal closed. Initial:', initialState, 'Current:', currentState, 'Has changes:', hasChanges);
+
+      if (hasChanges) {
+        // Settings changed - update the previous refs to match current state (to avoid double-triggering)
+        previousGroupsReadModeRef.current = groupsReadMode;
+        previousTranscriptListenModeRef.current = transcriptListenMode;
+        previousToggleStatesRef.current = JSON.stringify(individualRawTranscriptToggleStates);
+
+        // Trigger refresh
+        console.log('[Canvas] Settings changed on modal close, triggering analysis refresh with clearPrevious=true');
+        if (currentView === 'canvas') {
+          handleRefreshCanvasAnalysis(true);
+        } else {
+          pendingCanvasRefreshRef.current = true;
+        }
+      } else {
+        console.log('[Canvas] No settings changes detected, skipping refresh');
+      }
+
+      // Clear the initial state
+      settingsModalInitialStateRef.current = null;
+    }
+  }, [showSettings, groupsReadMode, transcriptListenMode, individualRawTranscriptToggleStates, currentView]);
 
 
   // --- PHASE 3: New state management for dynamic workspaces ---
