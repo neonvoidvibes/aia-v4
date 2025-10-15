@@ -8,7 +8,7 @@ import { Copy, Check, Play, RotateCcw } from "lucide-react";
 
 export type Depth = "mirror" | "lens" | "portal";
 
-export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/river_photo_01.png";
+export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/idg_earth.png";
 
 export interface AnalysisStatus {
   state: 'none' | 'analyzing' | 'ready';
