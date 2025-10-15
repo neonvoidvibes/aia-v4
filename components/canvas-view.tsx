@@ -5,6 +5,15 @@ import { cn } from "@/lib/utils";
 import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE } from "@/lib/themes";
 import { useTheme } from "next-themes";
 import { Copy, Check, Play, RotateCcw } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export type Depth = "mirror" | "lens" | "portal";
 
@@ -57,6 +66,7 @@ export default function CanvasView({
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [userHasScrolled, setUserHasScrolled] = useState(false); // Track manual scroll
   const [copied, setCopied] = useState(false); // Track copy state
+  const [showResetConfirm, setShowResetConfirm] = useState(false); // Track reset confirmation modal
 
   // Message navigation state
   const assistantMessages = React.useMemo(() =>
@@ -226,6 +236,12 @@ export default function CanvasView({
 
     // Update chevron state after scroll animation
     setTimeout(checkScroll, 300);
+  };
+
+  // Handle reset confirmation
+  const handleResetConfirm = () => {
+    setShowResetConfirm(false);
+    onReset?.();
   };
 
   // Copy canvas output to clipboard
@@ -635,9 +651,7 @@ export default function CanvasView({
               {/* Restart button (left-pointing triangle icon) */}
               <button
                 type="button"
-                onClick={() => {
-                  onReset?.();
-                }}
+                onClick={() => setShowResetConfirm(true)}
                 className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
                 aria-label="Restart canvas session"
               >
@@ -726,9 +740,7 @@ export default function CanvasView({
             {/* Restart button */}
             <button
               type="button"
-              onClick={() => {
-                onReset?.();
-              }}
+              onClick={() => setShowResetConfirm(true)}
               className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
               aria-label="Restart canvas session"
             >
@@ -755,6 +767,32 @@ export default function CanvasView({
           </div>
         )}
       </div>
+
+      {/* Reset Confirmation Modal */}
+      <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Canvas Session</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reset the canvas? This will clear all current content and conversation history.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowResetConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleResetConfirm}
+            >
+              Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Local styles for cursor + pulse + audio wave + scrollbar hide */}
       <style>{`
