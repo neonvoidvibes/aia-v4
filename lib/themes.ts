@@ -103,7 +103,7 @@ export const predefinedThemes: ColorTheme[] = [
     className: "theme-inner-development",
     isDark: true,
     welcomeMessage: {
-      text: "Cultivating inner skills.",
+      text: "",
     },
   },
   // Image themes
