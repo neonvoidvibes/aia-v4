@@ -94,9 +94,10 @@ export default function CanvasView({
       ? assistantMessages[currentMessageIndex].content
       : llmOutput;
 
-  // Canvas-only override: always show "The River flows." regardless of theme
-  // Theme-specific messages are preserved for other views
-  const welcomeText = "The River flows.";
+  // Get theme-specific welcome message
+  const currentTheme = predefinedThemes.find(t => t.className === theme);
+  const welcomeConfig = currentTheme?.welcomeMessage || G_DEFAULT_WELCOME_MESSAGE;
+  const welcomeText = welcomeConfig.text || G_DEFAULT_WELCOME_MESSAGE.text || "";
 
   const hasLlmOutput = displayedOutput.length > 0;
   const [showWelcome, setShowWelcome] = React.useState(true);
