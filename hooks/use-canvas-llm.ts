@@ -177,14 +177,26 @@ export function useCanvasLLM({
         // Fallback strategies for text that doesn't have clear sentence boundaries
         const remaining = text.slice(currentIndex);
 
-        // 1. Long text without punctuation (150+ chars) - WORD BOUNDARY AWARE
-        if (remaining.length > 150) {
+        // 1. Long text check (150+ chars since last punctuation) - WORD BOUNDARY AWARE
+        // Find the last punctuation mark in remaining text to measure distance
+        // (excludes comma to allow longer phrases between breaks)
+        const lastPunctuationMatch = remaining.match(/[.!?;:\-—]\s/g);
+        const lastPunctuationIndex = lastPunctuationMatch
+          ? remaining.lastIndexOf(lastPunctuationMatch[lastPunctuationMatch.length - 1])
+          : -1;
+
+        // Calculate length since last punctuation (or from start if none)
+        const lengthSinceLastPunctuation = lastPunctuationIndex === -1
+          ? remaining.length
+          : remaining.length - lastPunctuationIndex - 2; // -2 for punctuation + space
+
+        if (lengthSinceLastPunctuation > 150) {
           // Find last word boundary before char 150 to avoid splitting mid-word
           const splitPoint = findLastWordBoundary(remaining, 150);
           const chunk = remaining.slice(0, splitPoint).trim();
 
           if (chunk.length > 10) {
-            console.log('[Canvas TTS] Emitting long text at word boundary (150+ chars):', chunk.substring(0, 50) + '...');
+            console.log('[Canvas TTS] Emitting long text at word boundary (150+ chars since last punctuation):', chunk.substring(0, 50) + '...');
             onSentenceReady(chunk);
             currentIndex += splitPoint;
           }
