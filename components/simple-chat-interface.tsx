@@ -3742,7 +3742,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                   <div className={cn(isMobile ? "fixed" : "absolute", "inset-0 flex items-center justify-center pointer-events-none z-10 px-8")}>
                     {currentWelcomeMessageConfig.imageUrl ? (
                       <img
-                        src={currentWelcomeMessageConfig.imageUrl}
+                        src={(isMobile && currentWelcomeMessageConfig.imageUrlMobile) ? currentWelcomeMessageConfig.imageUrlMobile : currentWelcomeMessageConfig.imageUrl}
                         alt={currentWelcomeMessageConfig.imageAlt || 'Welcome Image'}
                         className="h-auto max-w-xs md:max-w-sm opacity-80"
                       />

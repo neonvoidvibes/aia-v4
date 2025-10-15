@@ -383,7 +383,7 @@
   --foreground: 0 0% 98%; /* Off-white text */
 
   /* Full-page background image */
-  --app-background: url('/idg_earth-logo.png') no-repeat center center / cover fixed;
+  --app-background: url('/idg_earth.png') no-repeat center center / cover fixed;
 
   /* Chat + UI neutrals */
   --input-gray: 0 0% 12%; /* Dark gray for input/bubbles (matching Dark theme) */
@@ -446,13 +446,6 @@
 .theme-inner-development .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
 .theme-inner-development .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
   color: hsl(var(--status-text-highlight-color)) !important;
-}
-
-/* Inner Development: Mobile background image */
-@media (max-width: 768px) {
-  .theme-inner-development {
-    --app-background: url('/idg_earth-logo-mobile.png') no-repeat center center / cover fixed;
-  }
 }
 
 /* Folkhemmet Theme */

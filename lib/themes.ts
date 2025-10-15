@@ -3,6 +3,7 @@
 export interface WelcomeMessageConfig {
   text?: string;
   imageUrl?: string;
+  imageUrlMobile?: string; // Mobile-specific image URL
   imageAlt?: string;
   fontSize?: string; // e.g., "1.5rem", "24px"
   fontWeight?: string | number; // e.g., "bold", "normal", 700, 400
@@ -103,7 +104,9 @@ export const predefinedThemes: ColorTheme[] = [
     className: "theme-inner-development",
     isDark: true,
     welcomeMessage: {
-      text: "",
+      imageUrl: "/IDG_Logo.png",
+      imageUrlMobile: "/IDG_Logo_Simple.png",
+      imageAlt: "IDG Logo",
     },
   },
   // Image themes
