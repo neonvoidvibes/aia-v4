@@ -20,7 +20,7 @@ export interface ColorTheme {
 }
 
 export const G_DEFAULT_WELCOME_MESSAGE: WelcomeMessageConfig = {
-  text: "Augmenting wisdom.",
+  text: "Augmenting Wisdom.",
   fontSize: "3rem",
   fontWeight: "600",
 };
@@ -85,7 +85,7 @@ export const predefinedThemes: ColorTheme[] = [
     className: "theme-village",
     isDark: true,
     welcomeMessage: {
-      text: "Augmenting wisdom.",
+      text: "Augmenting Wisdom.",
       fontSize: "3rem",
       fontWeight: "600",
     },
