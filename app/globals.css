@@ -448,6 +448,13 @@
   color: hsl(var(--status-text-highlight-color)) !important;
 }
 
+/* Inner Development: Mobile background image */
+@media (max-width: 768px) {
+  .theme-inner-development {
+    --app-background: url('/idg_earth-logo-mobile.png') no-repeat center center / cover fixed;
+  }
+}
+
 /* Folkhemmet Theme */
 .theme-folkhemmet {
   /* Base colors */
