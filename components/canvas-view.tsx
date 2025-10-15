@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 
 export type Depth = "mirror" | "lens" | "portal";
 
-export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/idg_earth.png";
+export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/neon_river_threads.png";
 
 export interface AnalysisStatus {
   state: 'none' | 'analyzing' | 'ready';
