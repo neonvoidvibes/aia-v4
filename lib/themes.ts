@@ -98,6 +98,14 @@ export const predefinedThemes: ColorTheme[] = [
       imageAlt: "Moderbyn Logotyp",
     },
   },
+  {
+    name: "Inner Development",
+    className: "theme-inner-development",
+    isDark: true,
+    welcomeMessage: {
+      text: "Cultivating inner skills.",
+    },
+  },
   // Image themes
   {
     name: "Forest Deep",
@@ -111,13 +119,5 @@ export const predefinedThemes: ColorTheme[] = [
     name: "Ridge Glass",
     className: "theme-ridge-glass",
     isDark: true,
-  },
-  {
-    name: "Inner Development",
-    className: "theme-inner-development",
-    isDark: false,
-    welcomeMessage: {
-      text: "Cultivating inner skills.",
-    },
   },
 ];
