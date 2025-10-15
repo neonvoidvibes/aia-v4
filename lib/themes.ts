@@ -112,4 +112,12 @@ export const predefinedThemes: ColorTheme[] = [
     className: "theme-ridge-glass",
     isDark: true,
   },
+  {
+    name: "Inner Development",
+    className: "theme-inner-development",
+    isDark: false,
+    welcomeMessage: {
+      text: "Cultivating inner skills.",
+    },
+  },
 ];

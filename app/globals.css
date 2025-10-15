@@ -376,6 +376,72 @@
   color: hsl(var(--status-text-highlight-color)) !important;
 }
 
+/* Inner Development Theme */
+.theme-inner-development {
+  --background: 38 30% 96%; /* Very light warm beige */
+  --foreground: 38 40% 25%; /* Dark warm brown */
+  --input-gray: 38 25% 90%; /* Lighter beige for inputs/bubbles */
+  --status-bar: 38 30% 65%;
+  --placeholder-text: 38 25% 55%;
+  --text-primary: 38 40% 28%;
+  --text-secondary: 38 30% 42%;
+  --text-muted: 38 20% 52%;
+
+  /* Shadcn variables */
+  --card: 38 35% 97%; /* Very light warm beige */
+  --popover: 38 35% 97%;
+  --primary: 38 40% 70%; /* Being dimension color #D1BA93 */
+  --primary-foreground: 38 40% 20%; /* Dark contrast */
+  --secondary: 38 25% 88%;
+  --secondary-foreground: 38 40% 30%;
+  --muted: 38 25% 90%; /* For TabList background */
+  --accent: 38 40% 70%; /* Being dimension color #D1BA93 */
+  --accent-foreground: 38 40% 25%;
+  --destructive: 0 50% 48%; /* Muted red */
+  --destructive-foreground: 38 20% 96%; /* Light beige */
+  --border: 38 25% 78%;
+  --input: 38 25% 78%;
+  --ring: 38 40% 70%;
+
+  /* Custom Semantic Variables */
+  --button-submit-bg-active: 38 40% 65%; /* Being dimension accent */
+  --button-submit-fg-active: 38 40% 15%;   /* Dark brown FG */
+  --button-submit-bg-inactive: 38 20% 82%; /* Lighter beige BG */
+  --button-submit-fg-inactive: 38 30% 48%;   /* Muted brown FG */
+  --button-submit-bg-stop: 38 35% 60%; /* Themed beige for stop button */
+  --button-submit-fg-stop: 38 30% 95%; /* Light beige for stop button */
+  --sidebar-background: 38 25% 90%;
+
+  --icon-primary: 38 40% 30%;
+  --icon-secondary: 38 25% 48%;
+  --icon-active: 340 60% 55%; /* Soft pink/coral for recording active (Relating dimension) */
+  --icon-inactive: 38 18% 62%;
+  --icon-destructive: 0 50% 48%;
+  --save-memory-color: 340 70% 60%; /* For saved memory highlights */
+
+  /* Overrides for specific components if needed for this theme */
+  --button-active: 38 40% 28%;
+  --button-inactive: 38 18% 58%;
+
+  /* NEW: Text color variables for chat interface elements */
+  --input-field-text-color: var(--foreground);
+  --user-message-text-color: var(--foreground);
+  --assistant-message-text-color: var(--foreground);
+
+  /* Status text colors for header */
+  --status-text-rest-color: 38 30% 55%;
+  --status-text-highlight-color: 38 40% 35%;
+}
+
+.theme-inner-development .ml-2.inline-flex.items-center.gap-1.opacity-50 {
+  opacity: 1 !important;
+  color: hsl(var(--status-text-rest-color)) !important;
+}
+.theme-inner-development .ml-2.inline-flex.items-center.gap-1 span[class*="text-[hsl(var(--accent))]"],
+.theme-inner-development .ml-2.inline-flex.items-center.gap-1 span span[class*="text-[hsl(var(--accent))]"] {
+  color: hsl(var(--status-text-highlight-color)) !important;
+}
+
 /* Folkhemmet Theme */
 .theme-folkhemmet {
   /* Base colors */
@@ -524,6 +590,13 @@
 .theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) button svg,
 .theme-folkhemmet .sidebar-bg .group:hover:not(.bg-accent) .truncate {
   color: hsl(var(--primary)) !important;
+}
+
+/* Inner Development: On hover of non-selected items, use accent color */
+.theme-inner-development .sidebar-bg .group:hover:not(.bg-accent) button,
+.theme-inner-development .sidebar-bg .group:hover:not(.bg-accent) button svg,
+.theme-inner-development .sidebar-bg .group:hover:not(.bg-accent) .truncate {
+  color: hsl(var(--accent-foreground)) !important;
 }
 
 /* Dark themes: On hover of non-selected items, use white text (matching selected state) */
@@ -2928,6 +3001,11 @@ html body .main-content > :not(header) {
 /* Desert Mirage theme - Deep ochre/burnt orange */
 .theme-desert-mirage .scroll-thumb-custom {
   background-color: hsla(30, 80%, 50%, 0.25) !important;
+}
+
+/* Inner Development theme - Being dimension beige */
+.theme-inner-development .scroll-thumb-custom {
+  background-color: hsla(38, 40%, 70%, 0.25) !important;
 }
 
 /* Folkhemmet theme - IKEA Blue */
