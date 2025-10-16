@@ -49,7 +49,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { predefinedThemes, type ColorTheme } from "@/lib/themes"; // Import themes
 import { useTheme } from "next-themes"; // Import useTheme
-import CanvasView, { CANVAS_BACKGROUND_SRC, type AnalysisStatus } from "@/components/canvas-view";
+import CanvasView, { CANVAS_BACKGROUND_SRC, isVideo, type AnalysisStatus } from "@/components/canvas-view";
 import RecordView from "@/components/RecordView";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label"; 
@@ -224,14 +224,6 @@ function HomeContent() {
   // Track if canvas analysis has been checked for this agent in this session
   const canvasAnalysisCheckedRef = useRef<{ agent: string | null; checked: boolean }>({ agent: null, checked: false });
 
-  const layoutStyle = currentView === "canvas"
-    ? ({
-        backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat"
-      } as React.CSSProperties)
-    : undefined;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Event menu state
   const [availableEvents, setAvailableEvents] = useState<string[] | null>(null);
@@ -2678,17 +2670,43 @@ function HomeContent() {
     >
       {/* Canvas background layer - blur only on mobile */}
       {currentView === 'canvas' && (
-        <div
-          className="absolute blur-[12px] md:blur-none"
-          style={{
-            ...layoutStyle,
-            zIndex: 0,
-            top: '-20px',
-            left: '-20px',
-            right: '-20px',
-            bottom: '-20px'
-          }}
-        />
+        isVideo(CANVAS_BACKGROUND_SRC) ? (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute blur-[12px] md:blur-none"
+            style={{
+              objectFit: 'cover',
+              objectPosition: 'center',
+              width: '100%',
+              height: '100%',
+              zIndex: 0,
+              top: '-20px',
+              left: '-20px',
+              right: '-20px',
+              bottom: '-20px'
+            }}
+          >
+            <source src={CANVAS_BACKGROUND_SRC} type="video/mp4" />
+          </video>
+        ) : (
+          <div
+            className="absolute blur-[12px] md:blur-none"
+            style={{
+              backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              zIndex: 0,
+              top: '-20px',
+              left: '-20px',
+              right: '-20px',
+              bottom: '-20px'
+            }}
+          />
+        )
       )}
       <Sidebar
         isOpen={isSidebarOpen}

@@ -19,6 +19,10 @@ export type Depth = "mirror" | "lens" | "portal";
 
 export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/neon_river_threads.png";
 
+export const isVideo = (src: string): boolean => {
+  return /\.(mp4|webm)$/i.test(src);
+};
+
 export interface AnalysisStatus {
   state: 'none' | 'analyzing' | 'ready';
   timestamp?: string; // ISO format
