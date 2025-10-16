@@ -507,6 +507,30 @@ function HomeContent() {
     }
   });
 
+  // Check canvas analysis status (without triggering refresh)
+  const checkCanvasAnalysisStatus = async () => {
+    if (!pageAgentName) return;
+
+    try {
+      const response = await fetch(`/api/canvas/analysis/status?agent=${encodeURIComponent(pageAgentName)}&depth=${encodeURIComponent(canvasDepth)}`);
+
+      if (!response.ok) {
+        console.warn(`[Canvas] Status check failed: ${response.status}`);
+        return;
+      }
+
+      const status = await response.json();
+      console.log('[Canvas] Status check result:', status);
+
+      if (status.state === 'ready' || status.state === 'analyzing' || status.state === 'none') {
+        setCanvasAnalysisStatus(status);
+      }
+    } catch (error: any) {
+      console.error('[Canvas] Status check error:', error);
+      // Don't update status on error - keep existing state
+    }
+  };
+
   // Canvas analysis refresh handler
   const handleRefreshCanvasAnalysis = async (clearPrevious: boolean = false) => {
     if (!pageAgentName || isRefreshingCanvasAnalysis) return;
@@ -560,6 +584,16 @@ function HomeContent() {
       setIsRefreshingCanvasAnalysis(false);
     }
   };
+
+  // Check canvas analysis status when canvas view opens or depth changes
+  // This doesn't generate new analysis, just checks if it exists
+  useEffect(() => {
+    if (currentView === 'canvas' && pageAgentName) {
+      console.log('[Canvas] Checking analysis status');
+      checkCanvasAnalysisStatus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView, pageAgentName, canvasDepth]);
 
   // DISABLED: Auto-refresh canvas analysis when canvas view opens
   // Manual refresh only (via sparkles button) to reduce Groq API load
