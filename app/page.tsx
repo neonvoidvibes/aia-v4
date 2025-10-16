@@ -221,8 +221,8 @@ function HomeContent() {
   const [canvasAnalysisStatus, setCanvasAnalysisStatus] = useState<AnalysisStatus>({ state: 'none' });
   const [isRefreshingCanvasAnalysis, setIsRefreshingCanvasAnalysis] = useState(false);
 
-  // Track if canvas analysis has been checked for this agent in this session
-  const canvasAnalysisCheckedRef = useRef<{ agent: string | null; checked: boolean }>({ agent: null, checked: false });
+  // DISABLED: Unused refs for auto-analysis (now manual-only via sparkles button)
+  // const canvasAnalysisCheckedRef = useRef<{ agent: string | null; checked: boolean }>({ agent: null, checked: false });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Event menu state
@@ -555,167 +555,169 @@ function HomeContent() {
     }
   };
 
-  // Auto-refresh canvas analysis when canvas view opens (once per session per agent)
-  // Also trigger pending refreshes from settings changes
-  useEffect(() => {
-    // Reset checked flag if agent changes
-    if (canvasAnalysisCheckedRef.current.agent !== pageAgentName) {
-      canvasAnalysisCheckedRef.current = { agent: pageAgentName, checked: false };
-    }
+  // DISABLED: Auto-refresh canvas analysis when canvas view opens
+  // Manual refresh only (via sparkles button) to reduce Groq API load
+  // useEffect(() => {
+  //   // Reset checked flag if agent changes
+  //   if (canvasAnalysisCheckedRef.current.agent !== pageAgentName) {
+  //     canvasAnalysisCheckedRef.current = { agent: pageAgentName, checked: false };
+  //   }
 
-    if (currentView === 'canvas' && pageAgentName && !isRefreshingCanvasAnalysis) {
-      // Priority 1: Check for pending refresh from settings changes
-      if (pendingCanvasRefreshRef.current) {
-        console.log('[Canvas] Triggering pending analysis refresh from settings changes');
-        pendingCanvasRefreshRef.current = false;
-        handleRefreshCanvasAnalysis(true);
-        return;
-      }
+  //   if (currentView === 'canvas' && pageAgentName && !isRefreshingCanvasAnalysis) {
+  //     // Priority 1: Check for pending refresh from settings changes
+  //     if (pendingCanvasRefreshRef.current) {
+  //       console.log('[Canvas] Triggering pending analysis refresh from settings changes');
+  //       pendingCanvasRefreshRef.current = false;
+  //       handleRefreshCanvasAnalysis(true);
+  //       return;
+  //     }
 
-      // Priority 2: Only auto-refresh if haven't checked for this agent yet in this session
-      if (!canvasAnalysisCheckedRef.current.checked) {
-        canvasAnalysisCheckedRef.current.checked = true;
+  //     // Priority 2: Only auto-refresh if haven't checked for this agent yet in this session
+  //     if (!canvasAnalysisCheckedRef.current.checked) {
+  //       canvasAnalysisCheckedRef.current.checked = true;
 
-        // Check if analysis needs refresh (status is 'none' or timestamp is old)
-        const shouldRefresh = canvasAnalysisStatus.state === 'none' ||
-          (canvasAnalysisStatus.state === 'ready' && canvasAnalysisStatus.timestamp &&
-           (Date.now() - new Date(canvasAnalysisStatus.timestamp).getTime()) > 15 * 60 * 1000);
+  //       // Check if analysis needs refresh (status is 'none' or timestamp is old)
+  //       const shouldRefresh = canvasAnalysisStatus.state === 'none' ||
+  //         (canvasAnalysisStatus.state === 'ready' && canvasAnalysisStatus.timestamp &&
+  //          (Date.now() - new Date(canvasAnalysisStatus.timestamp).getTime()) > 15 * 60 * 1000);
 
-        if (shouldRefresh) {
-          console.log('[Canvas] Auto-refreshing analysis on first canvas view open for this session');
-          handleRefreshCanvasAnalysis();
-        } else {
-          console.log('[Canvas] Analysis is fresh, skipping auto-refresh');
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentView, pageAgentName]);
+  //       if (shouldRefresh) {
+  //         console.log('[Canvas] Auto-refreshing analysis on first canvas view open for this session');
+  //         handleRefreshCanvasAnalysis();
+  //       } else {
+  //         console.log('[Canvas] Analysis is fresh, skipping auto-refresh');
+  //       }
+  //     }
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [currentView, pageAgentName]);
 
-  // Trigger canvas analysis refresh with clearPrevious when new recording starts or settings change
-  const previousRecordingRef = useRef<boolean>(false);
-  const previousGroupsReadModeRef = useRef<string>(groupsReadMode);
-  const previousTranscriptionLanguageRef = useRef<string>(transcriptionLanguage);
-  const previousTranscriptListenModeRef = useRef<string>(transcriptListenMode);
-  const previousToggleStatesRef = useRef<string>(JSON.stringify(individualRawTranscriptToggleStates));
-  const pendingCanvasRefreshRef = useRef<boolean>(false);
+  // DISABLED: Auto-refresh on recording/settings changes
+  // Manual refresh only (via sparkles button) to reduce Groq API load
+  // const previousRecordingRef = useRef<boolean>(false);
+  // const previousGroupsReadModeRef = useRef<string>(groupsReadMode);
+  // const previousTranscriptionLanguageRef = useRef<string>(transcriptionLanguage);
+  // const previousTranscriptListenModeRef = useRef<string>(transcriptListenMode);
+  // const previousToggleStatesRef = useRef<string>(JSON.stringify(individualRawTranscriptToggleStates));
+  // const pendingCanvasRefreshRef = useRef<boolean>(false);
 
-  // Track initial settings state when Settings modal opens (for batched refresh on close)
-  const settingsModalInitialStateRef = useRef<{
-    groupsReadMode: string;
-    transcriptListenMode: string;
-    toggleStates: string;
-  } | null>(null);
+  // // Track initial settings state when Settings modal opens (for batched refresh on close)
+  // const settingsModalInitialStateRef = useRef<{
+  //   groupsReadMode: string;
+  //   transcriptListenMode: string;
+  //   toggleStates: string;
+  // } | null>(null);
 
-  useEffect(() => {
-    // Detect new recording session starting
-    if (globalRecordingStatus.isRecording && !previousRecordingRef.current) {
-      console.log('[Canvas] New recording session detected, triggering analysis refresh with clearPrevious=true');
-      if (currentView === 'canvas') {
-        handleRefreshCanvasAnalysis(true);
-      } else {
-        pendingCanvasRefreshRef.current = true;
-      }
-    }
-    previousRecordingRef.current = globalRecordingStatus.isRecording;
+  // useEffect(() => {
+  //   // Detect new recording session starting
+  //   if (globalRecordingStatus.isRecording && !previousRecordingRef.current) {
+  //     console.log('[Canvas] New recording session detected, triggering analysis refresh with clearPrevious=true');
+  //     if (currentView === 'canvas') {
+  //       handleRefreshCanvasAnalysis(true);
+  //     } else {
+  //       pendingCanvasRefreshRef.current = true;
+  //     }
+  //   }
+  //   previousRecordingRef.current = globalRecordingStatus.isRecording;
 
-    // Skip settings-related auto-refresh while Settings modal is open
-    // (will trigger batched refresh on modal close instead)
-    if (showSettings) {
-      return;
-    }
+  //   // Skip settings-related auto-refresh while Settings modal is open
+  //   // (will trigger batched refresh on modal close instead)
+  //   if (showSettings) {
+  //     return;
+  //   }
 
-    // Detect Settings > Memory > Transcripts > Groups read mode changes
-    if (groupsReadMode !== previousGroupsReadModeRef.current) {
-      console.log(`[Canvas] Groups read mode changed from ${previousGroupsReadModeRef.current} to ${groupsReadMode}, triggering analysis refresh with clearPrevious=true`);
-      if (currentView === 'canvas') {
-        handleRefreshCanvasAnalysis(true);
-      } else {
-        pendingCanvasRefreshRef.current = true;
-      }
-      previousGroupsReadModeRef.current = groupsReadMode;
-    }
+  //   // Detect Settings > Memory > Transcripts > Groups read mode changes
+  //   if (groupsReadMode !== previousGroupsReadModeRef.current) {
+  //     console.log(`[Canvas] Groups read mode changed from ${previousGroupsReadModeRef.current} to ${groupsReadMode}, triggering analysis refresh with clearPrevious=true`);
+  //     if (currentView === 'canvas') {
+  //       handleRefreshCanvasAnalysis(true);
+  //     } else {
+  //       pendingCanvasRefreshRef.current = true;
+  //     }
+  //     previousGroupsReadModeRef.current = groupsReadMode;
+  //   }
 
-    // Detect Settings > Memory > Transcripts > Listen mode (transcript_listen_mode) changes
-    if (transcriptListenMode !== previousTranscriptListenModeRef.current) {
-      console.log(`[Canvas] Transcript listen mode changed from ${previousTranscriptListenModeRef.current} to ${transcriptListenMode}, triggering analysis refresh with clearPrevious=true`);
-      if (currentView === 'canvas') {
-        handleRefreshCanvasAnalysis(true);
-      } else {
-        pendingCanvasRefreshRef.current = true;
-      }
-      previousTranscriptListenModeRef.current = transcriptListenMode;
-    }
+  //   // Detect Settings > Memory > Transcripts > Listen mode (transcript_listen_mode) changes
+  //   if (transcriptListenMode !== previousTranscriptListenModeRef.current) {
+  //     console.log(`[Canvas] Transcript listen mode changed from ${previousTranscriptListenModeRef.current} to ${transcriptListenMode}, triggering analysis refresh with clearPrevious=true`);
+  //     if (currentView === 'canvas') {
+  //       handleRefreshCanvasAnalysis(true);
+  //     } else {
+  //       pendingCanvasRefreshRef.current = true;
+  //     }
+  //     previousTranscriptListenModeRef.current = transcriptListenMode;
+  //   }
 
-    // Detect changes to which specific transcripts are toggled (for "some" mode)
-    const currentToggleStatesStr = JSON.stringify(individualRawTranscriptToggleStates);
-    if (transcriptListenMode === 'some' && currentToggleStatesStr !== previousToggleStatesRef.current) {
-      console.log(`[Canvas] Transcript toggle selection changed in "some" mode, triggering analysis refresh with clearPrevious=true`);
-      if (currentView === 'canvas') {
-        handleRefreshCanvasAnalysis(true);
-      } else {
-        pendingCanvasRefreshRef.current = true;
-      }
-    }
-    previousToggleStatesRef.current = currentToggleStatesStr;
+  //   // Detect changes to which specific transcripts are toggled (for "some" mode)
+  //   const currentToggleStatesStr = JSON.stringify(individualRawTranscriptToggleStates);
+  //   if (transcriptListenMode === 'some' && currentToggleStatesStr !== previousToggleStatesRef.current) {
+  //     console.log(`[Canvas] Transcript toggle selection changed in "some" mode, triggering analysis refresh with clearPrevious=true`);
+  //     if (currentView === 'canvas') {
+  //       handleRefreshCanvasAnalysis(true);
+  //     } else {
+  //       pendingCanvasRefreshRef.current = true;
+  //     }
+  //   }
+  //   previousToggleStatesRef.current = currentToggleStatesStr;
 
-    // Detect Settings > Memory > Transcripts > Language (transcription language) changes
-    if (transcriptionLanguage !== previousTranscriptionLanguageRef.current) {
-      console.log(`[Canvas] Transcription language changed from ${previousTranscriptionLanguageRef.current} to ${transcriptionLanguage}, triggering analysis refresh with clearPrevious=true`);
-      if (currentView === 'canvas') {
-        handleRefreshCanvasAnalysis(true);
-      }
-      previousTranscriptionLanguageRef.current = transcriptionLanguage;
-    }
-  }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptListenMode, transcriptionLanguage, individualRawTranscriptToggleStates, currentView, showSettings]);
+  //   // Detect Settings > Memory > Transcripts > Language (transcription language) changes
+  //   if (transcriptionLanguage !== previousTranscriptionLanguageRef.current) {
+  //     console.log(`[Canvas] Transcription language changed from ${previousTranscriptionLanguageRef.current} to ${transcriptionLanguage}, triggering analysis refresh with clearPrevious=true`);
+  //     if (currentView === 'canvas') {
+  //       handleRefreshCanvasAnalysis(true);
+  //     }
+  //     previousTranscriptionLanguageRef.current = transcriptionLanguage;
+  //   }
+  // }, [globalRecordingStatus.isRecording, groupsReadMode, transcriptListenMode, transcriptionLanguage, individualRawTranscriptToggleStates, currentView, showSettings]);
 
-  // Handle Settings modal open/close: batch toggle changes and only refresh on close if changed
-  useEffect(() => {
-    if (showSettings) {
-      // Modal opened - capture initial state
-      settingsModalInitialStateRef.current = {
-        groupsReadMode,
-        transcriptListenMode,
-        toggleStates: JSON.stringify(individualRawTranscriptToggleStates),
-      };
-      console.log('[Canvas] Settings modal opened, captured initial state:', settingsModalInitialStateRef.current);
-    } else if (settingsModalInitialStateRef.current) {
-      // Modal closed - compare initial vs final state
-      const initialState = settingsModalInitialStateRef.current;
-      const currentState = {
-        groupsReadMode,
-        transcriptListenMode,
-        toggleStates: JSON.stringify(individualRawTranscriptToggleStates),
-      };
+  // DISABLED: Auto-refresh on Settings modal close
+  // Manual refresh only (via sparkles button) to reduce Groq API load
+  // useEffect(() => {
+  //   if (showSettings) {
+  //     // Modal opened - capture initial state
+  //     settingsModalInitialStateRef.current = {
+  //       groupsReadMode,
+  //       transcriptListenMode,
+  //       toggleStates: JSON.stringify(individualRawTranscriptToggleStates),
+  //     };
+  //     console.log('[Canvas] Settings modal opened, captured initial state:', settingsModalInitialStateRef.current);
+  //   } else if (settingsModalInitialStateRef.current) {
+  //     // Modal closed - compare initial vs final state
+  //     const initialState = settingsModalInitialStateRef.current;
+  //     const currentState = {
+  //       groupsReadMode,
+  //       transcriptListenMode,
+  //       toggleStates: JSON.stringify(individualRawTranscriptToggleStates),
+  //     };
 
-      const hasChanges =
-        initialState.groupsReadMode !== currentState.groupsReadMode ||
-        initialState.transcriptListenMode !== currentState.transcriptListenMode ||
-        initialState.toggleStates !== currentState.toggleStates;
+  //     const hasChanges =
+  //       initialState.groupsReadMode !== currentState.groupsReadMode ||
+  //       initialState.transcriptListenMode !== currentState.transcriptListenMode ||
+  //       initialState.toggleStates !== currentState.toggleStates;
 
-      console.log('[Canvas] Settings modal closed. Initial:', initialState, 'Current:', currentState, 'Has changes:', hasChanges);
+  //     console.log('[Canvas] Settings modal closed. Initial:', initialState, 'Current:', currentState, 'Has changes:', hasChanges);
 
-      if (hasChanges) {
-        // Settings changed - update the previous refs to match current state (to avoid double-triggering)
-        previousGroupsReadModeRef.current = groupsReadMode;
-        previousTranscriptListenModeRef.current = transcriptListenMode;
-        previousToggleStatesRef.current = JSON.stringify(individualRawTranscriptToggleStates);
+  //     if (hasChanges) {
+  //       // Settings changed - update the previous refs to match current state (to avoid double-triggering)
+  //       previousGroupsReadModeRef.current = groupsReadMode;
+  //       previousTranscriptListenModeRef.current = transcriptListenMode;
+  //       previousToggleStatesRef.current = JSON.stringify(individualRawTranscriptToggleStates);
 
-        // Trigger refresh
-        console.log('[Canvas] Settings changed on modal close, triggering analysis refresh with clearPrevious=true');
-        if (currentView === 'canvas') {
-          handleRefreshCanvasAnalysis(true);
-        } else {
-          pendingCanvasRefreshRef.current = true;
-        }
-      } else {
-        console.log('[Canvas] No settings changes detected, skipping refresh');
-      }
+  //       // Trigger refresh
+  //       console.log('[Canvas] Settings changed on modal close, triggering analysis refresh with clearPrevious=true');
+  //       if (currentView === 'canvas') {
+  //         handleRefreshCanvasAnalysis(true);
+  //       } else {
+  //         pendingCanvasRefreshRef.current = true;
+  //       }
+  //     } else {
+  //       console.log('[Canvas] No settings changes detected, skipping refresh');
+  //     }
 
-      // Clear the initial state
-      settingsModalInitialStateRef.current = null;
-    }
-  }, [showSettings, groupsReadMode, transcriptListenMode, individualRawTranscriptToggleStates, currentView]);
+  //     // Clear the initial state
+  //     settingsModalInitialStateRef.current = null;
+  //   }
+  // }, [showSettings, groupsReadMode, transcriptListenMode, individualRawTranscriptToggleStates, currentView]);
 
 
   // --- PHASE 3: New state management for dynamic workspaces ---
