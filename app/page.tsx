@@ -2680,13 +2680,13 @@ function HomeContent() {
             style={{
               objectFit: 'cover',
               objectPosition: 'center',
-              width: '100%',
-              height: '100%',
               zIndex: 0,
               top: '-20px',
               left: '-20px',
               right: '-20px',
-              bottom: '-20px'
+              bottom: '-20px',
+              width: 'calc(100% + 40px)',
+              height: 'calc(100% + 40px)'
             }}
           >
             <source src={CANVAS_BACKGROUND_SRC} type="video/mp4" />

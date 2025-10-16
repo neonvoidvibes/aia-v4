@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 
 export type Depth = "mirror" | "lens" | "portal";
 
-export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/neon_river_threads.png";
+export const CANVAS_BACKGROUND_SRC = "/canvas/backgrounds/neon_river_threads.mp4";
 
 export const isVideo = (src: string): boolean => {
   return /\.(mp4|webm)$/i.test(src);
