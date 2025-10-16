@@ -217,7 +217,8 @@ function HomeContent() {
   const [canvasIsStreaming, setCanvasIsStreaming] = useState(false);
   const [canvasTranscript, setCanvasTranscript] = useState('');
   const [isCanvasPTTActive, setIsCanvasPTTActive] = useState(false);
-  const [canvasConversationHistory, setCanvasConversationHistory] = useState<Array<{ role: string; content: string }>>([]);
+  // Per-agent canvas conversation history (key: agent_name, value: conversation array)
+  const [canvasConversationHistoryByAgent, setCanvasConversationHistoryByAgent] = useState<Record<string, Array<{ role: string; content: string }>>>({});
   const [canvasAnalysisStatus, setCanvasAnalysisStatus] = useState<AnalysisStatus>({ state: 'none' });
   const [isRefreshingCanvasAnalysis, setIsRefreshingCanvasAnalysis] = useState(false);
 
@@ -456,7 +457,7 @@ function HomeContent() {
   const canvasLLM = useCanvasLLM({
     agentName: pageAgentName || '',
     depth: canvasDepth,
-    conversationHistory: canvasConversationHistory,
+    conversationHistory: pageAgentName ? (canvasConversationHistoryByAgent[pageAgentName] || []) : [],
     individualRawTranscriptToggleStates,
     transcriptListenMode,  // FIXED: Send mode to canvas
     groupsReadMode,        // FIXED: Send mode to canvas
@@ -475,12 +476,17 @@ function HomeContent() {
       setCanvasIsStreaming(false);
       setCanvasLlmOutput(fullText);
 
-      // Add to conversation history using the actual transcript that was sent
-      setCanvasConversationHistory(prev => [
-        ...prev,
-        { role: 'user', content: userTranscript },
-        { role: 'assistant', content: fullText }
-      ]);
+      // Add to conversation history for current agent only
+      if (pageAgentName) {
+        setCanvasConversationHistoryByAgent(prev => ({
+          ...prev,
+          [pageAgentName]: [
+            ...(prev[pageAgentName] || []),
+            { role: 'user', content: userTranscript },
+            { role: 'assistant', content: fullText }
+          ]
+        }));
+      }
     },
     onError: (error: string) => {
       setCanvasIsStreaming(false);
@@ -3094,7 +3100,7 @@ function HomeContent() {
             isTranscribing={canvasPTT.status === 'transcribing'}
             isPTTActive={isCanvasPTTActive}
             isTTSPlaying={canvasTTS.isPlaying}
-            messageHistory={canvasConversationHistory}
+            messageHistory={pageAgentName ? (canvasConversationHistoryByAgent[pageAgentName] || []) : []}
             analysisStatus={canvasAnalysisStatus}
             onRefreshAnalysis={handleRefreshCanvasAnalysis}
             isRefreshingAnalysis={isRefreshingCanvasAnalysis}
@@ -3116,10 +3122,16 @@ function HomeContent() {
               await canvasPTT.stopRecording();
             }}
             onReset={() => {
-              // Clear all canvas state including TTS
+              // Clear canvas state for CURRENT agent only
               setCanvasLlmOutput('');
               setCanvasIsStreaming(false);
-              setCanvasConversationHistory([]);
+              // Clear history for current agent only (preserves other agents' history)
+              if (pageAgentName) {
+                setCanvasConversationHistoryByAgent(prev => ({
+                  ...prev,
+                  [pageAgentName]: []
+                }));
+              }
               setCanvasTranscript('');
               canvasLLM.reset();
               canvasTTS.stop();
