@@ -7,6 +7,7 @@ import { predefinedThemes } from "@/lib/themes" // Import predefined themes
 import { LocalizationProvider } from "@/context/LocalizationContext"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import ServiceBanner from "@/components/system/ServiceBanner"
+import { DynamicStatusBar } from "@/components/DynamicStatusBar"
 
 const allThemeNames = ["light", "dark", "system", ...predefinedThemes.map(t => t.className)];
 
@@ -125,7 +126,6 @@ export default function ClientLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
         <ServiceBanner />
@@ -137,6 +137,7 @@ export default function ClientLayout({
               enableSystem={true} // Enable system theme
               themes={allThemeNames} // Provide all available theme names
             >
+              <DynamicStatusBar />
               <div id="app-content">{children}</div>
               <Toaster position="top-right" />
             </ThemeProvider>
