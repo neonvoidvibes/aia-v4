@@ -405,10 +405,10 @@ export default function CanvasView({
               <button
                 type="button"
                 onClick={() => onResumePendingAudio?.()}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/70"
+                className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
                 aria-label="Play canvas audio"
               >
-                <Volume2 className="h-4 w-4" />
+                <Volume2 className="h-5 w-5" />
               </button>
             )}
             {isTTSPlaying && (
