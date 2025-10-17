@@ -441,6 +441,7 @@ function HomeContent() {
   const eventsCacheKey = useMemo(() => pageAgentName ? `events_cache_${pageAgentName}` : null, [pageAgentName]);
   const [isCanvasAudioUnlockedState, setIsCanvasAudioUnlockedState] = useState(false);
   const [hasShownAudioUnlockToast, setHasShownAudioUnlockToast] = useState(false);
+  const resumePendingTTSRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (isCanvasAudioUnlocked()) {
@@ -450,8 +451,8 @@ function HomeContent() {
 
   const ensureCanvasAudioUnlocked = useCallback(async () => {
     const unlocked = await unlockCanvasAudio();
+    setIsCanvasAudioUnlockedState(unlocked);
     if (unlocked) {
-      setIsCanvasAudioUnlockedState(true);
       setHasShownAudioUnlockToast(false);
     }
     return unlocked;
@@ -466,13 +467,18 @@ function HomeContent() {
     onComplete: () => {
       console.log('[Canvas] TTS playback completed');
     },
-    onError: (error) => {
+    onError: async (error) => {
       switch (error) {
         case 'autoplay-blocked':
           setIsCanvasAudioUnlockedState(false);
-          if (!hasShownAudioUnlockToast) {
-            toast.warning('Tap and hold the mic button once to enable canvas audio playback.');
-            setHasShownAudioUnlockToast(true);
+          {
+            const unlocked = await ensureCanvasAudioUnlocked();
+            if (unlocked) {
+              resumePendingTTSRef.current();
+            } else if (!hasShownAudioUnlockToast) {
+              toast.warning('Tap and hold the mic button once more to enable canvas audio playback. The latest response will replay automatically.');
+              setHasShownAudioUnlockToast(true);
+            }
           }
           break;
         case 'load-failed':
@@ -484,6 +490,10 @@ function HomeContent() {
       }
     }
   });
+
+  useEffect(() => {
+    resumePendingTTSRef.current = canvasTTS.resumePending;
+  }, [canvasTTS.resumePending]);
 
   // Canvas LLM hook (after pageAgentName is declared)
   const canvasLLM = useCanvasLLM({
@@ -3169,15 +3179,18 @@ function HomeContent() {
 
               if (permissionStatus === 'denied') {
                 setIsCanvasPTTActive(false);
-                return;
-              }
+            return;
+          }
 
-              await ensureCanvasAudioUnlocked();
+          const audioUnlocked = await ensureCanvasAudioUnlocked();
+          if (audioUnlocked) {
+            canvasTTS.resumePending();
+          }
 
-              if (permissionStatus === 'newly-granted') {
-                toast.success("Microphone ready. Press and hold to talk.");
-                setIsCanvasPTTActive(false);
-                return;
+          if (permissionStatus === 'newly-granted') {
+            toast.success("Microphone ready. Press and hold to talk.");
+            setIsCanvasPTTActive(false);
+            return;
               }
 
               // Stop and clear TTS before starting new recording

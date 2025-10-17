@@ -24,6 +24,7 @@ export interface UseCanvasTTSReturn {
   stop: () => void;
   clear: () => void;
   queueLength: number;
+  resumePending: () => void;
 }
 
 interface QueuedSentence {
@@ -75,6 +76,12 @@ export function useCanvasTTS({
       setIsFetching(true);
       const audioUrl = `/api/tts-proxy?text=${encodeURIComponent(text)}&voiceId=${voiceId}`;
       const audio = new Audio();
+      audio.preload = 'auto';
+      audio.crossOrigin = 'anonymous';
+      (audio as any).playsInline = true;
+      audio.autoplay = false;
+      audio.muted = false;
+      audio.volume = 1;
 
       // Return a promise that resolves when audio is loaded
       return new Promise((resolve, reject) => {
@@ -246,11 +253,18 @@ export function useCanvasTTS({
       try {
         if (!isCanvasAudioUnlocked()) {
           console.warn('[Canvas TTS] Playback blocked because audio is not unlocked');
-          sentence.status = 'error';
-          queueRef.current.splice(nextIndex, 1);
-          setQueueLength(queueRef.current.length);
+          sentence.status = sentence.audio ? 'ready' : 'pending';
+          if (sentence.audio) {
+            try {
+              sentence.audio.pause();
+              sentence.audio.currentTime = 0;
+            } catch (pauseErr) {
+              console.warn('[Canvas TTS] Failed to reset audio element before unlock:', pauseErr);
+            }
+          }
           currentAudioRef.current = null;
           isProcessingRef.current = false;
+          setIsPlaying(false);
           markCanvasAudioLocked();
           onError?.('autoplay-blocked');
           return;
@@ -258,18 +272,37 @@ export function useCanvasTTS({
 
         await sentence.audio.play();
       } catch (error: any) {
+        const isAutoplayError =
+          error?.name === 'NotAllowedError' ||
+          error?.code === 0 ||
+          (typeof error?.message === 'string' && error.message.includes('interrupted'));
+
+        if (isAutoplayError) {
+          console.warn('[Canvas TTS] Autoplay blocked, will retry after unlock', error);
+          sentence.status = sentence.audio ? 'ready' : 'pending';
+          if (sentence.audio) {
+            try {
+              sentence.audio.pause();
+              sentence.audio.currentTime = 0;
+            } catch (pauseErr) {
+              console.warn('[Canvas TTS] Failed to reset audio element after autoplay block:', pauseErr);
+            }
+          }
+          currentAudioRef.current = null;
+          isProcessingRef.current = false;
+          setIsPlaying(false);
+          markCanvasAudioLocked();
+          onError?.('autoplay-blocked');
+          return;
+        }
+
         console.error('[Canvas TTS] Failed to play audio:', error);
         sentence.status = 'error';
         queueRef.current.splice(nextIndex, 1);
         setQueueLength(queueRef.current.length);
         currentAudioRef.current = null;
         isProcessingRef.current = false;
-        if (error?.name === 'NotAllowedError' || error?.code === 0 || error?.message?.includes('interrupted')) {
-          markCanvasAudioLocked();
-          onError?.('autoplay-blocked');
-        } else {
-          onError?.('playback-error');
-        }
+        onError?.('playback-error');
         playNext();
       }
     } else {
@@ -323,6 +356,12 @@ export function useCanvasTTS({
     cleanup();
   }, [cleanup]);
 
+  const resumePending = useCallback(() => {
+    if (!isProcessingRef.current && queueRef.current.length > 0) {
+      playNext();
+    }
+  }, [playNext]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -337,5 +376,6 @@ export function useCanvasTTS({
     stop,
     clear,
     queueLength,
+    resumePending,
   };
 }
