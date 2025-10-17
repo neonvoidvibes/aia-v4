@@ -3164,6 +3164,8 @@ function HomeContent() {
             isTranscribing={canvasPTT.status === 'transcribing'}
             isPTTActive={isCanvasPTTActive}
             isTTSPlaying={canvasTTS.isPlaying}
+            hasPendingTtsUnlock={canvasTTS.hasPendingAutoplay}
+            onResumePendingAudio={canvasTTS.resumePending}
             messageHistory={pageAgentName ? (canvasConversationHistoryByAgent[pageAgentName] || []) : []}
             analysisStatus={canvasAnalysisStatus}
             onRefreshAnalysis={handleRefreshCanvasAnalysis}
@@ -3189,7 +3191,7 @@ function HomeContent() {
 
               const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
               const audioUnlocked = isMobile ? await ensureCanvasAudioUnlocked() : true;
-              const shouldResumeQueuedAudio = audioUnlocked && isMobile && !canvasTTS.isPlaying && canvasTTS.queueLength > 0;
+              const shouldResumeQueuedAudio = audioUnlocked && isMobile && canvasTTS.hasPendingAutoplay;
 
               if (shouldResumeQueuedAudio) {
                 canvasTTS.resumePending();

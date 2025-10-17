@@ -46,6 +46,7 @@ export function useCanvasTTS({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [queueLength, setQueueLength] = useState(0);
+  const [hasPendingAutoplay, setHasPendingAutoplay] = useState(false);
 
   const queueRef = useRef<QueuedSentence[]>([]);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -68,6 +69,7 @@ export function useCanvasTTS({
     setIsPlaying(false);
     setIsFetching(false);
     isProcessingRef.current = false;
+    setHasPendingAutoplay(false);
   }, []);
 
   // Fetch audio for a sentence
@@ -221,14 +223,15 @@ export function useCanvasTTS({
 
       sentence.audio.onended = () => {
         console.log('[Canvas TTS] Audio playback ended');
-        sentence.status = 'played';
+      sentence.status = 'played';
 
-        // Remove played sentence from queue
-        queueRef.current.splice(nextIndex, 1);
-        setQueueLength(queueRef.current.length);
+      // Remove played sentence from queue
+      queueRef.current.splice(nextIndex, 1);
+      setQueueLength(queueRef.current.length);
 
-        currentAudioRef.current = null;
-        isProcessingRef.current = false;
+      currentAudioRef.current = null;
+      isProcessingRef.current = false;
+      setHasPendingAutoplay(false);
 
         // Play next sentence (should be pre-fetched and ready = 0 latency)
         playNext();
@@ -244,6 +247,7 @@ export function useCanvasTTS({
 
         currentAudioRef.current = null;
         isProcessingRef.current = false;
+        setHasPendingAutoplay(false);
         onError?.('playback-error');
 
         // Try next sentence
@@ -266,6 +270,7 @@ export function useCanvasTTS({
           isProcessingRef.current = false;
           setIsPlaying(false);
           markCanvasAudioLocked();
+          setHasPendingAutoplay(true);
           onError?.('autoplay-blocked');
           return;
         }
@@ -292,6 +297,7 @@ export function useCanvasTTS({
           isProcessingRef.current = false;
           setIsPlaying(false);
           markCanvasAudioLocked();
+          setHasPendingAutoplay(true);
           onError?.('autoplay-blocked');
           return;
         }
@@ -302,6 +308,7 @@ export function useCanvasTTS({
         setQueueLength(queueRef.current.length);
         currentAudioRef.current = null;
         isProcessingRef.current = false;
+        setHasPendingAutoplay(false);
         onError?.('playback-error');
         playNext();
       }
@@ -349,6 +356,7 @@ export function useCanvasTTS({
     }
     setIsPlaying(false);
     isProcessingRef.current = false;
+    setHasPendingAutoplay(false);
   }, []);
 
   // Clear queue and stop playback
@@ -377,5 +385,6 @@ export function useCanvasTTS({
     clear,
     queueLength,
     resumePending,
+    hasPendingAutoplay,
   };
 }

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { predefinedThemes, G_DEFAULT_WELCOME_MESSAGE } from "@/lib/themes";
 import { useTheme } from "next-themes";
-import { Copy, Check, Play, RotateCcw } from "lucide-react";
+import { Copy, Check, Play, RotateCcw, Volume2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,8 @@ interface CanvasViewProps {
   isTranscribing?: boolean;
   onReset?: () => void;
   isTTSPlaying?: boolean; // NEW: Show audio indicator when TTS is playing
+  hasPendingTtsUnlock?: boolean;
+  onResumePendingAudio?: () => void;
   messageHistory?: Array<{ role: string; content: string }>; // NEW: Message history for navigation
   analysisStatus?: AnalysisStatus; // NEW: Analysis document status
   onRefreshAnalysis?: () => void; // NEW: Manual refresh callback
@@ -59,6 +61,8 @@ export default function CanvasView({
   isTranscribing = false,
   onReset,
   isTTSPlaying = false,
+  hasPendingTtsUnlock = false,
+  onResumePendingAudio,
   messageHistory = [],
   analysisStatus = { state: 'none' },
   onRefreshAnalysis,
@@ -397,6 +401,16 @@ export default function CanvasView({
 
           {/* TTS indicator and Depth mode button - right side */}
           <div className="absolute right-0 flex items-center gap-3 -translate-y-[5px] -translate-x-[7px]">
+            {hasPendingTtsUnlock && (
+              <button
+                type="button"
+                onClick={() => onResumePendingAudio?.()}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/70"
+                aria-label="Play canvas audio"
+              >
+                <Volume2 className="h-4 w-4" />
+              </button>
+            )}
             {isTTSPlaying && (
               <div className="flex items-center gap-[3px]" aria-label="Audio playing">
                 {[...Array(3)].map((_, i) => (
