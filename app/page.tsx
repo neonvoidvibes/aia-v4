@@ -3133,15 +3133,14 @@ function HomeContent() {
             }
             isRequestingPTTPermission={canvasPTT.isRequestingPermission}
             onPTTPress={async () => {
-              const hadPermission = canvasPTT.hasPermission === true;
-              const permissionGranted = await canvasPTT.ensurePermission();
+              const permissionStatus = await canvasPTT.ensurePermission();
 
-              if (!permissionGranted) {
+              if (permissionStatus === 'denied') {
                 setIsCanvasPTTActive(false);
                 return;
               }
 
-              if (!hadPermission && canvasPTT.hasPermission === true) {
+              if (permissionStatus === 'newly-granted') {
                 toast.success("Microphone ready. Press and hold to talk.");
                 setIsCanvasPTTActive(false);
                 return;
