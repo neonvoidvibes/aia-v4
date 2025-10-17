@@ -589,6 +589,8 @@ function HomeContent() {
   // This doesn't generate new analysis, just checks if it exists
   useEffect(() => {
     if (currentView === 'canvas' && pageAgentName) {
+      // Reset status immediately when agent/depth changes to prevent showing stale data
+      setCanvasAnalysisStatus({ state: 'none' });
       console.log('[Canvas] Checking analysis status');
       checkCanvasAnalysisStatus();
     }
