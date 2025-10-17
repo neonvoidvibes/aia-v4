@@ -136,8 +136,17 @@ export function useCanvasPTT({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
 
-      // Setup media recorder
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      // Setup media recorder with fallback
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        console.warn(`[Canvas PTT] ${options.mimeType} not supported, trying audio/webm`);
+        options.mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          console.warn('[Canvas PTT] audio/webm not supported, using default');
+          delete (options as any).mimeType;
+        }
+      }
+      const mediaRecorder = new MediaRecorder(stream, Object.keys(options).length ? options : undefined);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 

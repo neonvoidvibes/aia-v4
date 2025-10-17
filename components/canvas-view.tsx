@@ -713,6 +713,7 @@ export default function CanvasView({
             e.preventDefault();
             if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing') onPTTRelease?.();
           }}
+          style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none' }}
           className={cn(
             "relative h-12 w-12 md:h-14 md:w-14 rounded-full overflow-visible",
             "transition-all duration-300 ease-out",
