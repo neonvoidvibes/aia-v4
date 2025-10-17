@@ -44,6 +44,7 @@ interface CanvasViewProps {
   analysisStatus?: AnalysisStatus; // NEW: Analysis document status
   onRefreshAnalysis?: () => void; // NEW: Manual refresh callback
   isRefreshingAnalysis?: boolean; // NEW: Loading state for refresh
+  isRequestingPTTPermission?: boolean;
 }
 
 export default function CanvasView({
@@ -61,7 +62,8 @@ export default function CanvasView({
   messageHistory = [],
   analysisStatus = { state: 'none' },
   onRefreshAnalysis,
-  isRefreshingAnalysis = false
+  isRefreshingAnalysis = false,
+  isRequestingPTTPermission = false
 }: CanvasViewProps) {
   const { theme } = useTheme();
   const textContainerRef = React.useRef<HTMLDivElement>(null);
@@ -701,17 +703,38 @@ export default function CanvasView({
         <button
           type="button"
           aria-label="Push to talk"
-          disabled={isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing'}
-          onMouseDown={() => !isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && onPTTPress?.()}
-          onMouseUp={() => !isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && onPTTRelease?.()}
-          onMouseLeave={() => !isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && onPTTRelease?.()}
+          disabled={
+            isStreaming ||
+            isRefreshingAnalysis ||
+            analysisStatus.state === 'analyzing' ||
+            isRequestingPTTPermission
+          }
+          onMouseDown={() => {
+            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && !isRequestingPTTPermission) {
+              onPTTPress?.();
+            }
+          }}
+          onMouseUp={() => {
+            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && !isRequestingPTTPermission) {
+              onPTTRelease?.();
+            }
+          }}
+          onMouseLeave={() => {
+            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && !isRequestingPTTPermission) {
+              onPTTRelease?.();
+            }
+          }}
           onTouchStart={(e) => {
             e.preventDefault();
-            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing') onPTTPress?.();
+            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && !isRequestingPTTPermission) {
+              onPTTPress?.();
+            }
           }}
           onTouchEnd={(e) => {
             e.preventDefault();
-            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing') onPTTRelease?.();
+            if (!isStreaming && !isRefreshingAnalysis && analysisStatus.state !== 'analyzing' && !isRequestingPTTPermission) {
+              onPTTRelease?.();
+            }
           }}
           style={{ touchAction: 'manipulation', WebkitUserSelect: 'none', userSelect: 'none' }}
           className={cn(
@@ -719,12 +742,14 @@ export default function CanvasView({
             "transition-all duration-300 ease-out",
             (isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing')
               ? "ring-4 ring-white/35 opacity-80 cursor-not-allowed"
-              : isPTTActive
-                ? cn(
-                    "canvas-ptt-active-ring",
-                    isMobile ? "scale-[1.45]" : "scale-[1.08]"
-                  )
-                : "ring-4 ring-white/40 hover:ring-white/60 scale-100"
+              : isRequestingPTTPermission
+                ? "ring-4 ring-white/35 opacity-80 cursor-wait"
+                : isPTTActive
+                  ? cn(
+                      "canvas-ptt-active-ring",
+                      isMobile ? "scale-[1.45]" : "scale-[1.08]"
+                    )
+                  : "ring-4 ring-white/40 hover:ring-white/60 scale-100"
           )}
         >
           {!isPTTActive && (

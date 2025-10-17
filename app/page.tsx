@@ -3127,11 +3127,27 @@ function HomeContent() {
             onRefreshAnalysis={handleRefreshCanvasAnalysis}
             isRefreshingAnalysis={isRefreshingCanvasAnalysis}
             statusMessage={
+              canvasPTT.isRequestingPermission ? 'Enable microphone to start' :
               canvasPTT.status === 'recording' ? 'Recording...' :
               canvasPTT.status === 'transcribing' ? 'Transcribing...' :
               canvasIsStreaming ? 'Thinking...' : ''
             }
+            isRequestingPTTPermission={canvasPTT.isRequestingPermission}
             onPTTPress={async () => {
+              const hadPermission = canvasPTT.hasPermission === true;
+              const permissionGranted = await canvasPTT.ensurePermission();
+
+              if (!permissionGranted) {
+                setIsCanvasPTTActive(false);
+                return;
+              }
+
+              if (!hadPermission && canvasPTT.hasPermission === true) {
+                toast.success("Microphone ready. Press and hold to talk.");
+                setIsCanvasPTTActive(false);
+                return;
+              }
+
               // Stop and clear TTS before starting new recording
               canvasTTS.stop();
               canvasTTS.clear();

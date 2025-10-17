@@ -23,6 +23,9 @@ export interface UseCanvasPTTReturn {
   stopRecording: () => Promise<void>;
   cancelRecording: () => void;
   error: string | null;
+  ensurePermission: () => Promise<boolean>;
+  hasPermission: boolean | null;
+  isRequestingPermission: boolean;
 }
 
 export function useCanvasPTT({
@@ -32,11 +35,14 @@ export function useCanvasPTT({
 }: UseCanvasPTTOptions): UseCanvasPTTReturn {
   const [status, setStatus] = useState<PTTStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const transcriptionRequestIdRef = useRef<string | null>(null);
+  const permissionRequestPromiseRef = useRef<Promise<boolean> | null>(null);
 
   const cleanup = useCallback(() => {
     // Stop media recorder
@@ -118,6 +124,50 @@ export function useCanvasPTT({
     }
   }, [agentName, onTranscriptReady, onError]);
 
+  const ensurePermission = useCallback(async (): Promise<boolean> => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      const errorMsg = 'Microphone access is not supported in this environment';
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return false;
+    }
+
+    if (hasPermission === true) {
+      return true;
+    }
+
+    if (permissionRequestPromiseRef.current) {
+      return permissionRequestPromiseRef.current;
+    }
+
+    const request = (async () => {
+      try {
+        setIsRequestingPermission(true);
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        setHasPermission(true);
+        setError(null);
+        return true;
+      } catch (err: any) {
+        console.error('Canvas microphone permission error:', err);
+        const errorMsg = err?.name === 'NotAllowedError'
+          ? 'Microphone access denied'
+          : err?.message || 'Microphone access failed';
+        setHasPermission(false);
+        setError(errorMsg);
+        onError?.(errorMsg);
+        toast.error(errorMsg);
+        return false;
+      } finally {
+        setIsRequestingPermission(false);
+        permissionRequestPromiseRef.current = null;
+      }
+    })();
+
+    permissionRequestPromiseRef.current = request;
+    return request;
+  }, [hasPermission, onError]);
+
   const startRecording = useCallback(async () => {
     if (!agentName) {
       const errorMsg = 'Agent not selected';
@@ -135,6 +185,7 @@ export function useCanvasPTT({
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
+      setHasPermission(true);
 
       // Setup media recorder with fallback
       const options = { mimeType: 'audio/webm;codecs=opus' };
@@ -183,6 +234,7 @@ export function useCanvasPTT({
       onError?.(errorMsg);
       toast.error(errorMsg);
       cleanup();
+      setHasPermission(false);
     }
   }, [agentName, onError, cleanup, transcribeAndProcess]);
 
@@ -228,5 +280,8 @@ export function useCanvasPTT({
     stopRecording,
     cancelRecording,
     error,
+    ensurePermission,
+    hasPermission,
+    isRequestingPermission,
   };
 }
