@@ -3127,7 +3127,6 @@ function HomeContent() {
             onRefreshAnalysis={handleRefreshCanvasAnalysis}
             isRefreshingAnalysis={isRefreshingCanvasAnalysis}
             statusMessage={
-              canvasPTT.isRequestingPermission ? 'Enable microphone to start' :
               canvasPTT.status === 'recording' ? 'Recording...' :
               canvasPTT.status === 'transcribing' ? 'Transcribing...' :
               canvasIsStreaming ? 'Thinking...' : ''
