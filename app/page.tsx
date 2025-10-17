@@ -3179,23 +3179,30 @@ function HomeContent() {
 
               if (permissionStatus === 'denied') {
                 setIsCanvasPTTActive(false);
-            return;
-          }
-
-          const audioUnlocked = await ensureCanvasAudioUnlocked();
-          if (audioUnlocked) {
-            canvasTTS.resumePending();
-          }
-
-          if (permissionStatus === 'newly-granted') {
-            toast.success("Microphone ready. Press and hold to talk.");
-            setIsCanvasPTTActive(false);
-            return;
+                return;
               }
 
-              // Stop and clear TTS before starting new recording
-              canvasTTS.stop();
-              canvasTTS.clear();
+              if (permissionStatus === 'newly-granted') {
+                toast.success("Microphone ready. Press and hold to talk.");
+                setIsCanvasPTTActive(false);
+                return;
+              }
+
+              const audioUnlocked = await ensureCanvasAudioUnlocked();
+              const shouldResumeQueuedAudio = audioUnlocked && !canvasTTS.isPlaying && canvasTTS.queueLength > 0;
+
+              if (shouldResumeQueuedAudio) {
+                canvasTTS.resumePending();
+                setIsCanvasPTTActive(false);
+                return;
+              }
+
+              if (canvasTTS.isPlaying) {
+                canvasTTS.stop();
+              }
+              if (canvasTTS.queueLength > 0) {
+                canvasTTS.clear();
+              }
 
               setIsCanvasPTTActive(true);
               await canvasPTT.startRecording();
