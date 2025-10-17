@@ -7,14 +7,14 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { toast } from 'sonner';
+import { isCanvasAudioUnlocked, markCanvasAudioLocked } from '@/lib/canvas-audio-unlock';
 
 export interface UseCanvasTTSOptions {
   voiceId?: string;
   autoPlay?: boolean; // Default true for canvas
   onStart?: () => void;
   onComplete?: () => void;
-  onError?: (error: string) => void;
+  onError?: (error: 'autoplay-blocked' | 'playback-error' | 'generate-failed' | 'load-failed') => void;
 }
 
 export interface UseCanvasTTSReturn {
@@ -86,6 +86,7 @@ export function useCanvasTTS({
         audio.onerror = (e) => {
           console.error('[Canvas TTS] Failed to load audio:', e);
           setIsFetching(false);
+          onError?.('load-failed');
           reject(new Error('Failed to load audio'));
         };
 
@@ -95,7 +96,7 @@ export function useCanvasTTS({
     } catch (error) {
       setIsFetching(false);
       console.error('[Canvas TTS] Error fetching audio:', error);
-      onError?.('Failed to generate audio');
+      onError?.('generate-failed');
       return null;
     }
   }, [voiceId, onError]);
@@ -236,22 +237,39 @@ export function useCanvasTTS({
 
         currentAudioRef.current = null;
         isProcessingRef.current = false;
-        onError?.('Audio playback error');
+        onError?.('playback-error');
 
         // Try next sentence
         playNext();
       };
 
       try {
+        if (!isCanvasAudioUnlocked()) {
+          console.warn('[Canvas TTS] Playback blocked because audio is not unlocked');
+          sentence.status = 'error';
+          queueRef.current.splice(nextIndex, 1);
+          setQueueLength(queueRef.current.length);
+          currentAudioRef.current = null;
+          isProcessingRef.current = false;
+          markCanvasAudioLocked();
+          onError?.('autoplay-blocked');
+          return;
+        }
+
         await sentence.audio.play();
-      } catch (error) {
+      } catch (error: any) {
         console.error('[Canvas TTS] Failed to play audio:', error);
         sentence.status = 'error';
         queueRef.current.splice(nextIndex, 1);
         setQueueLength(queueRef.current.length);
         currentAudioRef.current = null;
         isProcessingRef.current = false;
-        onError?.('Failed to play audio');
+        if (error?.name === 'NotAllowedError' || error?.code === 0 || error?.message?.includes('interrupted')) {
+          markCanvasAudioLocked();
+          onError?.('autoplay-blocked');
+        } else {
+          onError?.('playback-error');
+        }
         playNext();
       }
     } else {

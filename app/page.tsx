@@ -65,6 +65,7 @@ import ConsentView from "@/components/consent-view"; // Phase 3 import
 import { isRecordingPersistenceEnabled } from "@/lib/featureFlags";
 import { manager as recordingManager } from "@/lib/recordingManager";
 import { getCachedSession, invalidateSessionCache } from "@/lib/sessionCache";
+import { unlockCanvasAudio, isCanvasAudioUnlocked } from "@/lib/canvas-audio-unlock";
 import { debouncedSetItem, debouncedGetItem } from "@/lib/debouncedStorage";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
@@ -438,6 +439,23 @@ function HomeContent() {
   const [eventLabels, setEventLabels] = useState<Record<string, string>>({});
   // Events cache key (depends on pageAgentName) — defined after pageAgentName state
   const eventsCacheKey = useMemo(() => pageAgentName ? `events_cache_${pageAgentName}` : null, [pageAgentName]);
+  const [isCanvasAudioUnlockedState, setIsCanvasAudioUnlockedState] = useState(false);
+  const [hasShownAudioUnlockToast, setHasShownAudioUnlockToast] = useState(false);
+
+  useEffect(() => {
+    if (isCanvasAudioUnlocked()) {
+      setIsCanvasAudioUnlockedState(true);
+    }
+  }, []);
+
+  const ensureCanvasAudioUnlocked = useCallback(async () => {
+    const unlocked = await unlockCanvasAudio();
+    if (unlocked) {
+      setIsCanvasAudioUnlockedState(true);
+      setHasShownAudioUnlockToast(false);
+    }
+    return unlocked;
+  }, []);
 
   // Canvas TTS hook - must be declared before canvasLLM
   const canvasTTS = useCanvasTTS({
@@ -448,8 +466,22 @@ function HomeContent() {
     onComplete: () => {
       console.log('[Canvas] TTS playback completed');
     },
-    onError: (error: string) => {
-      toast.error(`Canvas TTS error: ${error}`);
+    onError: (error) => {
+      switch (error) {
+        case 'autoplay-blocked':
+          setIsCanvasAudioUnlockedState(false);
+          if (!hasShownAudioUnlockToast) {
+            toast.warning('Tap and hold the mic button once to enable canvas audio playback.');
+            setHasShownAudioUnlockToast(true);
+          }
+          break;
+        case 'load-failed':
+        case 'generate-failed':
+          toast.error('Canvas audio is momentarily unavailable. We will retry automatically.');
+          break;
+        default:
+          toast.error('Canvas audio playback hit an unexpected issue.');
+      }
     }
   });
 
@@ -3139,6 +3171,8 @@ function HomeContent() {
                 setIsCanvasPTTActive(false);
                 return;
               }
+
+              await ensureCanvasAudioUnlocked();
 
               if (permissionStatus === 'newly-granted') {
                 toast.success("Microphone ready. Press and hold to talk.");
