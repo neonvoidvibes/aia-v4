@@ -3182,14 +3182,14 @@ function HomeContent() {
                 return;
               }
 
-              if (permissionStatus === 'newly-granted') {
+              const isFirstGrant = permissionStatus === 'newly-granted';
+              if (isFirstGrant) {
                 toast.success("Microphone ready. Press and hold to talk.");
-                setIsCanvasPTTActive(false);
-                return;
               }
 
-              const audioUnlocked = await ensureCanvasAudioUnlocked();
-              const shouldResumeQueuedAudio = audioUnlocked && !canvasTTS.isPlaying && canvasTTS.queueLength > 0;
+              const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+              const audioUnlocked = isMobile ? await ensureCanvasAudioUnlocked() : true;
+              const shouldResumeQueuedAudio = audioUnlocked && isMobile && !canvasTTS.isPlaying && canvasTTS.queueLength > 0;
 
               if (shouldResumeQueuedAudio) {
                 canvasTTS.resumePending();
