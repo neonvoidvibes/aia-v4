@@ -394,7 +394,7 @@ export default function CanvasView({
           </div>
 
           {/* TTS indicator and Depth mode button - right side */}
-          <div className="absolute right-0 flex items-center gap-3">
+          <div className="absolute right-0 flex items-center gap-3 -translate-y-[5px] -translate-x-[7px]">
             {isTTSPlaying && (
               <div className="flex items-center gap-[3px]" aria-label="Audio playing">
                 {[...Array(3)].map((_, i) => (
@@ -720,7 +720,10 @@ export default function CanvasView({
             (isStreaming || isRefreshingAnalysis || analysisStatus.state === 'analyzing')
               ? "ring-4 ring-white/35 opacity-80 cursor-not-allowed"
               : isPTTActive
-                ? "canvas-ptt-active-ring scale-[1.08]"
+                ? cn(
+                    "canvas-ptt-active-ring",
+                    isMobile ? "scale-[1.45]" : "scale-[1.08]"
+                  )
                 : "ring-4 ring-white/40 hover:ring-white/60 scale-100"
           )}
         >
@@ -731,7 +734,7 @@ export default function CanvasView({
 
         {/* Mobile: Action buttons on same row as PTT, right-aligned */}
         {isMobile && (
-          <div className="flex-1 flex items-center justify-end gap-2">
+          <div className="flex-1 flex items-center justify-end gap-[17px] -translate-x-[4px]">
             {/* Copy button - only show when there's output */}
             {hasLlmOutput && (
               <button
@@ -740,11 +743,13 @@ export default function CanvasView({
                 className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
                 aria-label="Copy canvas output"
               >
-                {copied ? (
-                  <Check className="w-5 h-5" />
-                ) : (
-                  <Copy className="w-5 h-5" />
-                )}
+                <span className="block scale-[1.1] origin-center">
+                  {copied ? (
+                    <Check className="w-5 h-5" />
+                  ) : (
+                    <Copy className="w-5 h-5" />
+                  )}
+                </span>
               </button>
             )}
 
@@ -755,7 +760,9 @@ export default function CanvasView({
               className="text-white/30 hover:text-white/50 transition-colors cursor-pointer"
               aria-label="Restart canvas session"
             >
-              <RotateCcw className="w-5 h-5" />
+              <span className="block scale-[1.1] origin-center">
+                <RotateCcw className="w-5 h-5" />
+              </span>
             </button>
 
             {/* Refresh Analysis button */}
@@ -763,7 +770,7 @@ export default function CanvasView({
               type="button"
               onClick={() => setShowAnalysisConfirm(true)}
               className={cn(
-                "transition-colors",
+                "transition-colors -ml-[5px]",
                 isRefreshingAnalysis
                   ? "text-white/50 cursor-wait animate-pulse"
                   : "text-white/30 hover:text-white/50 cursor-pointer"
@@ -771,7 +778,9 @@ export default function CanvasView({
               aria-label="Refresh analysis"
               disabled={isRefreshingAnalysis}
             >
-              <Play className="w-5 h-5" />
+              <span className="block scale-[1.1] origin-center">
+                <Play className="w-5 h-5" />
+              </span>
             </button>
           </div>
         )}

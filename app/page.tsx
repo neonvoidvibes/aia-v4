@@ -2714,43 +2714,29 @@ function HomeContent() {
     >
       {/* Canvas background layer - blur only on mobile */}
       {currentView === 'canvas' && (
-        isVideo(CANVAS_BACKGROUND_SRC) ? (
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute blur-[12px] md:blur-none"
-            style={{
-              objectFit: 'cover',
-              objectPosition: 'center',
-              zIndex: 0,
-              top: '-20px',
-              left: '-20px',
-              right: '-20px',
-              bottom: '-20px',
-              width: 'calc(100% + 40px)',
-              height: 'calc(100% + 40px)'
-            }}
-          >
-            <source src={CANVAS_BACKGROUND_SRC} type="video/mp4" />
-          </video>
-        ) : (
-          <div
-            className="absolute blur-[12px] md:blur-none"
-            style={{
-              backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              zIndex: 0,
-              top: '-20px',
-              left: '-20px',
-              right: '-20px',
-              bottom: '-20px'
-            }}
-          />
-        )
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          {isVideo(CANVAS_BACKGROUND_SRC) ? (
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="h-full w-full object-cover blur-[12px] md:blur-none"
+            >
+              <source src={CANVAS_BACKGROUND_SRC} type="video/mp4" />
+            </video>
+          ) : (
+            <div
+              className="h-full w-full blur-[12px] md:blur-none"
+              style={{
+                backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
+            />
+          )}
+        </div>
       )}
       <Sidebar
         isOpen={isSidebarOpen}
