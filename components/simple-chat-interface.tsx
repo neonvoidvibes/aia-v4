@@ -541,6 +541,9 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     }
     const [agentName, setAgentName] = useState<string | null>(null);
     const [eventId, setEventId] = useState<string | null>(null);
+    const effectiveEventId = eventId || '0000';
+    const hideSharedMemory = !isAdminOverride && !!activeUiConfig?.hide_shared_memory && effectiveEventId === '0000';
+    const canUseMemory = !hideSharedMemory;
   const [isPageReady, setIsPageReady] = useState(false); 
   const lastAppendedErrorRef = useRef<string | null>(null);
   const [errorMessages, setErrorMessages] = useState<ErrorMessage[]>([]);
@@ -3313,6 +3316,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     }, [agentName, addErrorMessage, onHistoryRefreshNeeded, currentChatId, chatTitle, conversationSaveMarkerMessageId, conversationMemoryId, supabase.auth]);
 
     const handleSaveChatToMemory = () => {
+        if (!canUseMemory) return;
         if (conversationMemoryId) {
             setConfirmationRequest({ type: 'overwrite-conversation', memoryId: conversationMemoryId });
         } else {
@@ -3322,6 +3326,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
     // When clicking the in-chat saved marker/bookmark line, prefer the forget flow if already saved
     const handleToggleConversationMemoryFromMarker = () => {
+        if (!canUseMemory) return;
         if (conversationMemoryId) {
             setConfirmationRequest({ type: 'forget-conversation', memoryId: conversationMemoryId });
         } else {
@@ -3330,6 +3335,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     };
 
     const handleSaveMessageToMemory = (message: Message) => {
+        if (!canUseMemory) return;
         const savedInfo = savedMessageIds.get(message.id);
         if (savedInfo && savedInfo.memoryId !== 'pending') {
             setConfirmationRequest({ type: 'forget-message', message, memoryId: savedInfo.memoryId });
@@ -3764,7 +3770,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                       const messageSaveInfo = savedMessageIds.get(message.id);
                       const isMessageSaved = !!messageSaveInfo;
                       const messageSaveTime = messageSaveInfo?.savedAt;
-                      const shouldShowSaveMarker = message.id === conversationSaveMarkerMessageId;
+                      const shouldShowSaveMarker = canUseMemory && message.id === conversationSaveMarkerMessageId;
                       const messageAttachments = allAttachments.filter((file) => file.messageId === message.id);
                       const hasAttachments = messageAttachments.length > 0;
                       const isFromCanvas = isUser && message.content.startsWith("🎨 From Canvas:");
@@ -3979,7 +3985,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                   </>
                                 )}
                                 {!isSystem && !isCollapsed && (
-                                  <div className={cn( "message-actions flex items-center", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-1 -mt-3" )} style={{ opacity: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? 1 : 0, visibility: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || isMessageSaved ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
+                                  <div className={cn( "message-actions flex items-center", isUser ? "justify-end mr-2 mt-1" : "justify-start ml-1 -mt-3" )} style={{ opacity: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || (canUseMemory && isMessageSaved) ? 1 : 0, visibility: (!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id) || copyState.id === message.id || (canUseMemory && isMessageSaved) ? "visible" : "hidden", transition: 'opacity 0.2s ease-in-out', }}>
                                     {isUser && (
                                       <div className="flex items-center">
                                         {isMessageSaved ? (
@@ -4016,14 +4022,18 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                                 </ActionTooltip>
                                               )}
                                             </div>
-                                            <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 ml-2">
-                                              Message saved
-                                            </span>
-                                            <ActionTooltip labelKey="tooltips.forgetMemory" align="end">
-                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button" aria-label="Forget message memory">
-                                                  <Bookmark className="h-[18px] w-[18px] stroke-[hsl(var(--save-memory-color))] ml-2" />
-                                              </button>
-                                            </ActionTooltip>
+                                            {canUseMemory && (
+                                              <>
+                                                <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 ml-2">
+                                                  Message saved
+                                                </span>
+                                                <ActionTooltip labelKey="tooltips.forgetMemory" align="end">
+                                                  <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button" aria-label="Forget message memory">
+                                                      <Bookmark className="h-[18px] w-[18px] stroke-[hsl(var(--save-memory-color))] ml-2" />
+                                                  </button>
+                                                </ActionTooltip>
+                                              </>
+                                            )}
                                           </>
                                         ) : (
                                           <>
@@ -4041,11 +4051,13 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                               </button>
                                             </ActionTooltip>
                                             )}
-                                            <ActionTooltip labelKey="tooltips.saveMemory" align="end">
-                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={isDeleting}>
-                                                <Bookmark className="h-[18px] w-[18px]" />
-                                              </button>
-                                            </ActionTooltip>
+                                            {canUseMemory && (
+                                              <ActionTooltip labelKey="tooltips.saveMemory" align="end">
+                                                <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={isDeleting}>
+                                                  <Bookmark className="h-[18px] w-[18px]" />
+                                                </button>
+                                              </ActionTooltip>
+                                            )}
                                             {/* Delete button - Hidden if workspace config specifies */}
                                             {(!activeUiConfig.hide_message_actions?.includes('delete') || isAdminOverride) && (
                                               <ActionTooltip labelKey="tooltips.delete" align="end">
@@ -4070,14 +4082,18 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                       <div className="flex items-center">
                                         {isMessageSaved ? (
                                           <>
-                                            <ActionTooltip labelKey="tooltips.forgetMemory" align="start">
-                                              <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button" aria-label="Forget message memory">
-                                                  <Bookmark className="h-[18px] w-[18px] stroke-[hsl(var(--save-memory-color))] mr-2" />
-                                              </button>
-                                            </ActionTooltip>
-                                            <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
-                                              Message saved
-                                            </span>
+                                            {canUseMemory && (
+                                              <>
+                                                <ActionTooltip labelKey="tooltips.forgetMemory" align="start">
+                                                  <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className="action-button" aria-label="Forget message memory">
+                                                      <Bookmark className="h-[18px] w-[18px] stroke-[hsl(var(--save-memory-color))] mr-2" />
+                                                  </button>
+                                                </ActionTooltip>
+                                                <span className="text-xs text-[hsl(var(--save-memory-color))] opacity-75 mr-2">
+                                                  Message saved
+                                                </span>
+                                              </>
+                                            )}
                                             <div className="opacity-0 group-hover:opacity-100 flex items-center transition-opacity">
                                               <ActionTooltip label={copyState.id === message.id && copyState.copied ? t('tooltips.copied') : t('tooltips.copy')} align="start">
                                                 <button onClick={(e) => { e.stopPropagation(); copyToClipboard(message.content, message.id); }} className="action-button text-[hsl(var(--icon-secondary))] hover:text-[hsl(var(--icon-primary))]" aria-label={tooltips.copy_message || "Copy message"}>
@@ -4143,11 +4159,13 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                             {/* Show Bookmark and Delete buttons on hover - but render them in the same flow as Copy/ReadAloud */}
                                             {((!isMobile && hoveredMessage === message.id) || (isMobile && selectedMessage === message.id)) && (
                                               <>
-                                                <ActionTooltip labelKey="tooltips.saveMemory" align="start">
-                                                  <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={isDeleting}>
-                                                    <Bookmark className="h-[18px] w-[18px]" />
-                                                  </button>
-                                                </ActionTooltip>
+                                                {canUseMemory && (
+                                                  <ActionTooltip labelKey="tooltips.saveMemory" align="start">
+                                                    <button onClick={(e) => { e.stopPropagation(); handleSaveMessageToMemory(message as Message); }} className={cn("action-button text-[hsl(var(--icon-secondary))]", (isDeleting) ? "opacity-50 cursor-not-allowed" : "hover:text-[hsl(var(--icon-primary))]")} aria-label={tooltips.save_message || "Save message to memory"} disabled={isDeleting}>
+                                                      <Bookmark className="h-[18px] w-[18px]" />
+                                                    </button>
+                                                  </ActionTooltip>
+                                                )}
                                                 {/* Delete button - Hidden if workspace config specifies */}
                                                 {(!activeUiConfig.hide_message_actions?.includes('delete') || isAdminOverride) && (
                                                   <ActionTooltip labelKey="tooltips.delete" align="start">
@@ -4644,25 +4662,27 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                                <DropdownMenuSeparator />
                              )}
                             
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                handleSaveChatToMemory();
-                              }}
-                              disabled={messages.length === 0 || isLoading}
-                              className={cn(
-                                "flex items-center gap-3 px-2 py-2",
-                                (messages.length === 0 || isLoading) && "opacity-50 cursor-not-allowed"
-                              )}
-                            >
-                              <Bookmark
-                                size={17}
+                            {canUseMemory && (
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  handleSaveChatToMemory();
+                                }}
+                                disabled={messages.length === 0 || isLoading}
                                 className={cn(
-                                  "flex-shrink-0"
+                                  "flex items-center gap-3 px-2 py-2",
+                                  (messages.length === 0 || isLoading) && "opacity-50 cursor-not-allowed"
                                 )}
-                              />
-                             <span className="text-sm whitespace-nowrap">{t('controlsMenu.saveToMemory')}</span>
-                            </DropdownMenuItem>
+                              >
+                                <Bookmark
+                                  size={17}
+                                  className={cn(
+                                    "flex-shrink-0"
+                                  )}
+                                />
+                                <span className="text-sm whitespace-nowrap">{t('controlsMenu.saveToMemory')}</span>
+                              </DropdownMenuItem>
+                            )}
                             
                             {/* Download chat - Hidden if workspace config specifies */}
                             {(!activeUiConfig.hide_plus_menu_items?.includes('download_chat') || isAdminOverride) && (
