@@ -466,7 +466,7 @@ export default function CanvasView({
                 "flex items-center justify-center flex-1 max-w-4xl text-center pointer-events-none transition-opacity duration-500",
                 showWelcome ? "opacity-100" : "opacity-0"
               )}>
-                <h1 className="font-semibold leading-tight tracking-tight text-[min(8vw,56px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
+                <h1 className="font-semibold leading-tight tracking-tight text-[min(12vw,80px)] text-white/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
                   {welcomeText}
                 </h1>
               </div>
