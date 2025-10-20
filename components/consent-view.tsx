@@ -224,7 +224,7 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
         <CardHeader className="pb-2">
           <CardTitle className="text-2xl">{title}</CardTitle>
           <CardDescription>
-            Granska och godkänn villkoren för {workspaceName}
+            Review and accept the terms for {workspaceName}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-4 pt-2">
@@ -267,11 +267,11 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
                 />
                 <div className="space-y-1">
                   <Label htmlFor="consent-checkbox" className="text-[15px] font-medium leading-snug">
-                    Jag godkänner villkoren och integritetspolicyn
+                    I accept the terms and conditions and privacy policy
                   </Label>
                   {requireScrollToEnd && (
                     !isAtBottom ? (
-                      <div className="text-xs text-muted-foreground">Scrolla till slutet för att aktivera godkännandet.</div>
+                      <div className="text-xs text-muted-foreground">Scroll to the end to enable acceptance.</div>
                     ) : (
                       <div className="text-xs text-transparent select-none" aria-hidden="true">&nbsp;</div>
                     )
@@ -287,10 +287,10 @@ export default function ConsentView({ workspaceId, workspaceName, onConsentGiven
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Bearbetar…
+                      Processing…
                     </>
                   ) : (
-                    "Godkänn och fortsätt"
+                    "Accept and Continue"
                   )}
                 </Button>
               </div>
