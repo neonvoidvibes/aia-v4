@@ -2558,7 +2558,7 @@ function HomeContent() {
           eventId: pageEventId,
           originalFilename: name,
         }),
-      }, 30000); // 30s timeout for LLM summarization
+      }, 90000); // 90s timeout for LLM summarization
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Failed to process summarization request."}));
