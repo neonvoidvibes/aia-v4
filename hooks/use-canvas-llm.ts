@@ -17,6 +17,8 @@ export interface UseCanvasLLMOptions {
   forceRefreshAnalysis?: boolean; // Force refresh analysis documents
   clearPrevious?: boolean; // Clear previous analysis on new meeting/context
   individualRawTranscriptToggleStates?: Record<string, boolean>; // For "some" mode
+  savedTranscriptMemoryMode?: 'none' | 'some' | 'all';
+  individualMemoryToggleStates?: Record<string, boolean>;
   transcriptListenMode?: 'none' | 'latest' | 'some' | 'all'; // Transcript mode
   groupsReadMode?: 'none' | 'latest' | 'all' | 'breakout'; // Groups mode
   onStart?: () => void;
@@ -42,6 +44,8 @@ export function useCanvasLLM({
   forceRefreshAnalysis = false,
   clearPrevious = false,
   individualRawTranscriptToggleStates = {},
+  savedTranscriptMemoryMode = 'none',
+  individualMemoryToggleStates = {},
   transcriptListenMode = 'latest',
   groupsReadMode = 'none',
   onStart,
@@ -91,6 +95,12 @@ export function useCanvasLLM({
           sample: Object.entries(individualRawTranscriptToggleStates).slice(0, 2)
         });
       }
+      if (savedTranscriptMemoryMode !== 'none') {
+        console.log('[Canvas Hook DEBUG] Memorized transcript mode:', {
+          mode: savedTranscriptMemoryMode,
+          toggles: Object.keys(individualMemoryToggleStates || {}).length
+        });
+      }
 
       const response = await fetch('/api/canvas/stream', {
         method: 'POST',
@@ -108,6 +118,8 @@ export function useCanvasLLM({
           forceRefreshAnalysis,
           clearPrevious,
           individualRawTranscriptToggleStates,
+          savedTranscriptMemoryMode,
+          individualMemoryToggleStates,
           transcriptListenMode,  // FIXED: Send mode in request
           groupsReadMode,        // FIXED: Send mode in request
         }),

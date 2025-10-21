@@ -501,6 +501,8 @@ function HomeContent() {
     depth: canvasDepth,
     conversationHistory: pageAgentName ? (canvasConversationHistoryByAgent[pageAgentName] || []) : [],
     individualRawTranscriptToggleStates,
+    savedTranscriptMemoryMode,
+    individualMemoryToggleStates,
     transcriptListenMode,  // FIXED: Send mode to canvas
     groupsReadMode,        // FIXED: Send mode to canvas
     onStart: () => {
@@ -598,6 +600,8 @@ function HomeContent() {
           agent: pageAgentName,
           clearPrevious,
           individualRawTranscriptToggleStates,
+          savedTranscriptMemoryMode,
+          individualMemoryToggleStates,
           transcriptListenMode,  // FIXED: Send mode to refresh
           groupsReadMode,        // FIXED: Send mode to refresh
         }),

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Suspense, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -48,8 +48,15 @@ function ResetPasswordPageInner() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const attemptedRecovery = useRef(false)
 
   useEffect(() => {
+    if (attemptedRecovery.current) {
+      return
+    }
+
+    attemptedRecovery.current = true
+
     let isMounted = true
 
     const handleRecovery = async () => {
@@ -60,7 +67,7 @@ function ResetPasswordPageInner() {
         return
       }
 
-      if (!code && (!accessToken || !refreshToken)) {
+      if (!code && !tokenHash && (!accessToken || !refreshToken)) {
         if (!isMounted) return
         setVerifyError('This reset link is invalid or has expired. Please request a new one.')
         setStatus('error')
@@ -69,8 +76,9 @@ function ResetPasswordPageInner() {
 
       try {
         if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code)
+          const { error } = await supabase.auth.getSessionFromUrl({ storeSession: true })
           if (error) throw error
+          router.replace('/reset-password')
         } else if (tokenHash) {
           const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
@@ -104,7 +112,7 @@ function ResetPasswordPageInner() {
     return () => {
       isMounted = false
     }
-  }, [accessToken, code, errorDescription, refreshToken, supabase, tokenHash, type])
+  }, [accessToken, code, errorDescription, refreshToken, router, supabase, tokenHash, type])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

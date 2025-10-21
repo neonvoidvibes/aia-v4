@@ -20,13 +20,21 @@ export async function POST(req: NextRequest) {
     console.log(`[API /api/canvas/analysis/refresh] Authenticated user: ${user.id}`);
 
     const body = await req.json();
-    const { agent, clearPrevious, individualRawTranscriptToggleStates, transcriptListenMode, groupsReadMode } = body;
+    const {
+      agent,
+      clearPrevious,
+      individualRawTranscriptToggleStates,
+      savedTranscriptMemoryMode,
+      individualMemoryToggleStates,
+      transcriptListenMode,
+      groupsReadMode
+    } = body;
 
     if (!agent) {
       return formatErrorResponse("Missing 'agent' in request body", 400);
     }
 
-    console.log(`[API /api/canvas/analysis/refresh] Agent: ${agent}, Clear previous: ${clearPrevious || false}`);
+    console.log(`[API /api/canvas/analysis/refresh] Agent: ${agent}, Clear previous: ${clearPrevious || false}, Memorized mode: ${savedTranscriptMemoryMode || 'none'}`);
 
     const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
@@ -58,6 +66,8 @@ export async function POST(req: NextRequest) {
         agent,
         clearPrevious,
         individualRawTranscriptToggleStates,
+        savedTranscriptMemoryMode,
+        individualMemoryToggleStates,
         transcriptListenMode,  // FIXED: Forward mode to backend
         groupsReadMode         // FIXED: Forward mode to backend
       }),
