@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Suspense, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
@@ -13,7 +14,23 @@ import { toast } from 'sonner'
 
 type RecoveryStatus = 'checking' | 'ready' | 'error'
 
-export default function ResetPasswordPage() {
+function PageLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="w-full flex items-center justify-center min-h-[calc(100dvh-var(--sys-banner-h))] bg-background px-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">Choose a new password</CardTitle>
+          <CardDescription>
+            Your new password must be at least 8 characters. Use something secure and easy for you to remember.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">{children}</CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function ResetPasswordPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = useMemo(() => createClient(), [])
@@ -102,76 +119,85 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="w-full flex items-center justify-center min-h-[calc(100dvh-var(--sys-banner-h))] bg-background px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">Choose a new password</CardTitle>
-          <CardDescription>
-            Your new password must be at least 8 characters. Use something secure and easy for you to remember.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {status === 'checking' && (
-            <div className="flex flex-col items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Verifying your reset link…
-            </div>
-          )}
+    <PageLayout>
+      {status === 'checking' && (
+        <div className="flex flex-col items-center gap-2 py-6 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Verifying your reset link…
+        </div>
+      )}
 
-          {status === 'error' && (
-            <div className="space-y-4">
-              <p className="text-sm text-red-600 dark:text-red-500">{verifyError}</p>
-              <div className="text-center text-sm text-muted-foreground">
-                <Link href="/forgot-password" className="underline hover:text-primary">
-                  Request a new reset link
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {status === 'ready' && (
-            <form onSubmit={handleSubmit} className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="new-password">New password</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  disabled={isSubmitting}
-                  minLength={8}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="confirm-password">Confirm password</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  disabled={isSubmitting}
-                  minLength={8}
-                />
-              </div>
-              {formError && <p className="text-sm text-red-600 dark:text-red-500">{formError}</p>}
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? 'Updating password…' : 'Update password'}
-              </Button>
-            </form>
-          )}
-
+      {status === 'error' && (
+        <div className="space-y-4">
+          <p className="text-sm text-red-600 dark:text-red-500">{verifyError}</p>
           <div className="text-center text-sm text-muted-foreground">
-            Remembered your password?{' '}
-            <Link href="/login" className="underline hover:text-primary">
-              Back to login
+            <Link href="/forgot-password" className="underline hover:text-primary">
+              Request a new reset link
             </Link>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      )}
+
+      {status === 'ready' && (
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="new-password">New password</Label>
+            <Input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={isSubmitting}
+              minLength={8}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="confirm-password">Confirm password</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              disabled={isSubmitting}
+              minLength={8}
+            />
+          </div>
+          {formError && <p className="text-sm text-red-600 dark:text-red-500">{formError}</p>}
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Updating password…' : 'Update password'}
+          </Button>
+        </form>
+      )}
+
+      <div className="text-center text-sm text-muted-foreground">
+        Remembered your password?{' '}
+        <Link href="/login" className="underline hover:text-primary">
+          Back to login
+        </Link>
+      </div>
+    </PageLayout>
+  )
+}
+
+function ResetPasswordFallback() {
+  return (
+    <PageLayout>
+      <div className="flex flex-col items-center gap-2 py-6 text-sm text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        Loading reset form…
+      </div>
+    </PageLayout>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordPageInner />
+    </Suspense>
   )
 }
