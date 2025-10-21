@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation' // Use next/navigation for App Router
 import { createClient } from '@/utils/supabase/client' // Import the browser client
@@ -79,13 +80,12 @@ export default function LoginPage() {
               {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
-          {/* Optional: Add links for password reset or sign up if enabled */}
-          {/* <div className="mt-4 text-center text-sm">
-            Don't have an account?{' '}
-            <a href="#" className="underline">
-              Sign up
-            </a>
-          </div> */}
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Forgot your password?{' '}
+            <Link href="/forgot-password" className="underline hover:text-primary">
+              Reset it
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

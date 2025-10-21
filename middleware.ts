@@ -61,6 +61,8 @@ export async function middleware(req: NextRequest) {
   // Define public routes
   const publicRoutes = [
     '/login',
+    '/forgot-password',
+    '/reset-password',
     '/mobile-recording-test', // Allow access to mobile recording test page
     '/api/mobile-recording-telemetry', // Allow telemetry endpoint
     '/api/health-check', // Allow health check
