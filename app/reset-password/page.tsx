@@ -35,6 +35,11 @@ function ResetPasswordPageInner() {
   const searchParams = useSearchParams()
   const supabase = useMemo(() => createClient(), [])
 
+  const code = searchParams.get('code')
+  const accessToken = searchParams.get('access_token')
+  const refreshToken = searchParams.get('refresh_token')
+  const errorDescription = searchParams.get('error_description')
+
   const [status, setStatus] = useState<RecoveryStatus>('checking')
   const [verifyError, setVerifyError] = useState<string | null>(null)
   const [password, setPassword] = useState('')
@@ -46,9 +51,12 @@ function ResetPasswordPageInner() {
     let isMounted = true
 
     const handleRecovery = async () => {
-      const code = searchParams.get('code')
-      const accessToken = searchParams.get('access_token')
-      const refreshToken = searchParams.get('refresh_token')
+      if (errorDescription) {
+        if (!isMounted) return
+        setVerifyError(decodeURIComponent(errorDescription))
+        setStatus('error')
+        return
+      }
 
       if (!code && (!accessToken || !refreshToken)) {
         if (!isMounted) return
@@ -84,7 +92,7 @@ function ResetPasswordPageInner() {
     return () => {
       isMounted = false
     }
-  }, [searchParams, supabase])
+  }, [accessToken, code, errorDescription, refreshToken, supabase])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
