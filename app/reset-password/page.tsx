@@ -36,9 +36,11 @@ function ResetPasswordPageInner() {
   const supabase = useMemo(() => createClient(), [])
 
   const code = searchParams.get('code')
+  const tokenHash = searchParams.get('token_hash')
   const accessToken = searchParams.get('access_token')
   const refreshToken = searchParams.get('refresh_token')
   const errorDescription = searchParams.get('error_description')
+  const type = searchParams.get('type')
 
   const [status, setStatus] = useState<RecoveryStatus>('checking')
   const [verifyError, setVerifyError] = useState<string | null>(null)
@@ -69,6 +71,12 @@ function ResetPasswordPageInner() {
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code)
           if (error) throw error
+        } else if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: (type as 'recovery' | 'magiclink' | 'signup' | 'email_change') ?? 'recovery',
+          })
+          if (error) throw error
         } else if (accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
           if (error) throw error
@@ -81,8 +89,12 @@ function ResetPasswordPageInner() {
         setStatus('ready')
       } catch (error) {
         console.error('Password recovery token exchange failed:', error)
+        const message =
+          (error && typeof error === 'object' && 'message' in error && typeof (error as any).message === 'string')
+            ? (error as any).message
+            : 'We couldn’t validate that reset link. Please request a new one.'
         if (!isMounted) return
-        setVerifyError('We couldn’t validate that reset link. Please request a new one.')
+        setVerifyError(message)
         setStatus('error')
       }
     }
@@ -92,7 +104,7 @@ function ResetPasswordPageInner() {
     return () => {
       isMounted = false
     }
-  }, [accessToken, code, errorDescription, refreshToken, supabase])
+  }, [accessToken, code, errorDescription, refreshToken, supabase, tokenHash, type])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
