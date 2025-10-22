@@ -239,7 +239,8 @@ function HomeContent() {
   
   // State for new toggles in Documents tab
   const [transcriptListenMode, setTranscriptListenMode] = useState<"none" | "some" | "latest" | "all">("latest");
-  const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"none" | "some" | "all">("none");
+const [savedTranscriptMemoryMode, setSavedTranscriptMemoryMode] = useState<"none" | "some" | "all">("none");
+const [savedTranscriptGroupsMode, setSavedTranscriptGroupsMode] = useState<"none" | "latest" | "all" | "breakout">("none");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<"en" | "sv" | "any">("any"); // Default "any"
   const [vadAggressiveness, setVadAggressiveness] = useState<VADAggressiveness | null>(null);
   const [rawSavedS3Transcripts, setRawSavedS3Transcripts] = useState<FetchedFile[]>([]); // New state for raw saved transcripts
@@ -502,6 +503,7 @@ function HomeContent() {
     conversationHistory: pageAgentName ? (canvasConversationHistoryByAgent[pageAgentName] || []) : [],
     individualRawTranscriptToggleStates,
     savedTranscriptMemoryMode,
+    savedTranscriptGroupsMode,
     individualMemoryToggleStates,
     transcriptListenMode,  // FIXED: Send mode to canvas
     groupsReadMode,        // FIXED: Send mode to canvas
@@ -1240,6 +1242,7 @@ function HomeContent() {
       setSavedTranscriptSummaries([]);
       setRawSavedS3Transcripts([]);
       setIndividualRawTranscriptToggleStates({});
+      setSavedTranscriptGroupsMode('none');
       setChatHistory([]);
     }
 
@@ -1872,6 +1875,17 @@ function HomeContent() {
     loadGroupsReadMode();
   }, [pageAgentName, userId]);
 
+  useEffect(() => {
+    if (!pageAgentName || !userId) return;
+    const key = `savedTranscriptGroupsMode_${pageAgentName}_${userId}`;
+    const stored = debouncedGetItem(key);
+    if (stored && ['none', 'latest', 'all', 'breakout'].includes(stored)) {
+      setSavedTranscriptGroupsMode(stored as "none" | "latest" | "all" | "breakout");
+    } else {
+      setSavedTranscriptGroupsMode('none');
+    }
+  }, [pageAgentName, userId]);
+
   // Persist groupsReadMode changes to localStorage
   // Note: Mode is sent in every canvas request payload, so no Supabase persistence needed
   const handleGroupsReadModeChange = useCallback(async (mode: 'latest' | 'none' | 'all' | 'breakout') => {
@@ -1886,6 +1900,15 @@ function HomeContent() {
     // Show success feedback
     const modeText = mode === 'none' ? 'disabled' : mode === 'latest' ? 'latest' : mode === 'all' ? 'all' : 'breakout';
     toast.success(`Transcript read mode: ${modeText}`);
+  }, [pageAgentName, userId]);
+
+  const handleSavedTranscriptGroupsModeChange = useCallback((mode: 'latest' | 'none' | 'all' | 'breakout') => {
+    if (!pageAgentName || !userId) return;
+    setSavedTranscriptGroupsMode(mode);
+    const key = `savedTranscriptGroupsMode_${pageAgentName}_${userId}`;
+    debouncedSetItem(key, mode);
+    const modeText = mode === 'none' ? 'disabled' : mode === 'latest' ? 'latest' : mode === 'all' ? 'all' : 'breakout';
+    toast.success(`Memorized transcript groups: ${modeText}`);
   }, [pageAgentName, userId]);
 
   // Persist transcriptListenMode changes to localStorage
@@ -3104,6 +3127,7 @@ function HomeContent() {
               onChatIdChange={setCurrentChatId}
               onHistoryRefreshNeeded={() => setHistoryNeedsRefresh(true)}
               savedTranscriptMemoryMode={savedTranscriptMemoryMode}
+              savedTranscriptGroupsMode={savedTranscriptGroupsMode}
               individualMemoryToggleStates={individualMemoryToggleStates}
               savedTranscriptSummaries={savedTranscriptSummaries}
               individualRawTranscriptToggleStates={individualRawTranscriptToggleStates}
@@ -3626,6 +3650,33 @@ function HomeContent() {
                         </ToggleGroup>
                         );
                         })()}
+                      </div>
+                      <div className={cn("flex items-center justify-between py-3 border-b mb-3", pageEventId !== '0000' && "opacity-50")}>
+                        <div className="flex flex-col gap-1">
+                          <Label htmlFor="saved-transcript-groups-toggle-group" className="memory-section-title text-sm font-medium">
+                            Groups:
+                          </Label>
+                          {pageEventId !== '0000' && (
+                            <span className="text-xs text-muted-foreground">Only in event 0000</span>
+                          )}
+                        </div>
+                        <ToggleGroup
+                          type="single"
+                          value={savedTranscriptGroupsMode}
+                          onValueChange={(value) => {
+                            if (value && ['latest', 'none', 'all', 'breakout'].includes(value)) {
+                              handleSavedTranscriptGroupsModeChange(value as 'latest' | 'none' | 'all' | 'breakout');
+                            }
+                          }}
+                          className="rounded-md bg-muted p-1"
+                          disabled={pageEventId !== '0000'}
+                          id="saved-transcript-groups-toggle-group"
+                        >
+                          <ToggleGroupItem value="none" aria-label="None" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>None</ToggleGroupItem>
+                          <ToggleGroupItem value="latest" aria-label="Latest" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>Latest</ToggleGroupItem>
+                          <ToggleGroupItem value="all" aria-label="All" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000'}>All</ToggleGroupItem>
+                          <ToggleGroupItem value="breakout" aria-label="Breakout" className="h-6 px-3 data-[state=on]:bg-background data-[state=on]:text-foreground text-xs" disabled={pageEventId !== '0000' || ((availableEvents || []).filter(ev => ev !== '0000' && eventTypes[ev] === 'breakout').length === 0)}>Breakout</ToggleGroupItem>
+                        </ToggleGroup>
                       </div>
                       <div className="pb-3 space-y-2 w-full">
                         {savedTranscriptSummaries.length > 0 ? (

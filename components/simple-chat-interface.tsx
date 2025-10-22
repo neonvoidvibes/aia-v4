@@ -455,6 +455,7 @@ interface SimpleChatInterfaceProps {
   onHistoryRefreshNeeded?: () => void;
   isConversationSaved?: boolean;
   savedTranscriptMemoryMode?: "none" | "some" | "all";
+  savedTranscriptGroupsMode?: 'latest' | 'none' | 'all' | 'breakout';
   individualMemoryToggleStates?: Record<string, boolean>;
   savedTranscriptSummaries?: FetchedFile[];
   individualRawTranscriptToggleStates?: Record<string, boolean>;
@@ -528,7 +529,7 @@ const formatTimestamp = (date: Date | undefined): string => {
 };
 
 const SimpleChatInterface = forwardRef<ChatInterfaceHandle, SimpleChatInterfaceProps>(
-function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript, groupsReadMode = 'none', allowedGroupEventsCount = 0, allowedBreakoutEventsCount = 0 }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
+function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, selectedModel, temperature, onModelChange, onRecordingStateChange, isDedicatedRecordingActive = false, vadAggressiveness, globalRecordingStatus, setGlobalRecordingStatus, transcriptListenMode, initialContext, getCanvasContext, onChatIdChange, onHistoryRefreshNeeded, isConversationSaved: initialIsConversationSaved, savedTranscriptMemoryMode, savedTranscriptGroupsMode = 'none', individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, isModalOpen = false, isAdminOverride = false, activeUiConfig = {}, tooltips = {}, onOpenSettings, onOpenLatestTranscript, groupsReadMode = 'none', allowedGroupEventsCount = 0, allowedBreakoutEventsCount = 0 }, ref: React.ForwardedRef<ChatInterfaceHandle>) {
 
     const { t } = useLocalization();
 
@@ -743,12 +744,13 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         signalBias: (typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('signalBias') || 'medium') : 'medium'),
         transcriptListenMode: transcriptListenMode,
         savedTranscriptMemoryMode: savedTranscriptMemoryMode,
+        savedTranscriptGroupsMode: savedTranscriptGroupsMode,
         individualMemoryToggleStates: individualMemoryToggleStates,
         savedTranscriptSummaries: savedTranscriptSummaries,
         individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,
         rawTranscriptFiles: rawTranscriptFiles,
         initialContext: initialContext,
-      }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, initialContext]);
+      }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, savedTranscriptGroupsMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, initialContext]);
 
   const {
     messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
@@ -1179,9 +1181,10 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
       
       if (transcriptListenMode === 'all' || transcriptListenMode === 'latest') return true;
       if (transcriptListenMode === 'some' && individualRawTranscriptToggleStates && Object.values(individualRawTranscriptToggleStates).some(v => v)) return true;
+      if (savedTranscriptGroupsMode && savedTranscriptGroupsMode !== 'none') return true;
   
       return false;
-    }, [savedTranscriptMemoryMode, individualMemoryToggleStates, transcriptListenMode, individualRawTranscriptToggleStates]);
+    }, [savedTranscriptMemoryMode, savedTranscriptGroupsMode, individualMemoryToggleStates, transcriptListenMode, individualRawTranscriptToggleStates]);
 
     // Derive listening mode and optional +N based on Settings > Memory selections
     const listeningInfo = useMemo(() => {
@@ -4444,8 +4447,12 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                           {/* Inline listening indicator + optional count + timer (active only) */}
                           {(() => {
                             const active = (globalRecordingStatus.type === 'long-form-chat' && globalRecordingStatus.isRecording) || isBrowserRecording;
-                            const hasGroupsEnabled = groupsReadMode !== 'none' && groupsReadMode !== 'breakout' && eventId === '0000' && allowedGroupEventsCount > 0;
-                            const hasBreakoutsEnabled = groupsReadMode === 'breakout' && eventId === '0000' && allowedBreakoutEventsCount > 0;
+                          const transcriptGroupsEnabled = groupsReadMode !== 'none' && groupsReadMode !== 'breakout' && eventId === '0000' && allowedGroupEventsCount > 0;
+                          const transcriptBreakoutsEnabled = groupsReadMode === 'breakout' && eventId === '0000' && allowedBreakoutEventsCount > 0;
+                          const memoryGroupsEnabled = savedTranscriptGroupsMode !== 'none' && savedTranscriptGroupsMode !== 'breakout' && eventId === '0000' && allowedGroupEventsCount > 0;
+                          const memoryBreakoutsEnabled = savedTranscriptGroupsMode === 'breakout' && eventId === '0000' && allowedBreakoutEventsCount > 0;
+                          const hasGroupsEnabled = transcriptGroupsEnabled || memoryGroupsEnabled;
+                          const hasBreakoutsEnabled = transcriptBreakoutsEnabled || memoryBreakoutsEnabled;
 
                             // Hide only if both transcript and memorized listening are disabled AND groups/breakouts mode is disabled
                             if (!active && transcriptListenMode === 'none' && savedTranscriptMemoryMode === 'none' && !hasGroupsEnabled && !hasBreakoutsEnabled) return null;

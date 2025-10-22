@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
       savedTranscriptMemoryMode,
       individualMemoryToggleStates,
       transcriptListenMode,
-      groupsReadMode
+      groupsReadMode,
+      savedTranscriptGroupsMode
     } = body;
 
     if (!agent) {
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
       return formatErrorResponse("Missing 'transcript' in request body", 400);
     }
 
-    console.log(`[API /api/canvas/stream] Agent: ${agent}, Depth: ${depth || 'mirror'}, Transcript length: ${transcript?.length || 0}, History length: ${history?.length || 0}, Timezone: ${timezone || 'none'}, Force refresh: ${forceRefreshAnalysis || false}, Clear previous: ${clearPrevious || false}, Toggle states: ${Object.keys(individualRawTranscriptToggleStates || {}).length} files, Memorized mode: ${savedTranscriptMemoryMode || 'none'}`);
+    console.log(`[API /api/canvas/stream] Agent: ${agent}, Depth: ${depth || 'mirror'}, Transcript length: ${transcript?.length || 0}, History length: ${history?.length || 0}, Timezone: ${timezone || 'none'}, Force refresh: ${forceRefreshAnalysis || false}, Clear previous: ${clearPrevious || false}, Toggle states: ${Object.keys(individualRawTranscriptToggleStates || {}).length} files, Memorized mode: ${savedTranscriptMemoryMode || 'none'}, Memorized groups: ${savedTranscriptGroupsMode || 'none'}`);
 
     const activeBackendUrl = await getBackendUrl();
     if (!activeBackendUrl) {
@@ -82,7 +83,8 @@ export async function POST(req: NextRequest) {
         savedTranscriptMemoryMode,
         individualMemoryToggleStates,
         transcriptListenMode,  // FIXED: Forward mode to backend
-        groupsReadMode         // FIXED: Forward mode to backend
+        groupsReadMode,        // FIXED: Forward mode to backend
+        savedTranscriptGroupsMode
       }),
       signal: controller.signal
     });

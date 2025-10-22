@@ -101,14 +101,18 @@ export async function POST(req: NextRequest) {
     if (!["none","some","all"].includes(savedTranscriptMemoryModeSetting)) {
       savedTranscriptMemoryModeSetting = "none";
     }
+    let savedTranscriptGroupsModeSetting = body.data?.savedTranscriptGroupsMode || body.savedTranscriptGroupsMode || "none";
+    if (!["none","latest","all","breakout"].includes(savedTranscriptGroupsModeSetting)) {
+      savedTranscriptGroupsModeSetting = "none";
+    }
     const individualMemoryToggleStates = body.data?.individualMemoryToggleStates || body.individualMemoryToggleStates || {};
     const savedTranscriptSummaries = body.data?.savedTranscriptSummaries || body.savedTranscriptSummaries || [];
     const individualRawTranscriptToggleStates = body.data?.individualRawTranscriptToggleStates || body.individualRawTranscriptToggleStates || {};
     const rawTranscriptFiles = body.data?.rawTranscriptFiles || body.rawTranscriptFiles || [];
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
-    const { transcriptListenMode, savedTranscriptMemoryMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, individualRawTranscriptToggleStates: _irts, rawTranscriptFiles: _rtf, transcriptionLanguage, model: _model, temperature: _temp, initialContext: _ic, currentDraftContent: _cdc, disableRetrieval: _dr, ...dataWithoutSettings } = body.data || {};
-    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, individualMemoryToggleStates:_imts2, savedTranscriptSummaries:_sts2, individualRawTranscriptToggleStates: _irts2, rawTranscriptFiles: _rtf2, transcriptionLanguage: _trl, currentDraftContent: _cdc_body, disableRetrieval: _dr_body, messages:_m, ...restOfBody } = body;
+    const { transcriptListenMode, savedTranscriptMemoryMode, savedTranscriptGroupsMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, individualRawTranscriptToggleStates: _irts, rawTranscriptFiles: _rtf, transcriptionLanguage, model: _model, temperature: _temp, initialContext: _ic, currentDraftContent: _cdc, disableRetrieval: _dr, ...dataWithoutSettings } = body.data || {};
+    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, savedTranscriptGroupsMode:_stgm, individualMemoryToggleStates:_imts2, savedTranscriptSummaries:_sts2, individualRawTranscriptToggleStates: _irts2, rawTranscriptFiles: _rtf2, transcriptionLanguage: _trl, currentDraftContent: _cdc_body, disableRetrieval: _dr_body, messages:_m, ...restOfBody } = body;
 
 
     // Basic validation for essential fields
@@ -204,6 +208,7 @@ export async function POST(req: NextRequest) {
       messageCount: userMessages.length,
       transcriptListenMode: transcriptListenModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
+      savedTranscriptGroupsMode: savedTranscriptGroupsModeSetting,
       individualMemoryToggleStates: individualMemoryToggleStates,
       savedTranscriptSummariesCount: savedTranscriptSummaries.length,
       transcriptionLanguage: transcriptionLanguageSetting
@@ -223,6 +228,7 @@ export async function POST(req: NextRequest) {
       savedTranscriptSummaries: savedTranscriptSummaries,
       individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,
       rawTranscriptFiles: rawTranscriptFiles,
+      savedTranscriptGroupsMode: savedTranscriptGroupsModeSetting,
       transcriptionLanguage: transcriptionLanguageSetting, // Added
       initialContext: initialContext, // For _aicreator agent
       currentDraftContent: currentDraftContent, // For _aicreator feedback loop
