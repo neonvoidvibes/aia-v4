@@ -101,6 +101,10 @@ export async function POST(req: NextRequest) {
     if (!["none","some","all"].includes(savedTranscriptMemoryModeSetting)) {
       savedTranscriptMemoryModeSetting = "none";
     }
+    let transcriptGroupsModeSetting = body.data?.transcriptGroupsMode || body.transcriptGroupsMode || "none";
+    if (!["none","latest","all","breakout"].includes(transcriptGroupsModeSetting)) {
+      transcriptGroupsModeSetting = "none";
+    }
     let savedTranscriptGroupsModeSetting = body.data?.savedTranscriptGroupsMode || body.savedTranscriptGroupsMode || "none";
     if (!["none","latest","all","breakout"].includes(savedTranscriptGroupsModeSetting)) {
       savedTranscriptGroupsModeSetting = "none";
@@ -111,8 +115,8 @@ export async function POST(req: NextRequest) {
     const rawTranscriptFiles = body.data?.rawTranscriptFiles || body.rawTranscriptFiles || [];
     
     // Remove the settings from data if they are now top-level to avoid confusion, keep other data props
-    const { transcriptListenMode, savedTranscriptMemoryMode, savedTranscriptGroupsMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, individualRawTranscriptToggleStates: _irts, rawTranscriptFiles: _rtf, transcriptionLanguage, model: _model, temperature: _temp, initialContext: _ic, currentDraftContent: _cdc, disableRetrieval: _dr, ...dataWithoutSettings } = body.data || {};
-    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, savedTranscriptMemoryMode:_stmm, savedTranscriptGroupsMode:_stgm, individualMemoryToggleStates:_imts2, savedTranscriptSummaries:_sts2, individualRawTranscriptToggleStates: _irts2, rawTranscriptFiles: _rtf2, transcriptionLanguage: _trl, currentDraftContent: _cdc_body, disableRetrieval: _dr_body, messages:_m, ...restOfBody } = body;
+    const { transcriptListenMode, transcriptGroupsMode, savedTranscriptMemoryMode, savedTranscriptGroupsMode, individualMemoryToggleStates: _imts, savedTranscriptSummaries: _sts, individualRawTranscriptToggleStates: _irts, rawTranscriptFiles: _rtf, transcriptionLanguage, model: _model, temperature: _temp, initialContext: _ic, currentDraftContent: _cdc, disableRetrieval: _dr, ...dataWithoutSettings } = body.data || {};
+    const { agent:_a, event:_e, model: _m_from_body, temperature: _t_from_body, transcriptListenMode:_tlm, transcriptGroupsMode:_tgm, savedTranscriptMemoryMode:_stmm, savedTranscriptGroupsMode:_stgm, individualMemoryToggleStates:_imts2, savedTranscriptSummaries:_sts2, individualRawTranscriptToggleStates: _irts2, rawTranscriptFiles: _rtf2, transcriptionLanguage: _trl, currentDraftContent: _cdc_body, disableRetrieval: _dr_body, messages:_m, ...restOfBody } = body;
 
 
     // Basic validation for essential fields
@@ -207,6 +211,7 @@ export async function POST(req: NextRequest) {
       eventValidation: inputEvent ? 'specific' : 'default_0000',
       messageCount: userMessages.length,
       transcriptListenMode: transcriptListenModeSetting,
+      transcriptGroupsMode: transcriptGroupsModeSetting,
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
       savedTranscriptGroupsMode: savedTranscriptGroupsModeSetting,
       individualMemoryToggleStates: individualMemoryToggleStates,
@@ -223,12 +228,13 @@ export async function POST(req: NextRequest) {
       model: model,
       temperature: temperature,
       transcriptListenMode: transcriptListenModeSetting,
+      transcriptGroupsMode: transcriptGroupsModeSetting, // For raw transcripts
       savedTranscriptMemoryMode: savedTranscriptMemoryModeSetting,
       individualMemoryToggleStates: individualMemoryToggleStates,
       savedTranscriptSummaries: savedTranscriptSummaries,
       individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,
       rawTranscriptFiles: rawTranscriptFiles,
-      savedTranscriptGroupsMode: savedTranscriptGroupsModeSetting,
+      savedTranscriptGroupsMode: savedTranscriptGroupsModeSetting, // For memorized summaries
       transcriptionLanguage: transcriptionLanguageSetting, // Added
       initialContext: initialContext, // For _aicreator agent
       currentDraftContent: currentDraftContent, // For _aicreator feedback loop

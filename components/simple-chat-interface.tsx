@@ -743,14 +743,15 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         // Optional tuning of cross-event signal strength via URL (?signalBias=low|medium|high)
         signalBias: (typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('signalBias') || 'medium') : 'medium'),
         transcriptListenMode: transcriptListenMode,
+        transcriptGroupsMode: groupsReadMode, // For raw transcripts
         savedTranscriptMemoryMode: savedTranscriptMemoryMode,
-        savedTranscriptGroupsMode: savedTranscriptGroupsMode,
+        savedTranscriptGroupsMode: savedTranscriptGroupsMode, // For memorized summaries
         individualMemoryToggleStates: individualMemoryToggleStates,
         savedTranscriptSummaries: savedTranscriptSummaries,
         individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,
         rawTranscriptFiles: rawTranscriptFiles,
         initialContext: initialContext,
-      }), [agentName, eventId, transcriptListenMode, savedTranscriptMemoryMode, savedTranscriptGroupsMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, initialContext]);
+      }), [agentName, eventId, transcriptListenMode, groupsReadMode, savedTranscriptMemoryMode, savedTranscriptGroupsMode, individualMemoryToggleStates, savedTranscriptSummaries, individualRawTranscriptToggleStates, rawTranscriptFiles, initialContext]);
 
   const {
     messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
