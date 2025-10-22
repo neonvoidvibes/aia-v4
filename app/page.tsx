@@ -2299,10 +2299,21 @@ const [savedTranscriptGroupsMode, setSavedTranscriptGroupsMode] = useState<"none
     if (!shouldLoad || !pageAgentName || !pageEventId || isAuthorized !== true || fetchedDataFlags.savedSummaries) return;
     const prefix = `organizations/river/agents/${pageAgentName}/events/${pageEventId}/transcripts/summarized/`;
     fetchS3Data(prefix, (data) => {
-      // Filter and sort by lastModified date in descending order (newest first)
+      // Allow any text-friendly extensions for summaries
+      const allowedExtensions = ['.json', '.txt', '.md', '.text'];
       const filteredAndSorted = data
-        .filter(f => f.name.endsWith('.json'))
-        .map(f => ({...f, type: 'application/json'}))
+        .filter(f => {
+          const name = (f.name || '').toLowerCase();
+          if (!name || name.endsWith('/')) {
+            return false;
+          }
+          return allowedExtensions.some(ext => name.endsWith(ext));
+        })
+        .map(f => {
+          const lower = (f.name || '').toLowerCase();
+          const type = lower.endsWith('.json') ? 'application/json' : 'text/plain';
+          return { ...f, type };
+        })
         .sort((a, b) => {
           const dateA = new Date(a.lastModified || 0).getTime();
           const dateB = new Date(b.lastModified || 0).getTime();

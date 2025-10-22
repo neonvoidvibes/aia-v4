@@ -988,8 +988,8 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
           )}
           
           {cardState !== 'empty' && (
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 {cardState === 'completed' ? (
                   <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
                 ) : cardState === 'processing' ? (
@@ -999,17 +999,17 @@ Transcript Uploaded (UTC): ${uploadTimestampUtc}
                 ) : (
                   <FileText className="w-6 h-6 text-primary flex-shrink-0" />
                 )}
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-base font-medium text-foreground truncate" title={displayFileInfoForCurrent?.fileName || 'Transcription'}>
                     {displayFileInfoForCurrent?.fileName || 'Completed transcription'}
                   </p>
                   <p className="text-sm text-muted-foreground">{displayFileInfoForCurrent ? formatFileSize(displayFileInfoForCurrent.fileSize) : 'Ready for new upload'}</p>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                onClick={clearCurrentProcessingStateUI} 
-                className="h-10 px-3 text-muted-foreground hover:text-primary flex items-center gap-2"
+              <Button
+                variant="ghost"
+                onClick={clearCurrentProcessingStateUI}
+                className="h-10 px-3 text-muted-foreground hover:text-primary flex items-center gap-2 flex-shrink-0"
                 title="Start new transcription"
               >
                 <RefreshCw className="h-4 w-4" />
