@@ -14,6 +14,7 @@ export interface ColorTheme {
   className: string; // CSS class name, e.g., "theme-neon-sunset"
   isDark?: boolean; // Optional hint if the theme is generally dark or light based
   welcomeMessage?: WelcomeMessageConfig; // Optional: Theme-specific welcome message
+  backgroundSrc?: string; // Optional: Theme-specific canvas background image/video
   // `colors` object is not strictly needed here if all variables are defined in CSS
   // but can be useful for JS-driven style access or generation if ever needed.
   // For now, we primarily rely on the CSS classes.
@@ -48,6 +49,7 @@ export const predefinedThemes: ColorTheme[] = [
     name: "River",
     className: "theme-river",
     isDark: true,
+    backgroundSrc: "/canvas/backgrounds/neon_river_threads.png",
   },
   {
     name: "Fabric",

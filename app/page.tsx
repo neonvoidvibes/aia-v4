@@ -144,7 +144,28 @@ function HomeContent() {
   const mainLayoutRef = useRef<HTMLDivElement>(null);
   const isInitialLoadRef = useRef(true);
   const searchParams = useSearchParams();
-  const { theme, setTheme } = useTheme(); 
+  const { theme, setTheme } = useTheme();
+
+  // Get current theme background or use default
+  // Note: theme can be undefined during SSR/hydration, so we need to handle that
+  const currentTheme = theme ? predefinedThemes.find(t => t.className === theme) : null;
+  const canvasBackgroundSrc = currentTheme?.backgroundSrc || CANVAS_BACKGROUND_SRC;
+
+  // Debug logging
+  useEffect(() => {
+    console.log('=== [Canvas BG Debug] ===');
+    console.log('theme:', theme);
+    console.log('currentTheme:', currentTheme);
+    console.log('backgroundSrc from theme:', currentTheme?.backgroundSrc);
+    console.log('canvasBackgroundSrc:', canvasBackgroundSrc);
+    console.log('default:', CANVAS_BACKGROUND_SRC);
+    console.log('All themes:', predefinedThemes.map(t => ({
+      name: t.name,
+      className: t.className,
+      backgroundSrc: t.backgroundSrc
+    })));
+    console.log('=========================');
+  }, [theme, currentTheme, canvasBackgroundSrc]);
 
   const themeGroupSeparators = new Set([
     'theme-midnight-monochrome', // Dark themes
@@ -180,8 +201,8 @@ function HomeContent() {
   // Preload canvas background image
   useEffect(() => {
     const img = new Image();
-    img.src = CANVAS_BACKGROUND_SRC;
-  }, []);
+    img.src = canvasBackgroundSrc;
+  }, [canvasBackgroundSrc]);
 
   // State managed by the page
   const [showSettings, setShowSettings] = useState(false);
@@ -2794,22 +2815,29 @@ const [savedTranscriptGroupsMode, setSavedTranscriptGroupsMode] = useState<"none
     >
       {/* Canvas background layer - blur only on mobile */}
       {currentView === 'canvas' && (
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          {isVideo(CANVAS_BACKGROUND_SRC) ? (
+        <div key={canvasBackgroundSrc} className="absolute inset-0 -z-10 overflow-hidden">
+          {(() => {
+            console.log('[Canvas BG Render] Rendering with src:', canvasBackgroundSrc);
+            console.log('[Canvas BG Render] isVideo:', isVideo(canvasBackgroundSrc));
+            return null;
+          })()}
+          {isVideo(canvasBackgroundSrc) ? (
             <video
+              key={canvasBackgroundSrc}
               autoPlay
               loop
               muted
               playsInline
               className="h-full w-full object-cover blur-[12px] md:blur-none"
             >
-              <source src={CANVAS_BACKGROUND_SRC} type="video/mp4" />
+              <source src={canvasBackgroundSrc} type="video/mp4" />
             </video>
           ) : (
             <div
+              key={canvasBackgroundSrc}
               className="h-full w-full blur-[12px] md:blur-none"
               style={{
-                backgroundImage: `url(${CANVAS_BACKGROUND_SRC})`,
+                backgroundImage: `url(${canvasBackgroundSrc})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat'
