@@ -376,6 +376,8 @@ export default function ChatInterface() {
             <input
               type="text"
               autoComplete="off"
+              readOnly
+              onFocus={(e) => e.target.removeAttribute('readonly')}
               value={input}
               onChange={(e) => handleInputChange(e)}
               placeholder="Ask anything"

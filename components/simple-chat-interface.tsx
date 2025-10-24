@@ -743,9 +743,10 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         // Optional tuning of cross-event signal strength via URL (?signalBias=low|medium|high)
         signalBias: (typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('signalBias') || 'medium') : 'medium'),
         transcriptListenMode: transcriptListenMode,
-        transcriptGroupsMode: groupsReadMode, // For raw transcripts
+        // Enforce sandboxing: only allow cross-group reading when in shared event '0000'
+        transcriptGroupsMode: eventId === '0000' ? groupsReadMode : 'none', // For raw transcripts
         savedTranscriptMemoryMode: savedTranscriptMemoryMode,
-        savedTranscriptGroupsMode: savedTranscriptGroupsMode, // For memorized summaries
+        savedTranscriptGroupsMode: eventId === '0000' ? savedTranscriptGroupsMode : 'none', // For memorized summaries
         individualMemoryToggleStates: individualMemoryToggleStates,
         savedTranscriptSummaries: savedTranscriptSummaries,
         individualRawTranscriptToggleStates: individualRawTranscriptToggleStates,

@@ -391,6 +391,10 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                 <p className="text-sm text-muted-foreground">Unique name, lowercase letters, numbers, and hyphens only. Cannot be changed.</p>
                 <Input
                   id="agent-name"
+                  type="text"
+                  autoComplete="off"
+                  readOnly
+                  onFocus={(e) => e.currentTarget.removeAttribute('readonly')}
                   value={agentName}
                   onChange={(e) => setAgentName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                   placeholder="e.g., customer-support-bot"
@@ -554,6 +558,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                           <Input
                             id={`new-user-email-${user.id}`}
                             type="email"
+                            autoComplete="email"
                             placeholder="new.user@example.com"
                             value={user.email}
                             onChange={(e) => handleUpdateNewUser(user.id, 'email', e.target.value)}
@@ -566,6 +571,7 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
                             <Input
                               id={`new-user-password-${user.id}`}
                               type={passwordVisibility[user.id] ? "text" : "password"}
+                              autoComplete="new-password"
                               value={user.password}
                               onChange={(e) => handleUpdateNewUser(user.id, 'password', e.target.value)}
                             />
@@ -597,19 +603,19 @@ const CreateAgentWizard = forwardRef<CreateAgentWizardHandle, CreateAgentWizardP
             <div className="space-y-6 pt-8">
                <div className="space-y-2">
                   <Label htmlFor="openai-key" className="text-lg font-semibold leading-snug">OpenAI API Key</Label>
-                  <Input id="openai-key" name="openai-key" type="text" value={apiKeys.openai} onChange={(e) => setApiKeys(p => ({...p, openai: e.target.value}))} />
+                  <Input id="openai-key" name="openai-key" type="text" autoComplete="off" readOnly onFocus={(e) => e.currentTarget.removeAttribute('readonly')} value={apiKeys.openai} onChange={(e) => setApiKeys(p => ({...p, openai: e.target.value}))} />
                </div>
                <div className="space-y-2">
                   <Label htmlFor="anthropic-key" className="text-lg font-semibold leading-snug">Anthropic API Key</Label>
-                  <Input id="anthropic-key" name="anthropic-key" type="text" value={apiKeys.anthropic} onChange={(e) => setApiKeys(p => ({...p, anthropic: e.target.value}))} />
+                  <Input id="anthropic-key" name="anthropic-key" type="text" autoComplete="off" readOnly onFocus={(e) => e.currentTarget.removeAttribute('readonly')} value={apiKeys.anthropic} onChange={(e) => setApiKeys(p => ({...p, anthropic: e.target.value}))} />
                </div>
                <div className="space-y-2">
                   <Label htmlFor="google-key" className="text-lg font-semibold leading-snug">Google API Key</Label>
-                  <Input id="google-key" name="google-key" type="text" value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} />
+                  <Input id="google-key" name="google-key" type="text" autoComplete="off" readOnly onFocus={(e) => e.currentTarget.removeAttribute('readonly')} value={apiKeys.google} onChange={(e) => setApiKeys(p => ({...p, google: e.target.value}))} />
                </div>
                <div className="space-y-2">
                   <Label htmlFor="groq-key" className="text-lg font-semibold leading-snug">Groq API Key</Label>
-                  <Input id="groq-key" name="groq-key" type="text" value={apiKeys.groq} onChange={(e) => setApiKeys(p => ({...p, groq: e.target.value}))} />
+                  <Input id="groq-key" name="groq-key" type="text" autoComplete="off" readOnly onFocus={(e) => e.currentTarget.removeAttribute('readonly')} value={apiKeys.groq} onChange={(e) => setApiKeys(p => ({...p, groq: e.target.value}))} />
                </div>
             </div>
           )}

@@ -63,6 +63,7 @@ export default function ForgotPasswordPage() {
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   placeholder="m@example.com"
                   required
                   value={email}
