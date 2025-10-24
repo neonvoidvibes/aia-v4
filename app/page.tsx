@@ -3015,6 +3015,8 @@ const [savedTranscriptGroupsMode, setSavedTranscriptGroupsMode] = useState<"none
                     try { if (isRecordingPersistenceEnabled()) { await recordingManager.stop(); } } catch {}
                     try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'agent-switch' }); bc.close(); } catch {}
                   }}
+                  activeUiConfig={activeUiConfig}
+                  isAdminOverride={permissionsData?.isAdminOverride}
                 />
                 {/* Event dropdown (uses S3 events when available) */}
                 {shouldShowEventDropdown ? (
@@ -3129,6 +3131,8 @@ const [savedTranscriptGroupsMode, setSavedTranscriptGroupsMode] = useState<"none
                       try { if (isRecordingPersistenceEnabled()) { await recordingManager.stop(); } } catch {}
                       try { const bc = new BroadcastChannel('recording'); bc.postMessage({ kind: 'stop:request', reason: 'agent-switch' }); bc.close(); } catch {}
                     }}
+                    activeUiConfig={activeUiConfig}
+                    isAdminOverride={permissionsData?.isAdminOverride}
                   />
                 ) : (
                   <div className="text-sm font-medium header-workspace-title truncate max-w-[160px]">

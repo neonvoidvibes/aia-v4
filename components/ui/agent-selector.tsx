@@ -34,9 +34,11 @@ interface AgentSelectorMenuProps {
   onDashboardClick?: () => void;
   isRecordingActive?: boolean; // also block when non-persistent recording is active
   onRequestStopRecording?: () => Promise<void> | void; // parent can handle stop across modes
+  activeUiConfig?: any; // Workspace UI configuration
+  isAdminOverride?: boolean; // Whether user is admin overriding workspace config
 }
 
-const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, allAgents, currentAgent, userRole, onDashboardClick, isRecordingActive = false, onRequestStopRecording }) => {
+const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, allAgents, currentAgent, userRole, onDashboardClick, isRecordingActive = false, onRequestStopRecording, activeUiConfig = {}, isAdminOverride = false }) => {
   const { t } = useLocalization();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -128,49 +130,54 @@ const AgentSelectorMenu: React.FC<AgentSelectorMenuProps> = ({ allowedAgents, al
         align="center"
         className="max-h-64 overflow-y-auto"
       >
-        <DropdownMenuSub
-          open={isMobile ? isThemeOpen : undefined}
-          onOpenChange={(open) => {
-            if (isMobile) setIsThemeOpen(open);
-          }}
-        >
-          <DropdownMenuSubTrigger
-            onClick={(e) => {
-              if (!isMobile) return;
-              e.preventDefault();
-              setIsThemeOpen((v) => !v);
-            }}
-          >
-            <Palette className="mr-2 h-4 w-4" />
-            <span>Change Theme</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <DropdownMenuRadioGroup value={theme} onValueChange={onThemeSelect}>
-                <DropdownMenuRadioItem value="light" onSelect={(e) => e.preventDefault()}>Light</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark" onSelect={(e) => e.preventDefault()}>Dark</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system" onSelect={(e) => e.preventDefault()}>System</DropdownMenuRadioItem>
-                <DropdownMenuSeparator />
-                {predefinedThemes.map((customTheme) => {
-                  const themeGroupSeparators = new Set([
-                    'theme-midnight-monochrome',
-                    'theme-river',
-                    'theme-forest-deep',
-                  ]);
-                  return (
-                    <React.Fragment key={customTheme.className}>
-                      {themeGroupSeparators.has(customTheme.className) && <DropdownMenuSeparator />}
-                      <DropdownMenuRadioItem value={customTheme.className} onSelect={(e) => e.preventDefault()}>
-                        {customTheme.name}
-                      </DropdownMenuRadioItem>
-                    </React.Fragment>
-                  );
-                })}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
+        {/* Change Theme - Hidden if workspace config specifies */}
+        {(!activeUiConfig.hide_agent_menu_items?.includes('change_theme') || isAdminOverride) && (
+          <>
+            <DropdownMenuSub
+              open={isMobile ? isThemeOpen : undefined}
+              onOpenChange={(open) => {
+                if (isMobile) setIsThemeOpen(open);
+              }}
+            >
+              <DropdownMenuSubTrigger
+                onClick={(e) => {
+                  if (!isMobile) return;
+                  e.preventDefault();
+                  setIsThemeOpen((v) => !v);
+                }}
+              >
+                <Palette className="mr-2 h-4 w-4" />
+                <span>Change Theme</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  <DropdownMenuRadioGroup value={theme} onValueChange={onThemeSelect}>
+                    <DropdownMenuRadioItem value="light" onSelect={(e) => e.preventDefault()}>Light</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="dark" onSelect={(e) => e.preventDefault()}>Dark</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="system" onSelect={(e) => e.preventDefault()}>System</DropdownMenuRadioItem>
+                    <DropdownMenuSeparator />
+                    {predefinedThemes.map((customTheme) => {
+                      const themeGroupSeparators = new Set([
+                        'theme-midnight-monochrome',
+                        'theme-river',
+                        'theme-forest-deep',
+                      ]);
+                      return (
+                        <React.Fragment key={customTheme.className}>
+                          {themeGroupSeparators.has(customTheme.className) && <DropdownMenuSeparator />}
+                          <DropdownMenuRadioItem value={customTheme.className} onSelect={(e) => e.preventDefault()}>
+                            {customTheme.name}
+                          </DropdownMenuRadioItem>
+                        </React.Fragment>
+                      );
+                    })}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+          </>
+        )}
         {(userRole === 'admin' || userRole === 'super user') && (
             <>
               <DropdownMenuItem onSelect={onDashboardClick} className="cursor-pointer font-semibold bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] focus:bg-[hsl(var(--accent))] focus:text-[hsl(var(--accent-foreground))]">
