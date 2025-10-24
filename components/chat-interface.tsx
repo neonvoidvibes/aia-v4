@@ -374,6 +374,8 @@ export default function ChatInterface() {
             </div>
 
             <input
+              type="text"
+              autoComplete="off"
               value={input}
               onChange={(e) => handleInputChange(e)}
               placeholder="Ask anything"
