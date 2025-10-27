@@ -43,13 +43,27 @@ export async function GET(req: NextRequest) {
       .single();
 
     if (error) {
-      log.error("Error fetching agent memory prefs", { error: error.message });
-      return NextResponse.json({ error: "Failed to fetch agent preferences" }, { status: 500 });
+      log.error("Error fetching agent memory prefs, returning defaults", {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        agentName
+      });
+      // Return defaults instead of error to prevent blocking chat
+      return NextResponse.json({
+        groups_read_mode: 'none',
+        transcript_listen_mode: 'latest'
+      });
     }
 
     if (!data) {
-      log.warn("Agent not found", { agent: agentName });
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+      log.warn("Agent not found, returning defaults", { agent: agentName });
+      // Return defaults instead of 404 to prevent blocking chat
+      return NextResponse.json({
+        groups_read_mode: 'none',
+        transcript_listen_mode: 'latest'
+      });
     }
 
     log.info("Agent memory prefs fetched", {

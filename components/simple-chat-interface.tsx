@@ -757,10 +757,43 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
   const {
     messages, input, handleInputChange, handleSubmit: originalHandleSubmit,
     isLoading, stop, setMessages, append, reload,
-  } = useChat({ 
+  } = useChat({
       api: "/api/proxy-chat",
-      body: chatApiBody, 
+      body: chatApiBody,
       sendExtraMessageFields: true,
+      fetch: async (input, init) => {
+        // Custom fetch with extended timeout and better error handling
+        const timeoutMs = 60000; // 60 second timeout (increased from default ~10s)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        console.log('[ChatUI] Starting fetch request to:', input);
+        const startTime = Date.now();
+
+        try {
+          const response = await fetch(input, {
+            ...init,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          const elapsed = Date.now() - startTime;
+          console.log(`[ChatUI] Fetch response received in ${elapsed}ms, status:`, response.status);
+
+          return response;
+        } catch (error: any) {
+          clearTimeout(timeoutId);
+          const elapsed = Date.now() - startTime;
+
+          if (error.name === 'AbortError') {
+            console.error(`[ChatUI] Request aborted after ${elapsed}ms (timeout: ${timeoutMs}ms)`);
+            throw new Error(`Request timed out after ${timeoutMs / 1000} seconds. The assistant may be warming up - please try again.`);
+          }
+
+          console.error(`[ChatUI] Fetch error after ${elapsed}ms:`, error);
+          throw error;
+        }
+      },
       onFinish: async (message) => {
         // Auto-save chat after each assistant response
         if (agentName) {
@@ -797,7 +830,11 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         }
 
         let displayMessage = "I'm having trouble connecting right now. Please try again in a moment.";
-        if (rawErrorMessage.includes("Unauthorized")) {
+        if (rawErrorMessage.includes("warming up")) {
+          displayMessage = "The assistant is warming up. Please try sending your message again.";
+        } else if (rawErrorMessage.includes("timed out") || rawErrorMessage.includes("timeout")) {
+          displayMessage = "The request took too long to respond. The assistant may be warming up - please try again.";
+        } else if (rawErrorMessage.includes("Unauthorized")) {
           displayMessage = "Your session may have expired. Please refresh the page.";
         } else if (rawErrorMessage.includes("Assistant is temporarily unavailable")) {
           displayMessage = "The assistant is currently overloaded. Please wait a minute before trying again.";
