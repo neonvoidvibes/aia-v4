@@ -764,8 +764,13 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
       fetch: async (input, init) => {
         // Custom fetch with extended timeout and better error handling
         const timeoutMs = 60000; // 60 second timeout (increased from default ~10s)
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+
+        // Combine both abort signals: user stop button + timeout
+        const combinedSignal = init?.signal
+          ? AbortSignal.any([init.signal, timeoutController.signal])
+          : timeoutController.signal;
 
         console.log('[ChatUI] Starting fetch request to:', input);
         const startTime = Date.now();
@@ -773,7 +778,7 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         try {
           const response = await fetch(input, {
             ...init,
-            signal: controller.signal,
+            signal: combinedSignal,
           });
           clearTimeout(timeoutId);
 
@@ -786,8 +791,14 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
           const elapsed = Date.now() - startTime;
 
           if (error.name === 'AbortError') {
-            console.error(`[ChatUI] Request aborted after ${elapsed}ms (timeout: ${timeoutMs}ms)`);
-            throw new Error(`Request timed out after ${timeoutMs / 1000} seconds. The assistant may be warming up - please try again.`);
+            // Check if it was a timeout abort or user-initiated stop
+            if (timeoutController.signal.aborted) {
+              console.error(`[ChatUI] Request timed out after ${elapsed}ms (timeout: ${timeoutMs}ms)`);
+              throw new Error(`Request timed out after ${timeoutMs / 1000} seconds. The assistant may be warming up - please try again.`);
+            }
+            // User clicked stop button - just rethrow to let useChat handle it
+            console.log(`[ChatUI] Request aborted by user after ${elapsed}ms`);
+            throw error;
           }
 
           console.error(`[ChatUI] Fetch error after ${elapsed}ms:`, error);
