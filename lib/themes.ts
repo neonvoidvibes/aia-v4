@@ -116,6 +116,7 @@ export const predefinedThemes: ColorTheme[] = [
     name: "Forest Deep",
     className: "theme-forest-deep",
     isDark: true,
+    backgroundSrc: "/canvas/backgrounds/forest_deep.png",
     welcomeMessage: {
       text: "Rötterna lyssnar.",
     },
