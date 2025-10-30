@@ -1297,7 +1297,8 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
     const pressToTalkStreamRef = useRef<MediaStream | null>(null);
     const transcriptionRequestIdRef = useRef<string | null>(null);
 
-    const _transcribeAndSend = async (audioBlob: Blob) => {
+    const _transcribeAndSend = async (audioBlob: Blob, retryCount = 0) => {
+      const MAX_RETRIES = 2;
       // Generate unique request ID to prevent duplicate processing
       const requestId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
       transcriptionRequestIdRef.current = requestId;
@@ -1322,7 +1323,18 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Transcription failed');
+          const errorMsg = errorData.error || 'Transcription failed';
+
+          // Retry on transient errors (5xx, network issues)
+          if (retryCount < MAX_RETRIES && (response.status >= 500 || response.status === 429)) {
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+            console.log(`[STT] Retrying transcription in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+            toast.info(`Transcription failed, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return _transcribeAndSend(audioBlob, retryCount + 1);
+          }
+
+          throw new Error(errorMsg);
         }
 
         const result = await response.json();
@@ -1402,8 +1414,50 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
         mediaRecorder.onstop = () => {
           setPressToTalkState('transcribing');
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+          // CRITICAL: Validate blob before attempting transcription
+          if (audioBlob.size === 0) {
+            console.error("Empty audio blob detected - no data recorded");
+            toast.error("Recording failed: No audio data captured. Please try again.");
+            setPressToTalkState('idle');
+            setGlobalRecordingStatus({ isRecording: false, type: null });
+
+            // Clean up stream
+            if (pressToTalkStreamRef.current) {
+              pressToTalkStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => {
+                if (track.readyState !== 'ended') {
+                  track.stop();
+                }
+              });
+              pressToTalkStreamRef.current = null;
+            }
+            pressToTalkMediaRecorderRef.current = null;
+            return;
+          }
+
+          // Minimum size check (WebM header is ~200 bytes minimum)
+          if (audioBlob.size < 300) {
+            console.warn(`Audio blob suspiciously small: ${audioBlob.size} bytes`);
+            toast.error("Recording too short or corrupted. Please try again.");
+            setPressToTalkState('idle');
+            setGlobalRecordingStatus({ isRecording: false, type: null });
+
+            // Clean up stream
+            if (pressToTalkStreamRef.current) {
+              pressToTalkStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => {
+                if (track.readyState !== 'ended') {
+                  track.stop();
+                }
+              });
+              pressToTalkStreamRef.current = null;
+            }
+            pressToTalkMediaRecorderRef.current = null;
+            return;
+          }
+
+          console.log(`[STT] Audio blob validated: ${audioBlob.size} bytes`);
           _transcribeAndSend(audioBlob);
-          
+
           // Clean up stream and recorder instance (check if stream still exists)
           if (pressToTalkStreamRef.current) {
             pressToTalkStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => {
@@ -1416,7 +1470,10 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
           pressToTalkMediaRecorderRef.current = null;
         };
 
-        mediaRecorder.start();
+        // CRITICAL FIX: Use timeslice to ensure data is collected periodically
+        // This prevents empty blobs on long recordings (>1 min) on mobile/certain browsers
+        // Without timeslice, browser buffers all audio in memory until stop() - can fail for long recordings
+        mediaRecorder.start(100); // Collect data every 100ms
         pressToTalkTimerRef.current = setInterval(() => {
           setPressToTalkTime(prev => prev + 1);
         }, 1000);
