@@ -14,7 +14,7 @@ async function proxyRequest(request: Request, endpoint: string) {
     return new NextResponse(JSON.stringify({ error: 'Backend not available' }), { status: 503 });
   }
 
-  const apiResponse = await fetch(`${backendUrl}/api/audio-recording/${endpoint}`, {
+  const apiResponse = await fetch(`${backendUrl}/api/recording/${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
