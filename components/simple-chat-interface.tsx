@@ -3860,10 +3860,11 @@ function SimpleChatInterface({ onAttachmentsUpdate, isFullscreen = false, select
                       <img
                         src={(isMobile && currentWelcomeMessageConfig.imageUrlMobile) ? currentWelcomeMessageConfig.imageUrlMobile : currentWelcomeMessageConfig.imageUrl}
                         alt={currentWelcomeMessageConfig.imageAlt || 'Welcome Image'}
-                        className="h-auto max-w-xs md:max-w-sm opacity-80"
+                        className="h-auto max-w-xs md:max-w-sm"
+                        style={{ opacity: currentWelcomeMessageConfig.opacity ?? 0.8 }}
                       />
                     ) : (
-                      <p className="text-center opacity-80" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2' }}>
+                      <p className="text-center" style={{ fontSize: currentWelcomeMessageConfig.fontSize, fontWeight: currentWelcomeMessageConfig.fontWeight, lineHeight: '1.2', opacity: currentWelcomeMessageConfig.opacity ?? 0.8 }}>
                         {currentWelcomeMessageConfig.text}
                       </p>
                     )}

@@ -7,6 +7,7 @@ export interface WelcomeMessageConfig {
   imageAlt?: string;
   fontSize?: string; // e.g., "1.5rem", "24px"
   fontWeight?: string | number; // e.g., "bold", "normal", 700, 400
+  opacity?: number; // e.g., 0.8, 1.0 (default: 0.8)
 }
 
 export interface ColorTheme {
@@ -101,29 +102,34 @@ export const predefinedThemes: ColorTheme[] = [
       imageAlt: "Moderbyn Logotyp",
     },
   },
-  {
-    name: "Inner Development",
-    className: "theme-inner-development",
-    isDark: true,
-    welcomeMessage: {
-      imageUrl: "/IDG_Logo.png",
-      imageUrlMobile: "/IDG_Logo_Simple.png",
-      imageAlt: "IDG Logo",
-    },
-  },
   // Image themes
   {
     name: "Forest Deep",
     className: "theme-forest-deep",
     isDark: true,
-    backgroundSrc: "/canvas/backgrounds/forest_deep.png",
+    backgroundSrc: "/canvas/backgrounds/forest-floor-4700814.jpeg",
     welcomeMessage: {
       text: "Rötterna lyssnar.",
+      fontSize: "4rem",
+      fontWeight: "600",
+      opacity: 1.0,
     },
   },
   {
     name: "Ridge Glass",
     className: "theme-ridge-glass",
     isDark: true,
+    backgroundSrc: "/canvas/backgrounds/ridged_glass.png",
+  },
+  {
+    name: "Inner Development",
+    className: "theme-inner-development",
+    isDark: true,
+    backgroundSrc: "/canvas/backgrounds/idg_earth.png",
+    welcomeMessage: {
+      imageUrl: "/IDG_Logo.png",
+      imageUrlMobile: "/IDG_Logo_Simple.png",
+      imageAlt: "IDG Logo",
+    },
   },
 ];
