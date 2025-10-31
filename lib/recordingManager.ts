@@ -101,6 +101,10 @@ class RecordingManagerImpl implements RecordingManager {
   private transcriptHealthAlertShown = false;
   private transcriptHealthToastId: any = null;
 
+  // Audio buffering during reconnection
+  private mediaRecorderChunkQueue: Blob[] = [];
+  private maxQueuedChunks = 100; // ~15 seconds at 1 chunk per 150ms
+
   constructor() {
     // Make a stable tab id per session
     const existing = typeof window !== 'undefined' ? window.sessionStorage.getItem('tabId') : null;
@@ -605,6 +609,8 @@ class RecordingManagerImpl implements RecordingManager {
       if (usingPCM) {
         this.flushPCMFrameQueue();
       } else if (this.mediaRecorder) {
+        // Flush any queued MediaRecorder chunks first
+        this.flushMediaRecorderQueue();
         this.mediaRecorder.start(this.audioCapabilities?.recommendedTimeslice || 3000);
       }
 
@@ -749,8 +755,21 @@ class RecordingManagerImpl implements RecordingManager {
     });
 
     this.mediaRecorder.ondataavailable = (ev) => {
-      if (ev.data?.size > 0 && this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(ev.data);
+      if (ev.data?.size > 0) {
+        // If WebSocket is open, send immediately
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(ev.data);
+        } else {
+          // Buffer during disconnection (with limit to prevent memory issues)
+          if (this.mediaRecorderChunkQueue.length < this.maxQueuedChunks) {
+            this.mediaRecorderChunkQueue.push(ev.data);
+            console.log(`[RecordingManager] Buffered audio chunk during disconnect (queue size: ${this.mediaRecorderChunkQueue.length})`);
+          } else {
+            console.warn('[RecordingManager] Audio chunk queue full, dropping oldest chunk');
+            this.mediaRecorderChunkQueue.shift(); // Drop oldest
+            this.mediaRecorderChunkQueue.push(ev.data);
+          }
+        }
       }
     };
 
@@ -847,6 +866,31 @@ class RecordingManagerImpl implements RecordingManager {
     }
   }
 
+  private flushMediaRecorderQueue() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const queueSize = this.mediaRecorderChunkQueue.length;
+    if (queueSize === 0) return;
+
+    console.log(`[RecordingManager] Flushing ${queueSize} buffered audio chunks after reconnection`);
+
+    while (this.mediaRecorderChunkQueue.length) {
+      const chunk = this.mediaRecorderChunkQueue.shift();
+      if (chunk && chunk.size > 0) {
+        try {
+          this.ws.send(chunk);
+        } catch (error) {
+          console.error('[RecordingManager] Failed to send buffered chunk:', error);
+          // If send fails, put it back and stop flushing
+          this.mediaRecorderChunkQueue.unshift(chunk);
+          break;
+        }
+      }
+    }
+  }
+
   private sendPCMFrame(frame: PCMFrameEnvelope) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       this.pcmFrameQueue.unshift(frame);
@@ -934,6 +978,9 @@ class RecordingManagerImpl implements RecordingManager {
 
     // Clean up transcript health monitoring
     this.stopTranscriptHealthMonitor();
+
+    // Clear audio buffering queue
+    this.mediaRecorderChunkQueue = [];
 
     // Clean up transcription pause toast
     if (this.transcriptionPauseToast) {

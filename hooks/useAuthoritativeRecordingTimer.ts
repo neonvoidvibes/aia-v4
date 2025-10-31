@@ -13,7 +13,8 @@ export function useAuthoritativeRecordingTimer(
   ws: WebSocket | null,
   sessionId: string,
   maxSilenceMs = 90_000,
-  stickyId = 'rec-paused'
+  stickyId = 'rec-paused',
+  connectionStatus?: 'connected' | 'disconnected' | 'reconnecting'
 ) {
   const server = useRef({ isRecording: false, audioMs: 0, lastPingAt: Date.now(), wsConnected: false });
   const hasEverConnected = useRef(false);
@@ -99,12 +100,18 @@ export function useAuthoritativeRecordingTimer(
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [sessionId]);
 
-  // UI timer tick, strictly derived from server truth
+  // UI timer tick, strictly derived from server truth AND connectionStatus
   useEffect(() => {
     let id: number | null = null;
     const tick = () => {
       const { isRecording, wsConnected, audioMs, lastPingAt } = server.current;
-      if (isRecording && wsConnected) {
+
+      // If connectionStatus indicates disconnected/reconnecting, don't tick
+      const actuallyConnected = connectionStatus
+        ? connectionStatus === 'connected'
+        : wsConnected;
+
+      if (isRecording && actuallyConnected) {
         const base = audioMs;
         const elapsed = Math.max(0, Date.now() - lastPingAt);
         setDisplayMs(base + elapsed);
@@ -120,7 +127,7 @@ export function useAuthoritativeRecordingTimer(
     };
     tick();
     return () => { if (id) window.clearTimeout(id); };
-  }, [authoritativeRecording, maxSilenceMs]);
+  }, [authoritativeRecording, maxSilenceMs, connectionStatus]);
 
   return { displayMs, authoritativeRecording };
 }
