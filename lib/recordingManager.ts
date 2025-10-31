@@ -26,6 +26,8 @@ export interface RecordingState {
   error?: { code: string; message: string } | null;
   paused?: boolean;
   transcriptionPaused?: boolean;
+  connectionStatus?: 'connected' | 'disconnected' | 'reconnecting';
+  reconnectAttempt?: number;
 }
 
 export interface TranscriptChunk {
@@ -90,6 +92,14 @@ class RecordingManagerImpl implements RecordingManager {
   private pcmHandshakeSent = false;
   private isMobile: boolean = false;
   private pageVisibilityHandler: (() => void) | null = null;
+  private reconnectTimer: any = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectNotificationId: any = null;
+  private lastTranscriptAt: number | null = null;
+  private transcriptHealthTimer: any = null;
+  private transcriptHealthAlertShown = false;
+  private transcriptHealthToastId: any = null;
 
   constructor() {
     // Make a stable tab id per session
@@ -390,6 +400,20 @@ class RecordingManagerImpl implements RecordingManager {
   }
 
   private emitTranscript(c: TranscriptChunk) {
+    // Track transcript health
+    if (c.text.trim()) {
+      this.lastTranscriptAt = Date.now();
+
+      // Dismiss health warning if transcripts are flowing again
+      if (this.transcriptHealthAlertShown && this.transcriptHealthToastId) {
+        try {
+          this.transcriptHealthToastId.dismiss();
+        } catch {}
+        this.transcriptHealthToastId = null;
+        this.transcriptHealthAlertShown = false;
+      }
+    }
+
     for (const fn of this.transcriptSubs) fn(c);
   }
 
@@ -584,7 +608,20 @@ class RecordingManagerImpl implements RecordingManager {
         this.mediaRecorder.start(this.audioCapabilities?.recommendedTimeslice || 3000);
       }
 
-      this.update({ ...this.state, phase: 'active', paused: false });
+      // Clear reconnection state on successful connection
+      this.clearReconnectTimer();
+
+      // Start transcript health monitoring
+      this.startTranscriptHealthMonitor();
+
+      this.update({
+        ...this.state,
+        phase: 'active',
+        paused: false,
+        connectionStatus: 'connected',
+        reconnectAttempt: 0,
+        error: null
+      });
     };
     ws.onmessage = (e) => {
       try {
@@ -616,13 +653,46 @@ class RecordingManagerImpl implements RecordingManager {
         }
       } catch { /* ignore non-JSON */ }
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       this.stopHeartbeat();
       this.stopWsKeepalive();
-      // If we are still marked owner, go suspended to allow reconnect/reattach
+
       const active = this.readActive();
+      const wasActive = this.state.phase === 'active';
+
+      // If we are still marked owner, handle reconnection
       if (active && active.ownerTabId === this.tabId) {
-        this.update({ ...this.state, phase: 'suspended', paused: false });
+        // Update state to show disconnection
+        this.update({
+          ...this.state,
+          phase: 'suspended',
+          paused: false,
+          connectionStatus: 'disconnected',
+          reconnectAttempt: this.reconnectAttempts
+        });
+
+        // Only show notification and attempt reconnect if we were actively recording
+        if (wasActive && event.code !== 1000) {
+          // Import toast dynamically to avoid circular dependency
+          import('@/hooks/use-toast').then(({ toast }) => {
+            // Dismiss any existing reconnect notification
+            if (this.reconnectNotificationId) {
+              try { this.reconnectNotificationId.dismiss(); } catch {}
+            }
+
+            this.reconnectNotificationId = toast({
+              title: "Recording connection lost",
+              description: "Attempting to reconnect...",
+              variant: "destructive",
+              duration: Infinity,
+            });
+          }).catch(() => {
+            console.warn('[RecordingManager] Failed to show disconnect toast');
+          });
+
+          // Attempt automatic reconnection
+          this.attemptReconnect(active.sessionId);
+        }
       }
     };
     ws.onerror = () => {
@@ -859,6 +929,12 @@ class RecordingManagerImpl implements RecordingManager {
     // Defensive release if any path forgets to call stop()
     void releaseWakeLock();
 
+    // Clean up reconnection timers and notifications
+    this.clearReconnectTimer();
+
+    // Clean up transcript health monitoring
+    this.stopTranscriptHealthMonitor();
+
     // Clean up transcription pause toast
     if (this.transcriptionPauseToast) {
       try {
@@ -867,7 +943,14 @@ class RecordingManagerImpl implements RecordingManager {
       this.transcriptionPauseToast = null;
     }
 
-    this.update({ phase: toPhase, error: null, paused: false, transcriptionPaused: false });
+    this.update({
+      phase: toPhase,
+      error: null,
+      paused: false,
+      transcriptionPaused: false,
+      connectionStatus: toPhase === 'idle' ? undefined : 'disconnected',
+      reconnectAttempt: 0
+    });
   }
 
   private startHeartbeat() {
@@ -894,12 +977,28 @@ class RecordingManagerImpl implements RecordingManager {
     this.lastServerHeartbeat = Date.now();
     this.wsMisses = 0;
     this.wsHbTimer = setInterval(() => {
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      // Check if WebSocket is closed/closing - trigger error state
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        if (this.state.phase === 'active' && this.wsMisses === 0) {
+          console.error('[RecordingManager] WebSocket disconnected during active recording');
+          this.wsMisses = maxMisses; // Mark as failed
+          // Don't stop interval - let suspended state handle reconnection
+        }
+        return;
+      }
+
       const now = Date.now();
       if (now - this.lastServerHeartbeat > maxSilence) {
         this.wsMisses = Math.min(maxMisses, this.wsMisses + 1);
         if (this.wsMisses === 1) {
           console.warn('[RecordingManager] No server heartbeat for >90s; monitoring WebSocket health.');
+        }
+        if (this.wsMisses >= maxMisses) {
+          console.error('[RecordingManager] Max heartbeat misses exceeded, connection unhealthy');
+          // Trigger reconnection by closing and letting onclose handle it
+          try {
+            this.ws?.close(1000, 'Heartbeat timeout');
+          } catch {}
         }
       } else {
         this.wsMisses = 0;
@@ -910,6 +1009,191 @@ class RecordingManagerImpl implements RecordingManager {
     if (this.wsHbTimer) { clearInterval(this.wsHbTimer); this.wsHbTimer = null; }
     this.wsMisses = 0;
     this.lastServerHeartbeat = Date.now();
+  }
+
+  private attemptReconnect(sessionId: string) {
+    // Clear any existing reconnect timer
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // Check if we've exceeded max attempts
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('[RecordingManager] Max reconnection attempts reached');
+
+      import('@/hooks/use-toast').then(({ toast }) => {
+        if (this.reconnectNotificationId) {
+          try { this.reconnectNotificationId.dismiss(); } catch {}
+        }
+
+        toast({
+          title: "Unable to reconnect",
+          description: "Please stop and restart your recording.",
+          variant: "destructive",
+          action: {
+            label: 'Stop Recording',
+            onClick: () => this.stop()
+          }
+        });
+      }).catch(() => {});
+
+      this.update({
+        ...this.state,
+        phase: 'error',
+        error: { code: 'reconnect_failed', message: 'Max reconnection attempts exceeded' },
+        connectionStatus: 'disconnected'
+      });
+
+      return;
+    }
+
+    this.reconnectAttempts++;
+
+    // Calculate exponential backoff with jitter (using wsPolicy helper)
+    import('./wsPolicy').then(({ nextReconnectDelay }) => {
+      const delay = nextReconnectDelay(
+        this.reconnectAttempts > 1 ? 1000 * Math.pow(2, this.reconnectAttempts - 2) : null,
+        { isRecording: true }
+      );
+
+      console.log(`[RecordingManager] Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
+
+      this.update({
+        ...this.state,
+        connectionStatus: 'reconnecting',
+        reconnectAttempt: this.reconnectAttempts
+      });
+
+      this.reconnectTimer = setTimeout(async () => {
+        try {
+          console.log(`[RecordingManager] Attempting to rebind WebSocket for session ${sessionId}`);
+          await this.bindMediaAndWs(sessionId);
+
+          // Success! Reset attempts and update notification
+          this.reconnectAttempts = 0;
+          this.update({
+            ...this.state,
+            phase: 'active',
+            connectionStatus: 'connected',
+            reconnectAttempt: 0,
+            error: null
+          });
+
+          import('@/hooks/use-toast').then(({ toast }) => {
+            if (this.reconnectNotificationId) {
+              try { this.reconnectNotificationId.dismiss(); } catch {}
+              this.reconnectNotificationId = null;
+            }
+
+            toast({
+              title: "Reconnected successfully",
+              description: "Recording resumed.",
+              variant: "default",
+            });
+          }).catch(() => {});
+
+          console.log('[RecordingManager] Reconnection successful');
+        } catch (error) {
+          console.error('[RecordingManager] Reconnection attempt failed:', error);
+
+          // Try again
+          this.attemptReconnect(sessionId);
+        }
+      }, delay);
+    }).catch(() => {
+      // Fallback if wsPolicy import fails
+      const delay = Math.min(5000, 1000 * Math.pow(2, this.reconnectAttempts - 1));
+      this.reconnectTimer = setTimeout(() => {
+        this.bindMediaAndWs(sessionId).then(() => {
+          this.reconnectAttempts = 0;
+          this.update({ ...this.state, phase: 'active', connectionStatus: 'connected' });
+        }).catch(() => {
+          this.attemptReconnect(sessionId);
+        });
+      }, delay);
+    });
+  }
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempts = 0;
+
+    if (this.reconnectNotificationId) {
+      try { this.reconnectNotificationId.dismiss(); } catch {}
+      this.reconnectNotificationId = null;
+    }
+  }
+
+  private startTranscriptHealthMonitor() {
+    this.stopTranscriptHealthMonitor();
+
+    const STALE_THRESHOLD_MS = 120_000; // 2 minutes
+    const CHECK_INTERVAL_MS = 30_000;   // Check every 30 seconds
+
+    this.transcriptHealthTimer = setInterval(() => {
+      if (this.state.phase !== 'active' || !this.state.startedAt) {
+        return;
+      }
+
+      const now = Date.now();
+      const recordingDuration = now - this.state.startedAt;
+      const timeSinceLastTranscript = this.lastTranscriptAt
+        ? now - this.lastTranscriptAt
+        : recordingDuration;
+
+      // Only check if recording has been running long enough
+      if (recordingDuration < STALE_THRESHOLD_MS) {
+        return;
+      }
+
+      // Check if transcripts are stale
+      if (timeSinceLastTranscript > STALE_THRESHOLD_MS && !this.transcriptHealthAlertShown) {
+        console.error(
+          `[RecordingManager] STALE TRANSCRIPT DETECTED: ` +
+          `Recording duration: ${Math.round(recordingDuration / 1000)}s, ` +
+          `Time since last transcript: ${Math.round(timeSinceLastTranscript / 1000)}s`
+        );
+
+        this.transcriptHealthAlertShown = true;
+
+        // Show persistent warning
+        import('@/hooks/use-toast').then(({ toast }) => {
+          toast({
+            title: "⚠️ Recording may not be capturing audio",
+            description: `No transcript updates for ${Math.round(timeSinceLastTranscript / 60000)} minutes. Your audio may not be recording properly.`,
+            variant: "destructive",
+            duration: Infinity,
+            action: {
+              label: 'Stop Recording',
+              onClick: () => this.stop()
+            }
+          }).then((result) => {
+            this.transcriptHealthToastId = result;
+          }).catch(() => {});
+        }).catch(() => {});
+      }
+    }, CHECK_INTERVAL_MS);
+  }
+
+  private stopTranscriptHealthMonitor() {
+    if (this.transcriptHealthTimer) {
+      clearInterval(this.transcriptHealthTimer);
+      this.transcriptHealthTimer = null;
+    }
+
+    this.lastTranscriptAt = null;
+    this.transcriptHealthAlertShown = false;
+
+    if (this.transcriptHealthToastId) {
+      try {
+        this.transcriptHealthToastId.dismiss();
+      } catch {}
+      this.transcriptHealthToastId = null;
+    }
   }
 }
 
