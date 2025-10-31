@@ -147,8 +147,9 @@ const RecordView: React.FC<RecordViewProps> = ({
       webSocketRef.current,
       sessionIdRef.current || currentSessionId || '',
       90_000,
-      'rec-paused',
-      recordingState?.connectionStatus
+      'rec-paused'
+      // Note: RecordView uses legacy WebSocket management, not RecordingManager
+      // connectionStatus not available in this component
     );
 
   useEffect(() => {
